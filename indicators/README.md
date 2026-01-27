@@ -108,7 +108,48 @@ You can modify the script to:
 - Add sell signal logic for a complete strategy
 - Extend Fibonacci levels beyond 100% (161.8%, 200%, etc.)
 
+## Troubleshooting
+
+### No Visualization Appearing?
+
+If you don't see Fibonacci levels or buy signals after adding the indicator:
+
+1. **Check Signal Conditions**: The indicator requires ALL three conditions simultaneously:
+   - 3 consecutive bearish candles (close < open)
+   - RSI below 30 (oversold)
+   - MACD bullish crossover with negative histogram
+
+   These conditions may be rare on some timeframes/assets. Try:
+   - Looking at longer historical data (scroll back further)
+   - Testing on volatile assets (BTC, ETH) with 4H or 1D timeframes
+   - Adjusting RSI threshold (increase to 35-40 for more signals)
+
+2. **Verify Settings**:
+   - Ensure "Show Fibonacci Levels" is enabled in indicator settings
+   - Ensure "Show Buy Signals" is enabled
+   - Check that "Show Level Labels" is enabled to see the level markers
+
+3. **Chart Requirements**:
+   - Need at least 100+ bars of history (default Fibonacci lookback period)
+   - Indicator works best with sufficient price data
+
+4. **Script Compilation**:
+   - Make sure there are no compilation errors in Pine Editor
+   - Code should be Pine Script v5 compatible
+
+### Common Issues
+
+- **Lines not extending**: Lines now use `extend=extend.right` to automatically extend to chart edge
+- **Labels not showing**: Labels appear at signal bar with left alignment
+- **Old signals disappearing**: By design, only the most recent signal's Fibonacci levels are shown
+
 ## Version History
+
+- **v1.1**: Bug fixes for visualization (2025-01-27)
+  - Fixed line rendering using `extend=extend.right` instead of future bar indices
+  - Added validation to prevent drawing with NA coordinates
+  - Improved label positioning for consistency
+  - Enhanced reliability in real-time mode
 
 - **v1.0**: Initial release with core functionality
   - Three bearish candles detection

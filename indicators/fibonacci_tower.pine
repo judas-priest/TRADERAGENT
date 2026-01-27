@@ -109,7 +109,7 @@ var label fibLabel618 = na
 var label fibLabel786 = na
 var label fibLabel100 = na
 
-if buySignal and showFibLevels
+if buySignal and showFibLevels and not na(swingHigh) and not na(swingLow)
     // Delete old lines and labels
     line.delete(fibLine0)
     line.delete(fibLine236)
@@ -127,24 +127,24 @@ if buySignal and showFibLevels
     label.delete(fibLabel786)
     label.delete(fibLabel100)
 
-    // Draw new Fibonacci lines
-    fibLine0 := line.new(bar_index, fib0, bar_index + 50, fib0, color=color.new(color.red, 0), width=1, style=line.style_solid)
-    fibLine236 := line.new(bar_index, fib236, bar_index + 50, fib236, color=color.new(color.orange, 0), width=1, style=line.style_dashed)
-    fibLine382 := line.new(bar_index, fib382, bar_index + 50, fib382, color=color.new(color.yellow, 0), width=1, style=line.style_dashed)
-    fibLine50 := line.new(bar_index, fib50, bar_index + 50, fib50, color=color.new(color.blue, 0), width=2, style=line.style_solid)
-    fibLine618 := line.new(bar_index, fib618, bar_index + 50, fib618, color=color.new(color.green, 0), width=2, style=line.style_dashed)
-    fibLine786 := line.new(bar_index, fib786, bar_index + 50, fib786, color=color.new(color.purple, 0), width=1, style=line.style_dashed)
-    fibLine100 := line.new(bar_index, fib100, bar_index + 50, fib100, color=color.new(color.red, 0), width=1, style=line.style_solid)
+    // Draw new Fibonacci lines with extend parameter
+    fibLine0 := line.new(bar_index, fib0, bar_index + 1, fib0, color=color.new(color.red, 0), width=1, style=line.style_solid, extend=extend.right)
+    fibLine236 := line.new(bar_index, fib236, bar_index + 1, fib236, color=color.new(color.orange, 0), width=1, style=line.style_dashed, extend=extend.right)
+    fibLine382 := line.new(bar_index, fib382, bar_index + 1, fib382, color=color.new(color.yellow, 0), width=1, style=line.style_dashed, extend=extend.right)
+    fibLine50 := line.new(bar_index, fib50, bar_index + 1, fib50, color=color.new(color.blue, 0), width=2, style=line.style_solid, extend=extend.right)
+    fibLine618 := line.new(bar_index, fib618, bar_index + 1, fib618, color=color.new(color.green, 0), width=2, style=line.style_dashed, extend=extend.right)
+    fibLine786 := line.new(bar_index, fib786, bar_index + 1, fib786, color=color.new(color.purple, 0), width=1, style=line.style_dashed, extend=extend.right)
+    fibLine100 := line.new(bar_index, fib100, bar_index + 1, fib100, color=color.new(color.red, 0), width=1, style=line.style_solid, extend=extend.right)
 
     // Add labels if enabled
     if showLabels
-        fibLabel0 := label.new(bar_index + 50, fib0, "0.0% (Tower Base)", style=label.style_label_left, color=color.new(color.red, 80), textcolor=color.red)
-        fibLabel236 := label.new(bar_index + 50, fib236, "23.6%", style=label.style_label_left, color=color.new(color.orange, 80), textcolor=color.orange)
-        fibLabel382 := label.new(bar_index + 50, fib382, "38.2%", style=label.style_label_left, color=color.new(color.yellow, 80), textcolor=color.yellow)
-        fibLabel50 := label.new(bar_index + 50, fib50, "50.0%", style=label.style_label_left, color=color.new(color.blue, 80), textcolor=color.blue)
-        fibLabel618 := label.new(bar_index + 50, fib618, "61.8% (Golden Ratio)", style=label.style_label_left, color=color.new(color.green, 80), textcolor=color.green)
-        fibLabel786 := label.new(bar_index + 50, fib786, "78.6%", style=label.style_label_left, color=color.new(color.purple, 80), textcolor=color.purple)
-        fibLabel100 := label.new(bar_index + 50, fib100, "100.0% (Tower Top)", style=label.style_label_left, color=color.new(color.red, 80), textcolor=color.red)
+        fibLabel0 := label.new(bar_index, fib0, "0.0% (Tower Base)", style=label.style_label_left, color=color.new(color.red, 80), textcolor=color.red, textalign=text.align_left)
+        fibLabel236 := label.new(bar_index, fib236, "23.6%", style=label.style_label_left, color=color.new(color.orange, 80), textcolor=color.orange, textalign=text.align_left)
+        fibLabel382 := label.new(bar_index, fib382, "38.2%", style=label.style_label_left, color=color.new(color.yellow, 80), textcolor=color.yellow, textalign=text.align_left)
+        fibLabel50 := label.new(bar_index, fib50, "50.0%", style=label.style_label_left, color=color.new(color.blue, 80), textcolor=color.blue, textalign=text.align_left)
+        fibLabel618 := label.new(bar_index, fib618, "61.8% (Golden Ratio)", style=label.style_label_left, color=color.new(color.green, 80), textcolor=color.green, textalign=text.align_left)
+        fibLabel786 := label.new(bar_index, fib786, "78.6%", style=label.style_label_left, color=color.new(color.purple, 80), textcolor=color.purple, textalign=text.align_left)
+        fibLabel100 := label.new(bar_index, fib100, "100.0% (Tower Top)", style=label.style_label_left, color=color.new(color.red, 80), textcolor=color.red, textalign=text.align_left)
 
 // ============================================================================
 // ALERTS
