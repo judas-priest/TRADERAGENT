@@ -296,10 +296,7 @@ if showRsiPanel
     float rsiSmoothScaled = priceLow + (rsiSmooth / 100.0) * (priceRange * 0.2)
 
     // Enhanced color scheme for better readability
-    color rsiColor = isOversold ? color.new(color.lime, 0) :
-                     isOverbought ? color.new(color.red, 0) :
-                     rsi > 50 ? color.new(color.aqua, 0) :
-                     color.new(color.orange, 0)
+    color rsiColor = isOversold ? color.new(color.lime, 0) : isOverbought ? color.new(color.red, 0) : rsi > 50 ? color.new(color.aqua, 0) : color.new(color.orange, 0)
 
     plot(rsiScaled, "RSI (Scaled)", color=rsiColor, linewidth=2, display=display.none)
     plot(rsiSmoothScaled, "RSI Smooth (Scaled)", color=color.new(color.yellow, 0), linewidth=1, display=display.none)
@@ -351,9 +348,7 @@ var table tradingTable = table.new(position.top_right, 2, 11,
 
 if barstate.islast and showTradingInfo
     // Header
-    color headerBgColor = activeSignalType == "LONG" ? color.new(color.green, 70) :
-                    activeSignalType == "SHORT" ? color.new(color.red, 70) :
-                    color.new(color.gray, 70)
+    color headerBgColor = activeSignalType == "LONG" ? color.new(color.green, 70) : activeSignalType == "SHORT" ? color.new(color.red, 70) : color.new(color.gray, 70)
 
     table.cell(tradingTable, 0, 0, "📊 Trading Levels",
                bgcolor=headerBgColor,
@@ -378,11 +373,7 @@ if barstate.islast and showTradingInfo
                text_size=size.small)
 
     // Entry #2 (0.500)
-    float entry2Price = activeSignalType == "LONG" and not na(activeEntryPrice) and not na(activeStopLoss) ?
-                  activeStopLoss + (activeEntryPrice - activeStopLoss) * (0.5 / (1.0 - 0.820)) :
-                  activeSignalType == "SHORT" and not na(activeEntryPrice) and not na(activeStopLoss) ?
-                  activeStopLoss - (activeStopLoss - activeEntryPrice) * 0.5 / 0.820 :
-                  na
+    float entry2Price = activeSignalType == "LONG" and not na(activeEntryPrice) and not na(activeStopLoss) ? activeStopLoss + (activeEntryPrice - activeStopLoss) * (0.5 / (1.0 - 0.820)) : activeSignalType == "SHORT" and not na(activeEntryPrice) and not na(activeStopLoss) ? activeStopLoss - (activeStopLoss - activeEntryPrice) * 0.5 / 0.820 : na
     table.cell(tradingTable, 0, 2, "Entry #2",
                bgcolor=color.new(color.gray, 85),
                text_color=color.white,
@@ -394,11 +385,7 @@ if barstate.islast and showTradingInfo
                text_size=size.small)
 
     // Entry #3 (0.618)
-    float entry3Price = activeSignalType == "LONG" and not na(activeEntryPrice) and not na(activeStopLoss) ?
-                  activeStopLoss + (activeEntryPrice - activeStopLoss) * (0.618 / (1.0 - 0.820)) :
-                  activeSignalType == "SHORT" and not na(activeEntryPrice) and not na(activeStopLoss) ?
-                  activeStopLoss - (activeStopLoss - activeEntryPrice) * 0.618 / 0.820 :
-                  na
+    float entry3Price = activeSignalType == "LONG" and not na(activeEntryPrice) and not na(activeStopLoss) ? activeStopLoss + (activeEntryPrice - activeStopLoss) * (0.618 / (1.0 - 0.820)) : activeSignalType == "SHORT" and not na(activeEntryPrice) and not na(activeStopLoss) ? activeStopLoss - (activeStopLoss - activeEntryPrice) * 0.618 / 0.820 : na
     table.cell(tradingTable, 0, 3, "Entry #3",
                bgcolor=color.new(color.gray, 85),
                text_color=color.white,
@@ -508,10 +495,7 @@ if barstate.islast and showRsiPanel
                text_size=size.normal)
 
     // RSI with enhanced colors
-    color rsiCellColor = isOversold ? color.new(color.lime, 75) :
-                   isOverbought ? color.new(color.red, 75) :
-                   rsi > 50 ? color.new(color.aqua, 85) :
-                   color.new(color.orange, 85)
+    color rsiCellColor = isOversold ? color.new(color.lime, 75) : isOverbought ? color.new(color.red, 75) : rsi > 50 ? color.new(color.aqua, 85) : color.new(color.orange, 85)
     table.cell(debugTable, 0, 1, "RSI Level",
                bgcolor=color.new(color.gray, 90),
                text_color=color.white,
@@ -533,9 +517,7 @@ if barstate.islast and showRsiPanel
                text_size=size.normal)
 
     // Volume Momentum with gradient
-    color volumeColor = strongMomentum and volumeMomentum > momentumThreshold * 1.5 ? color.new(color.lime, 75) :
-                  strongMomentum ? color.new(color.green, 80) :
-                  color.new(color.gray, 85)
+    color volumeColor = strongMomentum and volumeMomentum > momentumThreshold * 1.5 ? color.new(color.lime, 75) : strongMomentum ? color.new(color.green, 80) : color.new(color.gray, 85)
     table.cell(debugTable, 0, 3, "Volume Power",
                bgcolor=color.new(color.gray, 90),
                text_color=color.white,
@@ -547,16 +529,12 @@ if barstate.islast and showRsiPanel
                text_size=size.normal)
 
     // Candle pattern detection
-    string currentCandleType = close > open ? "🟢 Bullish" :
-                       close < open ? "🔴 Bearish" :
-                       "⚪ Doji"
+    string currentCandleType = close > open ? "🟢 Bullish" : close < open ? "🔴 Bearish" : "⚪ Doji"
     table.cell(debugTable, 0, 4, "Candle Type",
                bgcolor=color.new(color.gray, 90),
                text_color=color.white,
                text_size=size.small)
-    color candleColor = close > open ? color.new(color.green, 85) :
-                  close < open ? color.new(color.red, 85) :
-                  color.new(color.gray, 85)
+    color candleColor = close > open ? color.new(color.green, 85) : close < open ? color.new(color.red, 85) : color.new(color.gray, 85)
     table.cell(debugTable, 1, 4, currentCandleType,
                bgcolor=candleColor,
                text_color=color.white,
