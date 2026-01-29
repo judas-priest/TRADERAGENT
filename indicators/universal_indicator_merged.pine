@@ -1,0 +1,629 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TRADERAGENT
+
+//@version=6
+indicator("Universal Indicator - Complete", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+
+// RSI Settings
+rsiLength = input.int(14, "RSI Length", minval=1, group="RSI Settings")
+rsiSmoothLength = input.int(3, "RSI Smoothing Length", minval=1, group="RSI Settings")
+rsiOversold = input.int(30, "RSI Oversold Level", minval=1, maxval=50, group="RSI Settings")
+rsiOverbought = input.int(70, "RSI Overbought Level", minval=50, maxval=100, group="RSI Settings")
+
+// Volume-Momentum Settings
+volumeMaLength = input.int(20, "Volume MA Length", minval=1, group="Momentum Settings")
+momentumThreshold = input.float(1.2, "Momentum Threshold", minval=1.0, step=0.1, group="Momentum Settings")
+
+// Fibonacci Settings
+fibLookback = input.int(100, "Fibonacci Lookback Period", minval=10, group="Fibonacci Settings")
+showBullishFib = input.bool(true, "Show Bullish Fibonacci", group="Fibonacci Settings")
+showBearishFib = input.bool(true, "Show Bearish Fibonacci", group="Fibonacci Settings")
+showLabels = input.bool(true, "Show Level Labels", group="Fibonacci Settings")
+
+// Display Settings
+showBullishSignals = input.bool(true, "Show Bullish Signals", group="Display Settings")
+showBearishSignals = input.bool(true, "Show Bearish Signals", group="Display Settings")
+showRsiPanel = input.bool(true, "Show RSI Panel", group="Display Settings")
+showTradingInfo = input.bool(true, "Show Trading Information Table", group="Display Settings")
+
+// ============================================================================
+// INDICATOR CALCULATIONS
+// ============================================================================
+
+// RSI Calculation
+rsi = ta.rsi(close, rsiLength)
+rsiSmooth = ta.sma(rsi, rsiSmoothLength)
+
+// Volume Momentum (normalized volume relative to its moving average)
+volumeMa = ta.sma(volume, volumeMaLength)
+volumeMomentum = volume / volumeMa
+
+// State Detection
+isOversold = rsi < rsiOversold
+isOverbought = rsi > rsiOverbought
+isNeutral = not isOversold and not isOverbought
+
+// Momentum Confirmation
+strongMomentum = volumeMomentum > momentumThreshold
+
+// ============================================================================
+// SIGNAL DETECTION LOGIC
+// ============================================================================
+
+// Bullish Signal: Transition from oversold with momentum
+bullishTransition = ta.crossover(rsi, rsiOversold)
+rsiRising = rsiSmooth > rsiSmooth[1]
+bullishSignal = bullishTransition and strongMomentum and rsiRising
+
+// Bearish Signal: Transition from overbought with momentum
+bearishTransition = ta.crossunder(rsi, rsiOverbought)
+rsiFalling = rsiSmooth < rsiSmooth[1]
+bearishSignal = bearishTransition and strongMomentum and rsiFalling
+
+// Track signals for Fibonacci drawing
+var int lastBullishBar = na
+var int lastBearishBar = na
+var float lastBullishLow = na
+var float lastBullishHigh = na
+var float lastBearishLow = na
+var float lastBearishHigh = na
+
+if bullishSignal
+    lastBullishBar := bar_index
+    lastBullishLow := ta.lowest(low, fibLookback)
+    lastBullishHigh := ta.highest(high, fibLookback)
+
+if bearishSignal
+    lastBearishBar := bar_index
+    lastBearishLow := ta.lowest(low, fibLookback)
+    lastBearishHigh := ta.highest(high, fibLookback)
+
+// ============================================================================
+// FIBONACCI LEVELS MANAGEMENT
+// ============================================================================
+
+// Variables to store Fibonacci line and label arrays
+var array<line> bullishLines = array.new<line>()
+var array<label> bullishLabels = array.new<label>()
+var array<line> bearishLines = array.new<line>()
+var array<label> bearishLabels = array.new<label>()
+
+// Function to delete old lines and labels
+deleteOldFibonacci(array<line> lines, array<label> labels) =>
+    if array.size(lines) > 0
+        for i = array.size(lines) - 1 to 0
+            line.delete(array.get(lines, i))
+        array.clear(lines)
+    if array.size(labels) > 0
+        for i = array.size(labels) - 1 to 0
+            label.delete(array.get(labels, i))
+        array.clear(labels)
+
+// Function to draw Fibonacci levels with trading information
+drawFibonacci(float lowPrice, float highPrice, int signalBar, bool isBullish) =>
+    if not na(lowPrice) and not na(highPrice) and (highPrice - lowPrice) > 0
+        fibRange = highPrice - lowPrice
+
+        if isBullish
+            // Bullish levels: from low (1.0) going up to extensions above high (negative ratios)
+            levels = array.from(1.0, 0.820, 0.618, 0.5, 0.0, -0.618, -1.618, -2.618)
+            levelNames = array.from(
+                 "1.000 Low (Base)",
+                 "0.820 STOP-LOSS",
+                 "0.618 Entry #3 (1%)",
+                 "0.500 Entry #2 (1%)",
+                 "0.000 High (Entry #1, 1%)",
+                 "-0.618 TP1 (30%)",
+                 "-1.618 TP2 (30%)",
+                 "-2.618 TP3 (40%)"
+             )
+            levelColors = array.from(
+                 color.new(color.blue, 20),       // Base - blue
+                 color.new(color.red, 10),        // Stop Loss - red
+                 color.new(color.orange, 20),     // Entry #3 - orange
+                 color.new(color.yellow, 20),     // Entry #2 - yellow
+                 color.new(color.green, 10),      // Entry #1 (High) - green
+                 color.new(color.lime, 20),       // TP1 - lime
+                 color.new(color.aqua, 20),       // TP2 - aqua
+                 color.new(color.fuchsia, 20)     // TP3 - fuchsia
+             )
+            levelWidths = array.from(3, 3, 2, 2, 3, 2, 2, 3)
+
+            // Draw each level
+            for i = 0 to array.size(levels) - 1
+                levelRatio = array.get(levels, i)
+                levelPrice = lowPrice + fibRange * (1.0 - levelRatio)
+                levelName = array.get(levelNames, i)
+                lineColor = array.get(levelColors, i)
+                lineWidth = array.get(levelWidths, i)
+
+                // Create line extending to the right
+                newLine = line.new(
+                     x1=signalBar,
+                     y1=levelPrice,
+                     x2=signalBar + 50,
+                     y2=levelPrice,
+                     color=lineColor,
+                     width=lineWidth,
+                     extend=extend.right,
+                     style=levelRatio == 0.820 or levelRatio == 0.0 ? line.style_solid : line.style_dashed
+                 )
+
+                array.push(bullishLines, newLine)
+
+                // Create label if enabled
+                if showLabels
+                    labelText = levelName + " (" + str.tostring(levelPrice, format.mintick) + ")"
+                    newLabel = label.new(
+                         x=signalBar,
+                         y=levelPrice,
+                         text=labelText,
+                         style=label.style_label_left,
+                         color=lineColor,
+                         textcolor=color.white,
+                         size=size.small
+                     )
+                    array.push(bullishLabels, newLabel)
+        else
+            // Bearish levels: mirror of bullish for short positions
+            levels = array.from(0.0, 0.180, 0.382, 0.5, 1.0, 1.618, 2.618, 3.618)
+            levelNames = array.from(
+                 "0.000 High (Base)",
+                 "0.180 STOP-LOSS",
+                 "0.382 Entry #3 (1%)",
+                 "0.500 Entry #2 (1%)",
+                 "1.000 Low (Entry #1, 1%)",
+                 "1.618 TP1 (30%)",
+                 "2.618 TP2 (30%)",
+                 "3.618 TP3 (40%)"
+             )
+            levelColors = array.from(
+                 color.new(color.blue, 20),       // Base - blue
+                 color.new(color.red, 10),        // Stop Loss - red
+                 color.new(color.orange, 20),     // Entry #3 - orange
+                 color.new(color.yellow, 20),     // Entry #2 - yellow
+                 color.new(color.green, 10),      // Entry #1 (Low) - green
+                 color.new(color.lime, 20),       // TP1 - lime
+                 color.new(color.aqua, 20),       // TP2 - aqua
+                 color.new(color.fuchsia, 20)     // TP3 - fuchsia
+             )
+            levelWidths = array.from(3, 3, 2, 2, 3, 2, 2, 3)
+
+            // Draw each level
+            for i = 0 to array.size(levels) - 1
+                levelRatio = array.get(levels, i)
+                levelPrice = highPrice - fibRange * levelRatio
+                levelName = array.get(levelNames, i)
+                lineColor = array.get(levelColors, i)
+                lineWidth = array.get(levelWidths, i)
+
+                newLine = line.new(
+                     x1=signalBar,
+                     y1=levelPrice,
+                     x2=signalBar + 50,
+                     y2=levelPrice,
+                     color=lineColor,
+                     width=lineWidth,
+                     extend=extend.right,
+                     style=levelRatio == 0.180 or levelRatio == 1.0 ? line.style_solid : line.style_dashed
+                 )
+
+                array.push(bearishLines, newLine)
+
+                if showLabels
+                    labelText = levelName + " (" + str.tostring(levelPrice, format.mintick) + ")"
+                    newLabel = label.new(
+                         x=signalBar,
+                         y=levelPrice,
+                         text=labelText,
+                         style=label.style_label_left,
+                         color=lineColor,
+                         textcolor=color.white,
+                         size=size.small
+                     )
+                    array.push(bearishLabels, newLabel)
+
+// Handle bullish signals
+if bullishSignal and showBullishFib
+    // Delete old bullish Fibonacci levels
+    deleteOldFibonacci(bullishLines, bullishLabels)
+
+    // Find swing points
+    swingLow = ta.lowest(low, fibLookback)
+    swingHigh = ta.highest(high, fibLookback)
+
+    // Draw new Fibonacci levels
+    drawFibonacci(swingLow, swingHigh, bar_index, true)
+
+// Handle bearish signals
+if bearishSignal and showBearishFib
+    // Delete old bearish Fibonacci levels
+    deleteOldFibonacci(bearishLines, bearishLabels)
+
+    // Find swing points
+    swingLow = ta.lowest(low, fibLookback)
+    swingHigh = ta.highest(high, fibLookback)
+
+    // Draw new Fibonacci levels
+    drawFibonacci(swingLow, swingHigh, bar_index, false)
+
+// ============================================================================
+// CANDLE MARKERS
+// ============================================================================
+
+// Mark the signal candles
+plotshape(
+     showBullishSignals and bullishSignal,
+     title="Bullish Signal Candle",
+     location=location.belowbar,
+     color=color.new(color.green, 0),
+     style=shape.triangleup,
+     size=size.normal,
+     text="BUY"
+ )
+
+plotshape(
+     showBearishSignals and bearishSignal,
+     title="Bearish Signal Candle",
+     location=location.abovebar,
+     color=color.new(color.red, 0),
+     style=shape.triangledown,
+     size=size.normal,
+     text="SELL"
+ )
+
+// Highlight signal candles with background color
+barcolor(bullishSignal and showBullishSignals ? color.new(color.green, 70) : na, title="Bullish Candle")
+barcolor(bearishSignal and showBearishSignals ? color.new(color.red, 70) : na, title="Bearish Candle")
+
+// ============================================================================
+// RSI PANEL (Optional Display)
+// ============================================================================
+
+// Plot RSI values as a line on the price chart (scaled to price range)
+// This provides a visual representation without requiring a separate panel
+if showRsiPanel
+    // Calculate price range for scaling
+    priceRange = ta.highest(high, 50) - ta.lowest(low, 50)
+    priceLow = ta.lowest(low, 50)
+
+    // Scale RSI to fit in a small portion of the price chart (bottom 20%)
+    rsiScaled = priceLow + (rsi / 100.0) * (priceRange * 0.2)
+    rsiSmoothScaled = priceLow + (rsiSmooth / 100.0) * (priceRange * 0.2)
+
+    // Enhanced color scheme for better readability
+    rsiColor = isOversold ? color.new(color.lime, 0) :
+                isOverbought ? color.new(color.red, 0) :
+                rsi > 50 ? color.new(color.aqua, 0) :
+                color.new(color.orange, 0)
+
+    plot(rsiScaled, "RSI (Scaled)", color=rsiColor, linewidth=2, display=display.none)
+    plot(rsiSmoothScaled, "RSI Smooth (Scaled)", color=color.new(color.yellow, 0), linewidth=1, display=display.none)
+
+// ============================================================================
+// TRADING INFORMATION TABLE
+// ============================================================================
+
+// Track active signal information
+var string activeSignalType = "None"
+var float activeEntryPrice = na
+var float activeStopLoss = na
+var float activeTP1 = na
+var float activeTP2 = na
+var float activeTP3 = na
+var int activeSignalBar = na
+
+// Update tracking variables when new signal appears
+if bullishSignal
+    activeSignalType := "LONG"
+    float swingLow = ta.lowest(low, fibLookback)
+    float swingHigh = ta.highest(high, fibLookback)
+    float fibRange = swingHigh - swingLow
+    activeEntryPrice := swingHigh
+    activeStopLoss := swingLow + fibRange * (1.0 - 0.820)
+    activeTP1 := swingLow + fibRange * (1.0 - (-0.618))
+    activeTP2 := swingLow + fibRange * (1.0 - (-1.618))
+    activeTP3 := swingLow + fibRange * (1.0 - (-2.618))
+    activeSignalBar := bar_index
+
+if bearishSignal
+    activeSignalType := "SHORT"
+    float swingLow = ta.lowest(low, fibLookback)
+    float swingHigh = ta.highest(high, fibLookback)
+    float fibRange = swingHigh - swingLow
+    activeEntryPrice := swingLow
+    activeStopLoss := swingHigh - fibRange * 0.180
+    activeTP1 := swingHigh - fibRange * 1.618
+    activeTP2 := swingHigh - fibRange * 2.618
+    activeTP3 := swingHigh - fibRange * 3.618
+    activeSignalBar := bar_index
+
+// Create trading information table
+var table tradingTable = table.new(position.top_right, 2, 11,
+                                    border_width=2,
+                                    border_color=color.new(color.gray, 0),
+                                    frame_width=2,
+                                    frame_color=color.new(color.blue, 30))
+
+if barstate.islast and showTradingInfo
+    // Header
+    color headerBgColor = activeSignalType == "LONG" ? color.new(color.green, 70) :
+                    activeSignalType == "SHORT" ? color.new(color.red, 70) :
+                    color.new(color.gray, 70)
+
+    table.cell(tradingTable, 0, 0, "📊 Trading Levels",
+               bgcolor=headerBgColor,
+               text_color=color.white,
+               text_size=size.normal,
+               width=15)
+    table.cell(tradingTable, 1, 0, activeSignalType,
+               bgcolor=headerBgColor,
+               text_color=color.white,
+               text_size=size.large,
+               width=15)
+
+    // Entry Price
+    table.cell(tradingTable, 0, 1, "Entry #1",
+               bgcolor=color.new(color.gray, 85),
+               text_color=color.white,
+               text_size=size.small)
+    string entryText = not na(activeEntryPrice) ? str.tostring(activeEntryPrice, format.mintick) : "N/A"
+    table.cell(tradingTable, 1, 1, entryText,
+               bgcolor=color.new(color.green, 80),
+               text_color=color.white,
+               text_size=size.small)
+
+    // Entry #2 (0.500)
+    float entry2Price = activeSignalType == "LONG" and not na(activeEntryPrice) and not na(activeStopLoss) ?
+                  activeStopLoss + (activeEntryPrice - activeStopLoss) * (0.5 / (1.0 - 0.820)) :
+                  activeSignalType == "SHORT" and not na(activeEntryPrice) and not na(activeStopLoss) ?
+                  activeStopLoss - (activeStopLoss - activeEntryPrice) * 0.5 / 0.820 :
+                  na
+    table.cell(tradingTable, 0, 2, "Entry #2",
+               bgcolor=color.new(color.gray, 85),
+               text_color=color.white,
+               text_size=size.small)
+    string entry2Text = not na(entry2Price) ? str.tostring(entry2Price, format.mintick) + " (1%)" : "N/A"
+    table.cell(tradingTable, 1, 2, entry2Text,
+               bgcolor=color.new(color.yellow, 80),
+               text_color=color.black,
+               text_size=size.small)
+
+    // Entry #3 (0.618)
+    float entry3Price = activeSignalType == "LONG" and not na(activeEntryPrice) and not na(activeStopLoss) ?
+                  activeStopLoss + (activeEntryPrice - activeStopLoss) * (0.618 / (1.0 - 0.820)) :
+                  activeSignalType == "SHORT" and not na(activeEntryPrice) and not na(activeStopLoss) ?
+                  activeStopLoss - (activeStopLoss - activeEntryPrice) * 0.618 / 0.820 :
+                  na
+    table.cell(tradingTable, 0, 3, "Entry #3",
+               bgcolor=color.new(color.gray, 85),
+               text_color=color.white,
+               text_size=size.small)
+    string entry3Text = not na(entry3Price) ? str.tostring(entry3Price, format.mintick) + " (1%)" : "N/A"
+    table.cell(tradingTable, 1, 3, entry3Text,
+               bgcolor=color.new(color.orange, 80),
+               text_color=color.white,
+               text_size=size.small)
+
+    // Separator
+    table.cell(tradingTable, 0, 4, "━━━━━━━━━",
+               bgcolor=color.new(color.gray, 95),
+               text_color=color.gray,
+               text_size=size.tiny)
+    table.cell(tradingTable, 1, 4, "━━━━━━━━━",
+               bgcolor=color.new(color.gray, 95),
+               text_color=color.gray,
+               text_size=size.tiny)
+
+    // Stop Loss
+    table.cell(tradingTable, 0, 5, "🛑 Stop Loss",
+               bgcolor=color.new(color.gray, 85),
+               text_color=color.white,
+               text_size=size.small)
+    string slText = not na(activeStopLoss) ? str.tostring(activeStopLoss, format.mintick) : "N/A"
+    table.cell(tradingTable, 1, 5, slText,
+               bgcolor=color.new(color.red, 70),
+               text_color=color.white,
+               text_size=size.normal)
+
+    // Separator
+    table.cell(tradingTable, 0, 6, "━━━━━━━━━",
+               bgcolor=color.new(color.gray, 95),
+               text_color=color.gray,
+               text_size=size.tiny)
+    table.cell(tradingTable, 1, 6, "━━━━━━━━━",
+               bgcolor=color.new(color.gray, 95),
+               text_color=color.gray,
+               text_size=size.tiny)
+
+    // TP1
+    table.cell(tradingTable, 0, 7, "🎯 TP1",
+               bgcolor=color.new(color.gray, 85),
+               text_color=color.white,
+               text_size=size.small)
+    string tp1Text = not na(activeTP1) ? str.tostring(activeTP1, format.mintick) + " (30%)" : "N/A"
+    table.cell(tradingTable, 1, 7, tp1Text,
+               bgcolor=color.new(color.lime, 80),
+               text_color=color.black,
+               text_size=size.small)
+
+    // TP2
+    table.cell(tradingTable, 0, 8, "🎯 TP2",
+               bgcolor=color.new(color.gray, 85),
+               text_color=color.white,
+               text_size=size.small)
+    string tp2Text = not na(activeTP2) ? str.tostring(activeTP2, format.mintick) + " (30%)" : "N/A"
+    table.cell(tradingTable, 1, 8, tp2Text,
+               bgcolor=color.new(color.aqua, 80),
+               text_color=color.black,
+               text_size=size.small)
+
+    // TP3
+    table.cell(tradingTable, 0, 9, "🎯 TP3",
+               bgcolor=color.new(color.gray, 85),
+               text_color=color.white,
+               text_size=size.small)
+    string tp3Text = not na(activeTP3) ? str.tostring(activeTP3, format.mintick) + " (40%)" : "N/A"
+    table.cell(tradingTable, 1, 9, tp3Text,
+               bgcolor=color.new(color.fuchsia, 80),
+               text_color=color.white,
+               text_size=size.small)
+
+    // Signal age
+    int barsAgo = not na(activeSignalBar) ? bar_index - activeSignalBar : 0
+    table.cell(tradingTable, 0, 10, "Signal Age",
+               bgcolor=color.new(color.gray, 85),
+               text_color=color.white,
+               text_size=size.tiny)
+    string ageText = activeSignalType != "None" ? str.tostring(barsAgo) + " bars ago" : "Waiting..."
+    table.cell(tradingTable, 1, 10, ageText,
+               bgcolor=color.new(color.blue, 85),
+               text_color=color.white,
+               text_size=size.tiny)
+
+// ============================================================================
+// INDICATOR METRICS TABLE
+// ============================================================================
+
+// Create enhanced debug table with modern styling
+var table debugTable = table.new(position.bottom_right, 2, 10,
+                                 border_width=2,
+                                 border_color=color.new(color.blue, 50),
+                                 frame_width=2,
+                                 frame_color=color.new(color.blue, 30))
+
+if barstate.islast and showRsiPanel
+    // Header with gradient
+    table.cell(debugTable, 0, 0, "📊 Indicator Metrics",
+               bgcolor=color.new(color.blue, 60),
+               text_color=color.white,
+               text_size=size.normal)
+    table.cell(debugTable, 1, 0, "Current Status",
+               bgcolor=color.new(color.blue, 60),
+               text_color=color.white,
+               text_size=size.normal)
+
+    // RSI with enhanced colors
+    color rsiCellColor = isOversold ? color.new(color.lime, 75) :
+                   isOverbought ? color.new(color.red, 75) :
+                   rsi > 50 ? color.new(color.aqua, 85) :
+                   color.new(color.orange, 85)
+    table.cell(debugTable, 0, 1, "RSI Level",
+               bgcolor=color.new(color.gray, 90),
+               text_color=color.white,
+               text_size=size.small)
+    table.cell(debugTable, 1, 1, str.tostring(rsi, "#.##"),
+               bgcolor=rsiCellColor,
+               text_color=color.white,
+               text_size=size.large)
+
+    // RSI State with icons
+    string rsiState = isOversold ? "🟢 Oversold" : (isOverbought ? "🔴 Overbought" : "⚪ Neutral")
+    table.cell(debugTable, 0, 2, "Market State",
+               bgcolor=color.new(color.gray, 90),
+               text_color=color.white,
+               text_size=size.small)
+    table.cell(debugTable, 1, 2, rsiState,
+               bgcolor=rsiCellColor,
+               text_color=color.white,
+               text_size=size.normal)
+
+    // Volume Momentum with gradient
+    color volumeColor = strongMomentum and volumeMomentum > momentumThreshold * 1.5 ? color.new(color.lime, 75) :
+                  strongMomentum ? color.new(color.green, 80) :
+                  color.new(color.gray, 85)
+    table.cell(debugTable, 0, 3, "Volume Power",
+               bgcolor=color.new(color.gray, 90),
+               text_color=color.white,
+               text_size=size.small)
+    string volumeText = str.tostring(volumeMomentum, "#.##") + "x"
+    table.cell(debugTable, 1, 3, volumeText,
+               bgcolor=volumeColor,
+               text_color=color.white,
+               text_size=size.normal)
+
+    // Candle pattern detection
+    string currentCandleType = close > open ? "🟢 Bullish" :
+                       close < open ? "🔴 Bearish" :
+                       "⚪ Doji"
+    table.cell(debugTable, 0, 4, "Candle Type",
+               bgcolor=color.new(color.gray, 90),
+               text_color=color.white,
+               text_size=size.small)
+    color candleColor = close > open ? color.new(color.green, 85) :
+                  close < open ? color.new(color.red, 85) :
+                  color.new(color.gray, 85)
+    table.cell(debugTable, 1, 4, currentCandleType,
+               bgcolor=candleColor,
+               text_color=color.white,
+               text_size=size.small)
+
+    // Separator
+    table.cell(debugTable, 0, 5, "━━━━━━━━━━",
+               bgcolor=color.new(color.gray, 95),
+               text_color=color.gray,
+               text_size=size.tiny)
+    table.cell(debugTable, 1, 5, "━━━━━━━━━━",
+               bgcolor=color.new(color.gray, 95),
+               text_color=color.gray,
+               text_size=size.tiny)
+
+    // Last Bullish Signal
+    int bullishBarsAgo = not na(lastBullishBar) ? bar_index - lastBullishBar : -1
+    string bullishText = bullishBarsAgo >= 0 ? "🟢 " + str.tostring(bullishBarsAgo) + " bars" : "⏳ None"
+    table.cell(debugTable, 0, 6, "Last LONG",
+               bgcolor=color.new(color.gray, 90),
+               text_color=color.white,
+               text_size=size.small)
+    table.cell(debugTable, 1, 6, bullishText,
+               bgcolor=color.new(color.green, 85),
+               text_color=color.white,
+               text_size=size.small)
+
+    // Last Bearish Signal
+    int bearishBarsAgo = not na(lastBearishBar) ? bar_index - lastBearishBar : -1
+    string bearishText = bearishBarsAgo >= 0 ? "🔴 " + str.tostring(bearishBarsAgo) + " bars" : "⏳ None"
+    table.cell(debugTable, 0, 7, "Last SHORT",
+               bgcolor=color.new(color.gray, 90),
+               text_color=color.white,
+               text_size=size.small)
+    table.cell(debugTable, 1, 7, bearishText,
+               bgcolor=color.new(color.red, 85),
+               text_color=color.white,
+               text_size=size.small)
+
+    // Bullish Fib Range
+    float bullishFibRange = not na(lastBullishHigh) and not na(lastBullishLow) ? lastBullishHigh - lastBullishLow : 0.0
+    string bullishFibText = bullishFibRange > 0 ? str.tostring(bullishFibRange, "#.####") : "N/A"
+    table.cell(debugTable, 0, 8, "LONG Range",
+               bgcolor=color.new(color.gray, 90),
+               text_color=color.white,
+               text_size=size.tiny)
+    table.cell(debugTable, 1, 8, bullishFibText,
+               bgcolor=color.new(color.green, 90),
+               text_color=color.white,
+               text_size=size.tiny)
+
+    // Bearish Fib Range
+    float bearishFibRange = not na(lastBearishHigh) and not na(lastBearishLow) ? lastBearishHigh - lastBearishLow : 0.0
+    string bearishFibText = bearishFibRange > 0 ? str.tostring(bearishFibRange, "#.####") : "N/A"
+    table.cell(debugTable, 0, 9, "SHORT Range",
+               bgcolor=color.new(color.gray, 90),
+               text_color=color.white,
+               text_size=size.tiny)
+    table.cell(debugTable, 1, 9, bearishFibText,
+               bgcolor=color.new(color.red, 90),
+               text_color=color.white,
+               text_size=size.tiny)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+// Alert conditions
+alertcondition(bullishSignal, "Bullish Signal", "Universal Indicator: LONG signal detected! Check entry levels and stop loss.")
+alertcondition(bearishSignal, "Bearish Signal", "Universal Indicator: SHORT signal detected! Check entry levels and stop loss.")
