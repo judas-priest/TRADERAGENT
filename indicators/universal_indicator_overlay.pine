@@ -23,7 +23,6 @@ fibLookback = input.int(100, "Fibonacci Lookback Period", minval=10, group="Fibo
 showBullishFib = input.bool(true, "Show Bullish Fibonacci", group="Fibonacci Settings")
 showBearishFib = input.bool(true, "Show Bearish Fibonacci", group="Fibonacci Settings")
 showLabels = input.bool(true, "Show Level Labels", group="Fibonacci Settings")
-showTradingInfo = input.bool(true, "Show Trading Information Table", group="Fibonacci Settings")
 
 // Display Settings
 showBullishMarkers = input.bool(true, "Show Bullish Candle Markers", group="Display Settings")
@@ -83,144 +82,69 @@ deleteOldFibonacci(line[] lines, label[] labels) =>
             label.delete(array.get(labels, i))
         array.clear(labels)
 
-// Function to draw Fibonacci levels with trading information
+// Function to draw Fibonacci levels
 drawFibonacci(float lowPrice, float highPrice, int signalBar, bool isBullish, color levelColor) =>
     if not na(lowPrice) and not na(highPrice) and (highPrice - lowPrice) > 0
         fibRange = highPrice - lowPrice
 
-        // Define Fibonacci levels for BULLISH signals (from swing low to targets above)
-        // Using logarithmic scale with trading levels
-        // Level mapping:
-        // 1.000 = Low (base) → 0.000 in standard Fib
-        // 0.820 = Stop Loss
-        // 0.618 = Entry #3
-        // 0.500 = Entry #2
-        // 0.000 = High (Entry #1) → becomes extension levels for profit targets
-        // -0.618 = TP1
-        // -1.618 = TP2
-        // -2.618 = TP3
+        // Define Fibonacci levels
+        levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
+        levelNames = array.from("0%", "23.6%", "38.2%", "50%", "61.8%", "78.6%", "100%")
+        levelColors = array.from(
+             color.new(color.red, 30),
+             color.new(color.orange, 30),
+             color.new(color.yellow, 30),
+             color.new(color.blue, 20),
+             color.new(color.green, 20),
+             color.new(color.purple, 30),
+             color.new(color.red, 30)
+         )
+        levelWidths = array.from(2, 1, 1, 2, 2, 1, 2)
 
-        if isBullish
-            // Bullish levels: from low (1.0) going up to extensions above high (negative ratios)
-            levels = array.from(1.0, 0.820, 0.618, 0.5, 0.0, -0.618, -1.618, -2.618)
-            levelNames = array.from(
-                 "1.000 Low (Base)",
-                 "0.820 STOP-LOSS",
-                 "0.618 Entry #3 (1%)",
-                 "0.500 Entry #2 (1%)",
-                 "0.000 High (Entry #1, 1%)",
-                 "-0.618 TP1 (30%)",
-                 "-1.618 TP2 (30%)",
-                 "-2.618 TP3 (40%)"
+        // Draw each level
+        for i = 0 to array.size(levels) - 1
+            levelRatio = array.get(levels, i)
+            levelPrice = isBullish ? lowPrice + fibRange * levelRatio : highPrice - fibRange * levelRatio
+            levelName = array.get(levelNames, i)
+            lineColor = array.get(levelColors, i)
+            lineWidth = array.get(levelWidths, i)
+
+            // Create line extending to the right
+            newLine = line.new(
+                 x1=signalBar,
+                 y1=levelPrice,
+                 x2=signalBar + 50,
+                 y2=levelPrice,
+                 color=lineColor,
+                 width=lineWidth,
+                 extend=extend.right
              )
-            levelColors = array.from(
-                 color.new(color.blue, 20),       // Base - blue
-                 color.new(color.red, 10),        // Stop Loss - red
-                 color.new(color.orange, 20),     // Entry #3 - orange
-                 color.new(color.yellow, 20),     // Entry #2 - yellow
-                 color.new(color.green, 10),      // Entry #1 (High) - green
-                 color.new(color.lime, 20),       // TP1 - lime
-                 color.new(color.aqua, 20),       // TP2 - aqua
-                 color.new(color.fuchsia, 20)     // TP3 - fuchsia
-             )
-            levelWidths = array.from(3, 3, 2, 2, 3, 2, 2, 3)
 
-            // Draw each level
-            for i = 0 to array.size(levels) - 1
-                levelRatio = array.get(levels, i)
-                // For bullish: price = low + (high - low) * (1 - ratio)
-                // When ratio = 1.0: price = low (base)
-                // When ratio = 0.0: price = high (entry point)
-                // When ratio < 0: price > high (profit targets)
-                levelPrice = lowPrice + fibRange * (1.0 - levelRatio)
-                levelName = array.get(levelNames, i)
-                lineColor = array.get(levelColors, i)
-                lineWidth = array.get(levelWidths, i)
-
-                // Create line extending to the right
-                newLine = line.new(
-                     x1=signalBar,
-                     y1=levelPrice,
-                     x2=signalBar + 50,
-                     y2=levelPrice,
-                     color=lineColor,
-                     width=lineWidth,
-                     extend=extend.right,
-                     style=levelRatio == 0.820 or levelRatio == 0.0 ? line.style_solid : line.style_dashed
-                 )
-
+            // Add line to appropriate array
+            if isBullish
                 array.push(bullishLines, newLine)
-
-                // Create label if enabled
-                if showLabels
-                    labelText = levelName + " (" + str.tostring(levelPrice, format.mintick) + ")"
-                    newLabel = label.new(
-                         x=signalBar,
-                         y=levelPrice,
-                         text=labelText,
-                         style=label.style_label_left,
-                         color=lineColor,
-                         textcolor=color.white,
-                         size=size.small
-                     )
-                    array.push(bullishLabels, newLabel)
-        else
-            // Bearish levels: mirror of bullish for short positions
-            levels = array.from(0.0, 0.180, 0.382, 0.5, 1.0, 1.618, 2.618, 3.618)
-            levelNames = array.from(
-                 "0.000 High (Base)",
-                 "0.180 STOP-LOSS",
-                 "0.382 Entry #3 (1%)",
-                 "0.500 Entry #2 (1%)",
-                 "1.000 Low (Entry #1, 1%)",
-                 "1.618 TP1 (30%)",
-                 "2.618 TP2 (30%)",
-                 "3.618 TP3 (40%)"
-             )
-            levelColors = array.from(
-                 color.new(color.blue, 20),       // Base - blue
-                 color.new(color.red, 10),        // Stop Loss - red
-                 color.new(color.orange, 20),     // Entry #3 - orange
-                 color.new(color.yellow, 20),     // Entry #2 - yellow
-                 color.new(color.green, 10),      // Entry #1 (Low) - green
-                 color.new(color.lime, 20),       // TP1 - lime
-                 color.new(color.aqua, 20),       // TP2 - aqua
-                 color.new(color.fuchsia, 20)     // TP3 - fuchsia
-             )
-            levelWidths = array.from(3, 3, 2, 2, 3, 2, 2, 3)
-
-            // Draw each level
-            for i = 0 to array.size(levels) - 1
-                levelRatio = array.get(levels, i)
-                levelPrice = highPrice - fibRange * levelRatio
-                levelName = array.get(levelNames, i)
-                lineColor = array.get(levelColors, i)
-                lineWidth = array.get(levelWidths, i)
-
-                newLine = line.new(
-                     x1=signalBar,
-                     y1=levelPrice,
-                     x2=signalBar + 50,
-                     y2=levelPrice,
-                     color=lineColor,
-                     width=lineWidth,
-                     extend=extend.right,
-                     style=levelRatio == 0.180 or levelRatio == 1.0 ? line.style_solid : line.style_dashed
-                 )
-
+            else
                 array.push(bearishLines, newLine)
 
-                if showLabels
-                    labelText = levelName + " (" + str.tostring(levelPrice, format.mintick) + ")"
-                    newLabel = label.new(
-                         x=signalBar,
-                         y=levelPrice,
-                         text=labelText,
-                         style=label.style_label_left,
-                         color=lineColor,
-                         textcolor=color.white,
-                         size=size.small
-                     )
+            // Create label if enabled
+            if showLabels
+                labelText = levelName + " (" + str.tostring(levelPrice, format.mintick) + ")"
+                labelColor = isBullish ? color.new(color.green, 70) : color.new(color.red, 70)
+
+                newLabel = label.new(
+                     x=signalBar,
+                     y=levelPrice,
+                     text=labelText,
+                     style=label.style_label_left,
+                     color=labelColor,
+                     textcolor=color.white,
+                     size=size.small
+                 )
+
+                // Add label to appropriate array
+                if isBullish
+                    array.push(bullishLabels, newLabel)
+                else
                     array.push(bearishLabels, newLabel)
 
 // Handle bullish signals
@@ -277,189 +201,8 @@ barcolor(bullishSignal and showBullishMarkers ? color.new(color.green, 70) : na,
 barcolor(bearishSignal and showBearishMarkers ? color.new(color.red, 70) : na, title="Bearish Candle")
 
 // ============================================================================
-// TRADING INFORMATION TABLE
-// ============================================================================
-
-// Track active signal information
-var string activeSignalType = "None"
-var float activeEntryPrice = na
-var float activeStopLoss = na
-var float activeTP1 = na
-var float activeTP2 = na
-var float activeTP3 = na
-var int activeSignalBar = na
-
-// Update tracking variables when new signal appears
-if bullishSignal
-    activeSignalType := "LONG"
-    swingLow := ta.lowest(low, fibLookback)
-    swingHigh := ta.highest(high, fibLookback)
-    fibRange := swingHigh - swingLow
-    activeEntryPrice := swingHigh
-    activeStopLoss := swingLow + fibRange * (1.0 - 0.820)
-    activeTP1 := swingLow + fibRange * (1.0 - (-0.618))
-    activeTP2 := swingLow + fibRange * (1.0 - (-1.618))
-    activeTP3 := swingLow + fibRange * (1.0 - (-2.618))
-    activeSignalBar := bar_index
-
-if bearishSignal
-    activeSignalType := "SHORT"
-    swingLow := ta.lowest(low, fibLookback)
-    swingHigh := ta.highest(high, fibLookback)
-    fibRange := swingHigh - swingLow
-    activeEntryPrice := swingLow
-    activeStopLoss := swingHigh - fibRange * 0.180
-    activeTP1 := swingHigh - fibRange * 1.618
-    activeTP2 := swingHigh - fibRange * 2.618
-    activeTP3 := swingHigh - fibRange * 3.618
-    activeSignalBar := bar_index
-
-// Create trading information table
-var table tradingTable = table.new(position.top_right, 2, 11,
-                                    border_width=2,
-                                    border_color=color.new(color.gray, 0),
-                                    frame_width=2,
-                                    frame_color=color.new(color.blue, 30))
-
-if barstate.islast and showTradingInfo
-    // Header
-    headerBgColor = activeSignalType == "LONG" ? color.new(color.green, 70) :
-                    activeSignalType == "SHORT" ? color.new(color.red, 70) :
-                    color.new(color.gray, 70)
-
-    table.cell(tradingTable, 0, 0, "📊 Trading Levels",
-               bgcolor=headerBgColor,
-               text_color=color.white,
-               text_size=size.normal,
-               width=15)
-    table.cell(tradingTable, 1, 0, activeSignalType,
-               bgcolor=headerBgColor,
-               text_color=color.white,
-               text_size=size.large,
-               width=15)
-
-    // Entry Price
-    table.cell(tradingTable, 0, 1, "Entry #1",
-               bgcolor=color.new(color.gray, 85),
-               text_color=color.white,
-               text_size=size.small)
-    entryText = not na(activeEntryPrice) ? str.tostring(activeEntryPrice, format.mintick) : "N/A"
-    table.cell(tradingTable, 1, 1, entryText,
-               bgcolor=color.new(color.green, 80),
-               text_color=color.white,
-               text_size=size.small)
-
-    // Entry #2 (0.500)
-    entry2Price = activeSignalType == "LONG" and not na(activeEntryPrice) and not na(activeStopLoss) ?
-                  activeStopLoss + (activeEntryPrice - activeStopLoss) * (0.5 / (1.0 - 0.820)) :
-                  activeSignalType == "SHORT" and not na(activeEntryPrice) and not na(activeStopLoss) ?
-                  activeStopLoss - (activeStopLoss - activeEntryPrice) * 0.5 / 0.820 :
-                  na
-    table.cell(tradingTable, 0, 2, "Entry #2",
-               bgcolor=color.new(color.gray, 85),
-               text_color=color.white,
-               text_size=size.small)
-    entry2Text = not na(entry2Price) ? str.tostring(entry2Price, format.mintick) + " (1%)" : "N/A"
-    table.cell(tradingTable, 1, 2, entry2Text,
-               bgcolor=color.new(color.yellow, 80),
-               text_color=color.black,
-               text_size=size.small)
-
-    // Entry #3 (0.618)
-    entry3Price = activeSignalType == "LONG" and not na(activeEntryPrice) and not na(activeStopLoss) ?
-                  activeStopLoss + (activeEntryPrice - activeStopLoss) * (0.618 / (1.0 - 0.820)) :
-                  activeSignalType == "SHORT" and not na(activeEntryPrice) and not na(activeStopLoss) ?
-                  activeStopLoss - (activeStopLoss - activeEntryPrice) * 0.618 / 0.820 :
-                  na
-    table.cell(tradingTable, 0, 3, "Entry #3",
-               bgcolor=color.new(color.gray, 85),
-               text_color=color.white,
-               text_size=size.small)
-    entry3Text = not na(entry3Price) ? str.tostring(entry3Price, format.mintick) + " (1%)" : "N/A"
-    table.cell(tradingTable, 1, 3, entry3Text,
-               bgcolor=color.new(color.orange, 80),
-               text_color=color.white,
-               text_size=size.small)
-
-    // Separator
-    table.cell(tradingTable, 0, 4, "━━━━━━━━━",
-               bgcolor=color.new(color.gray, 95),
-               text_color=color.gray,
-               text_size=size.tiny)
-    table.cell(tradingTable, 1, 4, "━━━━━━━━━",
-               bgcolor=color.new(color.gray, 95),
-               text_color=color.gray,
-               text_size=size.tiny)
-
-    // Stop Loss
-    table.cell(tradingTable, 0, 5, "🛑 Stop Loss",
-               bgcolor=color.new(color.gray, 85),
-               text_color=color.white,
-               text_size=size.small)
-    slText = not na(activeStopLoss) ? str.tostring(activeStopLoss, format.mintick) : "N/A"
-    table.cell(tradingTable, 1, 5, slText,
-               bgcolor=color.new(color.red, 70),
-               text_color=color.white,
-               text_size=size.normal)
-
-    // Separator
-    table.cell(tradingTable, 0, 6, "━━━━━━━━━",
-               bgcolor=color.new(color.gray, 95),
-               text_color=color.gray,
-               text_size=size.tiny)
-    table.cell(tradingTable, 1, 6, "━━━━━━━━━",
-               bgcolor=color.new(color.gray, 95),
-               text_color=color.gray,
-               text_size=size.tiny)
-
-    // TP1
-    table.cell(tradingTable, 0, 7, "🎯 TP1",
-               bgcolor=color.new(color.gray, 85),
-               text_color=color.white,
-               text_size=size.small)
-    tp1Text = not na(activeTP1) ? str.tostring(activeTP1, format.mintick) + " (30%)" : "N/A"
-    table.cell(tradingTable, 1, 7, tp1Text,
-               bgcolor=color.new(color.lime, 80),
-               text_color=color.black,
-               text_size=size.small)
-
-    // TP2
-    table.cell(tradingTable, 0, 8, "🎯 TP2",
-               bgcolor=color.new(color.gray, 85),
-               text_color=color.white,
-               text_size=size.small)
-    tp2Text = not na(activeTP2) ? str.tostring(activeTP2, format.mintick) + " (30%)" : "N/A"
-    table.cell(tradingTable, 1, 8, tp2Text,
-               bgcolor=color.new(color.aqua, 80),
-               text_color=color.black,
-               text_size=size.small)
-
-    // TP3
-    table.cell(tradingTable, 0, 9, "🎯 TP3",
-               bgcolor=color.new(color.gray, 85),
-               text_color=color.white,
-               text_size=size.small)
-    tp3Text = not na(activeTP3) ? str.tostring(activeTP3, format.mintick) + " (40%)" : "N/A"
-    table.cell(tradingTable, 1, 9, tp3Text,
-               bgcolor=color.new(color.fuchsia, 80),
-               text_color=color.white,
-               text_size=size.small)
-
-    // Signal age
-    barsAgo = not na(activeSignalBar) ? bar_index - activeSignalBar : 0
-    table.cell(tradingTable, 0, 10, "Signal Age",
-               bgcolor=color.new(color.gray, 85),
-               text_color=color.white,
-               text_size=size.tiny)
-    ageText = activeSignalType != "None" ? str.tostring(barsAgo) + " bars ago" : "Waiting..."
-    table.cell(tradingTable, 1, 10, ageText,
-               bgcolor=color.new(color.blue, 85),
-               text_color=color.white,
-               text_size=size.tiny)
-
-// ============================================================================
 // ALERTS
 // ============================================================================
 
-alertcondition(bullishSignal, "Bullish Fibonacci Signal", "LONG signal detected! Check entry levels and stop loss.")
-alertcondition(bearishSignal, "Bearish Fibonacci Signal", "SHORT signal detected! Check entry levels and stop loss.")
+alertcondition(bullishSignal, "Bullish Fibonacci Signal", "Bullish signal with Fibonacci levels drawn")
+alertcondition(bearishSignal, "Bearish Fibonacci Signal", "Bearish signal with Fibonacci levels drawn")

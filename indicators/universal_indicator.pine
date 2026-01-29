@@ -115,55 +115,35 @@ bearishFib100 = not na(lastBearishLow) ? lastBearishLow : 0.0
 // VISUALIZATION - INDICATOR PANEL
 // ============================================================================
 
-// Enhanced color scheme for better readability
-rsiColor = isOversold ? color.new(color.lime, 0) :
-            isOverbought ? color.new(color.red, 0) :
-            rsi > 50 ? color.new(color.aqua, 0) :
-            color.new(color.orange, 0)
+// Plot RSI
+plot(rsi, "RSI", color=color.blue, linewidth=2)
+plot(rsiSmooth, "RSI Smooth", color=color.orange, linewidth=1)
 
-// Plot RSI with dynamic coloring
-plot(rsi, "RSI", color=rsiColor, linewidth=3, style=plot.style_line)
-plot(rsiSmooth, "RSI Smooth", color=color.new(color.yellow, 0), linewidth=2, style=plot.style_line)
+// Plot levels
+hline(rsiOversold, "Oversold", color=color.green, linestyle=hline.style_dashed)
+hline(50, "Midline", color=color.gray, linestyle=hline.style_dotted)
+hline(rsiOverbought, "Overbought", color=color.red, linestyle=hline.style_dashed)
 
-// Plot levels with enhanced visibility
-hline(rsiOversold, "Oversold", color=color.new(color.green, 0), linestyle=hline.style_solid, linewidth=2)
-hline(50, "Midline", color=color.new(color.white, 60), linestyle=hline.style_dotted, linewidth=1)
-hline(rsiOverbought, "Overbought", color=color.new(color.red, 0), linestyle=hline.style_solid, linewidth=2)
-
-// Enhanced colored zones with gradient effect
-oversoldZoneColor = showZones and isOversold ? color.new(color.green, 85) : na
-overboughtZoneColor = showZones and isOverbought ? color.new(color.red, 85) : na
-neutralBullishZone = showZones and isNeutral and rsi > 50 ? color.new(color.blue, 95) : na
-neutralBearishZone = showZones and isNeutral and rsi < 50 ? color.new(color.orange, 95) : na
+// Colored zones
+oversoldZoneColor = showZones and isOversold ? color.new(color.green, 80) : na
+overboughtZoneColor = showZones and isOverbought ? color.new(color.red, 80) : na
 
 bgcolor(oversoldZoneColor, title="Oversold Zone")
 bgcolor(overboughtZoneColor, title="Overbought Zone")
-bgcolor(neutralBullishZone, title="Neutral Bullish Zone")
-bgcolor(neutralBearishZone, title="Neutral Bearish Zone")
 
-// Plot Volume Momentum as enhanced histogram
+// Plot Volume Momentum as histogram
 volumeMomentumScaled = (volumeMomentum - 1) * 50 + 50  // Scale to RSI range
-volumeHistColor = volumeMomentum > momentumThreshold * 1.5 ? color.new(color.lime, 30) :
-                  volumeMomentum > momentumThreshold ? color.new(color.green, 50) :
-                  volumeMomentum > 1.0 ? color.new(color.gray, 70) :
-                  color.new(color.red, 70)
+plot(volumeMomentumScaled, "Volume Momentum", style=plot.style_histogram,
+     color=volumeMomentum > momentumThreshold ? color.new(color.green, 50) : color.new(color.gray, 70))
 
-plot(volumeMomentumScaled, "Volume Momentum", style=plot.style_histogram, color=volumeHistColor, linewidth=2)
-
-// Enhanced signal markers on indicator panel
+// Signal markers on indicator panel
 plotshape(showBullishSignals and bullishSignal, "Bullish Signal Marker",
-         location=location.bottom, color=color.new(color.lime, 0),
-         style=shape.triangleup, size=size.normal, text="LONG")
+         location=location.bottom, color=color.new(color.green, 0),
+         style=shape.triangleup, size=size.small)
 
 plotshape(showBearishSignals and bearishSignal, "Bearish Signal Marker",
          location=location.top, color=color.new(color.red, 0),
-         style=shape.triangledown, size=size.normal, text="SHORT")
-
-// Add background flash on signal
-signalBgColor = showBullishSignals and bullishSignal ? color.new(color.green, 70) :
-                showBearishSignals and bearishSignal ? color.new(color.red, 70) :
-                na
-bgcolor(signalBgColor, title="Signal Flash", editable=false)
+         style=shape.triangledown, size=size.small)
 
 // ============================================================================
 // VISUALIZATION - FIBONACCI LEVELS ON CHART (OVERLAY)
@@ -182,134 +162,54 @@ alertcondition(bullishSignal, "Bullish Signal", "Universal Indicator: Bullish re
 alertcondition(bearishSignal, "Bearish Signal", "Universal Indicator: Bearish reversal signal detected!")
 
 // ============================================================================
-// ENHANCED DEBUG TABLE
+// DEBUG TABLE
 // ============================================================================
 
-// Create enhanced debug table with modern styling
-var table debugTable = table.new(position.bottom_right, 2, 10,
-                                 border_width=2,
-                                 border_color=color.new(color.blue, 50),
-                                 frame_width=2,
-                                 frame_color=color.new(color.blue, 30))
+// Create debug table
+var table debugTable = table.new(position.top_right, 2, 8,
+                                 border_width=1,
+                                 border_color=color.gray,
+                                 frame_width=1,
+                                 frame_color=color.gray)
 
 if barstate.islast
-    // Header with gradient
-    table.cell(debugTable, 0, 0, "📊 Indicator Metrics",
-               bgcolor=color.new(color.blue, 60),
-               text_color=color.white,
-               text_size=size.normal)
-    table.cell(debugTable, 1, 0, "Current Status",
-               bgcolor=color.new(color.blue, 60),
-               text_color=color.white,
-               text_size=size.normal)
+    // Header
+    table.cell(debugTable, 0, 0, "Metric", bgcolor=color.new(color.blue, 80), text_color=color.white)
+    table.cell(debugTable, 1, 0, "Value", bgcolor=color.new(color.blue, 80), text_color=color.white)
 
-    // RSI with enhanced colors
-    rsiCellColor = isOversold ? color.new(color.lime, 75) :
-                   isOverbought ? color.new(color.red, 75) :
-                   rsi > 50 ? color.new(color.aqua, 85) :
-                   color.new(color.orange, 85)
-    table.cell(debugTable, 0, 1, "RSI Level",
-               bgcolor=color.new(color.gray, 90),
-               text_color=color.white,
-               text_size=size.small)
-    table.cell(debugTable, 1, 1, str.tostring(rsi, "#.##"),
-               bgcolor=rsiCellColor,
-               text_color=color.white,
-               text_size=size.large)
+    // RSI
+    rsiColor = isOversold ? color.new(color.green, 80) : (isOverbought ? color.new(color.red, 80) : color.new(color.gray, 80))
+    table.cell(debugTable, 0, 1, "RSI", bgcolor=color.new(color.gray, 90))
+    table.cell(debugTable, 1, 1, str.tostring(rsi, "#.##"), bgcolor=rsiColor)
 
-    // RSI State with icons
-    rsiState = isOversold ? "🟢 Oversold" : (isOverbought ? "🔴 Overbought" : "⚪ Neutral")
-    table.cell(debugTable, 0, 2, "Market State",
-               bgcolor=color.new(color.gray, 90),
-               text_color=color.white,
-               text_size=size.small)
-    table.cell(debugTable, 1, 2, rsiState,
-               bgcolor=rsiCellColor,
-               text_color=color.white,
-               text_size=size.normal)
+    // RSI State
+    rsiState = isOversold ? "Oversold" : (isOverbought ? "Overbought" : "Neutral")
+    table.cell(debugTable, 0, 2, "State", bgcolor=color.new(color.gray, 90))
+    table.cell(debugTable, 1, 2, rsiState, bgcolor=rsiColor)
 
-    // Volume Momentum with gradient
-    volumeColor = strongMomentum and volumeMomentum > momentumThreshold * 1.5 ? color.new(color.lime, 75) :
-                  strongMomentum ? color.new(color.green, 80) :
-                  color.new(color.gray, 85)
-    table.cell(debugTable, 0, 3, "Volume Power",
-               bgcolor=color.new(color.gray, 90),
-               text_color=color.white,
-               text_size=size.small)
-    volumeText = str.tostring(volumeMomentum, "#.##") + "x"
-    table.cell(debugTable, 1, 3, volumeText,
-               bgcolor=volumeColor,
-               text_color=color.white,
-               text_size=size.normal)
-
-    // Candle pattern detection
-    currentCandleType = close > open ? "🟢 Bullish" :
-                       close < open ? "🔴 Bearish" :
-                       "⚪ Doji"
-    table.cell(debugTable, 0, 4, "Candle Type",
-               bgcolor=color.new(color.gray, 90),
-               text_color=color.white,
-               text_size=size.small)
-    candleColor = close > open ? color.new(color.green, 85) :
-                  close < open ? color.new(color.red, 85) :
-                  color.new(color.gray, 85)
-    table.cell(debugTable, 1, 4, currentCandleType,
-               bgcolor=candleColor,
-               text_color=color.white,
-               text_size=size.small)
-
-    // Separator
-    table.cell(debugTable, 0, 5, "━━━━━━━━━━",
-               bgcolor=color.new(color.gray, 95),
-               text_color=color.gray,
-               text_size=size.tiny)
-    table.cell(debugTable, 1, 5, "━━━━━━━━━━",
-               bgcolor=color.new(color.gray, 95),
-               text_color=color.gray,
-               text_size=size.tiny)
+    // Volume Momentum
+    volumeColor = strongMomentum ? color.new(color.green, 80) : color.new(color.gray, 80)
+    table.cell(debugTable, 0, 3, "Vol Momentum", bgcolor=color.new(color.gray, 90))
+    table.cell(debugTable, 1, 3, str.tostring(volumeMomentum, "#.##"), bgcolor=volumeColor)
 
     // Last Bullish Signal
     bullishBarsAgo = not na(lastBullishBar) ? bar_index - lastBullishBar : -1
-    bullishText = bullishBarsAgo >= 0 ? "🟢 " + str.tostring(bullishBarsAgo) + " bars" : "⏳ None"
-    table.cell(debugTable, 0, 6, "Last LONG",
-               bgcolor=color.new(color.gray, 90),
-               text_color=color.white,
-               text_size=size.small)
-    table.cell(debugTable, 1, 6, bullishText,
-               bgcolor=color.new(color.green, 85),
-               text_color=color.white,
-               text_size=size.small)
+    bullishText = bullishBarsAgo >= 0 ? str.tostring(bullishBarsAgo) + " bars ago" : "None"
+    table.cell(debugTable, 0, 4, "Last Bullish", bgcolor=color.new(color.gray, 90))
+    table.cell(debugTable, 1, 4, bullishText, bgcolor=color.new(color.green, 90))
 
     // Last Bearish Signal
     bearishBarsAgo = not na(lastBearishBar) ? bar_index - lastBearishBar : -1
-    bearishText = bearishBarsAgo >= 0 ? "🔴 " + str.tostring(bearishBarsAgo) + " bars" : "⏳ None"
-    table.cell(debugTable, 0, 7, "Last SHORT",
-               bgcolor=color.new(color.gray, 90),
-               text_color=color.white,
-               text_size=size.small)
-    table.cell(debugTable, 1, 7, bearishText,
-               bgcolor=color.new(color.red, 85),
-               text_color=color.white,
-               text_size=size.small)
+    bearishText = bearishBarsAgo >= 0 ? str.tostring(bearishBarsAgo) + " bars ago" : "None"
+    table.cell(debugTable, 0, 5, "Last Bearish", bgcolor=color.new(color.gray, 90))
+    table.cell(debugTable, 1, 5, bearishText, bgcolor=color.new(color.red, 90))
 
     // Bullish Fib Range
     bullishFibText = bullishFibRange > 0 ? str.tostring(bullishFibRange, "#.####") : "N/A"
-    table.cell(debugTable, 0, 8, "LONG Range",
-               bgcolor=color.new(color.gray, 90),
-               text_color=color.white,
-               text_size=size.tiny)
-    table.cell(debugTable, 1, 8, bullishFibText,
-               bgcolor=color.new(color.green, 90),
-               text_color=color.white,
-               text_size=size.tiny)
+    table.cell(debugTable, 0, 6, "Bullish Fib Range", bgcolor=color.new(color.gray, 90))
+    table.cell(debugTable, 1, 6, bullishFibText, bgcolor=color.new(color.green, 90))
 
     // Bearish Fib Range
     bearishFibText = bearishFibRange > 0 ? str.tostring(bearishFibRange, "#.####") : "N/A"
-    table.cell(debugTable, 0, 9, "SHORT Range",
-               bgcolor=color.new(color.gray, 90),
-               text_color=color.white,
-               text_size=size.tiny)
-    table.cell(debugTable, 1, 9, bearishFibText,
-               bgcolor=color.new(color.red, 90),
-               text_color=color.white,
-               text_size=size.tiny)
+    table.cell(debugTable, 0, 7, "Bearish Fib Range", bgcolor=color.new(color.gray, 90))
+    table.cell(debugTable, 1, 7, bearishFibText, bgcolor=color.new(color.red, 90))
