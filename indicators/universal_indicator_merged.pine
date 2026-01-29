@@ -132,8 +132,7 @@ drawFibonacci(float lowPrice, float highPrice, int signalBar, bool isBullish) =>
                      color=lineColor,
                      width=lineWidth,
                      extend=extend.right,
-                     style=levelRatio == 0.820 or levelRatio == 0.0 ? line.style_solid : line.style_dashed
-                 )
+                     style=levelRatio == 0.820 or levelRatio == 0.0 ? line.style_solid : line.style_dashed)
 
                 array.push(bullishLines, newLine)
 
@@ -147,8 +146,7 @@ drawFibonacci(float lowPrice, float highPrice, int signalBar, bool isBullish) =>
                          style=label.style_label_left,
                          color=lineColor,
                          textcolor=color.white,
-                         size=size.small
-                     )
+                         size=size.small)
                     array.push(bullishLabels, newLabel)
         else
             // Bearish levels: mirror of bullish for short positions
@@ -173,8 +171,7 @@ drawFibonacci(float lowPrice, float highPrice, int signalBar, bool isBullish) =>
                      color=lineColor,
                      width=lineWidth,
                      extend=extend.right,
-                     style=levelRatio == 0.180 or levelRatio == 1.0 ? line.style_solid : line.style_dashed
-                 )
+                     style=levelRatio == 0.180 or levelRatio == 1.0 ? line.style_solid : line.style_dashed)
 
                 array.push(bearishLines, newLine)
 
@@ -187,8 +184,7 @@ drawFibonacci(float lowPrice, float highPrice, int signalBar, bool isBullish) =>
                          style=label.style_label_left,
                          color=lineColor,
                          textcolor=color.white,
-                         size=size.small
-                     )
+                         size=size.small)
                     array.push(bearishLabels, newLabel)
 
 // Handle bullish signals
@@ -227,8 +223,7 @@ plotshape(
      color=color.new(color.green, 0),
      style=shape.triangleup,
      size=size.normal,
-     text="BUY"
- )
+     text="BUY")
 
 plotshape(
      showBearishSignals and bearishSignal,
@@ -237,8 +232,7 @@ plotshape(
      color=color.new(color.red, 0),
      style=shape.triangledown,
      size=size.normal,
-     text="SELL"
- )
+     text="SELL")
 
 // Highlight signal candles with background color
 barcolor(bullishSignal and showBullishSignals ? color.new(color.green, 70) : na, title="Bullish Candle")
