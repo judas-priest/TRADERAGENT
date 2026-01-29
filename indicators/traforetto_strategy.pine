@@ -324,6 +324,9 @@ var line hexagramLine2 = na
 var line hexagramLine3 = na
 var line hexagramLine4 = na
 var line hexagramLine5 = na
+var line hexagramLine6 = na
+var line hexagramLine7 = na
+var box trendChannelBox = na
 var label pointLabel1 = na
 var label pointLabel2 = na
 var label pointLabel3 = na
@@ -362,6 +365,25 @@ if modelPointCount >= 4
             targetLine := line.new(p2_bar, p2_price, p4_bar, p4_price,
                                    color=trendColor, width=2, style=line.style_dashed,
                                    extend=extend.right)
+
+        // Визуализация канала между линиями тренда и целей
+        if showTrendLines and showTargetLines
+            if not na(trendChannelBox)
+                box.delete(trendChannelBox)
+            // Создаем прямоугольник для визуализации канала
+            // От точки 3 до текущего бара
+            trendLineSlope = (p3_price - p1_price) / (p3_bar - p1_bar)
+            targetLineSlope = (p4_price - p2_price) / (p4_bar - p2_bar)
+
+            trendPriceAtBar = p3_price + trendLineSlope * (bar_index - p3_bar)
+            targetPriceAtBar = p4_price + targetLineSlope * (bar_index - p4_bar)
+
+            trendChannelBox := box.new(p3_bar, p3_price, bar_index, targetPriceAtBar,
+                                       border_color=color.new(trendColor, 90),
+                                       bgcolor=color.new(trendColor, 95),
+                                       border_width=1,
+                                       border_style=line.style_dotted,
+                                       extend=extend.right)
 
         // Сакральная точка
         if showSacredPoint and not na(sacredPointX) and not na(sacredPointY)
@@ -451,6 +473,10 @@ if modelPointCount >= 4
 
 // Рисуем Гексаграмму
 if showHexagram and not na(hexagramPointAX) and not na(hexagramPointBX) and not na(hexagramPointCX)
+    p1_bar = array.get(point_bars, 1)
+    p1_price = array.get(point_prices, 1)
+    p2_bar = array.get(point_bars, 2)
+    p2_price = array.get(point_prices, 2)
     p3_bar = array.get(point_bars, 3)
     p3_price = array.get(point_prices, 3)
     p4_bar = array.get(point_bars, 4)
@@ -467,40 +493,56 @@ if showHexagram and not na(hexagramPointAX) and not na(hexagramPointBX) and not 
             line.delete(hexagramLine4)
         if not na(hexagramLine5)
             line.delete(hexagramLine5)
+        if not na(hexagramLine6)
+            line.delete(hexagramLine6)
+        if not na(hexagramLine7)
+            line.delete(hexagramLine7)
         if not na(hexagramLabelA)
             label.delete(hexagramLabelA)
         if not na(hexagramLabelB)
             label.delete(hexagramLabelB)
 
         // Линии гексаграммы
-        // 3-4
+        // 3-4 (основание)
         hexagramLine1 := line.new(p3_bar, p3_price, p4_bar, p4_price,
                                   color=hexagramColor, width=1, style=line.style_dotted)
 
-        // 3-C
+        // 3-C (правая сторона от 3)
         hexagramLine2 := line.new(p3_bar, p3_price, int(hexagramPointCX), hexagramPointCY,
                                   color=hexagramColor, width=1, style=line.style_dotted)
 
-        // 4-C
+        // 4-C (правая сторона от 4)
         hexagramLine3 := line.new(p4_bar, p4_price, int(hexagramPointCX), hexagramPointCY,
                                   color=hexagramColor, width=1, style=line.style_dotted)
 
-        // СТ - середина 3-4 - C
+        // СТ - середина 3-4 - C (центральная линия)
         mid34X = (p3_bar + p4_bar) / 2
         mid34Y = (p3_price + p4_price) / 2
         hexagramLine4 := line.new(int(sacredPointX), sacredPointY, int(hexagramPointCX), hexagramPointCY,
                                   color=hexagramColor, width=1, style=line.style_dotted)
 
+        // Линия от точки 2 через середину 3-4 до точки A
+        hexagramLine5 := line.new(p2_bar, p2_price, int(hexagramPointAX), hexagramPointAY,
+                                  color=color.new(color.purple, 50), width=1, style=line.style_dashed)
+
+        // Линия от точки 1 через середину 3-4 до точки B
+        hexagramLine6 := line.new(p1_bar, p1_price, int(hexagramPointBX), hexagramPointBY,
+                                  color=color.new(color.orange, 50), width=1, style=line.style_dashed)
+
+        // Линия соединяющая прогнозные точки A и B
+        hexagramLine7 := line.new(int(hexagramPointAX), hexagramPointAY, int(hexagramPointBX), hexagramPointBY,
+                                  color=color.new(color.yellow, 30), width=2, style=line.style_solid)
+
         // Метки прогнозных точек A и B
         if showLabels
             hexagramLabelA := label.new(int(hexagramPointAX), hexagramPointAY, "A (прогноз 5)",
-                                        color=color.new(color.blue, 70),
+                                        color=color.new(color.purple, 70),
                                         textcolor=color.white,
                                         style=label.style_label_center,
                                         size=size.small)
 
             hexagramLabelB := label.new(int(hexagramPointBX), hexagramPointBY, "B (прогноз 6)",
-                                        color=color.new(color.blue, 70),
+                                        color=color.new(color.orange, 70),
                                         textcolor=color.white,
                                         style=label.style_label_center,
                                         size=size.small)
