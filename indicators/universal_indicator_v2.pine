@@ -1,0 +1,284 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TRADERAGENT
+
+//@version=6
+indicator("Универсальный Индикатор v2", shorttitle="Universal Indicator v2", overlay=false, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
+
+// ============================================================================
+// ОПИСАНИЕ / DESCRIPTION
+// ============================================================================
+// Универсальный индикатор для автоматического определения ключевых свечей
+// и построения уровней Фибоначчи на основе состояний множественных осцилляторов.
+//
+// Universal indicator for automatic detection of key candles and drawing
+// Fibonacci levels based on multiple oscillator states.
+//
+// Основано на анализе индикатора "Target on Trend - Lite", но с автоматическим
+// определением точек вместо ручной разметки.
+//
+// Based on "Target on Trend - Lite" indicator analysis, but with automatic
+// point detection instead of manual marking.
+
+// ============================================================================
+// ВХОДНЫЕ ПАРАМЕТРЫ / INPUTS
+// ============================================================================
+
+// RSI Settings / Настройки RSI
+rsiLength = input.int(14, "RSI Length / Период RSI", minval=1, group="RSI Settings / Настройки RSI")
+rsiSmoothLength = input.int(3, "RSI Smoothing / Сглаживание RSI", minval=1, group="RSI Settings / Настройки RSI")
+rsiOversold = input.int(30, "Oversold Level / Уровень перепроданности", minval=1, maxval=50, group="RSI Settings / Настройки RSI")
+rsiOverbought = input.int(70, "Overbought Level / Уровень перекупленности", minval=50, maxval=100, group="RSI Settings / Настройки RSI")
+
+// Volume-Momentum Settings / Настройки объема и моментума
+volumeMaLength = input.int(20, "Volume MA Length / Период MA объема", minval=1, group="Momentum Settings / Настройки моментума")
+momentumThreshold = input.float(1.2, "Momentum Threshold / Порог моментума", minval=1.0, step=0.1, group="Momentum Settings / Настройки моментума")
+minBarsBetweenSignals = input.int(10, "Min Bars Between Signals / Мин. баров между сигналами", minval=1, group="Momentum Settings / Настройки моментума")
+
+// Fibonacci Settings / Настройки Фибоначчи
+fibLookback = input.int(100, "Fibonacci Lookback / Период поиска Фибоначчи", minval=10, group="Fibonacci Settings / Настройки Фибоначчи")
+showFibOnChart = input.bool(true, "Show Fib on Chart / Показать Фибоначчи на графике", group="Fibonacci Settings / Настройки Фибоначчи")
+showFibLabels = input.bool(true, "Show Fib Labels / Показать метки Фибоначчи", group="Fibonacci Settings / Настройки Фибоначчи")
+fibLineExtend = input.int(50, "Fib Line Extension / Продление линий Фибоначчи", minval=10, group="Fibonacci Settings / Настройки Фибоначчи")
+
+// Display Settings / Настройки отображения
+showBullishSignals = input.bool(true, "Show Bullish Signals / Показать бычьи сигналы", group="Display Settings / Настройки отображения")
+showBearishSignals = input.bool(true, "Show Bearish Signals / Показать медвежьи сигналы", group="Display Settings / Настройки отображения")
+showZones = input.bool(true, "Show Colored Zones / Показать цветные зоны", group="Display Settings / Настройки отображения")
+showDebugTable = input.bool(true, "Show Debug Table / Показать таблицу отладки", group="Display Settings / Настройки отображения")
+
+// ============================================================================
+// ВЫЧИСЛЕНИЕ ИНДИКАТОРОВ / INDICATOR CALCULATIONS
+// ============================================================================
+
+// RSI Calculation / Вычисление RSI
+rsi = ta.rsi(close, rsiLength)
+rsiSmooth = ta.sma(rsi, rsiSmoothLength)
+
+// Volume Momentum / Объемный моментум
+// Нормализованный объем относительно его скользящей средней
+volumeMa = ta.sma(volume, volumeMaLength)
+volumeMomentum = volume / volumeMa
+
+// State Detection / Определение состояния
+isOversold = rsi < rsiOversold
+isOverbought = rsi > rsiOverbought
+isNeutral = not isOversold and not isOverbought
+
+// Momentum Confirmation / Подтверждение моментума
+strongMomentum = volumeMomentum > momentumThreshold
+
+// ============================================================================
+// ЛОГИКА ОПРЕДЕЛЕНИЯ СИГНАЛОВ / SIGNAL DETECTION LOGIC
+// ============================================================================
+
+// Bullish Signal / Бычий сигнал:
+// - RSI пересекает снизу вверх уровень перепроданности
+// - Объемный моментум сильный (подтверждение интереса покупателей)
+// - Сглаженный RSI растет (подтверждение разворота)
+bullishTransition = ta.crossover(rsi, rsiOversold)
+rsiRising = rsiSmooth > rsiSmooth[1]
+bullishSignalRaw = bullishTransition and strongMomentum and rsiRising
+
+// Bearish Signal / Медвежий сигнал:
+// - RSI пересекает сверху вниз уровень перекупленности
+// - Объемный моментум сильный (подтверждение давления продавцов)
+// - Сглаженный RSI падает (подтверждение разворота)
+bearishTransition = ta.crossunder(rsi, rsiOverbought)
+rsiFalling = rsiSmooth < rsiSmooth[1]
+bearishSignalRaw = bearishTransition and strongMomentum and rsiFalling
+
+// Filter signals to avoid too frequent triggers
+// Фильтр сигналов для избежания слишком частых срабатываний
+var int lastSignalBar = na
+signalAllowed = na(lastSignalBar) or (bar_index - lastSignalBar) >= minBarsBetweenSignals
+
+bullishSignal = bullishSignalRaw and signalAllowed and showBullishSignals
+bearishSignal = bearishSignalRaw and signalAllowed and showBearishSignals
+
+// Update last signal bar / Обновление последнего бара с сигналом
+if bullishSignal or bearishSignal
+    lastSignalBar := bar_index
+
+// Track signals for Fibonacci drawing
+// Отслеживание сигналов для построения Фибоначчи
+var int lastBullishBar = na
+var int lastBearishBar = na
+var float lastBullishLow = na
+var float lastBullishHigh = na
+var float lastBearishLow = na
+var float lastBearishHigh = na
+
+if bullishSignal
+    lastBullishBar := bar_index
+    // Find swing points in lookback period
+    // Поиск точек разворота за период lookback
+    lastBullishLow := ta.lowest(low, fibLookback)
+    lastBullishHigh := ta.highest(high, fibLookback)
+
+if bearishSignal
+    lastBearishBar := bar_index
+    // Find swing points in lookback period
+    // Поиск точек разворота за период lookback
+    lastBearishLow := ta.lowest(low, fibLookback)
+    lastBearishHigh := ta.highest(high, fibLookback)
+
+// ============================================================================
+// ВИЗУАЛИЗАЦИЯ - ПАНЕЛЬ ИНДИКАТОРА / VISUALIZATION - INDICATOR PANEL
+// ============================================================================
+
+// Plot RSI / Отображение RSI
+plot(rsi, "RSI", color=color.new(color.blue, 0), linewidth=2)
+plot(rsiSmooth, "RSI Smooth / RSI сглаженный", color=color.new(color.orange, 0), linewidth=1)
+
+// Plot levels / Отображение уровней
+hline(rsiOversold, "Oversold / Перепроданность", color=color.green, linestyle=hline.style_dashed)
+hline(50, "Midline / Середина", color=color.gray, linestyle=hline.style_dotted)
+hline(rsiOverbought, "Overbought / Перекупленность", color=color.red, linestyle=hline.style_dashed)
+
+// Colored zones / Цветные зоны
+oversoldZoneColor = showZones and isOversold ? color.new(color.green, 85) : na
+overboughtZoneColor = showZones and isOverbought ? color.new(color.red, 85) : na
+
+bgcolor(oversoldZoneColor, title="Oversold Zone / Зона перепроданности")
+bgcolor(overboughtZoneColor, title="Overbought Zone / Зона перекупленности")
+
+// Plot Volume Momentum as histogram
+// Отображение объемного моментума в виде гистограммы
+volumeMomentumScaled = (volumeMomentum - 1) * 50 + 50  // Scale to RSI range / Масштабирование к диапазону RSI
+volumeColor = volumeMomentum > momentumThreshold ? color.new(color.green, 50) : color.new(color.gray, 70)
+plot(volumeMomentumScaled, "Volume Momentum / Объемный моментум",
+     style=plot.style_histogram, color=volumeColor)
+
+// Signal markers on indicator panel
+// Маркеры сигналов на панели индикатора
+plotshape(bullishSignal, "Bullish Signal / Бычий сигнал",
+         location=location.bottom, color=color.new(color.green, 0),
+         style=shape.triangleup, size=size.small)
+
+plotshape(bearishSignal, "Bearish Signal / Медвежий сигнал",
+         location=location.top, color=color.new(color.red, 0),
+         style=shape.triangledown, size=size.small)
+
+// ============================================================================
+// ТАБЛИЦА ОТЛАДКИ / DEBUG TABLE
+// ============================================================================
+
+if showDebugTable
+    var table debugTable = table.new(position.top_right, 2, 10,
+                                     border_width=1,
+                                     border_color=color.gray,
+                                     frame_width=1,
+                                     frame_color=color.gray)
+
+    if barstate.islast
+        // Header / Заголовок
+        table.cell(debugTable, 0, 0, "Метрика / Metric", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+        table.cell(debugTable, 1, 0, "Значение / Value", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+
+        // RSI
+        rsiColor = isOversold ? color.new(color.green, 80) : (isOverbought ? color.new(color.red, 80) : color.new(color.gray, 80))
+        table.cell(debugTable, 0, 1, "RSI", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 1, str.tostring(rsi, "#.##"), bgcolor=rsiColor, text_size=size.small)
+
+        // RSI State / Состояние RSI
+        rsiState = isOversold ? "Oversold / Перепродан" : (isOverbought ? "Overbought / Перекуплен" : "Neutral / Нейтрален")
+        table.cell(debugTable, 0, 2, "State / Состояние", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 2, rsiState, bgcolor=rsiColor, text_size=size.small)
+
+        // Volume Momentum / Объемный моментум
+        volumeColor := strongMomentum ? color.new(color.green, 80) : color.new(color.gray, 80)
+        table.cell(debugTable, 0, 3, "Vol Momentum", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 3, str.tostring(volumeMomentum, "#.##"), bgcolor=volumeColor, text_size=size.small)
+
+        // RSI Direction / Направление RSI
+        rsiDirection = rsiRising ? "Rising / Рост ↑" : (rsiFalling ? "Falling / Падение ↓" : "Flat / Флет →")
+        dirColor = rsiRising ? color.new(color.green, 80) : (rsiFalling ? color.new(color.red, 80) : color.new(color.gray, 80))
+        table.cell(debugTable, 0, 4, "RSI Direction", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 4, rsiDirection, bgcolor=dirColor, text_size=size.small)
+
+        // Last Bullish Signal / Последний бычий сигнал
+        bullishBarsAgo = not na(lastBullishBar) ? bar_index - lastBullishBar : -1
+        bullishText = bullishBarsAgo >= 0 ? str.tostring(bullishBarsAgo) + " bars ago" : "None / Нет"
+        table.cell(debugTable, 0, 5, "Last Bullish", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 5, bullishText, bgcolor=color.new(color.green, 90), text_size=size.small)
+
+        // Last Bearish Signal / Последний медвежий сигнал
+        bearishBarsAgo = not na(lastBearishBar) ? bar_index - lastBearishBar : -1
+        bearishText = bearishBarsAgo >= 0 ? str.tostring(bearishBarsAgo) + " bars ago" : "None / Нет"
+        table.cell(debugTable, 0, 6, "Last Bearish", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 6, bearishText, bgcolor=color.new(color.red, 90), text_size=size.small)
+
+        // Bullish Fib Range / Бычий диапазон Фибоначчи
+        bullishFibRange = not na(lastBullishHigh) and not na(lastBullishLow) ? lastBullishHigh - lastBullishLow : 0.0
+        bullishFibText = bullishFibRange > 0 ? str.tostring(bullishFibRange, "#.####") : "N/A"
+        table.cell(debugTable, 0, 7, "Bullish Fib Range", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 7, bullishFibText, bgcolor=color.new(color.green, 90), text_size=size.small)
+
+        // Bearish Fib Range / Медвежий диапазон Фибоначчи
+        bearishFibRange = not na(lastBearishHigh) and not na(lastBearishLow) ? lastBearishHigh - lastBearishLow : 0.0
+        bearishFibText = bearishFibRange > 0 ? str.tostring(bearishFibRange, "#.####") : "N/A"
+        table.cell(debugTable, 0, 8, "Bearish Fib Range", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 8, bearishFibText, bgcolor=color.new(color.red, 90), text_size=size.small)
+
+        // Signal Filter Status / Статус фильтра сигналов
+        filterStatus = signalAllowed ? "Allowed / Разрешен" : "Blocked / Заблокирован"
+        filterColor = signalAllowed ? color.new(color.green, 80) : color.new(color.red, 80)
+        table.cell(debugTable, 0, 9, "Signal Filter", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(debugTable, 1, 9, filterStatus, bgcolor=filterColor, text_size=size.small)
+
+// ============================================================================
+// ВИЗУАЛИЗАЦИЯ ФИБОНАЧЧИ НА ГРАФИКЕ / FIBONACCI VISUALIZATION ON CHART
+// ============================================================================
+
+// Note: This section creates visual elements on the price chart
+// Примечание: Эта секция создает визуальные элементы на графике цены
+
+// Since overlay=false, we'll use request.security to create companion overlay
+// or use external overlay indicator. For now, we'll prepare the data.
+
+// Export signal information for potential overlay use
+// Экспорт информации о сигналах для потенциального использования в overlay
+
+// Plot invisible values that can be accessed by overlay indicator
+// Отображение невидимых значений, к которым может обращаться overlay индикатор
+plot(bullishSignal ? 1 : 0, "Bullish Signal Export", display=display.data_window)
+plot(bearishSignal ? 1 : 0, "Bearish Signal Export", display=display.data_window)
+plot(lastBullishLow, "Bullish Fib Low", display=display.data_window)
+plot(lastBullishHigh, "Bullish Fib High", display=display.data_window)
+plot(lastBearishLow, "Bearish Fib Low", display=display.data_window)
+plot(lastBearishHigh, "Bearish Fib High", display=display.data_window)
+
+// ============================================================================
+// АЛЕРТЫ / ALERTS
+// ============================================================================
+
+alertcondition(bullishSignal, "Bullish Signal / Бычий сигнал",
+               "Universal Indicator: Bullish reversal signal detected! / Универсальный индикатор: Обнаружен бычий сигнал разворота!")
+
+alertcondition(bearishSignal, "Bearish Signal / Медвежий сигнал",
+               "Universal Indicator: Bearish reversal signal detected! / Универсальный индикатор: Обнаружен медвежий сигнал разворота!")
+
+// ============================================================================
+// КОММЕНТАРИИ К АЛГОРИТМУ / ALGORITHM NOTES
+// ============================================================================
+
+// Алгоритм определения ключевых свечей:
+// Key candle detection algorithm:
+//
+// 1. Бычий сигнал (зеленая свеча) / Bullish signal (green candle):
+//    - RSI выходит из зоны перепроданности (<30)
+//    - Сглаженный RSI направлен вверх (растущий моментум)
+//    - Объем выше среднего (подтверждение интереса)
+//    - Прошло минимальное количество баров с последнего сигнала
+//
+// 2. Медвежий сигнал (красная свеча) / Bearish signal (red candle):
+//    - RSI выходит из зоны перекупленности (>70)
+//    - Сглаженный RSI направлен вниз (падающий моментум)
+//    - Объем выше среднего (подтверждение давления)
+//    - Прошло минимальное количество баров с последнего сигнала
+//
+// 3. Построение уровней Фибоначчи / Fibonacci level construction:
+//    - От lowest low до highest high за lookback период
+//    - Стандартные уровни: 0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%
+//    - Для бычьих: от low к high (снизу вверх)
+//    - Для медвежьих: от high к low (сверху вниз)
