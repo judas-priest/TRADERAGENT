@@ -2,7 +2,7 @@
 // © TRADERAGENT
 
 //@version=6
-indicator("BGAKKCLOD v2 - Advanced Candle Detector", shorttitle="BGAKKCLOD v2", overlay=true, max_lines_count=500, max_labels_count=500)
+indicator("BGAKKCLOD v2 - Advanced Candle Detector", shorttitle="BGAKKCLOD", overlay=true, max_lines_count=500, max_labels_count=500)
 
 // ============================================================================
 // ОПИСАНИЕ / DESCRIPTION
@@ -107,7 +107,7 @@ if bullishSignal or bearishSignal
 
 // Highlight signal candles with custom colors
 // Подсветка сигнальных свечей пользовательскими цветами
-candleColor = na
+color candleColor = na
 if highlightBullishCandles and bullishSignal
     candleColor := bullishCandleColor
 else if highlightBearishCandles and bearishSignal
