@@ -7,11 +7,11 @@ indicator("BGAKKCLOD v3", shorttitle="BGAKv3", overlay=true, max_lines_count=500
 // ============================================================================
 // ОПИСАНИЕ / DESCRIPTION
 // ============================================================================
-// BGAKKCLOD v3 - улучшенная версия с исправлением определения медвежьих сигналов
-// и новым интерфейсом отображения
+// BGAKKCLOD v3 - улучшенная версия с исправлением определения медвежьих сигналов,
+// новым интерфейсом отображения и обновленными уровнями Фибоначчи (issue #59)
 //
-// BGAKKCLOD v3 - improved version with fixed bearish signal detection
-// and new display interface
+// BGAKKCLOD v3 - improved version with fixed bearish signal detection,
+// new display interface and updated Fibonacci levels (issue #59)
 //
 // Основные улучшения v3:
 // - Исправлено построение Фибоначчи для медвежьих сигналов
@@ -20,6 +20,8 @@ indicator("BGAKKCLOD v3", shorttitle="BGAKv3", overlay=true, max_lines_count=500
 // - Линии Фибоначчи: 1px толщина, 60% прозрачность
 // - Убраны маркеры на графике, только изменение цвета свечей
 // - Отображение Фибоначчи только на последних не отработанных свечах
+// - Новая структура уровней Фибоначчи с TP и входами (issue #59)
+// - Таблица информации на графике вверху справа (issue #59)
 
 // ============================================================================
 // ВХОДНЫЕ ПАРАМЕТРЫ / INPUTS
@@ -46,6 +48,7 @@ highlightBullishCandles = input.bool(true, "Highlight Bullish Candles / Подс
 highlightBearishCandles = input.bool(true, "Highlight Bearish Candles / Подсветить медвежьи свечи", group="🎨 Visual Style")
 bullishCandleColor = input.color(color.new(#00FF00, 0), "Bullish Candle Color / Цвет бычьих свечей", group="🎨 Visual Style")
 bearishCandleColor = input.color(color.new(#FF0000, 0), "Bearish Candle Color / Цвет медвежьих свечей", group="🎨 Visual Style")
+showInfoTable = input.bool(true, "Show Info Table / Показать таблицу информации", group="🎨 Visual Style")
 
 // ============================================================================
 // ВЫЧИСЛЕНИЕ ИНДИКАТОРОВ / INDICATOR CALCULATIONS
@@ -128,6 +131,8 @@ var bool lastSignalIsBullish = false
 var float signalCandleLow = na
 var float signalCandleHigh = na
 var int signalBarIndex = na
+var int lastBullishBarForTable = na
+var int lastBearishBarForTable = na
 
 // Function to delete old Fibonacci objects
 // Функция для удаления старых объектов Фибоначчи
@@ -173,38 +178,45 @@ calcLogFibPrice(float lowPrice, float highPrice, float level, bool isBullish) =>
         result := math.exp(logPrice)
     result
 
-// Function to draw Fibonacci levels with absolute values
-// Функция для отрисовки уровней Фибоначчи с абсолютными значениями
+// Function to draw Fibonacci levels with logarithmic scale
+// Функция для отрисовки уровней Фибоначчи с логарифмической шкалой
+// Уровни по требованию issue #59:
+// -2.618  TP3 (закрыть 40% позиции)
+// -1.618  TP2 (закрыть 30% позиции)
+// -0.618  TP1 (закрыть 30% позиции)
+//  0.000  High свечи (Вход #1 в момент закрытия свечи, 1% депозита)
+//  0.500  Вход #2 (лимитка, 1% депозита)
+//  0.618  Вход #3 (лимитка, 1% депозита)
+//  0.820  STOP-LOSS (всегда 0.82)
+//  1.000  Low свечи (основание)
 drawFibonacci(float candleLow, float candleHigh, int sigBar, bool isBullish) =>
     if not na(candleLow) and not na(candleHigh) and candleLow > 0 and candleHigh > 0 and candleHigh > candleLow
 
-        // Define Fibonacci levels (в процентном соотношении для расчета)
-        // Для отображения используем абсолютные значения цены
-        levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.618, 2.618)
+        // Define Fibonacci levels according to issue #59
+        // Negative levels for take-profit, positive for entries and stop-loss
+        levels = array.from(-2.618, -1.618, -0.618, 0.0, 0.5, 0.618, 0.82, 1.0)
         levelNames = array.from(
-             "Entry",
-             "23.6%",
-             "38.2%",
-             "50.0%",
-             "61.8%",
-             "78.6%",
-             "100%",
-             "TP1",
-             "TP2"
+             "TP3 (40%)",
+             "TP2 (30%)",
+             "TP1 (30%)",
+             "Entry #1",
+             "Entry #2",
+             "Entry #3",
+             "STOP-LOSS",
+             "Base"
          )
 
         // Color scheme for levels / Цветовая схема для уровней
         // Используем 60% прозрачность (transparency = 60)
         levelColors = array.from(
-             color.new(#FF6600, 60),     // Entry - orange
-             color.new(#FFD700, 60),     // 23.6% - gold
-             color.new(#FFFF00, 60),     // 38.2% - yellow
-             color.new(#FFA500, 60),     // 50% - light orange
-             color.new(#FF8C00, 60),     // 61.8% - dark orange
-             color.new(#FF0000, 60),     // 78.6% - red (potential SL)
-             color.new(#0066FF, 60),     // 100% - blue
-             color.new(#00CC00, 60),     // TP1 - green
-             color.new(#00FF00, 60)      // TP2 - bright green
+             color.new(#00FF00, 60),     // TP3 - bright green
+             color.new(#00CC00, 60),     // TP2 - green
+             color.new(#00AA00, 60),     // TP1 - dark green
+             color.new(#FF6600, 60),     // Entry #1 - orange
+             color.new(#FFAA00, 60),     // Entry #2 - light orange
+             color.new(#FFD700, 60),     // Entry #3 - gold
+             color.new(#FF0000, 60),     // STOP-LOSS - red
+             color.new(#0066FF, 60)      // Base - blue
          )
 
         // Draw each level / Отрисовка каждого уровня
@@ -232,6 +244,20 @@ drawFibonacci(float candleLow, float candleHigh, int sigBar, bool isBullish) =>
 
                 array.push(activeFibLines, newLine)
 
+                // Add label for the level
+                // Добавление метки для уровня
+                newLabel = label.new(
+                     x=sigBar + lineExtension,
+                     y=levelPrice,
+                     text=levelName,
+                     color=color.new(lineColor, 80),
+                     textcolor=color.white,
+                     style=label.style_label_left,
+                     size=size.small
+                 )
+
+                array.push(activeFibLabels, newLabel)
+
 // ============================================================================
 // ОБРАБОТКА СИГНАЛОВ / SIGNAL HANDLING
 // ============================================================================
@@ -246,6 +272,7 @@ if bullishSignal and showBullishFib
     signalCandleHigh := high[0]
     signalBarIndex := bar_index
     lastSignalIsBullish := true
+    lastBullishBarForTable := bar_index
 
     // Draw Fibonacci levels / Отрисовка уровней Фибоначчи
     drawFibonacci(signalCandleLow, signalCandleHigh, bar_index, true)
@@ -260,10 +287,69 @@ if bearishSignal and showBearishFib
     signalCandleHigh := high[0]
     signalBarIndex := bar_index
     lastSignalIsBullish := false
+    lastBearishBarForTable := bar_index
 
     // Draw Fibonacci levels / Отрисовка уровней Фибоначчи
     // ИСПРАВЛЕНИЕ: теперь правильно строит для медвежьих сигналов
     drawFibonacci(signalCandleLow, signalCandleHigh, bar_index, false)
+
+// ============================================================================
+// ТАБЛИЦА ИНФОРМАЦИИ НА ГРАФИКЕ / INFO TABLE ON CHART
+// ============================================================================
+// Согласно issue #59: таблица с данными отображается на графике вверху справа
+// According to issue #59: data table is displayed on chart at top-right
+
+if showInfoTable
+    var table infoTable = table.new(position.top_right, 2, 8,
+                                     border_width=1,
+                                     border_color=color.gray,
+                                     frame_width=1,
+                                     frame_color=color.gray)
+
+    if barstate.islast
+        // Header / Заголовок
+        table.cell(infoTable, 0, 0, "Metric", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+        table.cell(infoTable, 1, 0, "Value", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+
+        // RSI
+        rsiColor = isOversold ? color.new(color.green, 80) : (isOverbought ? color.new(color.red, 80) : color.new(color.gray, 80))
+        table.cell(infoTable, 0, 1, "RSI", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 1, str.tostring(rsi, "#.##"), bgcolor=rsiColor, text_size=size.small)
+
+        // RSI State
+        rsiState = isOversold ? "Oversold" : (isOverbought ? "Overbought" : "Neutral")
+        table.cell(infoTable, 0, 2, "State", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 2, rsiState, bgcolor=rsiColor, text_size=size.small)
+
+        // Volume Momentum
+        volumeColorTable = strongMomentum ? color.new(color.green, 80) : color.new(color.gray, 80)
+        table.cell(infoTable, 0, 3, "Vol Momentum", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 3, str.tostring(volumeMomentum, "#.##"), bgcolor=volumeColorTable, text_size=size.small)
+
+        // RSI Direction
+        rsiDirection = rsiRising ? "Rising ↑" : (rsiFalling ? "Falling ↓" : "Flat →")
+        dirColor = rsiRising ? color.new(color.green, 80) : (rsiFalling ? color.new(color.red, 80) : color.new(color.gray, 80))
+        table.cell(infoTable, 0, 4, "RSI Direction", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 4, rsiDirection, bgcolor=dirColor, text_size=size.small)
+
+        // Last Bullish Signal
+        bullishBarsAgo = not na(lastBullishBarForTable) ? bar_index - lastBullishBarForTable : -1
+        bullishText = bullishBarsAgo >= 0 ? str.tostring(bullishBarsAgo) + " bars ago" : "None"
+        table.cell(infoTable, 0, 5, "Last Bullish", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 5, bullishText, bgcolor=color.new(color.green, 90), text_size=size.small)
+
+        // Last Bearish Signal
+        bearishBarsAgo = not na(lastBearishBarForTable) ? bar_index - lastBearishBarForTable : -1
+        bearishText = bearishBarsAgo >= 0 ? str.tostring(bearishBarsAgo) + " bars ago" : "None"
+        table.cell(infoTable, 0, 6, "Last Bearish", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 6, bearishText, bgcolor=color.new(color.red, 90), text_size=size.small)
+
+        // Signal Filter Status
+        signalAllowed_current = na(lastSignalBar) or (bar_index - lastSignalBar) >= minBarsBetweenSignals
+        filterStatus = signalAllowed_current ? "Allowed" : "Blocked"
+        filterColor = signalAllowed_current ? color.new(color.green, 80) : color.new(color.red, 80)
+        table.cell(infoTable, 0, 7, "Signal Filter", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 7, filterStatus, bgcolor=filterColor, text_size=size.small)
 
 // ============================================================================
 // НИЖНЯЯ ПАНЕЛЬ ИНДИКАТОРА / BOTTOM INDICATOR PANEL
@@ -318,13 +404,32 @@ alertcondition(bearishSignal, "Bearish Signal",
 // 5. Отображение Фибоначчи только на последних сигналах
 //    Fibonacci display only on latest signals
 //
+// Обновления согласно issue #59:
+// Updates according to issue #59:
+//
+// 6. Новая структура уровней Фибоначчи с логарифмической шкалой:
+//    New Fibonacci levels structure with logarithmic scale:
+//    -2.618  TP3 (закрыть 40% позиции / close 40% position)
+//    -1.618  TP2 (закрыть 30% позиции / close 30% position)
+//    -0.618  TP1 (закрыть 30% позиции / close 30% position)
+//     0.000  High свечи - Вход #1 (1% депозита / 1% deposit)
+//     0.500  Вход #2 - лимитка (1% депозита / 1% deposit)
+//     0.618  Вход #3 - лимитка (1% депозита / 1% deposit)
+//     0.820  STOP-LOSS (всегда 0.82 / always 0.82)
+//     1.000  Low свечи - основание (base)
+//
+// 7. Добавлена таблица информации на графике (вверху справа)
+//    Added info table on chart (top-right position)
+//    - Переведена из bgakkclod_v3_panel.pine согласно требованию
+//    - Moved from bgakkclod_v3_panel.pine as per requirement
+//    - "На плашке таблицы быть не должно"
+//    - "Table should not be on the bottom panel"
+//
 // Примечание: Для полноценной нижней панели (требование "не более 10% высоты")
-// рекомендуется создать отдельный companion индикатор с overlay=false,
-// который будет использовать экспортированные данные.
+// используется companion индикатор bgakkclod_v3_panel.pine с overlay=false.
 //
 // Note: For a full bottom panel (requirement "max 10% height"),
-// it's recommended to create a separate companion indicator with overlay=false
-// that will use the exported data.
+// use the companion indicator bgakkclod_v3_panel.pine with overlay=false.
 //
 // ВАЖНО: Pine Script не поддерживает hover события напрямую.
 // Отображение Фибоначчи при наведении курсора требует использования

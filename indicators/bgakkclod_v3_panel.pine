@@ -32,7 +32,6 @@ minBarsBetweenSignals = input.int(10, "Min Bars Between Signals / Мин. бар
 showBullishSignals = input.bool(true, "Show Bullish Signals / Показать бычьи сигналы", group="Display Settings")
 showBearishSignals = input.bool(true, "Show Bearish Signals / Показать медвежьи сигналы", group="Display Settings")
 showZones = input.bool(true, "Show Colored Zones / Показать цветные зоны", group="Display Settings")
-showDebugTable = input.bool(true, "Show Info Table / Показать таблицу информации", group="Display Settings")
 
 // ============================================================================
 // ВЫЧИСЛЕНИЕ ИНДИКАТОРОВ / INDICATOR CALCULATIONS
@@ -129,57 +128,10 @@ plotshape(bearishSignal, "Bearish Signal",
 // ============================================================================
 // ТАБЛИЦА ИНФОРМАЦИИ / INFO TABLE
 // ============================================================================
-
-if showDebugTable
-    var table infoTable = table.new(position.top_right, 2, 8,
-                                     border_width=1,
-                                     border_color=color.gray,
-                                     frame_width=1,
-                                     frame_color=color.gray)
-
-    if barstate.islast
-        // Header / Заголовок
-        table.cell(infoTable, 0, 0, "Metric", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
-        table.cell(infoTable, 1, 0, "Value", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
-
-        // RSI
-        rsiColor = isOversold ? color.new(color.green, 80) : (isOverbought ? color.new(color.red, 80) : color.new(color.gray, 80))
-        table.cell(infoTable, 0, 1, "RSI", bgcolor=color.new(color.gray, 90), text_size=size.small)
-        table.cell(infoTable, 1, 1, str.tostring(rsi, "#.##"), bgcolor=rsiColor, text_size=size.small)
-
-        // RSI State
-        rsiState = isOversold ? "Oversold" : (isOverbought ? "Overbought" : "Neutral")
-        table.cell(infoTable, 0, 2, "State", bgcolor=color.new(color.gray, 90), text_size=size.small)
-        table.cell(infoTable, 1, 2, rsiState, bgcolor=rsiColor, text_size=size.small)
-
-        // Volume Momentum
-        volumeColorTable = strongMomentum ? color.new(color.green, 80) : color.new(color.gray, 80)
-        table.cell(infoTable, 0, 3, "Vol Momentum", bgcolor=color.new(color.gray, 90), text_size=size.small)
-        table.cell(infoTable, 1, 3, str.tostring(volumeMomentum, "#.##"), bgcolor=volumeColorTable, text_size=size.small)
-
-        // RSI Direction
-        rsiDirection = rsiRising ? "Rising ↑" : (rsiFalling ? "Falling ↓" : "Flat →")
-        dirColor = rsiRising ? color.new(color.green, 80) : (rsiFalling ? color.new(color.red, 80) : color.new(color.gray, 80))
-        table.cell(infoTable, 0, 4, "RSI Direction", bgcolor=color.new(color.gray, 90), text_size=size.small)
-        table.cell(infoTable, 1, 4, rsiDirection, bgcolor=dirColor, text_size=size.small)
-
-        // Last Bullish Signal
-        bullishBarsAgo = not na(lastBullishBar) ? bar_index - lastBullishBar : -1
-        bullishText = bullishBarsAgo >= 0 ? str.tostring(bullishBarsAgo) + " bars ago" : "None"
-        table.cell(infoTable, 0, 5, "Last Bullish", bgcolor=color.new(color.gray, 90), text_size=size.small)
-        table.cell(infoTable, 1, 5, bullishText, bgcolor=color.new(color.green, 90), text_size=size.small)
-
-        // Last Bearish Signal
-        bearishBarsAgo = not na(lastBearishBar) ? bar_index - lastBearishBar : -1
-        bearishText = bearishBarsAgo >= 0 ? str.tostring(bearishBarsAgo) + " bars ago" : "None"
-        table.cell(infoTable, 0, 6, "Last Bearish", bgcolor=color.new(color.gray, 90), text_size=size.small)
-        table.cell(infoTable, 1, 6, bearishText, bgcolor=color.new(color.red, 90), text_size=size.small)
-
-        // Signal Filter Status
-        filterStatus = signalAllowed ? "Allowed" : "Blocked"
-        filterColor = signalAllowed ? color.new(color.green, 80) : color.new(color.red, 80)
-        table.cell(infoTable, 0, 7, "Signal Filter", bgcolor=color.new(color.gray, 90), text_size=size.small)
-        table.cell(infoTable, 1, 7, filterStatus, bgcolor=filterColor, text_size=size.small)
+// Согласно issue #59: таблица должна быть на графике (overlay indicator),
+// а не на панели внизу. Таблица перенесена в bgakkclod_v3_indicator.pine
+// According to issue #59: table should be on chart (overlay indicator),
+// not on the bottom panel. Table moved to bgakkclod_v3_indicator.pine
 
 // ============================================================================
 // АЛЕРТЫ / ALERTS
