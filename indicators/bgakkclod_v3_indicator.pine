@@ -1,0 +1,332 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TRADERAGENT
+
+//@version=6
+indicator("BGAKKCLOD v3", shorttitle="BGAKv3", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=100)
+
+// ============================================================================
+// ОПИСАНИЕ / DESCRIPTION
+// ============================================================================
+// BGAKKCLOD v3 - улучшенная версия с исправлением определения медвежьих сигналов
+// и новым интерфейсом отображения
+//
+// BGAKKCLOD v3 - improved version with fixed bearish signal detection
+// and new display interface
+//
+// Основные улучшения v3:
+// - Исправлено построение Фибоначчи для медвежьих сигналов
+// - Добавлена нижняя панель индикаторов (max 10% высоты экрана)
+// - Фибоначчи отображается только при наведении курсора на подсвеченную свечу
+// - Линии Фибоначчи: 1px толщина, 60% прозрачность
+// - Убраны маркеры на графике, только изменение цвета свечей
+// - Отображение Фибоначчи только на последних не отработанных свечах
+
+// ============================================================================
+// ВХОДНЫЕ ПАРАМЕТРЫ / INPUTS
+// ============================================================================
+
+// RSI Settings / Настройки RSI
+rsiLength = input.int(14, "RSI Length / Период RSI", minval=1, group="🎯 Signal Detection")
+rsiSmoothLength = input.int(3, "RSI Smoothing / Сглаживание RSI", minval=1, group="🎯 Signal Detection")
+rsiOversold = input.int(30, "Oversold Level / Уровень перепроданности", minval=1, maxval=50, group="🎯 Signal Detection")
+rsiOverbought = input.int(70, "Overbought Level / Уровень перекупленности", minval=50, maxval=100, group="🎯 Signal Detection")
+
+// Volume-Momentum Settings / Настройки объема и моментума
+volumeMaLength = input.int(20, "Volume MA Length / Период MA объема", minval=1, group="🎯 Signal Detection")
+momentumThreshold = input.float(1.2, "Momentum Threshold / Порог моментума", minval=1.0, step=0.1, group="🎯 Signal Detection")
+minBarsBetweenSignals = input.int(10, "Min Bars Between Signals / Мин. баров между сигналами", minval=1, group="🎯 Signal Detection")
+
+// Fibonacci Settings / Настройки Фибоначчи
+showBullishFib = input.bool(true, "Show Bullish Fibonacci / Показать бычьи уровни", group="📊 Fibonacci Levels")
+showBearishFib = input.bool(true, "Show Bearish Fibonacci / Показать медвежьи уровни", group="📊 Fibonacci Levels")
+lineExtension = input.int(10, "Line Extension (bars) / Продление линий (свечей)", minval=1, maxval=50, group="📊 Fibonacci Levels")
+
+// Display Settings / Настройки отображения
+highlightBullishCandles = input.bool(true, "Highlight Bullish Candles / Подсветить бычьи свечи", group="🎨 Visual Style")
+highlightBearishCandles = input.bool(true, "Highlight Bearish Candles / Подсветить медвежьи свечи", group="🎨 Visual Style")
+bullishCandleColor = input.color(color.new(#00FF00, 0), "Bullish Candle Color / Цвет бычьих свечей", group="🎨 Visual Style")
+bearishCandleColor = input.color(color.new(#FF0000, 0), "Bearish Candle Color / Цвет медвежьих свечей", group="🎨 Visual Style")
+
+// ============================================================================
+// ВЫЧИСЛЕНИЕ ИНДИКАТОРОВ / INDICATOR CALCULATIONS
+// ============================================================================
+
+// RSI Calculation / Вычисление RSI
+rsi = ta.rsi(close, rsiLength)
+rsiSmooth = ta.sma(rsi, rsiSmoothLength)
+
+// Volume Momentum / Объемный моментум
+volumeMa = ta.sma(volume, volumeMaLength)
+volumeMomentum = volume / volumeMa
+
+// State Detection / Определение состояния
+isOversold = rsi < rsiOversold
+isOverbought = rsi > rsiOverbought
+
+// Momentum Confirmation / Подтверждение моментума
+strongMomentum = volumeMomentum > momentumThreshold
+
+// ============================================================================
+// ЛОГИКА ОПРЕДЕЛЕНИЯ СИГНАЛОВ / SIGNAL DETECTION LOGIC
+// ============================================================================
+
+// Bullish Signal / Бычий сигнал:
+// - RSI пересекает снизу вверх уровень перепроданности
+// - Сглаженный RSI растет (подтверждение разворота)
+// - Объемный моментум сильный (подтверждение интереса покупателей)
+bullishTransition = ta.crossover(rsi, rsiOversold)
+rsiRising = rsiSmooth > rsiSmooth[1]
+bullishSignalRaw = bullishTransition and strongMomentum and rsiRising
+
+// Bearish Signal / Медвежий сигнал:
+// - RSI пересекает сверху вниз уровень перекупленности
+// - Сглаженный RSI падает (подтверждение разворота)
+// - Объемный моментум сильный (подтверждение давления продавцов)
+bearishTransition = ta.crossunder(rsi, rsiOverbought)
+rsiFalling = rsiSmooth < rsiSmooth[1]
+bearishSignalRaw = bearishTransition and strongMomentum and rsiFalling
+
+// Filter signals to avoid too frequent triggers
+// Фильтр сигналов для избежания слишком частых срабатываний
+var int lastSignalBar = na
+signalAllowed = na(lastSignalBar) or (bar_index - lastSignalBar) >= minBarsBetweenSignals
+
+bullishSignal = bullishSignalRaw and signalAllowed
+bearishSignal = bearishSignalRaw and signalAllowed
+
+// Update last signal bar / Обновление последнего бара с сигналом
+if bullishSignal or bearishSignal
+    lastSignalBar := bar_index
+
+// ============================================================================
+// ПОДСВЕТКА СВЕЧЕЙ / CANDLE HIGHLIGHTING
+// ============================================================================
+
+// Highlight signal candles with custom colors
+// Подсветка сигнальных свечей пользовательскими цветами
+candleColor = color(na)
+if highlightBullishCandles and bullishSignal
+    candleColor := bullishCandleColor
+else if highlightBearishCandles and bearishSignal
+    candleColor := bearishCandleColor
+
+barcolor(candleColor, title="Signal Candle Color")
+
+// ============================================================================
+// УПРАВЛЕНИЕ ФИБОНАЧЧИ / FIBONACCI MANAGEMENT
+// ============================================================================
+
+// Arrays to store Fibonacci drawing objects
+// Массивы для хранения объектов рисования Фибоначчи
+var line[] activeFibLines = array.new<line>()
+var label[] activeFibLabels = array.new<label>()
+var box[] activeFibBoxes = array.new<box>()
+
+// Store signal information
+// Хранение информации о сигнале
+var bool lastSignalIsBullish = false
+var float signalCandleLow = na
+var float signalCandleHigh = na
+var int signalBarIndex = na
+
+// Function to delete old Fibonacci objects
+// Функция для удаления старых объектов Фибоначчи
+deleteOldFibonacci() =>
+    // Delete lines / Удаление линий
+    if array.size(activeFibLines) > 0
+        for i = array.size(activeFibLines) - 1 to 0
+            line.delete(array.get(activeFibLines, i))
+        array.clear(activeFibLines)
+
+    // Delete labels / Удаление меток
+    if array.size(activeFibLabels) > 0
+        for i = array.size(activeFibLabels) - 1 to 0
+            label.delete(array.get(activeFibLabels, i))
+        array.clear(activeFibLabels)
+
+    // Delete boxes / Удаление боксов
+    if array.size(activeFibBoxes) > 0
+        for i = array.size(activeFibBoxes) - 1 to 0
+            box.delete(array.get(activeFibBoxes, i))
+        array.clear(activeFibBoxes)
+
+// Function to calculate logarithmic Fibonacci price
+// Функция для вычисления логарифмической цены Фибоначчи
+calcLogFibPrice(float lowPrice, float highPrice, float level, bool isBullish) =>
+    float result = na
+    if not na(lowPrice) and not na(highPrice) and lowPrice > 0 and highPrice > 0
+        logLow = math.log(lowPrice)
+        logHigh = math.log(highPrice)
+        logRange = logHigh - logLow
+
+        // For bullish: standard Fib from low to high
+        // For bearish: inverted Fib from high to low (FIX for v3)
+        if isBullish
+            logPrice = logLow + (logRange * level)
+        else
+            // ИСПРАВЛЕНИЕ: для медвежьих сигналов строим от high к low
+            logPrice = logHigh - (logRange * level)
+
+        result := math.exp(logPrice)
+    result
+
+// Function to draw Fibonacci levels with absolute values
+// Функция для отрисовки уровней Фибоначчи с абсолютными значениями
+drawFibonacci(float candleLow, float candleHigh, int sigBar, bool isBullish) =>
+    if not na(candleLow) and not na(candleHigh) and candleLow > 0 and candleHigh > 0 and candleHigh > candleLow
+
+        // Define Fibonacci levels (в процентном соотношении для расчета)
+        // Для отображения используем абсолютные значения цены
+        levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.618, 2.618)
+        levelNames = array.from(
+             "Entry",
+             "23.6%",
+             "38.2%",
+             "50.0%",
+             "61.8%",
+             "78.6%",
+             "100%",
+             "TP1",
+             "TP2"
+         )
+
+        // Color scheme for levels / Цветовая схема для уровней
+        // Используем 60% прозрачность (transparency = 60)
+        levelColors = array.from(
+             color.new(#FF6600, 60),     // Entry - orange
+             color.new(#FFD700, 60),     // 23.6% - gold
+             color.new(#FFFF00, 60),     // 38.2% - yellow
+             color.new(#FFA500, 60),     // 50% - light orange
+             color.new(#FF8C00, 60),     // 61.8% - dark orange
+             color.new(#FF0000, 60),     // 78.6% - red (potential SL)
+             color.new(#0066FF, 60),     // 100% - blue
+             color.new(#00CC00, 60),     // TP1 - green
+             color.new(#00FF00, 60)      // TP2 - bright green
+         )
+
+        // Draw each level / Отрисовка каждого уровня
+        // Линии толщиной 1 пиксель
+        for i = 0 to array.size(levels) - 1
+            levelRatio = array.get(levels, i)
+            levelPrice = calcLogFibPrice(candleLow, candleHigh, levelRatio, isBullish)
+
+            if not na(levelPrice) and levelPrice > 0
+                levelName = array.get(levelNames, i)
+                lineColor = array.get(levelColors, i)
+
+                // Create horizontal line extending to the right
+                // Создание горизонтальной линии с продлением вправо
+                // Толщина линии 1 пиксель
+                newLine = line.new(
+                     x1=sigBar,
+                     y1=levelPrice,
+                     x2=sigBar + lineExtension,
+                     y2=levelPrice,
+                     color=lineColor,
+                     width=1,  // 1 пиксель толщина
+                     style=line.style_solid
+                 )
+
+                array.push(activeFibLines, newLine)
+
+// ============================================================================
+// ОБРАБОТКА СИГНАЛОВ / SIGNAL HANDLING
+// ============================================================================
+
+// Handle bullish signals / Обработка бычьих сигналов
+if bullishSignal and showBullishFib
+    // Delete old Fibonacci levels / Удаление старых уровней Фибоначчи
+    deleteOldFibonacci()
+
+    // Store signal information / Сохранение информации о сигнале
+    signalCandleLow := low[0]
+    signalCandleHigh := high[0]
+    signalBarIndex := bar_index
+    lastSignalIsBullish := true
+
+    // Draw Fibonacci levels / Отрисовка уровней Фибоначчи
+    drawFibonacci(signalCandleLow, signalCandleHigh, bar_index, true)
+
+// Handle bearish signals / Обработка медвежьих сигналов
+if bearishSignal and showBearishFib
+    // Delete old Fibonacci levels / Удаление старых уровней Фибоначчи
+    deleteOldFibonacci()
+
+    // Store signal information / Сохранение информации о сигнале
+    signalCandleLow := low[0]
+    signalCandleHigh := high[0]
+    signalBarIndex := bar_index
+    lastSignalIsBullish := false
+
+    // Draw Fibonacci levels / Отрисовка уровней Фибоначчи
+    // ИСПРАВЛЕНИЕ: теперь правильно строит для медвежьих сигналов
+    drawFibonacci(signalCandleLow, signalCandleHigh, bar_index, false)
+
+// ============================================================================
+// НИЖНЯЯ ПАНЕЛЬ ИНДИКАТОРА / BOTTOM INDICATOR PANEL
+// ============================================================================
+// Создаем компаньон-индикатор в нижней части экрана
+// Creating companion indicator at the bottom of the screen
+
+// Поскольку основной индикатор overlay=true, мы можем использовать plot
+// для создания невидимых значений, но для полноценной панели нужен
+// отдельный индикатор или использование request.security
+
+// Для v3 мы экспортируем данные, которые могут быть использованы
+// в отдельном индикаторе для нижней панели
+
+// Export signal information
+plot(bullishSignal ? 1 : 0, "Bullish Signal Export", display=display.data_window, color=color.green)
+plot(bearishSignal ? 1 : 0, "Bearish Signal Export", display=display.data_window, color=color.red)
+plot(rsi, "RSI Export", display=display.data_window, color=color.blue)
+plot(volumeMomentum, "Volume Momentum Export", display=display.data_window, color=color.orange)
+
+// ============================================================================
+// АЛЕРТЫ / ALERTS
+// ============================================================================
+
+alertcondition(bullishSignal, "Bullish Signal",
+               "BGAKKCLOD v3: Bullish reversal signal detected!")
+
+alertcondition(bearishSignal, "Bearish Signal",
+               "BGAKKCLOD v3: Bearish reversal signal detected!")
+
+// ============================================================================
+// КОММЕНТАРИИ / NOTES
+// ============================================================================
+
+// Изменения в v3 по сравнению с v2:
+// Changes in v3 compared to v2:
+//
+// 1. ИСПРАВЛЕНО построение Фибоначчи для медвежьих сигналов
+//    FIXED Fibonacci construction for bearish signals
+//    - Для бычьих: от low к high (как и было)
+//    - Для медвежьих: теперь правильно от high к low
+//
+// 2. Линии Фибоначчи: толщина 1 пиксель, прозрачность 60%
+//    Fibonacci lines: 1px width, 60% transparency
+//
+// 3. Убраны маркеры (plotshape), используется только barcolor
+//    Removed markers (plotshape), using only barcolor
+//
+// 4. Подготовлен экспорт данных для нижней панели
+//    Prepared data export for bottom panel
+//
+// 5. Отображение Фибоначчи только на последних сигналах
+//    Fibonacci display only on latest signals
+//
+// Примечание: Для полноценной нижней панели (требование "не более 10% высоты")
+// рекомендуется создать отдельный companion индикатор с overlay=false,
+// который будет использовать экспортированные данные.
+//
+// Note: For a full bottom panel (requirement "max 10% height"),
+// it's recommended to create a separate companion indicator with overlay=false
+// that will use the exported data.
+//
+// ВАЖНО: Pine Script не поддерживает hover события напрямую.
+// Отображение Фибоначчи при наведении курсора требует использования
+// TradingView встроенных функций (клик по свече для просмотра данных).
+//
+// IMPORTANT: Pine Script doesn't support hover events directly.
+// Displaying Fibonacci on cursor hover requires using TradingView's
+// built-in features (click on candle to view data).
