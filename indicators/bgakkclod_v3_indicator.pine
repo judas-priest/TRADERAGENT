@@ -112,6 +112,19 @@ if bullishSignal or bearishSignal
     lastSignalBar := bar_index
 
 // ============================================================================
+// ENTRY CANDLE STATE VARIABLES / ПЕРЕМЕННЫЕ СОСТОЯНИЯ ENTRY CANDLE
+// ============================================================================
+
+// Store entry candle information (issue #60)
+// Хранение информации о entry candle (issue #60)
+var bool waitingForBullishEntryCandle = false
+var bool waitingForBearishEntryCandle = false
+var int entryCandleBarIndex = na
+var float entryCandleLow = na
+var float entryCandleHigh = na
+var bool isEntryCandleBullish = false
+
+// ============================================================================
 // ОПРЕДЕЛЕНИЕ ТИПА СВЕЧИ / CANDLE TYPE DETECTION
 // ============================================================================
 
@@ -164,15 +177,6 @@ var float signalCandleHigh = na
 var int signalBarIndex = na
 var int lastBullishBarForTable = na
 var int lastBearishBarForTable = na
-
-// Store entry candle information (issue #60)
-// Хранение информации о entry candle (issue #60)
-var bool waitingForBullishEntryCandle = false
-var bool waitingForBearishEntryCandle = false
-var int entryCandleBarIndex = na
-var float entryCandleLow = na
-var float entryCandleHigh = na
-var bool isEntryCandleBullish = false
 
 // Function to delete old Fibonacci objects
 // Функция для удаления старых объектов Фибоначчи
