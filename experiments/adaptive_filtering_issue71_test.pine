@@ -1,0 +1,245 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TRADERAGENT
+
+//@version=6
+indicator("Adaptive Filtering Test (Issue #71)", shorttitle="Adaptive Filter Test", overlay=false)
+
+// ============================================================================
+// ОПИСАНИЕ / DESCRIPTION
+// ============================================================================
+// Экспериментальный скрипт для тестирования адаптивной фильтрации сигналов
+// на основе волатильности и тренда (issue #71)
+//
+// Experimental script for testing adaptive signal filtering based on
+// volatility and trend (issue #71)
+
+// ============================================================================
+// ВХОДНЫЕ ПАРАМЕТРЫ / INPUTS
+// ============================================================================
+
+// Basic RSI Settings
+rsiLength = input.int(14, "RSI Length", minval=1, group="Basic Settings")
+rsiOversold = input.int(30, "Oversold Level", minval=1, maxval=50, group="Basic Settings")
+rsiOverbought = input.int(70, "Overbought Level", minval=50, maxval=100, group="Basic Settings")
+
+// Volatility Settings
+highVolThreshold = input.float(1.5, "High Volatility Threshold", minval=1.0, step=0.1, group="Adaptive Filters")
+lowVolThreshold = input.float(0.8, "Low Volatility Threshold", minval=0.1, maxval=1.0, step=0.1, group="Adaptive Filters")
+
+// Filter Settings
+enableTrendFilter = input.bool(true, "Enable Trend Filter", group="Filters")
+enableVolatilityFilter = input.bool(true, "Enable Volatility Filter", group="Filters")
+enableConsolidationFilter = input.bool(true, "Enable Consolidation Filter", group="Filters")
+
+// ============================================================================
+// ВЫЧИСЛЕНИЕ ИНДИКАТОРОВ / INDICATOR CALCULATIONS
+// ============================================================================
+
+// RSI
+rsi = ta.rsi(close, rsiLength)
+
+// ATR for Volatility
+atr = ta.atr(14)
+atrSma = ta.sma(atr, 20)
+volatilityRatio = atr / atrSma
+
+// Volatility Classification
+isHighVolatility = volatilityRatio > highVolThreshold
+isMediumVolatility = volatilityRatio >= lowVolThreshold and volatilityRatio <= highVolThreshold
+isLowVolatility = volatilityRatio < lowVolThreshold
+
+// ADX for Trend
+[diPlus, diMinus, adx] = ta.dmi(14, 14)
+isStrongTrend = adx > 25
+isSideways = adx < 15
+isBullishTrend = diPlus > diMinus and adx > 20
+isBearishTrend = diMinus > diPlus and adx > 20
+
+// Supertrend
+[supertrend, direction] = ta.supertrend(3, 10)
+bullishSupertrend = direction < 0
+bearishSupertrend = direction > 0
+
+// EMA for Long-term Trend
+ema20 = ta.ema(close, 20)
+ema50 = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+longTermUptrend = ema20 > ema50 and ema50 > ema200
+longTermDowntrend = ema20 < ema50 and ema50 < ema200
+
+// Bollinger Bands for Consolidation
+[bbMiddle, bbUpper, bbLower] = ta.bb(close, 20, 2)
+bbWidth = (bbUpper - bbLower) / bbMiddle
+isConsolidating = bbWidth < 0.02
+
+// ============================================================================
+// БАЗОВЫЕ СИГНАЛЫ / BASIC SIGNALS
+// ============================================================================
+
+bullishSignalBasic = ta.crossover(rsi, rsiOversold)
+bearishSignalBasic = ta.crossunder(rsi, rsiOverbought)
+
+// ============================================================================
+// АДАПТИВНАЯ ФИЛЬТРАЦИЯ / ADAPTIVE FILTERING
+// ============================================================================
+
+// Trend Filter
+trendFilterPass = true
+if enableTrendFilter
+    trendFilterPass := bullishSignalBasic ? not bearishSupertrend : not bullishSupertrend
+
+// Volatility Filter (only with trend in high volatility)
+volatilityFilterPass = true
+if enableVolatilityFilter and isHighVolatility
+    volatilityFilterPass := bullishSignalBasic ? longTermUptrend : longTermDowntrend
+
+// Consolidation Filter
+consolidationFilterPass = true
+if enableConsolidationFilter
+    consolidationFilterPass := not isConsolidating
+
+// Final Filtered Signals
+bullishSignalFiltered = bullishSignalBasic and trendFilterPass and volatilityFilterPass and consolidationFilterPass
+bearishSignalFiltered = bearishSignalBasic and trendFilterPass and volatilityFilterPass and consolidationFilterPass
+
+// ============================================================================
+// ВИЗУАЛИЗАЦИЯ / VISUALIZATION
+// ============================================================================
+
+// Plot RSI
+plot(rsi, "RSI", color=color.blue, linewidth=2)
+hline(rsiOversold, "Oversold", color=color.green, linestyle=hline.style_dashed)
+hline(50, "Midline", color=color.gray, linestyle=hline.style_dotted)
+hline(rsiOverbought, "Overbought", color=color.red, linestyle=hline.style_dashed)
+
+// Plot ADX
+plot(adx, "ADX", color=color.purple, linewidth=1)
+hline(25, "Strong Trend", color=color.purple, linestyle=hline.style_dashed)
+hline(15, "Sideways", color=color.orange, linestyle=hline.style_dashed)
+
+// Plot Volatility Ratio (scaled to RSI range)
+volatilityScaled = volatilityRatio * 30  // Scale to fit in RSI chart
+volColor = isHighVolatility ? color.red : (isMediumVolatility ? color.yellow : color.green)
+plot(volatilityScaled, "Volatility (scaled)", color=color.new(volColor, 60), style=plot.style_area)
+
+// Basic Signals
+plotshape(bullishSignalBasic, "Basic Bullish", location=location.bottom,
+         color=color.new(color.green, 50), style=shape.triangleup, size=size.tiny)
+plotshape(bearishSignalBasic, "Basic Bearish", location=location.top,
+         color=color.new(color.red, 50), style=shape.triangledown, size=size.tiny)
+
+// Filtered Signals (larger and more visible)
+plotshape(bullishSignalFiltered, "Filtered Bullish", location=location.bottom,
+         color=color.green, style=shape.triangleup, size=size.small)
+plotshape(bearishSignalFiltered, "Filtered Bearish", location=location.top,
+         color=color.red, style=shape.triangledown, size=size.small)
+
+// ============================================================================
+// ИНФОРМАЦИОННАЯ ТАБЛИЦА / INFORMATION TABLE
+// ============================================================================
+
+if barstate.islast
+    var table infoTable = table.new(position.top_right, 2, 10, border_width=1)
+
+    // Header
+    table.cell(infoTable, 0, 0, "Metric", bgcolor=color.new(color.blue, 70), text_color=color.white)
+    table.cell(infoTable, 1, 0, "Value", bgcolor=color.new(color.blue, 70), text_color=color.white)
+
+    // Volatility
+    table.cell(infoTable, 0, 1, "Volatility")
+    volState = isHighVolatility ? "🔴 High" : (isMediumVolatility ? "🟡 Medium" : "🟢 Low")
+    volCellColor = isHighVolatility ? color.new(color.red, 80) :
+                   (isMediumVolatility ? color.new(color.yellow, 80) : color.new(color.green, 80))
+    table.cell(infoTable, 1, 1, volState, bgcolor=volCellColor)
+
+    // Trend
+    table.cell(infoTable, 0, 2, "Trend")
+    trendState = isStrongTrend ? (isBullishTrend ? "📈 Strong Up" : "📉 Strong Down") :
+                 (isSideways ? "↔️ Sideways" : "⚪ Weak")
+    trendCellColor = isBullishTrend ? color.new(color.green, 80) :
+                     (isBearishTrend ? color.new(color.red, 80) : color.new(color.gray, 80))
+    table.cell(infoTable, 1, 2, trendState, bgcolor=trendCellColor)
+
+    // ADX
+    table.cell(infoTable, 0, 3, "ADX")
+    table.cell(infoTable, 1, 3, str.tostring(adx, "#.#"))
+
+    // ATR Ratio
+    table.cell(infoTable, 0, 4, "ATR Ratio")
+    table.cell(infoTable, 1, 4, str.tostring(volatilityRatio, "#.##"))
+
+    // Supertrend
+    table.cell(infoTable, 0, 5, "Supertrend")
+    stState = bullishSupertrend ? "Bullish ↑" : "Bearish ↓"
+    stColor = bullishSupertrend ? color.new(color.green, 80) : color.new(color.red, 80)
+    table.cell(infoTable, 1, 5, stState, bgcolor=stColor)
+
+    // Consolidation
+    table.cell(infoTable, 0, 6, "Consolidation")
+    consState = isConsolidating ? "Yes" : "No"
+    consColor = isConsolidating ? color.new(color.orange, 80) : color.new(color.gray, 80)
+    table.cell(infoTable, 1, 6, consState, bgcolor=consColor)
+
+    // Filters Status
+    table.cell(infoTable, 0, 7, "Trend Filter")
+    table.cell(infoTable, 1, 7, trendFilterPass ? "✅ Pass" : "❌ Fail",
+               bgcolor=trendFilterPass ? color.new(color.green, 80) : color.new(color.red, 80))
+
+    table.cell(infoTable, 0, 8, "Vol Filter")
+    table.cell(infoTable, 1, 8, volatilityFilterPass ? "✅ Pass" : "❌ Fail",
+               bgcolor=volatilityFilterPass ? color.new(color.green, 80) : color.new(color.red, 80))
+
+    table.cell(infoTable, 0, 9, "Consol Filter")
+    table.cell(infoTable, 1, 9, consolidationFilterPass ? "✅ Pass" : "❌ Fail",
+               bgcolor=consolidationFilterPass ? color.new(color.green, 80) : color.new(color.red, 80))
+
+// ============================================================================
+// СТАТИСТИКА / STATISTICS
+// ============================================================================
+
+// Count signals
+var int basicBullishCount = 0
+var int basicBearishCount = 0
+var int filteredBullishCount = 0
+var int filteredBearishCount = 0
+
+if bullishSignalBasic
+    basicBullishCount += 1
+if bearishSignalBasic
+    basicBearishCount += 1
+if bullishSignalFiltered
+    filteredBullishCount += 1
+if bearishSignalFiltered
+    filteredBearishCount += 1
+
+// Display statistics
+if barstate.islast
+    var table statsTable = table.new(position.bottom_right, 3, 3, border_width=1)
+
+    // Header
+    table.cell(statsTable, 0, 0, "Signal Type", bgcolor=color.new(color.purple, 70), text_color=color.white)
+    table.cell(statsTable, 1, 0, "Bullish", bgcolor=color.new(color.green, 70), text_color=color.white)
+    table.cell(statsTable, 2, 0, "Bearish", bgcolor=color.new(color.red, 70), text_color=color.white)
+
+    // Basic signals
+    table.cell(statsTable, 0, 1, "Basic")
+    table.cell(statsTable, 1, 1, str.tostring(basicBullishCount))
+    table.cell(statsTable, 2, 1, str.tostring(basicBearishCount))
+
+    // Filtered signals
+    table.cell(statsTable, 0, 2, "Filtered")
+    table.cell(statsTable, 1, 2, str.tostring(filteredBullishCount))
+    table.cell(statsTable, 2, 2, str.tostring(filteredBearishCount))
+
+    // Calculate reduction percentage
+    bullishReduction = basicBullishCount > 0 ? (1 - filteredBullishCount / basicBullishCount) * 100 : 0
+    bearishReduction = basicBearishCount > 0 ? (1 - filteredBearishCount / basicBearishCount) * 100 : 0
+
+    // Show reduction in labels
+    label.new(bar_index, 20,
+             "Bullish Reduction: " + str.tostring(bullishReduction, "#.#") + "%\n" +
+             "Bearish Reduction: " + str.tostring(bearishReduction, "#.#") + "%",
+             style=label.style_label_left,
+             color=color.new(color.blue, 90),
+             textcolor=color.black,
+             size=size.small)
