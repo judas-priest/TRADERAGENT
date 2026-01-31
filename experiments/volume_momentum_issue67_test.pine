@@ -1,0 +1,171 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TRADERAGENT
+
+//@version=6
+indicator("Volume/Momentum Test - Issue #67", shorttitle="Vol/Mom Test", overlay=false)
+
+// ============================================================================
+// ОПИСАНИЕ / DESCRIPTION
+// ============================================================================
+// Тестовый скрипт для проверки улучшений определения объёма и моментума
+// согласно issue #67
+//
+// Test script for volume and momentum detection improvements
+// according to issue #67
+
+// ============================================================================
+// ВХОДНЫЕ ПАРАМЕТРЫ / INPUTS
+// ============================================================================
+
+volumeMaLength = input.int(20, "Volume MA Length", minval=1)
+momentumThreshold = input.float(1.2, "Fixed Threshold", minval=1.0, step=0.1)
+adaptiveMultiplier = input.float(1.5, "Adaptive Multiplier", minval=0.5, step=0.1)
+minConsecutiveBars = input.int(2, "Min Consecutive Bars", minval=2, maxval=5)
+
+// ============================================================================
+// ВЫЧИСЛЕНИЯ / CALCULATIONS
+// ============================================================================
+
+// Basic volume momentum
+volumeMa = ta.sma(volume, volumeMaLength)
+volumeMomentum = volume / volumeMa
+
+// Adaptive threshold
+volumeStdDev = ta.stdev(volume, volumeMaLength)
+adaptiveThreshold = volumeMa + (volumeStdDev * adaptiveMultiplier)
+adaptiveThresholdRatio = volume > 0 ? adaptiveThreshold / volumeMa : 1.0
+
+// Directional volume
+buyingVolume = close > open ? volume : 0.0
+sellingVolume = close < open ? volume : 0.0
+netVolume = buyingVolume - sellingVolume
+netVolumeRatio = volume > 0 ? netVolume / volume : 0.0
+
+// Price change
+priceChange = close != 0 ? math.abs(close - open) / close : 0.0
+improvedMomentum = volumeMomentum * (1 + priceChange * 100)
+
+// Volume cluster detection
+volumeCluster = false
+clusterCount = 0
+for i = 0 to minConsecutiveBars - 1
+    threshold = adaptiveThreshold[i]
+    if volume[i] > threshold
+        clusterCount += 1
+volumeCluster := clusterCount >= minConsecutiveBars
+
+// Momentum comparisons
+fixedMomentumStrong = volumeMomentum > momentumThreshold
+adaptiveMomentumStrong = volume > adaptiveThreshold
+improvedMomentumStrong = improvedMomentum > (momentumThreshold * 1.5)
+
+// ============================================================================
+// ВИЗУАЛИЗАЦИЯ / VISUALIZATION
+// ============================================================================
+
+// Plot volume momentum
+plot(volumeMomentum, "Basic Volume Momentum", color=color.blue, linewidth=2)
+plot(adaptiveThresholdRatio, "Adaptive Threshold", color=color.orange, linewidth=1, style=plot.style_line)
+hline(momentumThreshold, "Fixed Threshold", color=color.gray, linestyle=hline.style_dashed)
+
+// Plot improved momentum (scaled down)
+plot(improvedMomentum / 10, "Improved Momentum (÷10)", color=color.purple, linewidth=2)
+
+// Plot net volume ratio
+plot(netVolumeRatio, "Net Volume Ratio", color=color.green, linewidth=1, style=plot.style_area, transp=90)
+hline(0, "Zero Line", color=color.gray, linestyle=hline.style_solid)
+
+// Highlight volume clusters
+bgcolor(volumeCluster ? color.new(color.yellow, 85) : na, title="Volume Cluster")
+
+// Signal markers
+plotshape(fixedMomentumStrong and not fixedMomentumStrong[1], "Fixed Momentum Signal",
+         location=location.bottom, color=color.blue, style=shape.triangleup, size=size.tiny)
+plotshape(adaptiveMomentumStrong and not adaptiveMomentumStrong[1], "Adaptive Momentum Signal",
+         location=location.bottom, color=color.orange, style=shape.triangleup, size=size.small)
+plotshape(improvedMomentumStrong and not improvedMomentumStrong[1], "Improved Momentum Signal",
+         location=location.top, color=color.purple, style=shape.triangledown, size=size.small)
+
+// ============================================================================
+// ТАБЛИЦА СРАВНЕНИЯ / COMPARISON TABLE
+// ============================================================================
+
+var table compareTable = table.new(position.top_right, 3, 8,
+                                   border_width=1,
+                                   border_color=color.gray,
+                                   frame_width=1,
+                                   frame_color=color.gray)
+
+if barstate.islast
+    // Headers
+    table.cell(compareTable, 0, 0, "Method", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+    table.cell(compareTable, 1, 0, "Value", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+    table.cell(compareTable, 2, 0, "Strong?", bgcolor=color.new(color.blue, 70), text_color=color.white, text_size=size.small)
+
+    // Fixed threshold
+    table.cell(compareTable, 0, 1, "Fixed Threshold", bgcolor=color.new(color.gray, 90), text_size=size.small)
+    table.cell(compareTable, 1, 1, str.tostring(volumeMomentum, "#.##"), bgcolor=color.new(color.gray, 90), text_size=size.small)
+    fixedColor = fixedMomentumStrong ? color.new(color.green, 70) : color.new(color.red, 80)
+    table.cell(compareTable, 2, 1, fixedMomentumStrong ? "YES" : "NO", bgcolor=fixedColor, text_size=size.small)
+
+    // Adaptive threshold
+    table.cell(compareTable, 0, 2, "Adaptive Threshold", bgcolor=color.new(color.gray, 90), text_size=size.small)
+    table.cell(compareTable, 1, 2, str.tostring(adaptiveThresholdRatio, "#.##"), bgcolor=color.new(color.gray, 90), text_size=size.small)
+    adaptiveColor = adaptiveMomentumStrong ? color.new(color.green, 70) : color.new(color.red, 80)
+    table.cell(compareTable, 2, 2, adaptiveMomentumStrong ? "YES" : "NO", bgcolor=adaptiveColor, text_size=size.small)
+
+    // Improved momentum
+    table.cell(compareTable, 0, 3, "Improved Momentum", bgcolor=color.new(color.gray, 90), text_size=size.small)
+    table.cell(compareTable, 1, 3, str.tostring(improvedMomentum, "#.##"), bgcolor=color.new(color.gray, 90), text_size=size.small)
+    improvedColor = improvedMomentumStrong ? color.new(color.green, 70) : color.new(color.red, 80)
+    table.cell(compareTable, 2, 3, improvedMomentumStrong ? "YES" : "NO", bgcolor=improvedColor, text_size=size.small)
+
+    // Net volume ratio
+    table.cell(compareTable, 0, 4, "Net Volume Ratio", bgcolor=color.new(color.gray, 90), text_size=size.small)
+    table.cell(compareTable, 1, 4, str.tostring(netVolumeRatio, "#.##"), bgcolor=color.new(color.gray, 90), text_size=size.small)
+    netVolumeDirection = netVolumeRatio > 0 ? "BUY" : (netVolumeRatio < 0 ? "SELL" : "NEUTRAL")
+    netVolumeColor = netVolumeRatio > 0 ? color.new(color.green, 70) : (netVolumeRatio < 0 ? color.new(color.red, 70) : color.new(color.gray, 80))
+    table.cell(compareTable, 2, 4, netVolumeDirection, bgcolor=netVolumeColor, text_size=size.small)
+
+    // Volume cluster
+    table.cell(compareTable, 0, 5, "Volume Cluster", bgcolor=color.new(color.gray, 90), text_size=size.small)
+    table.cell(compareTable, 1, 5, str.tostring(clusterCount) + "/" + str.tostring(minConsecutiveBars), bgcolor=color.new(color.gray, 90), text_size=size.small)
+    clusterColor = volumeCluster ? color.new(color.green, 70) : color.new(color.red, 80)
+    table.cell(compareTable, 2, 5, volumeCluster ? "YES" : "NO", bgcolor=clusterColor, text_size=size.small)
+
+    // Price change
+    table.cell(compareTable, 0, 6, "Price Change %", bgcolor=color.new(color.gray, 90), text_size=size.small)
+    table.cell(compareTable, 1, 6, str.tostring(priceChange * 100, "#.##") + "%", bgcolor=color.new(color.gray, 90), text_size=size.small)
+    priceChangeColor = priceChange > 0.01 ? color.new(color.green, 70) : color.new(color.gray, 80)
+    table.cell(compareTable, 2, 6, priceChange > 0.01 ? "STRONG" : "WEAK", bgcolor=priceChangeColor, text_size=size.small)
+
+    // Volume std dev
+    table.cell(compareTable, 0, 7, "Volume StdDev", bgcolor=color.new(color.gray, 90), text_size=size.small)
+    table.cell(compareTable, 1, 7, str.tostring(volumeStdDev, "#.##"), bgcolor=color.new(color.gray, 90), text_size=size.small)
+    stdDevRatio = volumeMa > 0 ? volumeStdDev / volumeMa : 0.0
+    table.cell(compareTable, 2, 7, str.tostring(stdDevRatio, "#.##"), bgcolor=color.new(color.blue, 80), text_size=size.small)
+
+// ============================================================================
+// КОММЕНТАРИИ / NOTES
+// ============================================================================
+
+// Этот тестовый скрипт позволяет сравнить различные методы определения
+// сильного моментума объёма:
+//
+// This test script allows comparing different methods for detecting
+// strong volume momentum:
+//
+// 1. Fixed Threshold (синие треугольники) - классический подход
+//    Fixed Threshold (blue triangles) - classic approach
+//
+// 2. Adaptive Threshold (оранжевые треугольники) - адаптивный порог
+//    Adaptive Threshold (orange triangles) - adaptive threshold
+//
+// 3. Improved Momentum (фиолетовые треугольники) - улучшенная формула
+//    Improved Momentum (purple triangles) - improved formula
+//
+// 4. Volume Clusters (жёлтый фон) - кластеры объёма
+//    Volume Clusters (yellow background) - volume clusters
+//
+// 5. Net Volume Ratio (зелёная область) - направленный объём
+//    Net Volume Ratio (green area) - directional volume

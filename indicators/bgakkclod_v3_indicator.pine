@@ -48,6 +48,14 @@ volumeMaLength = input.int(20, "Volume MA Length / Период MA объема"
 momentumThreshold = input.float(1.2, "Momentum Threshold / Порог моментума", minval=1.0, step=0.1, group="🎯 Signal Detection")
 minBarsBetweenSignals = input.int(10, "Min Bars Between Signals / Мин. баров между сигналами", minval=1, group="🎯 Signal Detection")
 
+// Issue #67: Improved Volume/Momentum Detection Settings
+useAdaptiveThreshold = input.bool(true, "Use Adaptive Threshold / Адаптивный порог", group="🎯 Signal Detection")
+adaptiveMultiplier = input.float(1.5, "Adaptive Multiplier / Множитель адаптации", minval=0.5, step=0.1, group="🎯 Signal Detection", tooltip="Multiplier for standard deviation in adaptive threshold")
+detectVolumeClusters = input.bool(true, "Detect Volume Clusters / Кластеры объёма", group="🎯 Signal Detection")
+minConsecutiveBars = input.int(2, "Min Consecutive High Volume Bars / Мин. баров подряд", minval=2, maxval=5, group="🎯 Signal Detection")
+useDirectionalVolume = input.bool(true, "Use Directional Volume / Направленный объём", group="🎯 Signal Detection")
+useImprovedMomentum = input.bool(true, "Use Improved Momentum Formula / Улучш. формула моментума", group="🎯 Signal Detection")
+
 // Fibonacci Settings / Настройки Фибоначчи
 showBullishFib = input.bool(true, "Show Bullish Fibonacci / Показать бычьи уровни", group="📊 Fibonacci Levels")
 showBearishFib = input.bool(true, "Show Bearish Fibonacci / Показать медвежьи уровни", group="📊 Fibonacci Levels")
@@ -72,12 +80,58 @@ rsiSmooth = ta.sma(rsi, rsiSmoothLength)
 volumeMa = ta.sma(volume, volumeMaLength)
 volumeMomentum = volume / volumeMa
 
+// Issue #67: Adaptive Threshold using Standard Deviation
+// Адаптивный порог с использованием стандартного отклонения
+volumeStdDev = ta.stdev(volume, volumeMaLength)
+adaptiveThreshold = volumeMa + (volumeStdDev * adaptiveMultiplier)
+adaptiveVolumeStrong = volume > adaptiveThreshold
+
+// Issue #67: Directional Volume Analysis
+// Анализ направленного объёма (покупательский vs продавательский)
+buyingVolume = close > open ? volume : 0.0
+sellingVolume = close < open ? volume : 0.0
+netVolume = buyingVolume - sellingVolume
+isBuyingPressure = netVolume > 0
+isSellingPressure = netVolume < 0
+
+// Issue #67: Improved Momentum Formula with Price Change
+// Улучшенная формула моментума с учётом изменения цены
+priceChange = close != 0 ? math.abs(close - open) / close : 0.0
+improvedMomentum = volumeMomentum * (1 + priceChange * 100)  // Scale price change for better weighting
+
+// Issue #67: Volume Cluster Detection
+// Определение кластеров объёма (несколько баров подряд с высоким объёмом)
+volumeCluster = false
+if detectVolumeClusters
+    clusterCount = 0
+    for i = 0 to minConsecutiveBars - 1
+        threshold = useAdaptiveThreshold ? adaptiveThreshold[i] : volumeMa[i] * momentumThreshold
+        if volume[i] > threshold
+            clusterCount += 1
+    volumeCluster := clusterCount >= minConsecutiveBars
+
 // State Detection / Определение состояния
 isOversold = rsi < rsiOversold
 isOverbought = rsi > rsiOverbought
 
 // Momentum Confirmation / Подтверждение моментума
-strongMomentum = volumeMomentum > momentumThreshold
+// Choose between fixed threshold, adaptive threshold, or improved momentum
+strongMomentumBasic = volumeMomentum > momentumThreshold
+strongMomentumAdaptive = adaptiveVolumeStrong
+strongMomentumImproved = improvedMomentum > (momentumThreshold * 1.5)  // Higher threshold for improved formula
+
+// Final momentum determination based on settings
+strongMomentum = false
+if useImprovedMomentum
+    strongMomentum := strongMomentumImproved
+else if useAdaptiveThreshold
+    strongMomentum := strongMomentumAdaptive
+else
+    strongMomentum := strongMomentumBasic
+
+// Add volume cluster confirmation if enabled
+if detectVolumeClusters and volumeCluster
+    strongMomentum := true
 
 // ============================================================================
 // ЛОГИКА ОПРЕДЕЛЕНИЯ СИГНАЛОВ / SIGNAL DETECTION LOGIC
@@ -87,17 +141,21 @@ strongMomentum = volumeMomentum > momentumThreshold
 // - RSI пересекает снизу вверх уровень перепроданности
 // - Сглаженный RSI растет (подтверждение разворота)
 // - Объемный моментум сильный (подтверждение интереса покупателей)
+// Issue #67: Added directional volume confirmation
 bullishTransition = ta.crossover(rsi, rsiOversold)
 rsiRising = rsiSmooth > rsiSmooth[1]
-bullishSignalRaw = bullishTransition and strongMomentum and rsiRising
+bullishDirectionalConfirm = useDirectionalVolume ? isBuyingPressure : true
+bullishSignalRaw = bullishTransition and strongMomentum and rsiRising and bullishDirectionalConfirm
 
 // Bearish Signal / Медвежий сигнал:
 // - RSI пересекает сверху вниз уровень перекупленности
 // - Сглаженный RSI падает (подтверждение разворота)
 // - Объемный моментум сильный (подтверждение давления продавцов)
+// Issue #67: Added directional volume confirmation
 bearishTransition = ta.crossunder(rsi, rsiOverbought)
 rsiFalling = rsiSmooth < rsiSmooth[1]
-bearishSignalRaw = bearishTransition and strongMomentum and rsiFalling
+bearishDirectionalConfirm = useDirectionalVolume ? isSellingPressure : true
+bearishSignalRaw = bearishTransition and strongMomentum and rsiFalling and bearishDirectionalConfirm
 
 // Filter signals to avoid too frequent triggers
 // Фильтр сигналов для избежания слишком частых срабатываний
@@ -362,7 +420,7 @@ if waitingForBearishEntryCandle and isBearishCandle and showBearishFib
 // According to issue #59: data table is displayed on chart at top-right
 
 if showInfoTable
-    var table infoTable = table.new(position.top_right, 2, 8,
+    var table infoTable = table.new(position.top_right, 2, 11,
                                      border_width=1,
                                      border_color=color.gray,
                                      frame_width=1,
@@ -412,6 +470,23 @@ if showInfoTable
         filterColor = signalAllowed_current ? color.new(color.green, 80) : color.new(color.red, 80)
         table.cell(infoTable, 0, 7, "Signal Filter", bgcolor=color.new(color.gray, 90), text_size=size.small)
         table.cell(infoTable, 1, 7, filterStatus, bgcolor=filterColor, text_size=size.small)
+
+        // Issue #67: Adaptive Threshold
+        adaptiveThresholdText = str.tostring(adaptiveThreshold, "#.##")
+        table.cell(infoTable, 0, 8, "Adaptive Threshold", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 8, adaptiveThresholdText, bgcolor=color.new(color.blue, 90), text_size=size.small)
+
+        // Issue #67: Improved Momentum
+        improvedMomentumText = str.tostring(improvedMomentum, "#.##")
+        improvedMomentumColor = improvedMomentum > (momentumThreshold * 1.5) ? color.new(color.green, 80) : color.new(color.gray, 80)
+        table.cell(infoTable, 0, 9, "Improved Momentum", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 9, improvedMomentumText, bgcolor=improvedMomentumColor, text_size=size.small)
+
+        // Issue #67: Volume Cluster Status
+        clusterStatus = volumeCluster ? "Active" : "None"
+        clusterColor = volumeCluster ? color.new(color.green, 80) : color.new(color.gray, 80)
+        table.cell(infoTable, 0, 10, "Volume Cluster", bgcolor=color.new(color.gray, 90), text_size=size.small)
+        table.cell(infoTable, 1, 10, clusterStatus, bgcolor=clusterColor, text_size=size.small)
 
 // ============================================================================
 // НИЖНЯЯ ПАНЕЛЬ ИНДИКАТОРА / BOTTOM INDICATOR PANEL
@@ -530,3 +605,52 @@ alertcondition(bearishSignal, "Bearish Signal",
 //     Candle type detection:
 //     - isBullishCandle = close > open (зелёная/бычья свеча)
 //     - isBearishCandle = close < open (красная/медвежья свеча)
+//
+// Обновления согласно issue #67:
+// Updates according to issue #67:
+//
+// 11. Адаптивный порог моментума:
+//     Adaptive momentum threshold:
+//     - Использует стандартное отклонение вместо фиксированного значения
+//     - Uses standard deviation instead of fixed value
+//     - adaptiveThreshold = volumeMa + (volumeStdDev * multiplier)
+//     - Автоматически адаптируется к рыночной волатильности
+//     - Automatically adapts to market volatility
+//
+// 12. Анализ кластеров объёма:
+//     Volume cluster analysis:
+//     - Обнаруживает несколько баров подряд с высоким объёмом
+//     - Detects multiple consecutive bars with high volume
+//     - Минимум 2-5 баров подряд (настраивается)
+//     - Minimum 2-5 consecutive bars (configurable)
+//     - Помогает не пропустить сильные движения
+//     - Helps catch strong price movements
+//
+// 13. Направленный объём:
+//     Directional volume:
+//     - Различает покупательский и продавательский объём
+//     - Distinguishes buying and selling volume
+//     - buyingVolume = close > open ? volume : 0
+//     - sellingVolume = close < open ? volume : 0
+//     - netVolume = buyingVolume - sellingVolume
+//     - Подтверждает направление сигнала
+//     - Confirms signal direction
+//
+// 14. Улучшенная формула моментума:
+//     Improved momentum formula:
+//     - Учитывает изменение цены свечи
+//     - Takes into account candle price change
+//     - improvedMomentum = volumeMomentum * (1 + priceChange * 100)
+//     - Взвешивает объём по силе движения цены
+//     - Weights volume by price movement strength
+//     - Более точное определение значимых свечей
+//     - More accurate detection of significant candles
+//
+// 15. Настраиваемость улучшений:
+//     Configurable improvements:
+//     - Все улучшения можно включать/выключать индивидуально
+//     - All improvements can be enabled/disabled individually
+//     - Обратная совместимость с предыдущей версией
+//     - Backward compatibility with previous version
+//     - Гибкая настройка под разные рынки и таймфреймы
+//     - Flexible configuration for different markets and timeframes
