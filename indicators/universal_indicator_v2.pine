@@ -48,6 +48,16 @@ showFibOnChart = input.bool(true, "Show Fib on Chart / Показать Фибо
 showFibLabels = input.bool(true, "Show Fib Labels / Показать метки Фибоначчи", group="Fibonacci Settings / Настройки Фибоначчи")
 fibLineExtend = input.int(50, "Fib Line Extension / Продление линий Фибоначчи", minval=10, group="Fibonacci Settings / Настройки Фибоначчи")
 
+// Adaptive Filter Settings / Настройки адаптивных фильтров
+enableAdaptiveFilters = input.bool(true, "Enable Adaptive Filters / Вкл. адаптивные фильтры", group="🔄 Adaptive Filters / Адаптивные фильтры")
+enableTrendFilter = input.bool(true, "Filter Against Strong Trend / Фильтр против тренда", group="🔄 Adaptive Filters / Адаптивные фильтры", tooltip="Don't take signals against strong trend / Не торговать против сильного тренда")
+onlyWithTrendInHighVol = input.bool(true, "Only With Trend in High Volatility / Только по тренду в высокой волатильности", group="🔄 Adaptive Filters / Адаптивные фильтры")
+requireStrongerConfluenceInSideways = input.bool(true, "Stronger Confirmation in Sideways / Усиленное подтверждение во флэте", group="🔄 Adaptive Filters / Адаптивные фильтры")
+enableConsolidationFilter = input.bool(true, "Avoid Consolidation Zones / Избегать зон консолидации", group="🔄 Adaptive Filters / Адаптивные фильтры")
+highVolThreshold = input.float(1.5, "High Volatility Threshold / Порог высокой волатильности", minval=1.0, step=0.1, group="🔄 Adaptive Filters / Адаптивные фильтры")
+lowVolThreshold = input.float(0.8, "Low Volatility Threshold / Порог низкой волатильности", minval=0.1, maxval=1.0, step=0.1, group="🔄 Adaptive Filters / Адаптивные фильтры")
+showMarketStateTable = input.bool(true, "Show Market State Table / Показать таблицу состояния рынка", group="🔄 Adaptive Filters / Адаптивные фильтры")
+
 // Display Settings / Настройки отображения
 showBullishSignals = input.bool(true, "Show Bullish Signals / Показать бычьи сигналы", group="Display Settings / Настройки отображения")
 showBearishSignals = input.bool(true, "Show Bearish Signals / Показать медвежьи сигналы", group="Display Settings / Настройки отображения")
@@ -122,6 +132,96 @@ if detectVolumeClusters and volumeCluster
     strongMomentum := true
 
 // ============================================================================
+// АДАПТИВНАЯ ФИЛЬТРАЦИЯ / ADAPTIVE FILTERING (Issue #71)
+// ============================================================================
+
+// 1. Определение волатильности (ATR) / Volatility Detection (ATR)
+// Average True Range - индикатор волатильности
+atr = ta.atr(14)
+atrSma = ta.sma(atr, 20)
+
+// Нормализованная волатильность / Normalized volatility
+volatilityRatio = atr / atrSma
+
+// Классификация волатильности / Volatility classification
+isHighVolatility = volatilityRatio > highVolThreshold
+isMediumVolatility = volatilityRatio >= lowVolThreshold and volatilityRatio <= highVolThreshold
+isLowVolatility = volatilityRatio < lowVolThreshold
+
+// Визуальная индикация / Visual indication
+volatilityState = isHighVolatility ? "🔴 High" :
+                  isMediumVolatility ? "🟡 Medium" :
+                  "🟢 Low"
+
+// 2. Определение тренда (ADX) / Trend Detection (ADX)
+// Average Directional Index - сила тренда
+[diPlus, diMinus, adx] = ta.dmi(14, 14)
+
+// Классификация силы тренда / Trend strength classification
+isStrongTrend = adx > 25
+isWeakTrend = adx < 20
+isSideways = adx < 15
+
+// Определение направления тренда / Trend direction detection
+isBullishTrend = diPlus > diMinus and adx > 20
+isBearishTrend = diMinus > diPlus and adx > 20
+
+// Визуальная индикация / Visual indication
+trendState = isStrongTrend ?
+             (isBullishTrend ? "📈 Strong Up" : "📉 Strong Down") :
+             isSideways ? "↔️ Sideways" : "⚪ Weak"
+
+// 3. Дополнительные индикаторы тренда / Additional Trend Indicators
+// Supertrend для определения направления / Supertrend for direction
+[supertrend, direction] = ta.supertrend(3, 10)
+bullishSupertrend = direction < 0
+bearishSupertrend = direction > 0
+
+// Moving averages для фильтрации / Moving averages for filtering
+ema20 = ta.ema(close, 20)
+ema50 = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+
+// Определение общего тренда / Long-term trend detection
+longTermUptrend = ema20 > ema50 and ema50 > ema200
+longTermDowntrend = ema20 < ema50 and ema50 < ema200
+
+// 4. Адаптивные параметры на основе состояния рынка / Adaptive Parameters
+// Функция для получения адаптивных параметров / Function to get adaptive parameters
+getAdaptiveParams() =>
+    var float adaptiveMomentumThreshold = momentumThreshold
+    var int adaptiveMinBars = minBarsBetweenSignals
+    var float adaptiveConfluenceMultiplier = 1.0
+
+    // В высокой волатильности - строже фильтры / Higher volatility - stricter filters
+    if isHighVolatility
+        adaptiveMomentumThreshold := momentumThreshold * 1.3
+        adaptiveMinBars := int(minBarsBetweenSignals * 1.5)
+        adaptiveConfluenceMultiplier := 1.2
+
+    // В низкой волатильности - мягче фильтры / Lower volatility - softer filters
+    else if isLowVolatility
+        adaptiveMomentumThreshold := momentumThreshold * 0.8
+        adaptiveMinBars := int(minBarsBetweenSignals * 0.7)
+        adaptiveConfluenceMultiplier := 0.8
+
+    // В средней волатильности - стандартные параметры / Medium volatility - standard params
+    else
+        adaptiveMomentumThreshold := momentumThreshold
+        adaptiveMinBars := minBarsBetweenSignals
+        adaptiveConfluenceMultiplier := 1.0
+
+    [adaptiveMomentumThreshold, adaptiveMinBars, adaptiveConfluenceMultiplier]
+
+// Применение адаптивных параметров / Apply adaptive parameters
+[adaptiveMomentumThreshold, adaptiveMinBars, confluenceMultiplier] = getAdaptiveParams()
+
+// 5. Bollinger Bands для определения консолидации / Bollinger Bands for consolidation
+[bbMiddle, bbUpper, bbLower] = ta.bb(close, 20, 2)
+bbWidth = (bbUpper - bbLower) / bbMiddle
+isConsolidating = bbWidth < 0.02  // узкие полосы = консолидация / narrow bands = consolidation
+
+// ============================================================================
 // ЛОГИКА ОПРЕДЕЛЕНИЯ СИГНАЛОВ / SIGNAL DETECTION LOGIC
 // ============================================================================
 
@@ -145,13 +245,44 @@ rsiFalling = rsiSmooth < rsiSmooth[1]
 bearishDirectionalConfirm = useDirectionalVolume ? isSellingPressure : true
 bearishSignalRaw = bearishTransition and strongMomentum and rsiFalling and bearishDirectionalConfirm
 
+// ============================================================================
+// УМНАЯ ФИЛЬТРАЦИЯ СИГНАЛОВ / SMART SIGNAL FILTERING (Issue #71)
+// ============================================================================
+
+// Фильтр #1: Не торговать против сильного тренда / Filter #1: Don't trade against strong trend
+trendFilter = true
+if enableAdaptiveFilters and enableTrendFilter
+    trendFilter := bullishSignalRaw ? not bearishSupertrend : not bullishSupertrend
+
+// Фильтр #2: В флэте требовать более сильное подтверждение / Filter #2: Stronger confirmation in sideways
+sidewaysFilter = true
+if enableAdaptiveFilters and isSideways and requireStrongerConfluenceInSideways
+    currentMomentum = useImprovedMomentum ? improvedMomentum : (useAdaptiveThreshold ? (adaptiveVolumeStrong ? momentumThreshold * 1.5 : 0) : volumeMomentum)
+    sidewaysFilter := currentMomentum > (adaptiveMomentumThreshold * 1.5)
+
+// Фильтр #3: В высокой волатильности - только с трендом / Filter #3: Only with trend in high volatility
+volatilityFilter = true
+if enableAdaptiveFilters and isHighVolatility and onlyWithTrendInHighVol
+    volatilityFilter := bullishSignalRaw ? longTermUptrend : longTermDowntrend
+
+// Фильтр #4: Не торговать в зоне консолидации / Filter #4: Avoid consolidation zones
+consolidationFilter = true
+if enableAdaptiveFilters and enableConsolidationFilter
+    consolidationFilter := not isConsolidating
+
+// Применение всех фильтров / Apply all filters
+bullishSignalFiltered = bullishSignalRaw and trendFilter and sidewaysFilter and volatilityFilter and consolidationFilter
+bearishSignalFiltered = bearishSignalRaw and trendFilter and sidewaysFilter and volatilityFilter and consolidationFilter
+
 // Filter signals to avoid too frequent triggers
 // Фильтр сигналов для избежания слишком частых срабатываний
 var int lastSignalBar = na
-signalAllowed = na(lastSignalBar) or (bar_index - lastSignalBar) >= minBarsBetweenSignals
+// Use adaptive min bars if adaptive filters are enabled
+effectiveMinBars = enableAdaptiveFilters ? adaptiveMinBars : minBarsBetweenSignals
+signalAllowed = na(lastSignalBar) or (bar_index - lastSignalBar) >= effectiveMinBars
 
-bullishSignal = bullishSignalRaw and signalAllowed and showBullishSignals
-bearishSignal = bearishSignalRaw and signalAllowed and showBearishSignals
+bullishSignal = bullishSignalFiltered and signalAllowed and showBullishSignals
+bearishSignal = bearishSignalFiltered and signalAllowed and showBearishSignals
 
 // Update last signal bar / Обновление последнего бара с сигналом
 if bullishSignal or bearishSignal
@@ -216,6 +347,65 @@ plotshape(bullishSignal, "Bullish Signal / Бычий сигнал",
 plotshape(bearishSignal, "Bearish Signal / Медвежий сигнал",
          location=location.top, color=color.new(color.red, 0),
          style=shape.triangledown, size=size.small)
+
+// ============================================================================
+// ТАБЛИЦА СОСТОЯНИЯ РЫНКА / MARKET STATE TABLE (Issue #71)
+// ============================================================================
+
+if showMarketStateTable and enableAdaptiveFilters and barstate.islast
+    var table stateTable = table.new(position.bottom_right, 2, 8,
+                                     border_width=1,
+                                     border_color=color.gray)
+
+    // Header / Заголовок
+    table.cell(stateTable, 0, 0, "Market State / Состояние рынка",
+               bgcolor=color.new(color.blue, 70),
+               text_color=color.white,
+               text_size=size.small)
+    table.cell(stateTable, 1, 0, "Value / Значение",
+               bgcolor=color.new(color.blue, 70),
+               text_color=color.white,
+               text_size=size.small)
+
+    // Volatility / Волатильность
+    table.cell(stateTable, 0, 1, "Volatility / Волатильность", text_size=size.small)
+    volColor = isHighVolatility ? color.new(color.red, 80) :
+               isMediumVolatility ? color.new(color.yellow, 80) :
+               color.new(color.green, 80)
+    table.cell(stateTable, 1, 1, volatilityState, bgcolor=volColor, text_size=size.small)
+
+    // Trend / Тренд
+    table.cell(stateTable, 0, 2, "Trend / Тренд", text_size=size.small)
+    trendColor = isBullishTrend ? color.new(color.green, 80) :
+                 isBearishTrend ? color.new(color.red, 80) :
+                 color.new(color.gray, 80)
+    table.cell(stateTable, 1, 2, trendState, bgcolor=trendColor, text_size=size.small)
+
+    // ADX value
+    table.cell(stateTable, 0, 3, "ADX", text_size=size.small)
+    table.cell(stateTable, 1, 3, str.tostring(adx, "#.#"), text_size=size.small)
+
+    // ATR ratio / Коэффициент ATR
+    table.cell(stateTable, 0, 4, "ATR Ratio / ATR коэфф.", text_size=size.small)
+    table.cell(stateTable, 1, 4, str.tostring(volatilityRatio, "#.##"), text_size=size.small)
+
+    // Adaptive momentum threshold / Адаптивный порог моментума
+    table.cell(stateTable, 0, 5, "Mom. Threshold / Порог мом.", text_size=size.small)
+    table.cell(stateTable, 1, 5, str.tostring(adaptiveMomentumThreshold, "#.##"), text_size=size.small)
+
+    // Adaptive min bars / Адаптивное мин. баров
+    table.cell(stateTable, 0, 6, "Min Bars / Мин. баров", text_size=size.small)
+    table.cell(stateTable, 1, 6, str.tostring(adaptiveMinBars), text_size=size.small)
+
+    // Trading recommendation / Торговая рекомендация
+    table.cell(stateTable, 0, 7, "Recommendation / Рекомендация", text_size=size.small)
+    recommendation = isHighVolatility and isSideways ? "⚠️ Caution" :
+                     isStrongTrend ? "✅ Good" :
+                     "⚪ Neutral"
+    recColor = isHighVolatility and isSideways ? color.new(color.orange, 80) :
+               isStrongTrend ? color.new(color.green, 80) :
+               color.new(color.gray, 80)
+    table.cell(stateTable, 1, 7, recommendation, bgcolor=recColor, text_size=size.small)
 
 // ============================================================================
 // ТАБЛИЦА ОТЛАДКИ / DEBUG TABLE
@@ -406,3 +596,57 @@ alertcondition(bearishSignal, "Bearish Signal / Медвежий сигнал",
 //    - Backward compatibility with previous version
 //    - Гибкая настройка под разные рынки и таймфреймы
 //    - Flexible configuration for different markets and timeframes
+//
+// Обновления согласно issue #71:
+// Updates according to issue #71:
+//
+// 9. Адаптивная фильтрация на основе волатильности и тренда:
+//    Adaptive filtering based on volatility and trend:
+//    - ATR (Average True Range) для определения волатильности
+//    - ATR (Average True Range) for volatility detection
+//    - Нормализованная волатильность = atr / atrSma
+//    - Normalized volatility = atr / atrSma
+//    - Классификация: высокая (>1.5), средняя (0.8-1.5), низкая (<0.8)
+//    - Classification: high (>1.5), medium (0.8-1.5), low (<0.8)
+//
+// 10. Определение силы и направления тренда:
+//     Trend strength and direction detection:
+//     - ADX (Average Directional Index) для силы тренда
+//     - ADX (Average Directional Index) for trend strength
+//     - DI+ и DI- для определения направления
+//     - DI+ and DI- for direction detection
+//     - Supertrend индикатор для дополнительного подтверждения
+//     - Supertrend indicator for additional confirmation
+//     - EMA 20/50/200 для долгосрочного тренда
+//     - EMA 20/50/200 for long-term trend
+//
+// 11. Адаптивные параметры:
+//     Adaptive parameters:
+//     - Порог моментума адаптируется к волатильности
+//     - Momentum threshold adapts to volatility
+//     - В высокой волатильности: порог × 1.3, мин. баров × 1.5
+//     - In high volatility: threshold × 1.3, min bars × 1.5
+//     - В низкой волатильности: порог × 0.8, мин. баров × 0.7
+//     - In low volatility: threshold × 0.8, min bars × 0.7
+//
+// 12. Умная фильтрация сигналов:
+//     Smart signal filtering:
+//     - Фильтр против сильного тренда (не торговать против Supertrend)
+//     - Filter against strong trend (don't trade against Supertrend)
+//     - Усиленное подтверждение во флэте (требуется моментум × 1.5)
+//     - Stronger confirmation in sideways (requires momentum × 1.5)
+//     - В высокой волатильности - только по тренду
+//     - In high volatility - only with trend
+//     - Избегание зон консолидации (узкие Bollinger Bands)
+//     - Avoiding consolidation zones (narrow Bollinger Bands)
+//
+// 13. Визуализация состояния рынка:
+//     Market state visualization:
+//     - Таблица с текущим состоянием волатильности и тренда
+//     - Table with current volatility and trend state
+//     - Значения ADX и ATR ratio
+//     - ADX and ATR ratio values
+//     - Адаптивные параметры моментума и мин. баров
+//     - Adaptive momentum and min bars parameters
+//     - Торговая рекомендация (осторожно/хорошо/нейтрально)
+//     - Trading recommendation (caution/good/neutral)
