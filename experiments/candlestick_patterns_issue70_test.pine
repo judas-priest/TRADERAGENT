@@ -1,0 +1,383 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TRADERAGENT
+
+//@version=6
+indicator("Candlestick Patterns Test - Issue #70", shorttitle="Candle Patterns Test", overlay=true, max_labels_count=500)
+
+// ============================================================================
+// ОПИСАНИЕ / DESCRIPTION
+// ============================================================================
+// Тестовый индикатор для проверки распознавания паттернов свечей
+// согласно issue #70.
+//
+// Test indicator for verifying candlestick pattern recognition
+// according to issue #70.
+//
+// Этот индикатор позволяет визуально протестировать:
+// 1. Определение классических паттернов разворота
+// 2. Настройку чувствительности (Strict/Medium/Relaxed)
+// 3. Статистику обнаруженных паттернов
+//
+// This indicator allows visual testing of:
+// 1. Detection of classic reversal patterns
+// 2. Sensitivity adjustment (Strict/Medium/Relaxed)
+// 3. Statistics of detected patterns
+
+// ============================================================================
+// ВХОДНЫЕ ПАРАМЕТРЫ / INPUTS
+// ============================================================================
+
+// Candlestick Pattern Settings
+patternSensitivity = input.string("Medium", "Pattern Sensitivity", options=["Strict", "Medium", "Relaxed"], group="🕯️ Pattern Settings")
+useHammer = input.bool(true, "Use Hammer/Shooting Star", group="🕯️ Pattern Settings")
+useEngulfing = input.bool(true, "Use Engulfing Patterns", group="🕯️ Pattern Settings")
+useStarPatterns = input.bool(true, "Use Star Patterns (Morning/Evening)", group="🕯️ Pattern Settings")
+useDoji = input.bool(true, "Use Doji Pattern", group="🕯️ Pattern Settings")
+
+// Display Settings
+showLabels = input.bool(true, "Show Pattern Labels", group="📊 Display")
+showStats = input.bool(true, "Show Statistics Table", group="📊 Display")
+showHighlights = input.bool(true, "Highlight Pattern Candles", group="📊 Display")
+
+// RSI for trend detection
+rsiLength = input.int(14, "RSI Length (for trend)", minval=1, group="📈 Trend Detection")
+emaLength = input.int(20, "EMA Length (for trend)", minval=1, group="📈 Trend Detection")
+
+// ============================================================================
+// ВЫЧИСЛЕНИЕ ИНДИКАТОРОВ / INDICATOR CALCULATIONS
+// ============================================================================
+
+// Get sensitivity multipliers
+float bodyThreshold = patternSensitivity == "Strict" ? 0.25 : patternSensitivity == "Medium" ? 0.3 : 0.35
+float wickRatio = patternSensitivity == "Strict" ? 2.5 : patternSensitivity == "Medium" ? 2.0 : 1.5
+
+// Candle measurements
+bodySize = math.abs(close - open)
+upperWick = high - math.max(close, open)
+lowerWick = math.min(close, open) - low
+totalRange = high - low
+
+// Trend detection
+rsi = ta.rsi(close, rsiLength)
+ema = ta.ema(close, emaLength)
+
+// ============================================================================
+// РАСПОЗНАВАНИЕ ПАТТЕРНОВ / PATTERN RECOGNITION
+// ============================================================================
+
+// Function: Hammer
+isHammer() =>
+    smallBody = bodySize < totalRange * bodyThreshold
+    longLowerWick = lowerWick > bodySize * wickRatio
+    shortUpperWick = upperWick < bodySize * 0.5
+    inDowntrend = close < ema
+    totalRange > 0 and smallBody and longLowerWick and shortUpperWick and inDowntrend
+
+// Function: Shooting Star
+isShootingStar() =>
+    smallBody = bodySize < totalRange * bodyThreshold
+    longUpperWick = upperWick > bodySize * wickRatio
+    shortLowerWick = lowerWick < bodySize * 0.5
+    inUptrend = close > ema
+    totalRange > 0 and smallBody and longUpperWick and shortLowerWick and inUptrend
+
+// Function: Bullish Engulfing
+isBullishEngulfing() =>
+    prevBearish = close[1] < open[1]
+    currentBullish = close > open
+    engulfs = open < close[1] and close > open[1]
+    inDowntrend = close < ema
+    prevBearish and currentBullish and engulfs and inDowntrend
+
+// Function: Bearish Engulfing
+isBearishEngulfing() =>
+    prevBullish = close[1] > open[1]
+    currentBearish = close < open
+    engulfs = open > close[1] and close < open[1]
+    inUptrend = close > ema
+    prevBullish and currentBearish and engulfs and inUptrend
+
+// Function: Morning Star
+isMorningStar() =>
+    firstBearish = (open[2] - close[2]) > (high[2] - low[2]) * 0.6
+    secondSmall = math.abs(close[1] - open[1]) < (high[2] - low[2]) * bodyThreshold
+    thirdBullish = (close - open) > (high - low) * 0.6
+    thirdCloseAboveMid = close > (open[2] + close[2]) / 2
+    firstBearish and secondSmall and thirdBullish and thirdCloseAboveMid
+
+// Function: Evening Star
+isEveningStar() =>
+    firstBullish = (close[2] - open[2]) > (high[2] - low[2]) * 0.6
+    secondSmall = math.abs(close[1] - open[1]) < (high[2] - low[2]) * bodyThreshold
+    thirdBearish = (open - close) > (high - low) * 0.6
+    thirdCloseBelowMid = close < (open[2] + close[2]) / 2
+    firstBullish and secondSmall and thirdBearish and thirdCloseBelowMid
+
+// Function: Doji
+isDoji() =>
+    totalRange > 0 and bodySize < totalRange * 0.1
+
+// Detect patterns
+hammer = useHammer and isHammer()
+shootingStar = useHammer and isShootingStar()
+bullishEngulfing = useEngulfing and isBullishEngulfing()
+bearishEngulfing = useEngulfing and isBearishEngulfing()
+morningStar = useStarPatterns and isMorningStar()
+eveningStar = useStarPatterns and isEveningStar()
+doji = useDoji and isDoji()
+
+// Pattern counters
+var int hammerCount = 0
+var int shootingStarCount = 0
+var int bullishEngulfCount = 0
+var int bearishEngulfCount = 0
+var int morningStarCount = 0
+var int eveningStarCount = 0
+var int dojiCount = 0
+
+if hammer
+    hammerCount += 1
+if shootingStar
+    shootingStarCount += 1
+if bullishEngulfing
+    bullishEngulfCount += 1
+if bearishEngulfing
+    bearishEngulfCount += 1
+if morningStar
+    morningStarCount += 1
+if eveningStar
+    eveningStarCount += 1
+if doji
+    dojiCount += 1
+
+// ============================================================================
+// ВИЗУАЛИЗАЦИЯ / VISUALIZATION
+// ============================================================================
+
+// Pattern labels
+if showLabels
+    if hammer
+        label.new(bar_index, low, "🔨\nHammer",
+                 color=color.new(color.green, 20),
+                 textcolor=color.white,
+                 style=label.style_label_up,
+                 size=size.small)
+
+    if shootingStar
+        label.new(bar_index, high, "💫\nShooting Star",
+                 color=color.new(color.red, 20),
+                 textcolor=color.white,
+                 style=label.style_label_down,
+                 size=size.small)
+
+    if bullishEngulfing
+        label.new(bar_index, low, "⬆️\nBull Engulf",
+                 color=color.new(color.green, 20),
+                 textcolor=color.white,
+                 style=label.style_label_up,
+                 size=size.small)
+
+    if bearishEngulfing
+        label.new(bar_index, high, "⬇️\nBear Engulf",
+                 color=color.new(color.red, 20),
+                 textcolor=color.white,
+                 style=label.style_label_down,
+                 size=size.small)
+
+    if morningStar
+        label.new(bar_index, low, "⭐\nMorning Star",
+                 color=color.new(color.green, 20),
+                 textcolor=color.white,
+                 style=label.style_label_up,
+                 size=size.small)
+
+    if eveningStar
+        label.new(bar_index, high, "🌙\nEvening Star",
+                 color=color.new(color.red, 20),
+                 textcolor=color.white,
+                 style=label.style_label_down,
+                 size=size.small)
+
+    if doji
+        label.new(bar_index, high, "➕\nDoji",
+                 color=color.new(color.gray, 40),
+                 textcolor=color.white,
+                 style=label.style_label_center,
+                 size=size.small)
+
+// Highlight pattern candles
+barcolor(
+     showHighlights and (hammer or bullishEngulfing or morningStar) ? color.new(color.green, 70) :
+     showHighlights and (shootingStar or bearishEngulfing or eveningStar) ? color.new(color.red, 70) :
+     showHighlights and doji ? color.new(color.gray, 80) : na,
+     title="Pattern Highlight"
+ )
+
+// ============================================================================
+// ТАБЛИЦА СТАТИСТИКИ / STATISTICS TABLE
+// ============================================================================
+
+if showStats and barstate.islast
+    var table statsTable = table.new(position.top_right, 3, 9, border_width=1)
+
+    // Header
+    table.cell(statsTable, 0, 0, "Pattern / Паттерн",
+              text_color=color.white,
+              bgcolor=color.new(color.blue, 20),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 0, "Count / Кол-во",
+              text_color=color.white,
+              bgcolor=color.new(color.blue, 20),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 0, "Type / Тип",
+              text_color=color.white,
+              bgcolor=color.new(color.blue, 20),
+              text_size=size.normal)
+
+    // Bullish patterns
+    table.cell(statsTable, 0, 1, "🔨 Hammer",
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 1, str.tostring(hammerCount),
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 1, "Bullish / Бычий",
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.small)
+
+    table.cell(statsTable, 0, 2, "⬆️ Bull Engulf",
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 2, str.tostring(bullishEngulfCount),
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 2, "Bullish / Бычий",
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.small)
+
+    table.cell(statsTable, 0, 3, "⭐ Morning Star",
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 3, str.tostring(morningStarCount),
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 3, "Bullish / Бычий",
+              text_color=color.white,
+              bgcolor=color.new(color.green, 60),
+              text_size=size.small)
+
+    // Bearish patterns
+    table.cell(statsTable, 0, 4, "💫 Shooting Star",
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 4, str.tostring(shootingStarCount),
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 4, "Bearish / Медвежий",
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.small)
+
+    table.cell(statsTable, 0, 5, "⬇️ Bear Engulf",
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 5, str.tostring(bearishEngulfCount),
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 5, "Bearish / Медвежий",
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.small)
+
+    table.cell(statsTable, 0, 6, "🌙 Evening Star",
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 6, str.tostring(eveningStarCount),
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 6, "Bearish / Медвежий",
+              text_color=color.white,
+              bgcolor=color.new(color.red, 60),
+              text_size=size.small)
+
+    // Neutral pattern
+    table.cell(statsTable, 0, 7, "➕ Doji",
+              text_color=color.white,
+              bgcolor=color.new(color.gray, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 7, str.tostring(dojiCount),
+              text_color=color.white,
+              bgcolor=color.new(color.gray, 60),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 7, "Neutral / Нейтральный",
+              text_color=color.white,
+              bgcolor=color.new(color.gray, 60),
+              text_size=size.small)
+
+    // Totals
+    totalPatterns = hammerCount + shootingStarCount + bullishEngulfCount + bearishEngulfCount + morningStarCount + eveningStarCount + dojiCount
+    table.cell(statsTable, 0, 8, "TOTAL / ВСЕГО",
+              text_color=color.white,
+              bgcolor=color.new(color.blue, 40),
+              text_size=size.normal)
+    table.cell(statsTable, 1, 8, str.tostring(totalPatterns),
+              text_color=color.white,
+              bgcolor=color.new(color.blue, 40),
+              text_size=size.normal)
+    table.cell(statsTable, 2, 8, "Sensitivity: " + patternSensitivity,
+              text_color=color.white,
+              bgcolor=color.new(color.blue, 40),
+              text_size=size.small)
+
+// ============================================================================
+// АЛЕРТЫ / ALERTS
+// ============================================================================
+
+alertcondition(hammer, "Hammer Pattern", "🔨 Hammer candlestick pattern detected")
+alertcondition(shootingStar, "Shooting Star Pattern", "💫 Shooting Star candlestick pattern detected")
+alertcondition(bullishEngulfing, "Bullish Engulfing Pattern", "⬆️ Bullish Engulfing pattern detected")
+alertcondition(bearishEngulfing, "Bearish Engulfing Pattern", "⬇️ Bearish Engulfing pattern detected")
+alertcondition(morningStar, "Morning Star Pattern", "⭐ Morning Star pattern detected")
+alertcondition(eveningStar, "Evening Star Pattern", "🌙 Evening Star pattern detected")
+alertcondition(doji, "Doji Pattern", "➕ Doji pattern detected")
+
+// ============================================================================
+// ПРИМЕЧАНИЯ / NOTES
+// ============================================================================
+
+// Инструкции по использованию / Usage Instructions:
+//
+// 1. Загрузите этот тестовый индикатор в TradingView
+//    Load this test indicator in TradingView
+//
+// 2. Настройте чувствительность (Strict/Medium/Relaxed)
+//    Adjust sensitivity (Strict/Medium/Relaxed)
+//
+// 3. Включите/выключите отдельные паттерны для тестирования
+//    Enable/disable individual patterns for testing
+//
+// 4. Проверьте распознавание на исторических данных
+//    Verify recognition on historical data
+//
+// 5. Используйте таблицу статистики для анализа
+//    Use statistics table for analysis
+//
+// 6. Паттерны наиболее эффективны на ключевых уровнях поддержки/сопротивления
+//    Patterns are most effective at key support/resistance levels
+//
+// 7. Рекомендуется использовать в сочетании с другими индикаторами
+//    Recommended to use in combination with other indicators
