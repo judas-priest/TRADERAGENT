@@ -45,14 +45,21 @@ fibExtension = input.int(50, "Fib Extension Bars / Продление баров
 showFibLabels = input.bool(true, "Show Fib Labels / Показать метки", group="📐 Fibonacci Settings / Настройки Фибоначчи")
 fibLineWidth = input.int(1, "Fib Line Width / Толщина линий", minval=1, maxval=3, group="📐 Fibonacci Settings / Настройки Фибоначчи")
 
-// Fibonacci Levels / Уровни Фибоначчи
-showFib0 = input.bool(true, "Show 0.0 Level", group="📐 Fibonacci Levels / Уровни", inline="fib0")
-showFib236 = input.bool(true, "Show 0.236 Level", group="📐 Fibonacci Levels / Уровни", inline="fib236")
-showFib382 = input.bool(true, "Show 0.382 Level", group="📐 Fibonacci Levels / Уровни", inline="fib382")
-showFib5 = input.bool(true, "Show 0.5 Level", group="📐 Fibonacci Levels / Уровни", inline="fib5")
-showFib618 = input.bool(true, "Show 0.618 Level", group="📐 Fibonacci Levels / Уровни", inline="fib618")
-showFib786 = input.bool(true, "Show 0.786 Level", group="📐 Fibonacci Levels / Уровни", inline="fib786")
-showFib1 = input.bool(true, "Show 1.0 Level", group="📐 Fibonacci Levels / Уровни", inline="fib1")
+// Fibonacci Retracement Levels / Уровни коррекции Фибоначчи
+showFib0 = input.bool(true, "Show 0.0 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib0")
+showFib236 = input.bool(true, "Show 0.236 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib236")
+showFib382 = input.bool(true, "Show 0.382 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib382")
+showFib5 = input.bool(true, "Show 0.5 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib5")
+showFib618 = input.bool(true, "Show 0.618 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib618")
+showFib786 = input.bool(true, "Show 0.786 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib786")
+showFib1 = input.bool(true, "Show 1.0 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib1")
+
+// Fibonacci Extension Levels / Уровни расширения Фибоначчи
+showFib1272 = input.bool(true, "Show 1.272 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib1272")
+showFib1414 = input.bool(false, "Show 1.414 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib1414")
+showFib1618 = input.bool(true, "Show 1.618 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib1618")
+showFib2 = input.bool(true, "Show 2.0 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib2")
+showFib2618 = input.bool(false, "Show 2.618 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib2618")
 
 // === Display Settings / Настройки отображения ===
 showBullishSignals = input.bool(true, "Show Bullish Signals / Показать бычьи сигналы", group="🎨 Display Settings / Настройки отображения")
@@ -212,6 +219,17 @@ if not na(bullishStartPrice) and not na(bullishEndPrice) and not na(bullishStart
             drawFibLevel(bullishStartPrice, bullishEndPrice, 0.786, "0.786", color.new(color.teal, 0), bullishStartBar)
         if showFib1
             drawFibLevel(bullishStartPrice, bullishEndPrice, 1.0, "1.0", color.new(color.green, 0), bullishStartBar)
+        // Extension levels
+        if showFib1272
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.272, "1.272", color.new(color.lime, 0), bullishStartBar)
+        if showFib1414
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.414, "1.414", color.new(color.aqua, 0), bullishStartBar)
+        if showFib1618
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.618, "1.618", color.new(color.fuchsia, 0), bullishStartBar)
+        if showFib2
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 2.0, "2.0", color.new(color.maroon, 0), bullishStartBar)
+        if showFib2618
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 2.618, "2.618", color.new(color.navy, 0), bullishStartBar)
 
 // Draw Bearish Fibonacci Levels / Отрисовка медвежьих уровней Фибоначчи
 if not na(bearishStartPrice) and not na(bearishEndPrice) and not na(bearishStartBar)
@@ -231,6 +249,17 @@ if not na(bearishStartPrice) and not na(bearishEndPrice) and not na(bearishStart
             drawFibLevel(bearishStartPrice, bearishEndPrice, 0.786, "0.786", color.new(color.orange, 0), bearishStartBar)
         if showFib1
             drawFibLevel(bearishStartPrice, bearishEndPrice, 1.0, "1.0", color.new(color.red, 0), bearishStartBar)
+        // Extension levels
+        if showFib1272
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.272, "1.272", color.new(color.maroon, 0), bearishStartBar)
+        if showFib1414
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.414, "1.414", color.new(color.navy, 0), bearishStartBar)
+        if showFib1618
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.618, "1.618", color.new(color.fuchsia, 0), bearishStartBar)
+        if showFib2
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 2.0, "2.0", color.new(color.lime, 0), bearishStartBar)
+        if showFib2618
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 2.618, "2.618", color.new(color.aqua, 0), bearishStartBar)
 
 // ============================================================================
 // MARK KEY CANDLES ON CHART / ОТМЕТКИ КЛЮЧЕВЫХ СВЕЧЕЙ НА ГРАФИКЕ
