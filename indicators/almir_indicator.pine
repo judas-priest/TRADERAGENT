@@ -431,25 +431,24 @@ plot(showStochastic ? stochK : na, "Stochastic %K", color=color.new(color.blue, 
 plot(showStochastic ? stochD : na, "Stochastic %D", color=color.new(color.orange, 30), linewidth=1, style=plot.style_line)
 
 // === Volume Display / Отображение объёма ===
-// Normalize volume to 0-25 range (approximately 25% of typical RSI 0-100 range)
-// to display at the bottom of the indicator panel without overlapping other elements
+// Display volume with separate scale (similar to RSIV_Step_[Almir])
+// Volumes are shown on their own scale for better visibility and analysis
 if showVolume
-    // Calculate normalization for volume display
-    maxVolumeForDisplay = ta.highest(volume, 100)
-    normalizedVolume = maxVolumeForDisplay > 0 ? (volume / maxVolumeForDisplay) * 25 : 0
-
     // Color coding: green for bullish bars (close > open), red for bearish bars
+    // Highlight strong volume with brighter colors
     volumeColor = close > open ? color.new(color.green, 30) : color.new(color.red, 30)
     volumeHighlightColor = strongVolume ?
          (close > open ? color.new(color.lime, 10) : color.new(color.maroon, 10)) :
          volumeColor
 
-    // Plot volume as columns with normalized scale
-    plot(normalizedVolume, "Volume", color=volumeHighlightColor, style=plot.style_columns, linewidth=2)
+    // Plot volume as histogram with separate scale (scale.left)
+    // This creates a dedicated volume scale independent from RSI scale
+    plot(volume, "Volume", color=volumeHighlightColor, style=plot.style_histogram,
+         linewidth=3, scale=scale.left)
 
-    // Plot volume MA line for reference (optional, more subtle)
-    normalizedVolumeMA = maxVolumeForDisplay > 0 ? (volumeMa / maxVolumeForDisplay) * 25 : 0
-    plot(normalizedVolumeMA, "Volume MA", color=color.new(color.white, 70), linewidth=1, style=plot.style_line)
+    // Plot volume MA line for reference on the same separate scale
+    plot(volumeMa, "Volume MA", color=color.new(color.white, 50), linewidth=2,
+         style=plot.style_line, scale=scale.left)
 
 // ============================================================================
 // INFO TABLE / ИНФОРМАЦИОННАЯ ТАБЛИЦА
