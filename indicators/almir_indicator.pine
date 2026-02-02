@@ -433,23 +433,23 @@ plot(showStochastic ? stochD : na, "Stochastic %D", color=color.new(color.orange
 // === Volume Display / Отображение объёма ===
 // Display volume with separate scale (similar to RSIV_Step_[Almir])
 // Volumes are shown on their own scale for better visibility and analysis
-if showVolume
-    // Color coding: green for bullish bars (close > open), red for bearish bars
-    // Highlight strong volume with brighter colors
-    volumeColor = close > open ? color.new(color.green, 30) : color.new(color.red, 30)
-    volumeHighlightColor = strongVolume ?
-         (close > open ? color.new(color.lime, 10) : color.new(color.maroon, 10)) :
-         volumeColor
+// Color coding: green for bullish bars (close > open), red for bearish bars
+// Highlight strong volume with brighter colors
+volumeColor = close > open ? color.new(color.green, 30) : color.new(color.red, 30)
+volumeHighlightColor = strongVolume ?
+     (close > open ? color.new(color.lime, 10) : color.new(color.maroon, 10)) :
+     volumeColor
 
-    // Plot volume as histogram
-    // Note: Pine Script doesn't support separate scales in overlay mode
-    // Volume is normalized to fit the indicator pane
-    plot(volume, "Volume", color=volumeHighlightColor, style=plot.style_histogram,
-         linewidth=3)
+// Plot volume as histogram
+// Note: Pine Script doesn't support separate scales in overlay mode
+// Volume is normalized to fit the indicator pane
+// Use conditional expression to show/hide based on showVolume setting
+plot(showVolume ? volume : na, "Volume", color=volumeHighlightColor, style=plot.style_histogram,
+     linewidth=3)
 
-    // Plot volume MA line for reference
-    plot(volumeMa, "Volume MA", color=color.new(color.white, 50), linewidth=2,
-         style=plot.style_line)
+// Plot volume MA line for reference
+plot(showVolume ? volumeMa : na, "Volume MA", color=color.new(color.white, 50), linewidth=2,
+     style=plot.style_line)
 
 // ============================================================================
 // INFO TABLE / ИНФОРМАЦИОННАЯ ТАБЛИЦА
