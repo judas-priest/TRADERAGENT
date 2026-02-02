@@ -93,6 +93,7 @@ showTable = input.bool(true, "Show Info Table / Показать информа�
 showConfluenceDetails = input.bool(true, "Show Confluence Details / Показать детали confluence", group="🎨 Display Settings / Настройки отображения")
 showMacd = input.bool(false, "Show MACD Histogram / Показать гистограмму MACD", group="🎨 Display Settings / Настройки отображения")
 showStochastic = input.bool(false, "Show Stochastic / Показать Stochastic", group="🎨 Display Settings / Настройки отображения")
+showVolume = input.bool(true, "Show Volume Bars / Показать объём барами", group="🎨 Display Settings / Настройки отображения")
 
 // ============================================================================
 // ВЫЧИСЛЕНИЕ ИНДИКАТОРОВ / INDICATOR CALCULATIONS
@@ -428,6 +429,27 @@ plot(macdHistScaled, "MACD Histogram", color=macdHistColor, style=plot.style_his
 // === Optional Stochastic Lines / Опциональные линии Stochastic ===
 plot(showStochastic ? stochK : na, "Stochastic %K", color=color.new(color.blue, 30), linewidth=1)
 plot(showStochastic ? stochD : na, "Stochastic %D", color=color.new(color.orange, 30), linewidth=1, style=plot.style_line)
+
+// === Volume Display / Отображение объёма ===
+// Normalize volume to 0-25 range (approximately 25% of typical RSI 0-100 range)
+// to display at the bottom of the indicator panel without overlapping other elements
+if showVolume
+    // Calculate normalization for volume display
+    maxVolumeForDisplay = ta.highest(volume, 100)
+    normalizedVolume = maxVolumeForDisplay > 0 ? (volume / maxVolumeForDisplay) * 25 : 0
+
+    // Color coding: green for bullish bars (close > open), red for bearish bars
+    volumeColor = close > open ? color.new(color.green, 30) : color.new(color.red, 30)
+    volumeHighlightColor = strongVolume ?
+         (close > open ? color.new(color.lime, 10) : color.new(color.maroon, 10)) :
+         volumeColor
+
+    // Plot volume as columns with normalized scale
+    plot(normalizedVolume, "Volume", color=volumeHighlightColor, style=plot.style_columns, linewidth=2)
+
+    // Plot volume MA line for reference (optional, more subtle)
+    normalizedVolumeMA = maxVolumeForDisplay > 0 ? (volumeMa / maxVolumeForDisplay) * 25 : 0
+    plot(normalizedVolumeMA, "Volume MA", color=color.new(color.white, 70), linewidth=1, style=plot.style_line)
 
 // ============================================================================
 // INFO TABLE / ИНФОРМАЦИОННАЯ ТАБЛИЦА
