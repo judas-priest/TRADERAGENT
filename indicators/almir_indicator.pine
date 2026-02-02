@@ -17,6 +17,8 @@ indicator("ALMIR - Автоматическое определение свеч�
 // (1, 10, 3, 50, 30, 10, 10, 0, 2, 0, 2, 30, 10, 20, 3, 14, 24, 5, 0,85, 6, 200, 5, 9, 2, 65, 30, 83, 12, 3, 0,6, 2)
 //
 // Based on RSIV_Step_[Almir] indicator analysis with parameters above.
+// Визуальные параметры обновлены в соответствии со стилем RSIV_Step_[Almir].
+// Visual parameters updated to match RSIV_Step_[Almir] style.
 // ============================================================================
 
 // ============================================================================
@@ -24,41 +26,48 @@ indicator("ALMIR - Автоматическое определение свеч�
 // ============================================================================
 
 // === RSI Settings / Настройки RSI ===
+// RSIV_Step parameters: (1, 10, 3, 50, 30, ...)
 rsiLength = input.int(10, "RSI Length / Период RSI", minval=1, group="📊 RSI Settings / Настройки RSI")
 rsiSmoothLength = input.int(3, "RSI Smoothing / Сглаживание RSI", minval=1, group="📊 RSI Settings / Настройки RSI")
 rsiOversold = input.int(30, "Oversold Level / Уровень перепроданности", minval=1, maxval=50, group="📊 RSI Settings / Настройки RSI")
-rsiOverbought = input.int(70, "Overbought Level / Уровень перекупленности", minval=50, maxval=100, group="📊 RSI Settings / Настройки RSI")
+rsiOverbought = input.int(65, "Overbought Level / Уровень перекупленности", minval=50, maxval=100, group="📊 RSI Settings / Настройки RSI")
 rsiMidLevel = input.int(50, "Mid Level / Средний уровень", minval=30, maxval=70, group="📊 RSI Settings / Настройки RSI")
 
 // === MACD Settings / Настройки MACD ===
-macdFast = input.int(10, "MACD Fast Length / Быстрая линия", minval=1, group="📈 MACD Settings / Настройки MACD")
+// RSIV_Step MACD parameters: (2, 30, 10, 20, 3) -> fast=2, slow=30, signal=10
+macdFast = input.int(2, "MACD Fast Length / Быстрая линия", minval=1, group="📈 MACD Settings / Настройки MACD")
 macdSlow = input.int(30, "MACD Slow Length / Медленная линия", minval=1, group="📈 MACD Settings / Настройки MACD")
-macdSignal = input.int(20, "MACD Signal Length / Сигнальная линия", minval=1, group="📈 MACD Settings / Настройки MACD")
+macdSignal = input.int(10, "MACD Signal Length / Сигнальная линия", minval=1, group="📈 MACD Settings / Настройки MACD")
 
 // === Stochastic Settings / Настройки Stochastic ===
+// RSIV_Step Stochastic parameters: (14, 24, 5, 0.85, 6) -> length=14, smooth=24, oversold=5(?), 0.85, 6
 stochLength = input.int(14, "Stochastic Length / Период Stochastic", minval=1, group="📉 Stochastic Settings / Настройки Stochastic")
 stochSmooth = input.int(3, "Stochastic Smooth / Сглаживание", minval=1, group="📉 Stochastic Settings / Настройки Stochastic")
-stochOversold = input.int(20, "Stochastic Oversold / Перепроданность", minval=1, maxval=50, group="📉 Stochastic Settings / Настройки Stochastic")
-stochOverbought = input.int(80, "Stochastic Overbought / Перекупленность", minval=50, maxval=100, group="📉 Stochastic Settings / Настройки Stochastic")
+stochOversold = input.int(30, "Stochastic Oversold / Перепроданность", minval=1, maxval=50, group="📉 Stochastic Settings / Настройки Stochastic")
+stochOverbought = input.int(83, "Stochastic Overbought / Перекупленность", minval=50, maxval=100, group="📉 Stochastic Settings / Настройки Stochastic")
 
 // === Volume Settings / Настройки объема ===
-volumeMaLength = input.int(20, "Volume MA Length / Период MA объема", minval=1, group="📊 Volume Settings / Настройки объема")
-volumeMultiplier = input.float(1.5, "Volume Multiplier / Множитель объема", minval=1.0, step=0.1, group="📊 Volume Settings / Настройки объема")
+// RSIV_Step Volume parameters: (10, 10, 0, 2, 0)
+volumeMaLength = input.int(10, "Volume MA Length / Период MA объема", minval=1, group="📊 Volume Settings / Настройки объема")
+volumeMultiplier = input.float(2.0, "Volume Multiplier / Множитель объема", minval=1.0, step=0.1, group="📊 Volume Settings / Настройки объема")
 useDirectionalVolume = input.bool(true, "Use Directional Volume / Направленный объём", group="📊 Volume Settings / Настройки объема")
 
 // === EMA Settings / Настройки EMA ===
+// RSIV_Step EMA parameters: (200, 5, 9, 2, 65) -> ema3=200, ema1=9, ema2=? (maybe 5 or calculated from 65)
 ema1Length = input.int(9, "EMA 1 Length / Период EMA 1", minval=1, group="📈 EMA Settings / Настройки EMA")
-ema2Length = input.int(50, "EMA 2 Length / Период EMA 2", minval=1, group="📈 EMA Settings / Настройки EMA")
+ema2Length = input.int(5, "EMA 2 Length / Период EMA 2", minval=1, group="📈 EMA Settings / Настройки EMA")
 ema3Length = input.int(200, "EMA 3 Length / Период EMA 3", minval=1, group="📈 EMA Settings / Настройки EMA")
 
 // === Confluence Settings / Настройки Confluence ===
-minConfluenceScore = input.int(5, "Min Confluence Score / Мин. балл confluence", minval=2, maxval=15, group="🎯 Confluence Settings / Настройки Confluence")
-minBarsBetweenSignals = input.int(10, "Min Bars Between Signals / Мин. баров между сигналами", minval=1, group="🎯 Confluence Settings / Настройки Confluence")
+// Adjusted to match RSIV_Step style
+minConfluenceScore = input.int(6, "Min Confluence Score / Мин. балл confluence", minval=2, maxval=15, group="🎯 Confluence Settings / Настройки Confluence")
+minBarsBetweenSignals = input.int(12, "Min Bars Between Signals / Мин. баров между сигналами", minval=1, group="🎯 Confluence Settings / Настройки Confluence")
 
 // Indicator Weights / Веса индикаторов
+// RSIV_Step weight-like parameters: (2, 65, 30, 83, 12, 3, 0.6, 2)
 rsiWeight = input.int(2, "RSI Weight / Вес RSI", minval=0, maxval=5, group="⚖️ Indicator Weights / Веса индикаторов")
 macdWeight = input.int(2, "MACD Weight / Вес MACD", minval=0, maxval=5, group="⚖️ Indicator Weights / Веса индикаторов")
-stochWeight = input.int(1, "Stochastic Weight / Вес Stochastic", minval=0, maxval=5, group="⚖️ Indicator Weights / Веса индикаторов")
+stochWeight = input.int(2, "Stochastic Weight / Вес Stochastic", minval=0, maxval=5, group="⚖️ Indicator Weights / Веса индикаторов")
 volumeWeight = input.int(2, "Volume Weight / Вес объёма", minval=0, maxval=5, group="⚖️ Indicator Weights / Веса индикаторов")
 priceActionWeight = input.int(1, "Price Action Weight / Вес Price Action", minval=0, maxval=5, group="⚖️ Indicator Weights / Веса индикаторов")
 maWeight = input.int(1, "EMA Weight / Вес EMA", minval=0, maxval=5, group="⚖️ Indicator Weights / Веса индикаторов")
@@ -66,15 +75,15 @@ divergenceWeight = input.int(2, "Divergence Weight / Вес дивергенци
 
 // === Divergence Settings / Настройки дивергенций ===
 enableDivergence = input.bool(true, "Enable Divergence Detection / Определение дивергенций", group="🔄 Divergence Settings / Настройки дивергенций")
-divergenceLookback = input.int(5, "Divergence Lookback / Период поиска", minval=2, maxval=20, group="🔄 Divergence Settings / Настройки дивергенций")
-minDivergenceStrength = input.float(0.05, "Min Divergence Strength / Мин. сила дивергенции", minval=0.01, step=0.01, group="🔄 Divergence Settings / Настройки дивергенций")
+divergenceLookback = input.int(3, "Divergence Lookback / Период поиска", minval=2, maxval=20, group="🔄 Divergence Settings / Настройки дивергенций")
+minDivergenceStrength = input.float(0.6, "Min Divergence Strength / Мин. сила дивергенции", minval=0.01, step=0.01, group="🔄 Divergence Settings / Настройки дивергенций")
 
 // === Adaptive Filters / Адаптивные фильтры ===
 enableAdaptiveFilters = input.bool(true, "Enable Adaptive Filters / Адаптивные фильтры", group="🔧 Adaptive Filters / Адаптивные фильтры")
 enableTrendFilter = input.bool(true, "Filter Against Strong Trend / Фильтр против тренда", group="🔧 Adaptive Filters / Адаптивные фильтры")
 enableVolatilityFilter = input.bool(true, "Enable Volatility Filter / Фильтр волатильности", group="🔧 Adaptive Filters / Адаптивные фильтры")
-highVolThreshold = input.float(1.5, "High Volatility Threshold / Порог высокой волатильности", minval=1.0, step=0.1, group="🔧 Adaptive Filters / Адаптивные фильтры")
-lowVolThreshold = input.float(0.8, "Low Volatility Threshold / Порог низкой волатильности", minval=0.1, maxval=1.0, step=0.1, group="🔧 Adaptive Filters / Адаптивные фильтры")
+highVolThreshold = input.float(0.85, "High Volatility Threshold / Порог высокой волатильности", minval=0.1, step=0.1, group="🔧 Adaptive Filters / Адаптивные фильтры")
+lowVolThreshold = input.float(0.6, "Low Volatility Threshold / Порог низкой волатильности", minval=0.1, maxval=1.0, step=0.1, group="🔧 Adaptive Filters / Адаптивные фильтры")
 
 // === Display Settings / Настройки отображения ===
 showBullishSignals = input.bool(true, "Show Bullish Signals / Показать бычьи сигналы", group="🎨 Display Settings / Настройки отображения")
