@@ -45,21 +45,24 @@ fibExtension = input.int(50, "Fib Extension Bars / Продление баров
 showFibLabels = input.bool(true, "Show Fib Labels / Показать метки", group="📐 Fibonacci Settings / Настройки Фибоначчи")
 fibLineWidth = input.int(1, "Fib Line Width / Толщина линий", minval=1, maxval=3, group="📐 Fibonacci Settings / Настройки Фибоначчи")
 
-// Fibonacci Retracement Levels / Уровни коррекции Фибоначчи
-showFib0 = input.bool(true, "Show 0.0 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib0")
-showFib236 = input.bool(true, "Show 0.236 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib236")
-showFib382 = input.bool(true, "Show 0.382 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib382")
-showFib5 = input.bool(true, "Show 0.5 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib5")
-showFib618 = input.bool(true, "Show 0.618 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib618")
-showFib786 = input.bool(true, "Show 0.786 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib786")
-showFib1 = input.bool(true, "Show 1.0 Level", group="📐 Fibonacci Retracement / Уровни коррекции", inline="fib1")
+// Fibonacci Trading Levels / Торговые уровни Фибоначчи
+// Based on trading strategy with entries, take-profits, and stop-loss
+// Основаны на торговой стратегии с входами, тейк-профитами и стоп-лоссом
 
-// Fibonacci Extension Levels / Уровни расширения Фибоначчи
-showFib1272 = input.bool(true, "Show 1.272 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib1272")
-showFib1414 = input.bool(false, "Show 1.414 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib1414")
-showFib1618 = input.bool(true, "Show 1.618 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib1618")
-showFib2 = input.bool(true, "Show 2.0 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib2")
-showFib2618 = input.bool(false, "Show 2.618 Level", group="📐 Fibonacci Extension / Уровни расширения", inline="fib2618")
+// Base Level / Базовый уровень
+showFib1 = input.bool(true, "1.0 - Base / Основание", group="📐 Fibonacci Levels / Уровни Фибоначчи")
+
+// Retracement & Entry Levels / Уровни коррекции и входа
+showFib820 = input.bool(true, "0.820 - Stop-Loss / Стоп-лосс", group="📐 Fibonacci Levels / Уровни Фибоначчи")
+showFib618 = input.bool(true, "0.618 - Entry #3 / Вход #3", group="📐 Fibonacci Levels / Уровни Фибоначчи")
+showFib5 = input.bool(true, "0.5 - Entry #2 / Вход #2", group="📐 Fibonacci Levels / Уровни Фибоначчи")
+showFib0 = input.bool(true, "0.0 - Entry #1 / Вход #1", group="📐 Fibonacci Levels / Уровни Фибоначчи")
+
+// Target Levels (Negative values = above entry for long, below entry for short)
+// Целевые уровни (Отрицательные значения = выше входа для лонга, ниже входа для шорта)
+showFibN0618 = input.bool(true, "-0.618 - TP1 (30%) / Тейк-профит 1", group="📐 Fibonacci Levels / Уровни Фибоначчи")
+showFibN1618 = input.bool(true, "-1.618 - TP2 (30%) / Тейк-профит 2", group="📐 Fibonacci Levels / Уровни Фибоначчи")
+showFibN2618 = input.bool(true, "-2.618 - TP3 (40%) / Тейк-профит 3", group="📐 Fibonacci Levels / Уровни Фибоначчи")
 
 // === Display Settings / Настройки отображения ===
 showBullishSignals = input.bool(true, "Show Bullish Signals / Показать бычьи сигналы", group="🎨 Display Settings / Настройки отображения")
@@ -165,20 +168,20 @@ var float bearishEndPrice = na
 var int bearishStartBar = na
 
 // Update on new bullish signal / Обновление при новом бычьем сигнале
+// For bullish: 1.0 = Low (base), 0.0 = High (entry)
 if bullishSignal
     lastBullishBar := bar_index
     bullishStartBar := bar_index
-    bullishStartPrice := low  // Start from low of signal candle
-    // Find recent high for Fibonacci range
-    bullishEndPrice := ta.highest(high, 20)  // Look back 20 bars for high
+    bullishStartPrice := low   // 1.0 level = Low of green candle (base)
+    bullishEndPrice := high    // 0.0 level = High of green candle (entry #1)
 
 // Update on new bearish signal / Обновление при новом медвежьем сигнале
+// For bearish: 1.0 = High (base), 0.0 = Low (entry)
 if bearishSignal
     lastBearishBar := bar_index
     bearishStartBar := bar_index
-    bearishStartPrice := high  // Start from high of signal candle
-    // Find recent low for Fibonacci range
-    bearishEndPrice := ta.lowest(low, 20)  // Look back 20 bars for low
+    bearishStartPrice := high  // 1.0 level = High of red candle (base)
+    bearishEndPrice := low     // 0.0 level = Low of red candle (entry #1)
 
 // ============================================================================
 // DRAW FIBONACCI LEVELS / ОТРИСОВКА УРОВНЕЙ ФИБОНАЧЧИ
@@ -202,64 +205,62 @@ drawFibLevel(startPrice, endPrice, level, levelName, levelColor, startBar) =>
                      style=label.style_label_left, size=size.small)
 
 // Draw Bullish Fibonacci Levels / Отрисовка бычьих уровней Фибоначчи
+// For LONG: 1.0 = Low (base), 0.0 = High (entry), negative = targets above
 if not na(bullishStartPrice) and not na(bullishEndPrice) and not na(bullishStartBar)
     barsFromSignal = bar_index - bullishStartBar
     if barsFromSignal <= fibExtension
-        if showFib0
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.0, "0.0", color.new(color.red, 0), bullishStartBar)
-        if showFib236
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.236, "0.236", color.new(color.orange, 0), bullishStartBar)
-        if showFib382
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.382, color.new(color.yellow, 0), "0.382", bullishStartBar)
-        if showFib5
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.5, "0.5", color.new(color.blue, 0), bullishStartBar)
-        if showFib618
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.618, "0.618", color.new(color.purple, 0), bullishStartBar)
-        if showFib786
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.786, "0.786", color.new(color.teal, 0), bullishStartBar)
+        // Base level
         if showFib1
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.0, "1.0", color.new(color.green, 0), bullishStartBar)
-        // Extension levels
-        if showFib1272
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.272, "1.272", color.new(color.lime, 0), bullishStartBar)
-        if showFib1414
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.414, "1.414", color.new(color.aqua, 0), bullishStartBar)
-        if showFib1618
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.618, "1.618", color.new(color.fuchsia, 0), bullishStartBar)
-        if showFib2
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 2.0, "2.0", color.new(color.maroon, 0), bullishStartBar)
-        if showFib2618
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 2.618, "2.618", color.new(color.navy, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.0, "1.0 Base", color.new(color.gray, 0), bullishStartBar)
+
+        // Stop-Loss level
+        if showFib820
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.820, "0.820 SL", color.new(color.red, 0), bullishStartBar)
+
+        // Entry levels (retracement from high to low)
+        if showFib618
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.618, "0.618 Entry #3", color.new(color.blue, 0), bullishStartBar)
+        if showFib5
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.5, "0.5 Entry #2", color.new(color.blue, 0), bullishStartBar)
+        if showFib0
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.0, "0.0 Entry #1", color.new(color.green, 0), bullishStartBar)
+
+        // Target levels (negative = above 0.0 level for long)
+        if showFibN0618
+            drawFibLevel(bullishStartPrice, bullishEndPrice, -0.618, "-0.618 TP1 (30%)", color.new(color.lime, 0), bullishStartBar)
+        if showFibN1618
+            drawFibLevel(bullishStartPrice, bullishEndPrice, -1.618, "-1.618 TP2 (30%)", color.new(color.yellow, 0), bullishStartBar)
+        if showFibN2618
+            drawFibLevel(bullishStartPrice, bullishEndPrice, -2.618, "-2.618 TP3 (40%)", color.new(color.orange, 0), bullishStartBar)
 
 // Draw Bearish Fibonacci Levels / Отрисовка медвежьих уровней Фибоначчи
+// For SHORT: 1.0 = High (base), 0.0 = Low (entry), negative = targets below
 if not na(bearishStartPrice) and not na(bearishEndPrice) and not na(bearishStartBar)
     barsFromSignal = bar_index - bearishStartBar
     if barsFromSignal <= fibExtension
-        if showFib0
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.0, "0.0", color.new(color.green, 0), bearishStartBar)
-        if showFib236
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.236, "0.236", color.new(color.teal, 0), bearishStartBar)
-        if showFib382
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.382, "0.382", color.new(color.purple, 0), bearishStartBar)
-        if showFib5
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.5, "0.5", color.new(color.blue, 0), bearishStartBar)
-        if showFib618
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.618, "0.618", color.new(color.yellow, 0), bearishStartBar)
-        if showFib786
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.786, "0.786", color.new(color.orange, 0), bearishStartBar)
+        // Base level
         if showFib1
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.0, "1.0", color.new(color.red, 0), bearishStartBar)
-        // Extension levels
-        if showFib1272
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.272, "1.272", color.new(color.maroon, 0), bearishStartBar)
-        if showFib1414
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.414, "1.414", color.new(color.navy, 0), bearishStartBar)
-        if showFib1618
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.618, "1.618", color.new(color.fuchsia, 0), bearishStartBar)
-        if showFib2
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 2.0, "2.0", color.new(color.lime, 0), bearishStartBar)
-        if showFib2618
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 2.618, "2.618", color.new(color.aqua, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.0, "1.0 Base", color.new(color.gray, 0), bearishStartBar)
+
+        // Stop-Loss level
+        if showFib820
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.820, "0.820 SL", color.new(color.red, 0), bearishStartBar)
+
+        // Entry levels (retracement from low to high)
+        if showFib618
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.618, "0.618 Entry #3", color.new(color.blue, 0), bearishStartBar)
+        if showFib5
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.5, "0.5 Entry #2", color.new(color.blue, 0), bearishStartBar)
+        if showFib0
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.0, "0.0 Entry #1", color.new(color.red, 0), bearishStartBar)
+
+        // Target levels (negative = below 0.0 level for short)
+        if showFibN0618
+            drawFibLevel(bearishStartPrice, bearishEndPrice, -0.618, "-0.618 TP1 (30%)", color.new(color.lime, 0), bearishStartBar)
+        if showFibN1618
+            drawFibLevel(bearishStartPrice, bearishEndPrice, -1.618, "-1.618 TP2 (30%)", color.new(color.yellow, 0), bearishStartBar)
+        if showFibN2618
+            drawFibLevel(bearishStartPrice, bearishEndPrice, -2.618, "-2.618 TP3 (40%)", color.new(color.orange, 0), bearishStartBar)
 
 // ============================================================================
 // MARK KEY CANDLES ON CHART / ОТМЕТКИ КЛЮЧЕВЫХ СВЕЧЕЙ НА ГРАФИКЕ
