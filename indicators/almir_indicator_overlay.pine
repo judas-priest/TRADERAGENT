@@ -270,14 +270,12 @@ if not na(bearishStartPrice) and not na(bearishEndPrice) and not na(bearishStart
 
 // Mark bullish signal candles with TRIANGLES (like in RSIV_Step_[Almir])
 // Треугольники входа для позиций как в референсном индикаторе
-plotshape(showSignalLabels and bullishSignal, "Entry UP", shape.triangleup, location.belowbar,
-     color=color.new(#00FF00, 0), size=size.large,
-     text="", title="Bullish Entry Marker")
+plotshape(showSignalLabels and bullishSignal, title="Entry UP", style=shape.triangleup, location=location.belowbar,
+     color=color.new(#00FF00, 0), size=size.large, text="")
 
 // Mark bearish signal candles with TRIANGLES (like in RSIV_Step_[Almir])
-plotshape(showSignalLabels and bearishSignal, "Entry DOWN", shape.triangledown, location.abovebar,
-     color=color.new(#FF0000, 0), size=size.large,
-     text="", title="Bearish Entry Marker")
+plotshape(showSignalLabels and bearishSignal, title="Entry DOWN", style=shape.triangledown, location=location.abovebar,
+     color=color.new(#FF0000, 0), size=size.large, text="")
 
 // Optional: Add small labels with confluence score
 if showSignalLabels and bullishSignal

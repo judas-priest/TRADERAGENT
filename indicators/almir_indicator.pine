@@ -409,18 +409,18 @@ hline(rsiMidLevel, "Mid Level", color=color.new(#808080, 40), linestyle=hline.st
 
 // === Plot Signals / Отображение сигналов ===
 // Larger and more visible with vibrant colors
-plotshape(bullishSignal, "Bullish Signal", shape.labelup, location.bottom,
+plotshape(bullishSignal, title="Bullish Signal", style=shape.labelup, location=location.bottom,
      color=color.new(#00FF00, 0), text="BUY", textcolor=color.black, size=size.large)
 
-plotshape(bearishSignal, "Bearish Signal", shape.labeldown, location.top,
+plotshape(bearishSignal, title="Bearish Signal", style=shape.labeldown, location=location.top,
      color=color.new(#FF0000, 0), text="SELL", textcolor=color.white, size=size.large)
 
 // === Plot Divergences / Отображение дивергенций ===
 // More visible divergence markers
-plotshape(strongBullishDivergence and not bullishSignal, "Bullish Div", shape.circle, location.bottom,
+plotshape(strongBullishDivergence and not bullishSignal, title="Bullish Div", style=shape.circle, location=location.bottom,
      color=color.new(#00FF00, 30), size=size.small)
 
-plotshape(strongBearishDivergence and not bearishSignal, "Bearish Div", shape.circle, location.top,
+plotshape(strongBearishDivergence and not bearishSignal, title="Bearish Div", style=shape.circle, location=location.top,
      color=color.new(#FF00FF, 30), size=size.small)
 
 // === Optional MACD Histogram / Опциональная гистограмма MACD ===
