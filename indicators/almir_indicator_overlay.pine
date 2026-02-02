@@ -200,9 +200,9 @@ drawFibLevel(startPrice, endPrice, level, levelName, levelColor, startBar) =>
                  color=levelColor, width=fibLineWidth, style=line.style_solid)
 
             if showFibLabels and barsFromSignal == 0
-                label.new(startBar, price, levelName,
-                     color=color.new(levelColor, 80), textcolor=levelColor,
-                     style=label.style_label_left, size=size.small)
+                label.new(startBar, price, str.tostring(price, format.mintick) + " (" + levelName + ")",
+                     color=color.new(color.white, 100), textcolor=levelColor,
+                     style=label.style_label_down, size=size.small, yloc=yloc.price)
 
 // Draw Bullish Fibonacci Levels / Отрисовка бычьих уровней Фибоначчи
 // For LONG: 1.0 = Low (base), 0.0 = High (entry), negative = targets above
