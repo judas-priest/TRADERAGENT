@@ -443,8 +443,9 @@ if showTable and barstate.islast
         // Show reasons for bullish signal
         if bullishScore > 0
             reasonsText = array.size(bullishReasons) > 0 ? array.get(bullishReasons, 0) : "None"
-            for i = 1 to math.min(2, array.size(bullishReasons) - 1)
-                reasonsText += "\n" + array.get(bullishReasons, i)
+            if array.size(bullishReasons) > 1
+                for i = 1 to math.min(2, array.size(bullishReasons) - 1)
+                    reasonsText += "\n" + array.get(bullishReasons, i)
             table.cell(infoTable, 0, 9, "🟢 Bullish:", text_color=color.green, text_size=size.small)
             table.cell(infoTable, 1, 9, reasonsText, text_color=color.gray, text_size=size.small)
             table.merge_cells(infoTable, 1, 9, 2, 9)
@@ -452,8 +453,9 @@ if showTable and barstate.islast
         // Show reasons for bearish signal
         if bearishScore > 0
             reasonsText = array.size(bearishReasons) > 0 ? array.get(bearishReasons, 0) : "None"
-            for i = 1 to math.min(2, array.size(bearishReasons) - 1)
-                reasonsText += "\n" + array.get(bearishReasons, i)
+            if array.size(bearishReasons) > 1
+                for i = 1 to math.min(2, array.size(bearishReasons) - 1)
+                    reasonsText += "\n" + array.get(bearishReasons, i)
             rowIdx = bullishScore > 0 ? 10 : 9
             table.cell(infoTable, 0, rowIdx, "🔴 Bearish:", text_color=color.red, text_size=size.small)
             table.cell(infoTable, 1, rowIdx, reasonsText, text_color=color.gray, text_size=size.small)
