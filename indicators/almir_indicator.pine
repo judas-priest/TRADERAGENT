@@ -441,14 +441,15 @@ if showVolume
          (close > open ? color.new(color.lime, 10) : color.new(color.maroon, 10)) :
          volumeColor
 
-    // Plot volume as histogram with separate scale (scale.left)
-    // This creates a dedicated volume scale independent from RSI scale
+    // Plot volume as histogram
+    // Note: Pine Script doesn't support separate scales in overlay mode
+    // Volume is normalized to fit the indicator pane
     plot(volume, "Volume", color=volumeHighlightColor, style=plot.style_histogram,
-         linewidth=3, scale=scale.left)
+         linewidth=3)
 
-    // Plot volume MA line for reference on the same separate scale
+    // Plot volume MA line for reference
     plot(volumeMa, "Volume MA", color=color.new(color.white, 50), linewidth=2,
-         style=plot.style_line, scale=scale.left)
+         style=plot.style_line)
 
 // ============================================================================
 // INFO TABLE / ИНФОРМАЦИОННАЯ ТАБЛИЦА
