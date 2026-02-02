@@ -206,84 +206,96 @@ drawFibLevel(startPrice, endPrice, level, levelName, levelColor, startBar) =>
 
 // Draw Bullish Fibonacci Levels / Отрисовка бычьих уровней Фибоначчи
 // For LONG: 1.0 = High (base), 0.0 = Low (entry), negative = targets below
+// More vibrant colors for better visibility
 if not na(bullishStartPrice) and not na(bullishEndPrice) and not na(bullishStartBar)
     barsFromSignal = bar_index - bullishStartBar
     if barsFromSignal <= fibExtension
         // Base level
         if showFib1
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.0, "1.0 Base", color.new(color.gray, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 1.0, "1.0 Base", color.new(#808080, 0), bullishStartBar)
 
         // Stop-Loss level
         if showFib820
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.820, "0.820 SL", color.new(color.red, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.820, "0.820 SL", color.new(#FF0000, 0), bullishStartBar)
 
         // Entry levels (retracement from high to low)
         if showFib618
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.618, "0.618 Entry #3", color.new(color.blue, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.618, "0.618 Entry #3", color.new(#0080FF, 0), bullishStartBar)
         if showFib5
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.5, "0.5 Entry #2", color.new(color.blue, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.5, "0.5 Entry #2", color.new(#00BFFF, 0), bullishStartBar)
         if showFib0
-            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.0, "0.0 Entry #1", color.new(color.green, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, 0.0, "0.0 Entry #1", color.new(#00FF00, 0), bullishStartBar)
 
         // Target levels (negative = above 0.0 level for long)
         if showFibN0618
-            drawFibLevel(bullishStartPrice, bullishEndPrice, -0.618, "-0.618 TP1 (30%)", color.new(color.lime, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, -0.618, "-0.618 TP1 (30%)", color.new(#00FF00, 0), bullishStartBar)
         if showFibN1618
-            drawFibLevel(bullishStartPrice, bullishEndPrice, -1.618, "-1.618 TP2 (30%)", color.new(color.yellow, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, -1.618, "-1.618 TP2 (30%)", color.new(#FFFF00, 0), bullishStartBar)
         if showFibN2618
-            drawFibLevel(bullishStartPrice, bullishEndPrice, -2.618, "-2.618 TP3 (40%)", color.new(color.orange, 0), bullishStartBar)
+            drawFibLevel(bullishStartPrice, bullishEndPrice, -2.618, "-2.618 TP3 (40%)", color.new(#FFA500, 0), bullishStartBar)
 
 // Draw Bearish Fibonacci Levels / Отрисовка медвежьих уровней Фибоначчи
 // For SHORT: 1.0 = Low (base), 0.0 = High (entry), negative = targets above
+// More vibrant colors for better visibility
 if not na(bearishStartPrice) and not na(bearishEndPrice) and not na(bearishStartBar)
     barsFromSignal = bar_index - bearishStartBar
     if barsFromSignal <= fibExtension
         // Base level
         if showFib1
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.0, "1.0 Base", color.new(color.gray, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 1.0, "1.0 Base", color.new(#808080, 0), bearishStartBar)
 
         // Stop-Loss level
         if showFib820
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.820, "0.820 SL", color.new(color.red, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.820, "0.820 SL", color.new(#FF0000, 0), bearishStartBar)
 
         // Entry levels (retracement from low to high)
         if showFib618
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.618, "0.618 Entry #3", color.new(color.blue, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.618, "0.618 Entry #3", color.new(#0080FF, 0), bearishStartBar)
         if showFib5
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.5, "0.5 Entry #2", color.new(color.blue, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.5, "0.5 Entry #2", color.new(#00BFFF, 0), bearishStartBar)
         if showFib0
-            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.0, "0.0 Entry #1", color.new(color.red, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, 0.0, "0.0 Entry #1", color.new(#FF0000, 0), bearishStartBar)
 
         // Target levels (negative = below 0.0 level for short)
         if showFibN0618
-            drawFibLevel(bearishStartPrice, bearishEndPrice, -0.618, "-0.618 TP1 (30%)", color.new(color.lime, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, -0.618, "-0.618 TP1 (30%)", color.new(#FF00FF, 0), bearishStartBar)
         if showFibN1618
-            drawFibLevel(bearishStartPrice, bearishEndPrice, -1.618, "-1.618 TP2 (30%)", color.new(color.yellow, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, -1.618, "-1.618 TP2 (30%)", color.new(#FFFF00, 0), bearishStartBar)
         if showFibN2618
-            drawFibLevel(bearishStartPrice, bearishEndPrice, -2.618, "-2.618 TP3 (40%)", color.new(color.orange, 0), bearishStartBar)
+            drawFibLevel(bearishStartPrice, bearishEndPrice, -2.618, "-2.618 TP3 (40%)", color.new(#FFA500, 0), bearishStartBar)
 
 // ============================================================================
 // MARK KEY CANDLES ON CHART / ОТМЕТКИ КЛЮЧЕВЫХ СВЕЧЕЙ НА ГРАФИКЕ
 // ============================================================================
 
-// Mark bullish signal candles / Отметка бычьих сигнальных свечей
-if showSignalLabels and bullishSignal
-    label.new(bar_index, low, "🟢\nFIB",
-         color=color.new(color.green, 0), textcolor=color.white,
-         style=label.style_label_up, size=size.normal,
-         tooltip="Bullish Signal\nScore: " + str.tostring(bullishScore))
+// Mark bullish signal candles with TRIANGLES (like in RSIV_Step_[Almir])
+// Треугольники входа для позиций как в референсном индикаторе
+plotshape(showSignalLabels and bullishSignal, "Entry UP", shape.triangleup, location.belowbar,
+     color=color.new(#00FF00, 0), size=size.large,
+     text="", title="Bullish Entry Marker")
 
-// Mark bearish signal candles / Отметка медвежьих сигнальных свечей
+// Mark bearish signal candles with TRIANGLES (like in RSIV_Step_[Almir])
+plotshape(showSignalLabels and bearishSignal, "Entry DOWN", shape.triangledown, location.abovebar,
+     color=color.new(#FF0000, 0), size=size.large,
+     text="", title="Bearish Entry Marker")
+
+// Optional: Add small labels with confluence score
+if showSignalLabels and bullishSignal
+    label.new(bar_index, low * 0.999, str.tostring(bullishScore),
+         color=color.new(#00FF00, 20), textcolor=color.white,
+         style=label.style_label_up, size=size.tiny,
+         tooltip="Bullish Signal\nConfluence Score: " + str.tostring(bullishScore))
+
 if showSignalLabels and bearishSignal
-    label.new(bar_index, high, "🔴\nFIB",
-         color=color.new(color.red, 0), textcolor=color.white,
-         style=label.style_label_down, size=size.normal,
-         tooltip="Bearish Signal\nScore: " + str.tostring(bearishScore))
+    label.new(bar_index, high * 1.001, str.tostring(bearishScore),
+         color=color.new(#FF0000, 20), textcolor=color.white,
+         style=label.style_label_down, size=size.tiny,
+         tooltip="Bearish Signal\nConfluence Score: " + str.tostring(bearishScore))
 
 // ============================================================================
 // BACKGROUND HIGHLIGHTS / ПОДСВЕТКА ФОНА
 // ============================================================================
 
-// Highlight signal candles / Подсветка сигнальных свечей
-bgcolor(bullishSignal ? color.new(color.green, 90) : na, title="Bullish Signal BG")
-bgcolor(bearishSignal ? color.new(color.red, 90) : na, title="Bearish Signal BG")
+// Highlight signal candles with more visible background
+bgcolor(bullishSignal ? color.new(#00FF00, 85) : na, title="Bullish Signal BG")
+bgcolor(bearishSignal ? color.new(#FF0000, 85) : na, title="Bearish Signal BG")

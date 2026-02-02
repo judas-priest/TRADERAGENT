@@ -375,80 +375,84 @@ lowerBand = 0.0
 midLevel = 50.0
 
 // === Plot Filled Wave Bands / Заполненные волновые полосы ===
-// Green bullish waves (layered for depth)
+// Green bullish waves (layered for depth) - INTENSE VIBRANT COLORS
 greenZoneBase = plot(showZones ? lowerBand : na, "Green Zone Base", color=na, display=display.none)
-greenZoneTop1 = plot(showZones and rsi < rsiMidLevel ? rsiWave1 : na, "Green Wave 1", color=color.new(color.green, 60), linewidth=1)
-greenZoneTop2 = plot(showZones and rsi < rsiMidLevel ? rsiWave2 : na, "Green Wave 2", color=color.new(color.lime, 70), linewidth=1)
-greenZoneTop3 = plot(showZones and rsi < rsiMidLevel ? rsiWave3 : na, "Green Wave 3", color=color.new(color.teal, 75), linewidth=1)
+greenZoneTop1 = plot(showZones and rsi < rsiMidLevel ? rsiWave1 : na, "Green Wave 1", color=color.new(#00FF00, 30), linewidth=2)
+greenZoneTop2 = plot(showZones and rsi < rsiMidLevel ? rsiWave2 : na, "Green Wave 2", color=color.new(#00FF7F, 40), linewidth=2)
+greenZoneTop3 = plot(showZones and rsi < rsiMidLevel ? rsiWave3 : na, "Green Wave 3", color=color.new(#32CD32, 45), linewidth=2)
 
-// Fill green waves with gradient effect
-fill(greenZoneBase, greenZoneTop1, color=showZones and rsi < rsiMidLevel ? color.new(color.green, 70) : na, title="Green Fill 1")
-fill(greenZoneTop1, greenZoneTop2, color=showZones and rsi < rsiMidLevel ? color.new(color.lime, 80) : na, title="Green Fill 2")
-fill(greenZoneTop2, greenZoneTop3, color=showZones and rsi < rsiMidLevel ? color.new(color.teal, 85) : na, title="Green Fill 3")
+// Fill green waves with intense vibrant gradient
+fill(greenZoneBase, greenZoneTop1, color=showZones and rsi < rsiMidLevel ? color.new(#00FF00, 40) : na, title="Green Fill 1")
+fill(greenZoneTop1, greenZoneTop2, color=showZones and rsi < rsiMidLevel ? color.new(#00FF7F, 50) : na, title="Green Fill 2")
+fill(greenZoneTop2, greenZoneTop3, color=showZones and rsi < rsiMidLevel ? color.new(#32CD32, 60) : na, title="Green Fill 3")
 
-// Pink/Magenta bearish waves (layered for depth)
+// Pink/Magenta bearish waves (layered for depth) - INTENSE VIBRANT COLORS
 pinkZoneBase = plot(showZones ? upperBand : na, "Pink Zone Base", color=na, display=display.none)
-pinkZoneBottom1 = plot(showZones and rsi > rsiMidLevel ? rsiWave1 : na, "Pink Wave 1", color=color.new(color.fuchsia, 60), linewidth=1)
-pinkZoneBottom2 = plot(showZones and rsi > rsiMidLevel ? rsiWave2 : na, "Pink Wave 2", color=color.new(color.purple, 70), linewidth=1)
-pinkZoneBottom3 = plot(showZones and rsi > rsiMidLevel ? rsiWave3 : na, "Pink Wave 3", color=color.new(color.maroon, 75), linewidth=1)
+pinkZoneBottom1 = plot(showZones and rsi > rsiMidLevel ? rsiWave1 : na, "Pink Wave 1", color=color.new(#FF00FF, 30), linewidth=2)
+pinkZoneBottom2 = plot(showZones and rsi > rsiMidLevel ? rsiWave2 : na, "Pink Wave 2", color=color.new(#FF1493, 40), linewidth=2)
+pinkZoneBottom3 = plot(showZones and rsi > rsiMidLevel ? rsiWave3 : na, "Pink Wave 3", color=color.new(#FF69B4, 45), linewidth=2)
 
-// Fill pink waves with gradient effect
-fill(pinkZoneBase, pinkZoneBottom1, color=showZones and rsi > rsiMidLevel ? color.new(color.fuchsia, 70) : na, title="Pink Fill 1")
-fill(pinkZoneBottom1, pinkZoneBottom2, color=showZones and rsi > rsiMidLevel ? color.new(color.purple, 80) : na, title="Pink Fill 2")
-fill(pinkZoneBottom2, pinkZoneBottom3, color=showZones and rsi > rsiMidLevel ? color.new(color.maroon, 85) : na, title="Pink Fill 3")
+// Fill pink waves with intense vibrant gradient
+fill(pinkZoneBase, pinkZoneBottom1, color=showZones and rsi > rsiMidLevel ? color.new(#FF00FF, 40) : na, title="Pink Fill 1")
+fill(pinkZoneBottom1, pinkZoneBottom2, color=showZones and rsi > rsiMidLevel ? color.new(#FF1493, 50) : na, title="Pink Fill 2")
+fill(pinkZoneBottom2, pinkZoneBottom3, color=showZones and rsi > rsiMidLevel ? color.new(#FF69B4, 60) : na, title="Pink Fill 3")
 
 // === Plot Main RSI Lines / Основные линии RSI ===
-plot(rsi, "RSI", color=color.new(color.white, 0), linewidth=2)
-plot(rsiSmooth, "RSI Smooth", color=color.new(color.yellow, 0), linewidth=1, style=plot.style_line)
+// More prominent and visible with vibrant colors
+plot(rsi, "RSI", color=color.new(#FFFFFF, 0), linewidth=3)
+plot(rsiSmooth, "RSI Smooth", color=color.new(#FFFF00, 0), linewidth=2, style=plot.style_line)
 
-// RSI Levels / Уровни RSI
-hline(rsiOverbought, "Overbought", color=color.new(color.red, 50), linestyle=hline.style_dashed, linewidth=1)
-hline(rsiOversold, "Oversold", color=color.new(color.green, 50), linestyle=hline.style_dashed, linewidth=1)
-hline(rsiMidLevel, "Mid Level", color=color.new(color.gray, 60), linestyle=hline.style_solid, linewidth=1)
+// RSI Levels / Уровни RSI - more visible
+hline(rsiOverbought, "Overbought", color=color.new(#FF0000, 30), linestyle=hline.style_dashed, linewidth=2)
+hline(rsiOversold, "Oversold", color=color.new(#00FF00, 30), linestyle=hline.style_dashed, linewidth=2)
+hline(rsiMidLevel, "Mid Level", color=color.new(#808080, 40), linestyle=hline.style_solid, linewidth=2)
 
 // === Plot Signals / Отображение сигналов ===
+// Larger and more visible with vibrant colors
 plotshape(bullishSignal, "Bullish Signal", shape.labelup, location.bottom,
-     color=color.new(color.green, 0), text="BUY", textcolor=color.white, size=size.normal)
+     color=color.new(#00FF00, 0), text="BUY", textcolor=color.black, size=size.large)
 
 plotshape(bearishSignal, "Bearish Signal", shape.labeldown, location.top,
-     color=color.new(color.red, 0), text="SELL", textcolor=color.white, size=size.normal)
+     color=color.new(#FF0000, 0), text="SELL", textcolor=color.white, size=size.large)
 
 // === Plot Divergences / Отображение дивергенций ===
+// More visible divergence markers
 plotshape(strongBullishDivergence and not bullishSignal, "Bullish Div", shape.circle, location.bottom,
-     color=color.new(color.lime, 50), size=size.tiny)
+     color=color.new(#00FF00, 30), size=size.small)
 
 plotshape(strongBearishDivergence and not bearishSignal, "Bearish Div", shape.circle, location.top,
-     color=color.new(color.fuchsia, 50), size=size.tiny)
+     color=color.new(#FF00FF, 30), size=size.small)
 
 // === Optional MACD Histogram / Опциональная гистограмма MACD ===
-// Scale MACD histogram to fit in RSI range (0-100)
+// Scale MACD histogram to fit in RSI range (0-100) - more vibrant colors
 macdHistScaled = showMacd ? (macdHist * 10) + 50 : na
-macdHistColor = macdHist > 0 ? color.new(color.lime, 60) : color.new(color.red, 60)
-plot(macdHistScaled, "MACD Histogram", color=macdHistColor, style=plot.style_histogram, linewidth=2)
+macdHistColor = macdHist > 0 ? color.new(#00FF00, 40) : color.new(#FF0000, 40)
+plot(macdHistScaled, "MACD Histogram", color=macdHistColor, style=plot.style_histogram, linewidth=3)
 
 // === Optional Stochastic Lines / Опциональные линии Stochastic ===
-plot(showStochastic ? stochK : na, "Stochastic %K", color=color.new(color.blue, 30), linewidth=1)
-plot(showStochastic ? stochD : na, "Stochastic %D", color=color.new(color.orange, 30), linewidth=1, style=plot.style_line)
+// More vibrant and visible
+plot(showStochastic ? stochK : na, "Stochastic %K", color=color.new(#0080FF, 20), linewidth=2)
+plot(showStochastic ? stochD : na, "Stochastic %D", color=color.new(#FF8000, 20), linewidth=2, style=plot.style_line)
 
 // === Volume Display / Отображение объёма ===
 // Display volume with separate scale (similar to RSIV_Step_[Almir])
 // Volumes are shown on their own scale for better visibility and analysis
-// Color coding: green for bullish bars (close > open), red for bearish bars
-// Highlight strong volume with brighter colors
-volumeColor = close > open ? color.new(color.green, 30) : color.new(color.red, 30)
+// Color coding: vibrant green for bullish bars, vibrant red for bearish bars
+// Highlight strong volume with even brighter colors
+volumeColor = close > open ? color.new(#00CC00, 20) : color.new(#CC0000, 20)
 volumeHighlightColor = strongVolume ?
-     (close > open ? color.new(color.lime, 10) : color.new(color.maroon, 10)) :
+     (close > open ? color.new(#00FF00, 0) : color.new(#FF0000, 0)) :
      volumeColor
 
-// Plot volume as histogram
+// Plot volume as histogram - more prominent
 // Note: Pine Script doesn't support separate scales in overlay mode
 // Volume is normalized to fit the indicator pane
 // Use conditional expression to show/hide based on showVolume setting
 plot(showVolume ? volume : na, "Volume", color=volumeHighlightColor, style=plot.style_histogram,
-     linewidth=3)
+     linewidth=4)
 
-// Plot volume MA line for reference
-plot(showVolume ? volumeMa : na, "Volume MA", color=color.new(color.white, 50), linewidth=2,
+// Plot volume MA line for reference - more visible
+plot(showVolume ? volumeMa : na, "Volume MA", color=color.new(#FFFFFF, 30), linewidth=2,
      style=plot.style_line)
 
 // ============================================================================
