@@ -168,20 +168,20 @@ var float bearishEndPrice = na
 var int bearishStartBar = na
 
 // Update on new bullish signal / Обновление при новом бычьем сигнале
-// For bullish: 1.0 = Low (base), 0.0 = High (entry)
+// For bullish: 1.0 = High (base), 0.0 = Low (entry)
 if bullishSignal
     lastBullishBar := bar_index
     bullishStartBar := bar_index
-    bullishStartPrice := low   // 1.0 level = Low of green candle (base)
-    bullishEndPrice := high    // 0.0 level = High of green candle (entry #1)
+    bullishStartPrice := high  // 1.0 level = High of green candle (base)
+    bullishEndPrice := low     // 0.0 level = Low of green candle (entry #1)
 
 // Update on new bearish signal / Обновление при новом медвежьем сигнале
-// For bearish: 1.0 = High (base), 0.0 = Low (entry)
+// For bearish: 1.0 = Low (base), 0.0 = High (entry)
 if bearishSignal
     lastBearishBar := bar_index
     bearishStartBar := bar_index
-    bearishStartPrice := high  // 1.0 level = High of red candle (base)
-    bearishEndPrice := low     // 0.0 level = Low of red candle (entry #1)
+    bearishStartPrice := low   // 1.0 level = Low of red candle (base)
+    bearishEndPrice := high    // 0.0 level = High of red candle (entry #1)
 
 // ============================================================================
 // DRAW FIBONACCI LEVELS / ОТРИСОВКА УРОВНЕЙ ФИБОНАЧЧИ
@@ -205,7 +205,7 @@ drawFibLevel(startPrice, endPrice, level, levelName, levelColor, startBar) =>
                      style=label.style_label_down, size=size.small, yloc=yloc.price)
 
 // Draw Bullish Fibonacci Levels / Отрисовка бычьих уровней Фибоначчи
-// For LONG: 1.0 = Low (base), 0.0 = High (entry), negative = targets above
+// For LONG: 1.0 = High (base), 0.0 = Low (entry), negative = targets below
 if not na(bullishStartPrice) and not na(bullishEndPrice) and not na(bullishStartBar)
     barsFromSignal = bar_index - bullishStartBar
     if barsFromSignal <= fibExtension
@@ -234,7 +234,7 @@ if not na(bullishStartPrice) and not na(bullishEndPrice) and not na(bullishStart
             drawFibLevel(bullishStartPrice, bullishEndPrice, -2.618, "-2.618 TP3 (40%)", color.new(color.orange, 0), bullishStartBar)
 
 // Draw Bearish Fibonacci Levels / Отрисовка медвежьих уровней Фибоначчи
-// For SHORT: 1.0 = High (base), 0.0 = Low (entry), negative = targets below
+// For SHORT: 1.0 = Low (base), 0.0 = High (entry), negative = targets above
 if not na(bearishStartPrice) and not na(bearishEndPrice) and not na(bearishStartBar)
     barsFromSignal = bar_index - bearishStartBar
     if barsFromSignal <= fibExtension
