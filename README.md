@@ -7,7 +7,9 @@ Professional trading system for TradingView with universal reversal indicator ba
 ## 📚 Документация / Documentation
 
 - 🇷🇺 [Полное руководство по Universal Indicator v2](UNIVERSAL_INDICATOR_GUIDE_RU.md)
+- 🇷🇺 [Полное руководство по ALMIR Indicator](ALMIR_INDICATOR_GUIDE_RU.md)
 - 🇷🇺 [Инструкция по установке](INSTALLATION_RU.md)
+- 📋 [Action Plan для Issue #79](ACTION_PLAN_ISSUE_79.md)
 
 ## 🎯 О системе / About
 
@@ -29,16 +31,30 @@ Professional trading system for TradingView with universal reversal indicator ba
 
 ### Индикаторы / Indicators
 
+#### Universal Indicator v2
+
 1. **universal_indicator_v2.pine** — основной индикатор с панелью RSI и моментума
    - Main indicator with RSI and momentum panel
 
 2. **universal_indicator_v2_overlay.pine** — overlay-компонент для отображения уровней Фибоначчи на графике цены
    - Overlay component for displaying Fibonacci levels on price chart
 
+#### ALMIR Indicator (Issue #79)
+
+3. **almir_indicator.pine** — индикатор ALMIR для автоматического определения ключевых свечей
+   - ALMIR indicator for automatic key candle detection
+   - 🇷🇺 [Полное руководство по ALMIR](ALMIR_INDICATOR_GUIDE_RU.md)
+
+4. **almir_indicator_overlay.pine** — overlay-компонент ALMIR для Fibonacci уровней
+   - ALMIR overlay component for Fibonacci levels
+
 ### Тесты / Tests
 
 - **experiments/universal_indicator_v2_test.pine** — тестовый скрипт для проверки работы индикатора
   - Test script for indicator validation
+
+- **experiments/almir_indicator_analysis.md** — анализ и методология ALMIR
+  - ALMIR analysis and methodology
 
 ## 🚀 Быстрый старт / Quick Start
 
