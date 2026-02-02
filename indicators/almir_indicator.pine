@@ -361,14 +361,13 @@ hline(rsiOversold, "Oversold", color=color.new(color.green, 50), linestyle=hline
 hline(rsiMidLevel, "Mid Level", color=color.new(color.gray, 70), linestyle=hline.style_dotted)
 
 // === Colored Zones / Цветные зоны ===
-if showZones
-    // Bullish zone / Бычья зона (зеленая)
-    bullishZone = rsi < rsiOversold
-    bgcolor(bullishZone ? color.new(color.green, 85) : na, title="Bullish Zone")
+// Bullish zone / Бычья зона (зеленая)
+bullishZone = rsi < rsiOversold
+bgcolor(showZones and bullishZone ? color.new(color.green, 85) : na, title="Bullish Zone")
 
-    // Bearish zone / Медвежья зона (розовая/красная)
-    bearishZone = rsi > rsiOverbought
-    bgcolor(bearishZone ? color.new(color.red, 85) : na, title="Bearish Zone")
+// Bearish zone / Медвежья зона (розовая/красная)
+bearishZone = rsi > rsiOverbought
+bgcolor(showZones and bearishZone ? color.new(color.red, 85) : na, title="Bearish Zone")
 
 // === Plot Signals / Отображение сигналов ===
 plotshape(bullishSignal, "Bullish Signal", shape.labelup, location.bottom,
