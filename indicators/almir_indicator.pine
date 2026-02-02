@@ -376,9 +376,9 @@ midLevel = 50.0
 // === Plot Filled Wave Bands / Заполненные волновые полосы ===
 // Green bullish waves (layered for depth)
 greenZoneBase = plot(showZones ? lowerBand : na, "Green Zone Base", color=na, display=display.none)
-greenZoneTop1 = plot(showZones and rsi < rsiMidLevel ? rsiWave1 : na, "Green Wave 1", color=color.new(color.green, 60), linewidth=0)
-greenZoneTop2 = plot(showZones and rsi < rsiMidLevel ? rsiWave2 : na, "Green Wave 2", color=color.new(color.lime, 70), linewidth=0)
-greenZoneTop3 = plot(showZones and rsi < rsiMidLevel ? rsiWave3 : na, "Green Wave 3", color=color.new(color.teal, 75), linewidth=0)
+greenZoneTop1 = plot(showZones and rsi < rsiMidLevel ? rsiWave1 : na, "Green Wave 1", color=color.new(color.green, 60), linewidth=1)
+greenZoneTop2 = plot(showZones and rsi < rsiMidLevel ? rsiWave2 : na, "Green Wave 2", color=color.new(color.lime, 70), linewidth=1)
+greenZoneTop3 = plot(showZones and rsi < rsiMidLevel ? rsiWave3 : na, "Green Wave 3", color=color.new(color.teal, 75), linewidth=1)
 
 // Fill green waves with gradient effect
 fill(greenZoneBase, greenZoneTop1, color=showZones and rsi < rsiMidLevel ? color.new(color.green, 70) : na, title="Green Fill 1")
@@ -387,9 +387,9 @@ fill(greenZoneTop2, greenZoneTop3, color=showZones and rsi < rsiMidLevel ? color
 
 // Pink/Magenta bearish waves (layered for depth)
 pinkZoneBase = plot(showZones ? upperBand : na, "Pink Zone Base", color=na, display=display.none)
-pinkZoneBottom1 = plot(showZones and rsi > rsiMidLevel ? rsiWave1 : na, "Pink Wave 1", color=color.new(color.fuchsia, 60), linewidth=0)
-pinkZoneBottom2 = plot(showZones and rsi > rsiMidLevel ? rsiWave2 : na, "Pink Wave 2", color=color.new(color.purple, 70), linewidth=0)
-pinkZoneBottom3 = plot(showZones and rsi > rsiMidLevel ? rsiWave3 : na, "Pink Wave 3", color=color.new(color.maroon, 75), linewidth=0)
+pinkZoneBottom1 = plot(showZones and rsi > rsiMidLevel ? rsiWave1 : na, "Pink Wave 1", color=color.new(color.fuchsia, 60), linewidth=1)
+pinkZoneBottom2 = plot(showZones and rsi > rsiMidLevel ? rsiWave2 : na, "Pink Wave 2", color=color.new(color.purple, 70), linewidth=1)
+pinkZoneBottom3 = plot(showZones and rsi > rsiMidLevel ? rsiWave3 : na, "Pink Wave 3", color=color.new(color.maroon, 75), linewidth=1)
 
 // Fill pink waves with gradient effect
 fill(pinkZoneBase, pinkZoneBottom1, color=showZones and rsi > rsiMidLevel ? color.new(color.fuchsia, 70) : na, title="Pink Fill 1")
