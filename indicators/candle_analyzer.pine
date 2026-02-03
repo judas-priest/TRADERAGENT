@@ -660,5 +660,5 @@ if showResultsTable and enableAnalysis and barstate.islast and not na(selectedBa
 // ALERTS / АЛЕРТЫ
 // ============================================================================
 
-alertcondition(enableAnalysis and not na(selectedBar), title="Analysis",
-     message="Candle analysis complete for bar " + str.tostring(candleBarIndex))
+alertcondition(enableAnalysis and not na(selectedBar), title="Alert",
+     message="Candle analysis complete")
