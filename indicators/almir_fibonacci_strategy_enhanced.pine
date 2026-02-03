@@ -706,10 +706,10 @@ plot(ema3, "EMA 200", color=color.new(color.purple, 50), linewidth=2)
 // Enhanced signal markers with confluence score display
 // Улучшенные маркеры сигналов с отображением confluence score
 plotshape(bullishSignal, title="Bullish Signal", style=shape.triangleup, location=location.belowbar,
-     color=color.new(color.green, 0), text="BUY\n" + str.tostring(bullishScore), textcolor=color.white, size=size.large)
+     color=color.new(color.green, 0), text="BUY", textcolor=color.white, size=size.large)
 
 plotshape(bearishSignal, title="Bearish Signal", style=shape.triangledown, location=location.abovebar,
-     color=color.new(color.red, 0), text="SELL\n" + str.tostring(bearishScore), textcolor=color.white, size=size.large)
+     color=color.new(color.red, 0), text="SELL", textcolor=color.white, size=size.large)
 
 // Plot divergences / Отображение дивергенций
 plotshape(strongBullishDivergence and not bullishSignal, title="Bullish Div", style=shape.circle,
