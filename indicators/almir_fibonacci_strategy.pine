@@ -2,7 +2,7 @@
 // © TRADERAGENT
 
 //@version=6
-strategy("ALMIR Fibonacci Strategy - ALMIRBGCLOD", shorttitle="ALMIR Fib Strategy", overlay=true,
+strategy("ALMIR Fibonacci Strategy - ALMIRBGCLOD", shorttitle="ALMIR-Fib", overlay=true,
          initial_capital=10000, default_qty_type=strategy.percent_of_equity,
          default_qty_value=1, commission_type=strategy.commission.percent,
          commission_value=0.1, slippage=3,
@@ -363,7 +363,7 @@ if bearishSignal
 // Track Fibonacci levels for active position / Отслеживание уровней для активной позиции
 var float fibBase = na
 var float fibTop = na
-var bool isLongPosition = na
+var bool isLongPosition = false
 var int signalBar = na
 
 // Calculate Fibonacci levels on new signal / Расчёт уровней при новом сигнале

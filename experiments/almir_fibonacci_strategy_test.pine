@@ -2,7 +2,7 @@
 // © TRADERAGENT
 
 //@version=6
-strategy("ALMIR Fibonacci Strategy Test", shorttitle="ALMIR Fib Test", overlay=true,
+strategy("ALMIR Fibonacci Strategy Test", shorttitle="ALMIR-Test", overlay=true,
          initial_capital=10000, default_qty_type=strategy.percent_of_equity,
          default_qty_value=1, commission_type=strategy.commission.percent,
          commission_value=0.1, slippage=3)
@@ -159,7 +159,7 @@ if bearishSignal
 
 var float fibBase = na
 var float fibTop = na
-var bool isLongPosition = na
+var bool isLongPosition = false
 
 if bullishSignal
     isLongPosition := true
