@@ -290,8 +290,8 @@ if showDebugInfo and barstate.islast
     table.cell(debugTable, 1, 12, fibRangeText, text_size=size.small)
 
     table.cell(debugTable, 0, 13, "Position Type", text_size=size.small)
-    posTypeText = na(isLongPosition) ? "None" : isLongPosition ? "LONG" : "SHORT"
-    posTypeColor = na(isLongPosition) ? color.gray : isLongPosition ? color.green : color.red
+    posTypeText = isLongPosition ? "LONG" : "SHORT"
+    posTypeColor = isLongPosition ? color.green : color.red
     table.cell(debugTable, 1, 13, posTypeText, text_color=posTypeColor, text_size=size.small)
 
     // Last Signal
