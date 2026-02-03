@@ -41,13 +41,3 @@ Original repository (upstream): alekseymavai/TRADERAGENT
 Proceed.
 
 Run timestamp: 2026-01-30T18:29:59.935Z
-
----
-
-Issue to solve: https://github.com/alekseymavai/TRADERAGENT/issues/89
-Your prepared branch: issue-89-20ed9c92e9c2
-Your prepared working directory: /tmp/gh-issue-solver-1770128692589
-
-Proceed.
-
-Run timestamp: 2026-02-03T14:24:54.975Z
