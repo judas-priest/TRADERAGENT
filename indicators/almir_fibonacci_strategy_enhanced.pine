@@ -1,0 +1,1003 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TRADERAGENT
+
+//@version=6
+strategy("ALMIR Fibonacci Strategy - Enhanced", shorttitle="ALMIR-FibE", overlay=true,
+         initial_capital=10000, default_qty_type=strategy.percent_of_equity,
+         default_qty_value=1, commission_type=strategy.commission.percent,
+         commission_value=0.1, slippage=3,
+         max_bars_back=500, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
+
+// ============================================================================
+// ОПИСАНИЕ / DESCRIPTION
+// ============================================================================
+// Enhanced version of ALMIR Fibonacci Strategy with:
+// - Systematic testing support with parameter presets
+// - Results export via TradingView alerts (CSV-compatible)
+// - Extended statistics (green/red candles, confluence analysis)
+// - Visual improvements with metrics table
+// - Easy parameter switching for different market conditions
+//
+// Улучшенная версия стратегии ALMIR Fibonacci с:
+// - Поддержка систематического тестирования с пресетами параметров
+// - Экспорт результатов через алерты TradingView (CSV-совместимый)
+// - Расширенная статистика (зелёные/красные свечи, анализ confluence)
+// - Визуальные улучшения с таблицей метрик
+// - Легкое переключение параметров для разных рыночных условий
+// ============================================================================
+
+// ============================================================================
+// PARAMETER PRESETS / ПРЕСЕТЫ ПАРАМЕТРОВ
+// ============================================================================
+// Select a preset to quickly load optimized parameters for different market conditions
+// Выберите пресет для быстрой загрузки оптимизированных параметров для разных рыночных условий
+
+presetOptions = input.string("Default", "Parameter Preset / Пресет параметров",
+     options=["Default", "Trending", "Sideways", "Volatile", "Conservative", "Aggressive", "Custom"],
+     group="🎛️ Preset Selection", tooltip="Select preset or 'Custom' to use individual parameters below")
+
+// ============================================================================
+// RSI SETTINGS / НАСТРОЙКИ RSI
+// ============================================================================
+// Recommended ranges: Length (7-14), Smoothing (2-5), Oversold (20-35), Overbought (60-75)
+// Рекомендуемые диапазоны: Период (7-14), Сглаживание (2-5), Перепроданность (20-35), Перекупленность (60-75)
+
+rsiLengthInput = input.int(10, "RSI Length / Период RSI", minval=1, maxval=50, group="📊 RSI Settings")
+rsiSmoothLengthInput = input.int(3, "RSI Smoothing / Сглаживание RSI", minval=1, maxval=10, group="📊 RSI Settings")
+rsiOversoldInput = input.int(30, "Oversold Level / Уровень перепроданности", minval=1, maxval=50, group="📊 RSI Settings")
+rsiOverboughtInput = input.int(65, "Overbought Level / Уровень перекупленности", minval=50, maxval=100, group="📊 RSI Settings")
+rsiMidLevelInput = input.int(50, "Mid Level / Средний уровень", minval=30, maxval=70, group="📊 RSI Settings")
+
+// ============================================================================
+// MACD SETTINGS / НАСТРОЙКИ MACD
+// ============================================================================
+// Recommended ranges: Fast (2-5), Slow (20-40), Signal (5-15)
+// Рекомендуемые диапазоны: Быстрая (2-5), Медленная (20-40), Сигнальная (5-15)
+
+macdFastInput = input.int(2, "MACD Fast Length / Быстрая линия", minval=1, maxval=20, group="📈 MACD Settings")
+macdSlowInput = input.int(30, "MACD Slow Length / Медленная линия", minval=10, maxval=100, group="📈 MACD Settings")
+macdSignalInput = input.int(10, "MACD Signal Length / Сигнальная линия", minval=1, maxval=30, group="📈 MACD Settings")
+
+// ============================================================================
+// STOCHASTIC SETTINGS / НАСТРОЙКИ STOCHASTIC
+// ============================================================================
+// Recommended ranges: Length (10-20), Smooth (2-5), Oversold (20-35), Overbought (70-85)
+// Рекомендуемые диапазоны: Период (10-20), Сглаживание (2-5), Перепроданность (20-35), Перекупленность (70-85)
+
+stochLengthInput = input.int(14, "Stochastic Length / Период Stochastic", minval=5, maxval=30, group="📉 Stochastic Settings")
+stochSmoothInput = input.int(3, "Stochastic Smooth / Сглаживание", minval=1, maxval=10, group="📉 Stochastic Settings")
+stochOversoldInput = input.int(30, "Stochastic Oversold / Перепроданность", minval=1, maxval=50, group="📉 Stochastic Settings")
+stochOverboughtInput = input.int(83, "Stochastic Overbought / Перекупленность", minval=50, maxval=100, group="📉 Stochastic Settings")
+
+// ============================================================================
+// VOLUME SETTINGS / НАСТРОЙКИ ОБЪЕМА
+// ============================================================================
+// Recommended ranges: MA Length (5-20), Multiplier (1.5-3.0)
+// Рекомендуемые диапазоны: Период MA (5-20), Множитель (1.5-3.0)
+
+volumeMaLengthInput = input.int(10, "Volume MA Length / Период MA объема", minval=1, maxval=50, group="📊 Volume Settings")
+volumeMultiplierInput = input.float(2.0, "Volume Multiplier / Множитель объема", minval=1.0, maxval=5.0, step=0.1, group="📊 Volume Settings")
+useDirectionalVolumeInput = input.bool(true, "Use Directional Volume / Направленный объём", group="📊 Volume Settings")
+
+// ============================================================================
+// EMA SETTINGS / НАСТРОЙКИ EMA
+// ============================================================================
+// Recommended ranges: EMA1 (5-13), EMA2 (3-9), EMA3 (100-300)
+// Рекомендуемые диапазоны: EMA1 (5-13), EMA2 (3-9), EMA3 (100-300)
+
+ema1LengthInput = input.int(9, "EMA 1 Length / Период EMA 1", minval=1, maxval=50, group="📈 EMA Settings")
+ema2LengthInput = input.int(5, "EMA 2 Length / Период EMA 2", minval=1, maxval=30, group="📈 EMA Settings")
+ema3LengthInput = input.int(200, "EMA 3 Length / Период EMA 3", minval=50, maxval=500, group="📈 EMA Settings")
+
+// ============================================================================
+// CONFLUENCE SETTINGS / НАСТРОЙКИ CONFLUENCE
+// ============================================================================
+// Recommended ranges: Min Score (4-10), Min Bars (8-20)
+// Рекомендуемые диапазоны: Мин. балл (4-10), Мин. баров (8-20)
+
+minConfluenceScoreInput = input.int(6, "Min Confluence Score / Мин. балл confluence", minval=2, maxval=20, group="🎯 Confluence Settings")
+minBarsBetweenSignalsInput = input.int(12, "Min Bars Between Signals / Мин. баров между сигналами", minval=1, maxval=50, group="🎯 Confluence Settings")
+
+// ============================================================================
+// INDICATOR WEIGHTS / ВЕСА ИНДИКАТОРОВ
+// ============================================================================
+// Recommended ranges: All weights (0-5)
+// Рекомендуемые диапазоны: Все веса (0-5)
+
+rsiWeightInput = input.int(2, "RSI Weight / Вес RSI", minval=0, maxval=5, group="⚖️ Indicator Weights")
+macdWeightInput = input.int(2, "MACD Weight / Вес MACD", minval=0, maxval=5, group="⚖️ Indicator Weights")
+stochWeightInput = input.int(2, "Stochastic Weight / Вес Stochastic", minval=0, maxval=5, group="⚖️ Indicator Weights")
+volumeWeightInput = input.int(2, "Volume Weight / Вес объёма", minval=0, maxval=5, group="⚖️ Indicator Weights")
+priceActionWeightInput = input.int(1, "Price Action Weight / Вес Price Action", minval=0, maxval=5, group="⚖️ Indicator Weights")
+maWeightInput = input.int(1, "EMA Weight / Вес EMA", minval=0, maxval=5, group="⚖️ Indicator Weights")
+divergenceWeightInput = input.int(2, "Divergence Weight / Вес дивергенции", minval=0, maxval=5, group="⚖️ Indicator Weights")
+
+// ============================================================================
+// DIVERGENCE SETTINGS / НАСТРОЙКИ ДИВЕРГЕНЦИЙ
+// ============================================================================
+// Recommended ranges: Lookback (2-10), Min Strength (0.3-1.0)
+// Рекомендуемые диапазоны: Период поиска (2-10), Мин. сила (0.3-1.0)
+
+enableDivergenceInput = input.bool(true, "Enable Divergence Detection / Определение дивергенций", group="🔄 Divergence Settings")
+divergenceLookbackInput = input.int(3, "Divergence Lookback / Период поиска", minval=2, maxval=20, group="🔄 Divergence Settings")
+minDivergenceStrengthInput = input.float(0.6, "Min Divergence Strength / Мин. сила дивергенции", minval=0.01, maxval=2.0, step=0.01, group="🔄 Divergence Settings")
+
+// ============================================================================
+// ADAPTIVE FILTERS / АДАПТИВНЫЕ ФИЛЬТРЫ
+// ============================================================================
+// Recommended ranges: High Vol Threshold (0.7-1.0), Low Vol Threshold (0.3-0.7)
+// Рекомендуемые диапазоны: Порог высокой волатильности (0.7-1.0), Порог низкой волатильности (0.3-0.7)
+
+enableAdaptiveFiltersInput = input.bool(true, "Enable Adaptive Filters / Адаптивные фильтры", group="🔧 Adaptive Filters")
+enableTrendFilterInput = input.bool(true, "Filter Against Strong Trend / Фильтр против тренда", group="🔧 Adaptive Filters")
+enableVolatilityFilterInput = input.bool(true, "Enable Volatility Filter / Фильтр волатильности", group="🔧 Adaptive Filters")
+highVolThresholdInput = input.float(0.85, "High Volatility Threshold / Порог высокой волатильности", minval=0.1, maxval=2.0, step=0.05, group="🔧 Adaptive Filters")
+lowVolThresholdInput = input.float(0.6, "Low Volatility Threshold / Порог низкой волатильности", minval=0.1, maxval=1.0, step=0.05, group="🔧 Adaptive Filters")
+
+// ============================================================================
+// FIBONACCI SETTINGS / НАСТРОЙКИ ФИБОНАЧЧИ
+// ============================================================================
+// Recommended ranges: Lookback (50-200)
+// Рекомендуемые диапазоны: Период поиска (50-200)
+
+fibLookbackInput = input.int(100, "Fibonacci Lookback / Период поиска Фибоначчи", minval=10, maxval=500, group="📐 Fibonacci Settings")
+showFibLevels = input.bool(true, "Show Fibonacci Levels / Показать уровни Фибоначчи", group="📐 Fibonacci Settings")
+showFibLabels = input.bool(true, "Show Fibonacci Labels / Показать метки Фибоначчи", group="📐 Fibonacci Settings")
+
+// ============================================================================
+// POSITION MANAGEMENT / УПРАВЛЕНИЕ ПОЗИЦИЕЙ
+// ============================================================================
+
+useMultipleEntries = input.bool(true, "Use Multiple Entries / Множественные входы", group="💰 Position Management",
+                                tooltip="Entry #1 at signal candle, Entry #2 at 0.5, Entry #3 at 0.618")
+entry1Percent = input.float(1.0, "Entry #1 Size (% of equity) / Размер входа #1", minval=0.1, step=0.1, group="💰 Position Management")
+entry2Percent = input.float(1.0, "Entry #2 Size (% of equity) / Размер входа #2", minval=0.1, step=0.1, group="💰 Position Management")
+entry3Percent = input.float(1.0, "Entry #3 Size (% of equity) / Размер входа #3", minval=0.1, step=0.1, group="💰 Position Management")
+
+tp1Percent = input.float(30.0, "TP1 Close % / Закрыть % на TP1", minval=1, maxval=100, group="💰 Position Management")
+tp2Percent = input.float(30.0, "TP2 Close % / Закрыть % на TP2", minval=1, maxval=100, group="💰 Position Management")
+tp3Percent = input.float(40.0, "TP3 Close % / Закрыть % на TP3", minval=1, maxval=100, group="💰 Position Management")
+
+// ============================================================================
+// DISPLAY SETTINGS / НАСТРОЙКИ ОТОБРАЖЕНИЯ
+// ============================================================================
+
+showBullishSignals = input.bool(true, "Show Bullish Signals / Показать бычьи сигналы", group="🎨 Display Settings")
+showBearishSignals = input.bool(true, "Show Bearish Signals / Показать медвежьи сигналы", group="🎨 Display Settings")
+showInfoTable = input.bool(true, "Show Info Table / Показать информационную таблицу", group="🎨 Display Settings")
+showConfluenceDetails = input.bool(true, "Show Confluence Details / Показать детали confluence", group="🎨 Display Settings")
+showStatsTable = input.bool(true, "Show Extended Statistics / Показать расширенную статистику", group="🎨 Display Settings")
+
+// ============================================================================
+// EXPORT SETTINGS / НАСТРОЙКИ ЭКСПОРТА
+// ============================================================================
+
+enableResultsExport = input.bool(false, "Enable Results Export / Включить экспорт результатов", group="📤 Export Settings",
+     tooltip="Enable CSV-compatible export via alerts")
+exportOnlyAtEnd = input.bool(true, "Export Only at Test End / Экспорт только в конце теста", group="📤 Export Settings")
+
+// ============================================================================
+// APPLY PRESET VALUES / ПРИМЕНЕНИЕ ЗНАЧЕНИЙ ПРЕСЕТА
+// ============================================================================
+
+// Function to get preset value or custom input
+// Функция для получения значения пресета или пользовательского ввода
+getPresetValue(preset, defaultVal, trendingVal, sidewaysVal, volatileVal, conservativeVal, aggressiveVal, customVal) =>
+    preset == "Trending" ? trendingVal :
+     preset == "Sideways" ? sidewaysVal :
+     preset == "Volatile" ? volatileVal :
+     preset == "Conservative" ? conservativeVal :
+     preset == "Aggressive" ? aggressiveVal :
+     preset == "Custom" ? customVal : defaultVal
+
+// Apply preset values / Применение значений пресета
+rsiLength = getPresetValue(presetOptions, 10, 12, 8, 10, 14, 7, rsiLengthInput)
+rsiSmoothLength = getPresetValue(presetOptions, 3, 3, 5, 3, 4, 2, rsiSmoothLengthInput)
+rsiOversold = getPresetValue(presetOptions, 30, 25, 35, 30, 35, 25, rsiOversoldInput)
+rsiOverbought = getPresetValue(presetOptions, 65, 70, 60, 65, 70, 60, rsiOverboughtInput)
+rsiMidLevel = getPresetValue(presetOptions, 50, 50, 50, 50, 50, 50, rsiMidLevelInput)
+
+macdFast = getPresetValue(presetOptions, 2, 3, 2, 2, 3, 2, macdFastInput)
+macdSlow = getPresetValue(presetOptions, 30, 40, 25, 30, 35, 25, macdSlowInput)
+macdSignal = getPresetValue(presetOptions, 10, 12, 8, 10, 12, 8, macdSignalInput)
+
+stochLength = getPresetValue(presetOptions, 14, 18, 12, 14, 18, 10, stochLengthInput)
+stochSmooth = getPresetValue(presetOptions, 3, 3, 5, 3, 4, 2, stochSmoothInput)
+stochOversold = getPresetValue(presetOptions, 30, 25, 35, 30, 35, 25, stochOversoldInput)
+stochOverbought = getPresetValue(presetOptions, 83, 85, 80, 83, 85, 75, stochOverboughtInput)
+
+volumeMaLength = getPresetValue(presetOptions, 10, 15, 8, 10, 12, 8, volumeMaLengthInput)
+volumeMultiplier = getPresetValue(presetOptions, 2.0, 2.5, 1.8, 2.0, 2.5, 1.5, volumeMultiplierInput)
+useDirectionalVolume = getPresetValue(presetOptions, 1, 1, 1, 1, 1, 1, useDirectionalVolumeInput ? 1 : 0) == 1
+
+ema1Length = getPresetValue(presetOptions, 9, 13, 7, 9, 12, 7, ema1LengthInput)
+ema2Length = getPresetValue(presetOptions, 5, 8, 4, 5, 7, 4, ema2LengthInput)
+ema3Length = getPresetValue(presetOptions, 200, 250, 150, 200, 250, 150, ema3LengthInput)
+
+minConfluenceScore = getPresetValue(presetOptions, 6, 7, 5, 6, 8, 5, minConfluenceScoreInput)
+minBarsBetweenSignals = getPresetValue(presetOptions, 12, 15, 10, 12, 15, 8, minBarsBetweenSignalsInput)
+
+rsiWeight = getPresetValue(presetOptions, 2, 2, 2, 2, 2, 2, rsiWeightInput)
+macdWeight = getPresetValue(presetOptions, 2, 3, 1, 2, 2, 2, macdWeightInput)
+stochWeight = getPresetValue(presetOptions, 2, 2, 2, 2, 2, 2, stochWeightInput)
+volumeWeight = getPresetValue(presetOptions, 2, 3, 1, 2, 2, 3, volumeWeightInput)
+priceActionWeight = getPresetValue(presetOptions, 1, 2, 1, 1, 1, 2, priceActionWeightInput)
+maWeight = getPresetValue(presetOptions, 1, 2, 1, 1, 1, 1, maWeightInput)
+divergenceWeight = getPresetValue(presetOptions, 2, 2, 2, 2, 2, 2, divergenceWeightInput)
+
+enableDivergence = getPresetValue(presetOptions, 1, 1, 1, 1, 1, 1, enableDivergenceInput ? 1 : 0) == 1
+divergenceLookback = getPresetValue(presetOptions, 3, 4, 3, 3, 4, 3, divergenceLookbackInput)
+minDivergenceStrength = getPresetValue(presetOptions, 0.6, 0.7, 0.5, 0.6, 0.8, 0.4, minDivergenceStrengthInput)
+
+enableAdaptiveFilters = getPresetValue(presetOptions, 1, 1, 1, 1, 1, 0, enableAdaptiveFiltersInput ? 1 : 0) == 1
+enableTrendFilter = getPresetValue(presetOptions, 1, 1, 1, 1, 1, 0, enableTrendFilterInput ? 1 : 0) == 1
+enableVolatilityFilter = getPresetValue(presetOptions, 1, 1, 1, 1, 1, 0, enableVolatilityFilterInput ? 1 : 0) == 1
+highVolThreshold = getPresetValue(presetOptions, 0.85, 0.90, 0.80, 0.85, 0.90, 0.80, highVolThresholdInput)
+lowVolThreshold = getPresetValue(presetOptions, 0.6, 0.7, 0.5, 0.6, 0.7, 0.5, lowVolThresholdInput)
+
+fibLookback = getPresetValue(presetOptions, 100, 150, 75, 100, 120, 80, fibLookbackInput)
+
+// ============================================================================
+// INDICATOR CALCULATIONS / ВЫЧИСЛЕНИЕ ИНДИКАТОРОВ
+// ============================================================================
+
+// === RSI Calculation / Вычисление RSI ===
+rsi = ta.rsi(close, rsiLength)
+rsiSmooth = ta.sma(rsi, rsiSmoothLength)
+
+// === MACD Calculation / Вычисление MACD ===
+[macdLine, signalLine, macdHist] = ta.macd(close, macdFast, macdSlow, macdSignal)
+macdBullish = ta.crossover(macdLine, signalLine) and macdLine < 0
+macdBearish = ta.crossunder(macdLine, signalLine) and macdLine > 0
+
+// === Stochastic Calculation / Вычисление Stochastic ===
+stochK = ta.stoch(close, high, low, stochLength)
+stochD = ta.sma(stochK, stochSmooth)
+stochBullish = ta.crossover(stochK, stochD) and stochK < stochOversold
+stochBearish = ta.crossunder(stochK, stochD) and stochK > stochOverbought
+
+// === Volume Analysis / Анализ объема ===
+volumeMa = ta.sma(volume, volumeMaLength)
+volumeRatio = volume / volumeMa
+strongVolume = volumeRatio > volumeMultiplier
+
+// Directional Volume / Направленный объем
+isBuyingPressure = close > open and strongVolume
+isSellingPressure = close < open and strongVolume
+
+// === EMA Calculation / Вычисление EMA ===
+ema1 = ta.ema(close, ema1Length)
+ema2 = ta.ema(close, ema2Length)
+ema3 = ta.ema(close, ema3Length)
+
+// EMA Signals / Сигналы EMA
+emaBullish = ta.crossover(ema1, ema2) and ema1 > ema3
+emaBearish = ta.crossunder(ema1, ema2) and ema1 < ema3
+
+// === Price Action Analysis / Анализ Price Action ===
+candleRange = high - low
+candleBody = math.abs(close - open)
+isBullishCandle = (close > open) and (candleBody > candleRange * 0.6) and candleRange > 0
+isBearishCandle = (open > close) and (candleBody > candleRange * 0.6) and candleRange > 0
+
+// === ATR for Volatility / ATR для волатильности ===
+atrLength = 14
+atr = ta.atr(atrLength)
+atrMa = ta.sma(atr, 20)
+atrRatio = atr / atrMa
+isHighVolatility = atrRatio > highVolThreshold
+isLowVolatility = atrRatio < lowVolThreshold
+
+// === ADX for Trend Strength / ADX для силы тренда ===
+adxLength = 14
+[diPlus, diMinus, adx] = ta.dmi(adxLength, adxLength)
+isTrendingUp = adx > 25 and diPlus > diMinus
+isTrendingDown = adx > 25 and diMinus > diPlus
+isStrongTrend = adx > 30
+
+// ============================================================================
+// DIVERGENCE DETECTION / ОПРЕДЕЛЕНИЕ ДИВЕРГЕНЦИЙ
+// ============================================================================
+
+// Find pivot points for price / Поиск экстремумов цены
+pivotLow = ta.pivotlow(low, divergenceLookback, divergenceLookback)
+pivotHigh = ta.pivothigh(high, divergenceLookback, divergenceLookback)
+
+// Find pivot points for RSI / Поиск экстремумов RSI
+rsiPivotLow = ta.pivotlow(rsi, divergenceLookback, divergenceLookback)
+rsiPivotHigh = ta.pivothigh(rsi, divergenceLookback, divergenceLookback)
+
+// Store previous pivot values / Хранение предыдущих экстремумов
+var float prevPriceLow = na
+var float prevPriceHigh = na
+var float prevRsiLow = na
+var float prevRsiHigh = na
+
+// Update previous pivots / Обновление предыдущих экстремумов
+if not na(pivotLow)
+    prevPriceLow := pivotLow
+
+if not na(pivotHigh)
+    prevPriceHigh := pivotHigh
+
+if not na(rsiPivotLow)
+    prevRsiLow := rsiPivotLow
+
+if not na(rsiPivotHigh)
+    prevRsiHigh := rsiPivotHigh
+
+// Detect bullish divergence / Обнаружение бычьей дивергенции
+bullishDivergence = false
+bullishDivergenceStrength = 0.0
+
+if enableDivergence and not na(pivotLow) and not na(prevPriceLow) and not na(rsiPivotLow) and not na(prevRsiLow)
+    priceLowerLow = pivotLow < prevPriceLow
+    rsiHigherLow = rsiPivotLow > prevRsiLow
+    inOversoldZone = rsiPivotLow < rsiOversold
+
+    if priceLowerLow and rsiHigherLow and inOversoldZone
+        bullishDivergence := true
+        bullishDivergenceStrength := prevRsiLow != 0 ? (rsiPivotLow - prevRsiLow) / prevRsiLow : 0.0
+
+// Detect bearish divergence / Обнаружение медвежьей дивергенции
+bearishDivergence = false
+bearishDivergenceStrength = 0.0
+
+if enableDivergence and not na(pivotHigh) and not na(prevPriceHigh) and not na(rsiPivotHigh) and not na(prevRsiHigh)
+    priceHigherHigh = pivotHigh > prevPriceHigh
+    rsiLowerHigh = rsiPivotHigh < prevRsiHigh
+    inOverboughtZone = rsiPivotHigh > rsiOverbought
+
+    if priceHigherHigh and rsiLowerHigh and inOverboughtZone
+        bearishDivergence := true
+        bearishDivergenceStrength := prevRsiHigh != 0 ? (prevRsiHigh - rsiPivotHigh) / prevRsiHigh : 0.0
+
+// Strong divergences / Сильные дивергенции
+strongBullishDivergence = bullishDivergence and bullishDivergenceStrength > minDivergenceStrength
+strongBearishDivergence = bearishDivergence and bearishDivergenceStrength > minDivergenceStrength
+
+// ============================================================================
+// CONFLUENCE SCORE CALCULATION / РАСЧЁТ CONFLUENCE SCORE
+// ============================================================================
+
+// Initialize scores and reasons / Инициализация баллов и причин
+var int bullishScore = 0
+var int bearishScore = 0
+var array<string> bullishReasons = array.new<string>()
+var array<string> bearishReasons = array.new<string>()
+
+// Reset scores / Сброс баллов
+bullishScore := 0
+bearishScore := 0
+array.clear(bullishReasons)
+array.clear(bearishReasons)
+
+// === RSI Signals / Сигналы RSI ===
+rsiBullishSignal = ta.crossover(rsi, rsiOversold) and rsiSmooth > rsiSmooth[1]
+rsiBearishSignal = ta.crossunder(rsi, rsiOverbought) and rsiSmooth < rsiSmooth[1]
+
+if rsiBullishSignal
+    bullishScore += rsiWeight
+    array.push(bullishReasons, "RSI bullish reversal")
+
+if rsiBearishSignal
+    bearishScore += rsiWeight
+    array.push(bearishReasons, "RSI bearish reversal")
+
+// === MACD Signals / Сигналы MACD ===
+if macdBullish
+    bullishScore += macdWeight
+    array.push(bullishReasons, "MACD bullish cross")
+
+if macdBearish
+    bearishScore += macdWeight
+    array.push(bearishReasons, "MACD bearish cross")
+
+// === Stochastic Signals / Сигналы Stochastic ===
+if stochBullish
+    bullishScore += stochWeight
+    array.push(bullishReasons, "Stochastic oversold")
+
+if stochBearish
+    bearishScore += stochWeight
+    array.push(bearishReasons, "Stochastic overbought")
+
+// === Volume Signals / Сигналы объёма ===
+volumeBullish = strongVolume and (useDirectionalVolume ? isBuyingPressure : close > open)
+volumeBearish = strongVolume and (useDirectionalVolume ? isSellingPressure : close < open)
+
+if volumeBullish
+    bullishScore += volumeWeight
+    array.push(bullishReasons, "Strong buying volume")
+
+if volumeBearish
+    bearishScore += volumeWeight
+    array.push(bearishReasons, "Strong selling volume")
+
+// === Price Action Signals / Сигналы Price Action ===
+if isBullishCandle
+    bullishScore += priceActionWeight
+    array.push(bullishReasons, "Strong bullish candle")
+
+if isBearishCandle
+    bearishScore += priceActionWeight
+    array.push(bearishReasons, "Strong bearish candle")
+
+// === EMA Signals / Сигналы EMA ===
+if emaBullish
+    bullishScore += maWeight
+    array.push(bullishReasons, "EMA bullish cross")
+
+if emaBearish
+    bearishScore += maWeight
+    array.push(bearishReasons, "EMA bearish cross")
+
+// === Divergence Signals / Сигналы дивергенций ===
+if strongBullishDivergence
+    bullishScore += divergenceWeight
+    array.push(bullishReasons, "Bullish divergence")
+
+if strongBearishDivergence
+    bearishScore += divergenceWeight
+    array.push(bearishReasons, "Bearish divergence")
+
+// ============================================================================
+// SIGNAL GENERATION WITH FILTERS / ГЕНЕРАЦИЯ СИГНАЛОВ С ФИЛЬТРАМИ
+// ============================================================================
+
+// Track last signal bar / Отслеживание последнего сигнала
+var int lastBullishBar = 0
+var int lastBearishBar = 0
+
+// Check minimum distance between signals / Проверка минимального расстояния
+barsSinceLastBullish = bar_index - lastBullishBar
+barsSinceLastBearish = bar_index - lastBearishBar
+
+// Raw signals based on confluence score / Сырые сигналы на основе confluence
+bullishSignalRaw = bullishScore >= minConfluenceScore and barsSinceLastBullish >= minBarsBetweenSignals
+bearishSignalRaw = bearishScore >= minConfluenceScore and barsSinceLastBearish >= minBarsBetweenSignals
+
+// === Apply Adaptive Filters / Применение адаптивных фильтров ===
+bool bullishSignalFiltered = bullishSignalRaw
+bool bearishSignalFiltered = bearishSignalRaw
+
+if enableAdaptiveFilters
+    // Trend Filter / Фильтр тренда
+    if enableTrendFilter and isStrongTrend
+        if isTrendingDown
+            bullishSignalFiltered := false
+        if isTrendingUp
+            bearishSignalFiltered := false
+
+    // Volatility Filter / Фильтр волатильности
+    if enableVolatilityFilter
+        if isHighVolatility
+            if not isTrendingUp
+                bullishSignalFiltered := false
+            if not isTrendingDown
+                bearishSignalFiltered := false
+
+// Final signals / Финальные сигналы
+bullishSignal = bullishSignalFiltered and showBullishSignals
+bearishSignal = bearishSignalFiltered and showBearishSignals
+
+// Update last signal bars / Обновление баров последних сигналов
+if bullishSignal
+    lastBullishBar := bar_index
+
+if bearishSignal
+    lastBearishBar := bar_index
+
+// ============================================================================
+// EXTENDED STATISTICS TRACKING / ОТСЛЕЖИВАНИЕ РАСШИРЕННОЙ СТАТИСТИКИ
+// ============================================================================
+
+// Track statistics by candle color / Статистика по цвету свечей
+var int greenCandleSignals = 0
+var int redCandleSignals = 0
+var float greenCandleProfit = 0.0
+var float redCandleProfit = 0.0
+
+// Track statistics by confluence score / Статистика по confluence score
+var array<int> confluenceScores = array.new<int>()
+var array<float> confluenceProfits = array.new<float>()
+
+// Track entry indicator states / Статистика по состоянию индикаторов при входе
+var int entriesWithRSIOversold = 0
+var int entriesWithMACDCross = 0
+var int entriesWithStochOversold = 0
+var int entriesWithVolume = 0
+var int entriesWithDivergence = 0
+
+// Track signal on candle color / Отслеживание сигнала по цвету свечи
+if bullishSignal or bearishSignal
+    isGreenCandle = close > open
+    currentScore = bullishSignal ? bullishScore : bearishScore
+
+    if isGreenCandle
+        greenCandleSignals += 1
+    else
+        redCandleSignals += 1
+
+    // Track confluence scores
+    array.push(confluenceScores, currentScore)
+    array.push(confluenceProfits, 0.0)  // Will be updated on trade close
+
+    // Track indicator states at entry
+    if bullishSignal
+        if rsiBullishSignal
+            entriesWithRSIOversold += 1
+        if macdBullish
+            entriesWithMACDCross += 1
+        if stochBullish
+            entriesWithStochOversold += 1
+        if volumeBullish
+            entriesWithVolume += 1
+        if strongBullishDivergence
+            entriesWithDivergence += 1
+
+// ============================================================================
+// FIBONACCI LEVELS CALCULATION / РАСЧЁТ УРОВНЕЙ ФИБОНАЧЧИ
+// ============================================================================
+
+// Track Fibonacci levels for active position / Отслеживание уровней для активной позиции
+var float fibBase = na
+var float fibTop = na
+var bool isLongPosition = false
+var int signalBar = na
+
+// Calculate ta.highest and ta.lowest on every bar for consistency
+// Вычисляем ta.highest и ta.lowest на каждом баре для согласованности
+highestHigh = ta.highest(high, fibLookback)
+lowestLow = ta.lowest(low, fibLookback)
+
+// Calculate Fibonacci levels on new signal / Расчёт уровней при новом сигнале
+if bullishSignal
+    signalBar := bar_index
+    isLongPosition := true
+    // For bullish: base = low of signal candle, top = high of lookback period
+    fibBase := low
+    fibTop := highestHigh
+
+if bearishSignal
+    signalBar := bar_index
+    isLongPosition := false
+    // For bearish: base = high of signal candle, top = low of lookback period
+    fibBase := high
+    fibTop := lowestLow
+
+// Calculate Fibonacci levels / Расчёт уровней Фибоначчи
+float fib_0_0 = na
+float fib_0_5 = na
+float fib_0_618 = na
+float fib_0_820 = na  // Stop Loss level
+float fib_1_0 = na
+float fib_n0_618 = na  // TP1
+float fib_n1_618 = na  // TP2
+float fib_n2_618 = na  // TP3
+
+if not na(fibBase) and not na(fibTop)
+    fibRange = fibTop - fibBase
+
+    if isLongPosition
+        // Long position: from low (1.0) to high (0.0)
+        fib_1_0 := fibBase
+        fib_0_820 := fibBase + fibRange * 0.820
+        fib_0_618 := fibBase + fibRange * 0.618
+        fib_0_5 := fibBase + fibRange * 0.5
+        fib_0_0 := fibTop
+        fib_n0_618 := fibTop + fibRange * 0.618
+        fib_n1_618 := fibTop + fibRange * 1.618
+        fib_n2_618 := fibTop + fibRange * 2.618
+    else
+        // Short position: from high (1.0) to low (0.0)
+        fib_1_0 := fibBase
+        fib_0_820 := fibBase - fibRange * 0.820
+        fib_0_618 := fibBase - fibRange * 0.618
+        fib_0_5 := fibBase - fibRange * 0.5
+        fib_0_0 := fibTop
+        fib_n0_618 := fibTop - fibRange * 0.618
+        fib_n1_618 := fibTop - fibRange * 1.618
+        fib_n2_618 := fibTop - fibRange * 2.618
+
+// ============================================================================
+// TRADING LOGIC / ТОРГОВАЯ ЛОГИКА
+// ============================================================================
+
+// Entry #1: Market order at signal candle close
+// Вход #1: Рыночный ордер при закрытии сигнальной свечи
+if bullishSignal
+    strategy.entry("Long Entry #1", strategy.long, qty=entry1Percent, comment="🟢 Long E1")
+
+if bearishSignal
+    strategy.entry("Short Entry #1", strategy.short, qty=entry1Percent, comment="🔴 Short E1")
+
+// Entry #2: Limit order at 0.5 Fibonacci level
+// Вход #2: Лимитный ордер на уровне 0.5 Фибоначчи
+if useMultipleEntries and not na(fib_0_5) and isLongPosition == true and strategy.position_size > 0
+    if low <= fib_0_5 and strategy.opentrades < 2
+        strategy.entry("Long Entry #2", strategy.long, qty=entry2Percent, limit=fib_0_5, comment="🟢 Long E2")
+
+if useMultipleEntries and not na(fib_0_5) and isLongPosition == false and strategy.position_size < 0
+    if high >= fib_0_5 and strategy.opentrades < 2
+        strategy.entry("Short Entry #2", strategy.short, qty=entry2Percent, limit=fib_0_5, comment="🔴 Short E2")
+
+// Entry #3: Limit order at 0.618 Fibonacci level
+// Вход #3: Лимитный ордер на уровне 0.618 Фибоначчи
+if useMultipleEntries and not na(fib_0_618) and isLongPosition == true and strategy.position_size > 0
+    if low <= fib_0_618 and strategy.opentrades < 3
+        strategy.entry("Long Entry #3", strategy.long, qty=entry3Percent, limit=fib_0_618, comment="🟢 Long E3")
+
+if useMultipleEntries and not na(fib_0_618) and isLongPosition == false and strategy.position_size < 0
+    if high >= fib_0_618 and strategy.opentrades < 3
+        strategy.entry("Short Entry #3", strategy.short, qty=entry3Percent, limit=fib_0_618, comment="🔴 Short E3")
+
+// Stop Loss at 0.820 Fibonacci level
+// Стоп-лосс на уровне 0.820 Фибоначчи
+if not na(fib_0_820) and strategy.position_size != 0
+    if strategy.position_size > 0
+        strategy.exit("Long SL", "Long Entry #1", stop=fib_0_820, comment="🛑 Long SL")
+        if useMultipleEntries
+            strategy.exit("Long SL #2", "Long Entry #2", stop=fib_0_820, comment="🛑 Long SL")
+            strategy.exit("Long SL #3", "Long Entry #3", stop=fib_0_820, comment="🛑 Long SL")
+    else
+        strategy.exit("Short SL", "Short Entry #1", stop=fib_0_820, comment="🛑 Short SL")
+        if useMultipleEntries
+            strategy.exit("Short SL #2", "Short Entry #2", stop=fib_0_820, comment="🛑 Short SL")
+            strategy.exit("Short SL #3", "Short Entry #3", stop=fib_0_820, comment="🛑 Short SL")
+
+// Take Profit levels with partial closes
+// Уровни тейк-профита с частичным закрытием
+if not na(fib_n0_618) and strategy.position_size != 0
+    if strategy.position_size > 0 and high >= fib_n0_618
+        strategy.close("Long Entry #1", qty_percent=tp1Percent, comment="🎯 Long TP1")
+        if useMultipleEntries
+            strategy.close("Long Entry #2", qty_percent=tp1Percent, comment="🎯 Long TP1")
+            strategy.close("Long Entry #3", qty_percent=tp1Percent, comment="🎯 Long TP1")
+    else if strategy.position_size < 0 and low <= fib_n0_618
+        strategy.close("Short Entry #1", qty_percent=tp1Percent, comment="🎯 Short TP1")
+        if useMultipleEntries
+            strategy.close("Short Entry #2", qty_percent=tp1Percent, comment="🎯 Short TP1")
+            strategy.close("Short Entry #3", qty_percent=tp1Percent, comment="🎯 Short TP1")
+
+if not na(fib_n1_618) and strategy.position_size != 0
+    if strategy.position_size > 0 and high >= fib_n1_618
+        strategy.close("Long Entry #1", qty_percent=tp2Percent, comment="🎯 Long TP2")
+        if useMultipleEntries
+            strategy.close("Long Entry #2", qty_percent=tp2Percent, comment="🎯 Long TP2")
+            strategy.close("Long Entry #3", qty_percent=tp2Percent, comment="🎯 Long TP2")
+    else if strategy.position_size < 0 and low <= fib_n1_618
+        strategy.close("Short Entry #1", qty_percent=tp2Percent, comment="🎯 Short TP2")
+        if useMultipleEntries
+            strategy.close("Short Entry #2", qty_percent=tp2Percent, comment="🎯 Short TP2")
+            strategy.close("Short Entry #3", qty_percent=tp2Percent, comment="🎯 Short TP2")
+
+if not na(fib_n2_618) and strategy.position_size != 0
+    if strategy.position_size > 0 and high >= fib_n2_618
+        strategy.close("Long Entry #1", qty_percent=tp3Percent, comment="🎯 Long TP3")
+        if useMultipleEntries
+            strategy.close("Long Entry #2", qty_percent=tp3Percent, comment="🎯 Long TP3")
+            strategy.close("Long Entry #3", qty_percent=tp3Percent, comment="🎯 Long TP3")
+    else if strategy.position_size < 0 and low <= fib_n2_618
+        strategy.close("Short Entry #1", qty_percent=tp3Percent, comment="🎯 Short TP3")
+        if useMultipleEntries
+            strategy.close("Short Entry #2", qty_percent=tp3Percent, comment="🎯 Short TP3")
+            strategy.close("Short Entry #3", qty_percent=tp3Percent, comment="🎯 Short TP3")
+
+// ============================================================================
+// VISUALIZATION / ВИЗУАЛИЗАЦИЯ
+// ============================================================================
+
+// Plot Fibonacci levels / Отображение уровней Фибоначчи
+plot(showFibLevels ? fib_1_0 : na, "Fib 1.0 (Base)", color=color.new(color.gray, 30), linewidth=1, style=plot.style_linebr)
+plot(showFibLevels ? fib_0_820 : na, "Fib 0.820 (SL)", color=color.new(color.red, 0), linewidth=2, style=plot.style_linebr)
+plot(showFibLevels ? fib_0_618 : na, "Fib 0.618 (E3)", color=color.new(color.blue, 30), linewidth=1, style=plot.style_linebr)
+plot(showFibLevels ? fib_0_5 : na, "Fib 0.5 (E2)", color=color.new(color.blue, 30), linewidth=1, style=plot.style_linebr)
+plot(showFibLevels ? fib_0_0 : na, "Fib 0.0 (E1)", color=color.new(color.green, 0), linewidth=2, style=plot.style_linebr)
+plot(showFibLevels ? fib_n0_618 : na, "Fib -0.618 (TP1)", color=color.new(color.yellow, 0), linewidth=2, style=plot.style_linebr)
+plot(showFibLevels ? fib_n1_618 : na, "Fib -1.618 (TP2)", color=color.new(color.orange, 0), linewidth=2, style=plot.style_linebr)
+plot(showFibLevels ? fib_n2_618 : na, "Fib -2.618 (TP3)", color=color.new(color.lime, 0), linewidth=2, style=plot.style_linebr)
+
+// Plot EMAs / Отображение EMA
+plot(ema1, "EMA 9", color=color.new(color.blue, 30), linewidth=1)
+plot(ema2, "EMA 5", color=color.new(color.orange, 30), linewidth=1)
+plot(ema3, "EMA 200", color=color.new(color.purple, 50), linewidth=2)
+
+// Enhanced signal markers with confluence score display
+// Улучшенные маркеры сигналов с отображением confluence score
+plotshape(bullishSignal, title="Bullish Signal", style=shape.triangleup, location=location.belowbar,
+     color=color.new(color.green, 0), text="BUY", textcolor=color.white, size=size.large)
+
+plotshape(bearishSignal, title="Bearish Signal", style=shape.triangledown, location=location.abovebar,
+     color=color.new(color.red, 0), text="SELL", textcolor=color.white, size=size.large)
+
+// Plot divergences / Отображение дивергенций
+plotshape(strongBullishDivergence and not bullishSignal, title="Bullish Div", style=shape.circle,
+     location=location.belowbar, color=color.new(color.green, 50), size=size.tiny)
+
+plotshape(strongBearishDivergence and not bearishSignal, title="Bearish Div", style=shape.circle,
+     location=location.abovebar, color=color.new(color.red, 50), size=size.tiny)
+
+// ============================================================================
+// INFO TABLE / ИНФОРМАЦИОННАЯ ТАБЛИЦА
+// ============================================================================
+
+if showInfoTable and barstate.islast
+    var table infoTable = table.new(position.top_right, 3, 20,
+         border_width=2, border_color=color.gray, frame_width=1, frame_color=color.gray)
+
+    // Header / Заголовок
+    table.cell(infoTable, 0, 0, "ALMIR Fibonacci Strategy Enhanced", text_color=color.white,
+         bgcolor=color.new(color.blue, 30), text_size=size.normal)
+    table.merge_cells(infoTable, 0, 0, 2, 0)
+
+    // Preset info / Информация о пресете
+    table.cell(infoTable, 0, 1, "Preset", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 1, presetOptions, text_color=color.white, text_size=size.small)
+    table.merge_cells(infoTable, 1, 1, 2, 1)
+
+    // Market State / Состояние рынка
+    table.cell(infoTable, 0, 2, "Market State", text_color=color.gray, text_size=size.small)
+    trendText = isTrendingUp ? "Uptrend" : isTrendingDown ? "Downtrend" : "Sideways"
+    trendColor = isTrendingUp ? color.green : isTrendingDown ? color.red : color.gray
+    table.cell(infoTable, 1, 2, trendText, text_color=trendColor, text_size=size.small)
+    table.merge_cells(infoTable, 1, 2, 2, 2)
+
+    // Volatility / Волатильность
+    table.cell(infoTable, 0, 3, "Volatility", text_color=color.gray, text_size=size.small)
+    volText = isHighVolatility ? "High" : isLowVolatility ? "Low" : "Medium"
+    volColor = isHighVolatility ? color.orange : color.gray
+    table.cell(infoTable, 1, 3, volText, text_color=volColor, text_size=size.small)
+    table.merge_cells(infoTable, 1, 3, 2, 3)
+
+    // Separator
+    table.cell(infoTable, 0, 4, "─────────────", text_color=color.gray, text_size=size.small)
+    table.merge_cells(infoTable, 0, 4, 2, 4)
+
+    // Confluence Scores / Баллы Confluence
+    table.cell(infoTable, 0, 5, "Confluence Score", text_color=color.white,
+         bgcolor=color.new(color.blue, 70), text_size=size.small)
+    table.merge_cells(infoTable, 0, 5, 2, 5)
+
+    table.cell(infoTable, 0, 6, "Bullish", text_color=color.gray, text_size=size.small)
+    bullScoreColor = bullishScore >= minConfluenceScore ? color.green : color.gray
+    table.cell(infoTable, 1, 6, str.tostring(bullishScore), text_color=bullScoreColor, text_size=size.small)
+    table.cell(infoTable, 2, 6, "/" + str.tostring(minConfluenceScore), text_color=color.gray, text_size=size.small)
+
+    table.cell(infoTable, 0, 7, "Bearish", text_color=color.gray, text_size=size.small)
+    bearScoreColor = bearishScore >= minConfluenceScore ? color.red : color.gray
+    table.cell(infoTable, 1, 7, str.tostring(bearishScore), text_color=bearScoreColor, text_size=size.small)
+    table.cell(infoTable, 2, 7, "/" + str.tostring(minConfluenceScore), text_color=color.gray, text_size=size.small)
+
+    // Show confluence details if enabled
+    if showConfluenceDetails
+        // Separator
+        table.cell(infoTable, 0, 8, "─────────────", text_color=color.gray, text_size=size.small)
+        table.merge_cells(infoTable, 0, 8, 2, 8)
+
+        // Active Signals / Активные сигналы
+        table.cell(infoTable, 0, 9, "Active Signals", text_color=color.white,
+             bgcolor=color.new(color.blue, 70), text_size=size.small)
+        table.merge_cells(infoTable, 0, 9, 2, 9)
+
+        // Show reasons for bullish signal
+        rowIdx = 10
+        if bullishScore > 0
+            reasonsText = array.size(bullishReasons) > 0 ? array.get(bullishReasons, 0) : "None"
+            if array.size(bullishReasons) > 1
+                for i = 1 to math.min(2, array.size(bullishReasons) - 1)
+                    reasonsText += "\n" + array.get(bullishReasons, i)
+            table.cell(infoTable, 0, rowIdx, "🟢 Bullish:", text_color=color.green, text_size=size.small)
+            table.cell(infoTable, 1, rowIdx, reasonsText, text_color=color.gray, text_size=size.small)
+            table.merge_cells(infoTable, 1, rowIdx, 2, rowIdx)
+            rowIdx += 1
+
+        // Show reasons for bearish signal
+        if bearishScore > 0
+            reasonsText = array.size(bearishReasons) > 0 ? array.get(bearishReasons, 0) : "None"
+            if array.size(bearishReasons) > 1
+                for i = 1 to math.min(2, array.size(bearishReasons) - 1)
+                    reasonsText += "\n" + array.get(bearishReasons, i)
+            table.cell(infoTable, 0, rowIdx, "🔴 Bearish:", text_color=color.red, text_size=size.small)
+            table.cell(infoTable, 1, rowIdx, reasonsText, text_color=color.gray, text_size=size.small)
+            table.merge_cells(infoTable, 1, rowIdx, 2, rowIdx)
+
+    // Position info separator
+    table.cell(infoTable, 0, 12, "─────────────", text_color=color.gray, text_size=size.small)
+    table.merge_cells(infoTable, 0, 12, 2, 12)
+
+    // Position Info / Информация о позиции
+    table.cell(infoTable, 0, 13, "Position Info", text_color=color.white,
+         bgcolor=color.new(color.blue, 70), text_size=size.small)
+    table.merge_cells(infoTable, 0, 13, 2, 13)
+
+    // Position Size / Размер позиции
+    table.cell(infoTable, 0, 14, "Size", text_color=color.gray, text_size=size.small)
+    posSize = strategy.position_size
+    posText = posSize > 0 ? "LONG" : posSize < 0 ? "SHORT" : "None"
+    posColor = posSize > 0 ? color.green : posSize < 0 ? color.red : color.gray
+    table.cell(infoTable, 1, 14, posText, text_color=posColor, text_size=size.small)
+    table.merge_cells(infoTable, 1, 14, 2, 14)
+
+    // Open Trades / Открытые сделки
+    table.cell(infoTable, 0, 15, "Open Trades", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 15, str.tostring(strategy.opentrades), text_color=color.white, text_size=size.small)
+    table.merge_cells(infoTable, 1, 15, 2, 15)
+
+    // Net Profit / Чистая прибыль
+    table.cell(infoTable, 0, 16, "Net Profit", text_color=color.gray, text_size=size.small)
+    netProfit = strategy.netprofit
+    profitColor = netProfit > 0 ? color.green : netProfit < 0 ? color.red : color.gray
+    table.cell(infoTable, 1, 16, str.tostring(netProfit, "#.##"), text_color=profitColor, text_size=size.small)
+    table.merge_cells(infoTable, 1, 16, 2, 16)
+
+// ============================================================================
+// EXTENDED STATISTICS TABLE / ТАБЛИЦА РАСШИРЕННОЙ СТАТИСТИКИ
+// ============================================================================
+
+// Calculate performance metrics for use in both table and export
+// Расчёт метрик производительности для использования в таблице и экспорте
+var float winRate = 0.0
+var float profitFactor = 0.0
+
+if barstate.islast
+    winRate := strategy.closedtrades > 0 ? (strategy.wintrades / strategy.closedtrades) * 100 : 0
+    profitFactor := strategy.grossloss != 0 ? math.abs(strategy.grossprofit / strategy.grossloss) : 0
+
+if showStatsTable and barstate.islast
+    var table statsTable = table.new(position.bottom_right, 2, 15,
+         border_width=2, border_color=color.gray, frame_width=1, frame_color=color.gray)
+
+    // Header / Заголовок
+    table.cell(statsTable, 0, 0, "Extended Statistics", text_color=color.white,
+         bgcolor=color.new(color.purple, 30), text_size=size.normal)
+    table.merge_cells(statsTable, 0, 0, 1, 0)
+
+    // Strategy Performance / Производительность стратегии
+    table.cell(statsTable, 0, 1, "Total Trades", text_color=color.gray, text_size=size.small)
+    table.cell(statsTable, 1, 1, str.tostring(strategy.closedtrades), text_color=color.white, text_size=size.small)
+
+    table.cell(statsTable, 0, 2, "Win Rate", text_color=color.gray, text_size=size.small)
+    winRateColor = winRate >= 50 ? color.green : color.red
+    table.cell(statsTable, 1, 2, str.tostring(winRate, "#.##") + "%", text_color=winRateColor, text_size=size.small)
+
+    table.cell(statsTable, 0, 3, "Profit Factor", text_color=color.gray, text_size=size.small)
+    pfColor = profitFactor >= 1.5 ? color.green : profitFactor >= 1.0 ? color.orange : color.red
+    table.cell(statsTable, 1, 3, str.tostring(profitFactor, "#.##"), text_color=pfColor, text_size=size.small)
+
+    table.cell(statsTable, 0, 4, "Max Drawdown", text_color=color.gray, text_size=size.small)
+    table.cell(statsTable, 1, 4, str.tostring(strategy.max_drawdown, "#.##"), text_color=color.red, text_size=size.small)
+
+    // Separator
+    table.cell(statsTable, 0, 5, "──────────────", text_color=color.gray, text_size=size.small)
+    table.merge_cells(statsTable, 0, 5, 1, 5)
+
+    // Candle Color Statistics / Статистика по цвету свечей
+    table.cell(statsTable, 0, 6, "Candle Color Stats", text_color=color.white,
+         bgcolor=color.new(color.purple, 70), text_size=size.small)
+    table.merge_cells(statsTable, 0, 6, 1, 6)
+
+    table.cell(statsTable, 0, 7, "Green Candle Signals", text_color=color.gray, text_size=size.small)
+    table.cell(statsTable, 1, 7, str.tostring(greenCandleSignals), text_color=color.green, text_size=size.small)
+
+    table.cell(statsTable, 0, 8, "Red Candle Signals", text_color=color.gray, text_size=size.small)
+    table.cell(statsTable, 1, 8, str.tostring(redCandleSignals), text_color=color.red, text_size=size.small)
+
+    // Separator
+    table.cell(statsTable, 0, 9, "──────────────", text_color=color.gray, text_size=size.small)
+    table.merge_cells(statsTable, 0, 9, 1, 9)
+
+    // Indicator State Statistics / Статистика по состоянию индикаторов
+    table.cell(statsTable, 0, 10, "Entry Indicators", text_color=color.white,
+         bgcolor=color.new(color.purple, 70), text_size=size.small)
+    table.merge_cells(statsTable, 0, 10, 1, 10)
+
+    table.cell(statsTable, 0, 11, "With RSI Signal", text_color=color.gray, text_size=size.small)
+    table.cell(statsTable, 1, 11, str.tostring(entriesWithRSIOversold), text_color=color.white, text_size=size.small)
+
+    table.cell(statsTable, 0, 12, "With MACD Cross", text_color=color.gray, text_size=size.small)
+    table.cell(statsTable, 1, 12, str.tostring(entriesWithMACDCross), text_color=color.white, text_size=size.small)
+
+    table.cell(statsTable, 0, 13, "With Stoch Signal", text_color=color.gray, text_size=size.small)
+    table.cell(statsTable, 1, 13, str.tostring(entriesWithStochOversold), text_color=color.white, text_size=size.small)
+
+    table.cell(statsTable, 0, 14, "With Divergence", text_color=color.gray, text_size=size.small)
+    table.cell(statsTable, 1, 14, str.tostring(entriesWithDivergence), text_color=color.white, text_size=size.small)
+
+// ============================================================================
+// LABELS FOR FIBONACCI LEVELS / МЕТКИ ДЛЯ УРОВНЕЙ ФИБОНАЧЧИ
+// ============================================================================
+
+if showFibLabels and bullishSignal
+    label.new(bar_index, fib_0_0, "Entry #1 (0.0)", style=label.style_label_down,
+         color=color.new(color.green, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index, fib_0_5, "Entry #2 (0.5)", style=label.style_label_left,
+         color=color.new(color.blue, 30), textcolor=color.white, size=size.tiny)
+    label.new(bar_index, fib_0_618, "Entry #3 (0.618)", style=label.style_label_left,
+         color=color.new(color.blue, 30), textcolor=color.white, size=size.tiny)
+    label.new(bar_index, fib_0_820, "Stop Loss (0.820)", style=label.style_label_left,
+         color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index, fib_n0_618, "TP1 (-0.618)", style=label.style_label_left,
+         color=color.new(color.yellow, 0), textcolor=color.black, size=size.small)
+    label.new(bar_index, fib_n1_618, "TP2 (-1.618)", style=label.style_label_left,
+         color=color.new(color.orange, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index, fib_n2_618, "TP3 (-2.618)", style=label.style_label_left,
+         color=color.new(color.lime, 0), textcolor=color.black, size=size.small)
+
+if showFibLabels and bearishSignal
+    label.new(bar_index, fib_0_0, "Entry #1 (0.0)", style=label.style_label_up,
+         color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index, fib_0_5, "Entry #2 (0.5)", style=label.style_label_right,
+         color=color.new(color.blue, 30), textcolor=color.white, size=size.tiny)
+    label.new(bar_index, fib_0_618, "Entry #3 (0.618)", style=label.style_label_right,
+         color=color.new(color.blue, 30), textcolor=color.white, size=size.tiny)
+    label.new(bar_index, fib_0_820, "Stop Loss (0.820)", style=label.style_label_right,
+         color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index, fib_n0_618, "TP1 (-0.618)", style=label.style_label_right,
+         color=color.new(color.yellow, 0), textcolor=color.black, size=size.small)
+    label.new(bar_index, fib_n1_618, "TP2 (-1.618)", style=label.style_label_right,
+         color=color.new(color.orange, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index, fib_n2_618, "TP3 (-2.618)", style=label.style_label_right,
+         color=color.new(color.lime, 0), textcolor=color.black, size=size.small)
+
+// ============================================================================
+// ALERTS FOR RESULTS EXPORT / АЛЕРТЫ ДЛЯ ЭКСПОРТА РЕЗУЛЬТАТОВ
+// ============================================================================
+
+// Create JSON string with strategy parameters for export
+// Создание JSON строки с параметрами стратегии для экспорта
+string paramsJSON = '{"preset":"' + presetOptions +
+     '","rsiLength":' + str.tostring(rsiLength) +
+     ',"rsiOversold":' + str.tostring(rsiOversold) +
+     ',"rsiOverbought":' + str.tostring(rsiOverbought) +
+     ',"macdFast":' + str.tostring(macdFast) +
+     ',"macdSlow":' + str.tostring(macdSlow) +
+     ',"macdSignal":' + str.tostring(macdSignal) +
+     ',"stochLength":' + str.tostring(stochLength) +
+     ',"stochOversold":' + str.tostring(stochOversold) +
+     ',"stochOverbought":' + str.tostring(stochOverbought) +
+     ',"minConfluenceScore":' + str.tostring(minConfluenceScore) +
+     ',"minBarsBetweenSignals":' + str.tostring(minBarsBetweenSignals) +
+     ',"fibLookback":' + str.tostring(fibLookback) + '}'
+
+// Build CSV-compatible export message
+// Построение CSV-совместимого сообщения экспорта
+string exportMessage = syminfo.ticker + "," +
+     timeframe.period + "," +
+     paramsJSON + "," +
+     str.tostring(strategy.closedtrades) + "," +
+     str.tostring(winRate, "#.##") + "," +
+     str.tostring(profitFactor, "#.##") + "," +
+     str.tostring(strategy.max_drawdown, "#.##") + "," +
+     str.tostring(strategy.netprofit, "#.##") + "," +
+     str.tostring(greenCandleSignals) + "," +
+     str.tostring(redCandleSignals)
+
+// Export alert using alert() function for dynamic messages
+// Экспорт через alert() для динамических сообщений
+bool exportCondition = enableResultsExport and (exportOnlyAtEnd ? barstate.islastconfirmedhistory : barstate.islast)
+
+if exportCondition
+    alert("EXPORT," + exportMessage, alert.freq_once_per_bar)
+
+// Standard trading alerts using alert() for dynamic messages
+// Стандартные торговые алерты через alert() для динамических сообщений
+if bullishSignal
+    alert("ALMIR Strategy: Bullish signal! Score: " + str.tostring(bullishScore), alert.freq_once_per_bar)
+
+if bearishSignal
+    alert("ALMIR Strategy: Bearish signal! Score: " + str.tostring(bearishScore), alert.freq_once_per_bar)
+
+// Position alerts / Алерты по позициям
+bool longOpened = strategy.position_size > 0 and strategy.position_size[1] <= 0
+bool shortOpened = strategy.position_size < 0 and strategy.position_size[1] >= 0
+bool positionClosed = strategy.position_size == 0 and strategy.position_size[1] != 0
+
+if longOpened
+    alert("ALMIR Strategy: Long position opened", alert.freq_once_per_bar)
+
+if shortOpened
+    alert("ALMIR Strategy: Short position opened", alert.freq_once_per_bar)
+
+if positionClosed
+    alert("ALMIR Strategy: Position closed", alert.freq_once_per_bar)
