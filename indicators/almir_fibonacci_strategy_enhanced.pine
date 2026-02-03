@@ -2,7 +2,7 @@
 // © TRADERAGENT
 
 //@version=6
-strategy("ALMIR Fibonacci Strategy - Enhanced", shorttitle="ALMIR-Fib-E", overlay=true,
+strategy("ALMIR Fibonacci Strategy - Enhanced", shorttitle="ALMIR-FibE", overlay=true,
          initial_capital=10000, default_qty_type=strategy.percent_of_equity,
          default_qty_value=1, commission_type=strategy.commission.percent,
          commission_value=0.1, slippage=3,
@@ -835,6 +835,15 @@ if showInfoTable and barstate.islast
 // EXTENDED STATISTICS TABLE / ТАБЛИЦА РАСШИРЕННОЙ СТАТИСТИКИ
 // ============================================================================
 
+// Calculate performance metrics for use in both table and export
+// Расчёт метрик производительности для использования в таблице и экспорте
+var float winRate = 0.0
+var float profitFactor = 0.0
+
+if barstate.islast
+    winRate := strategy.closedtrades > 0 ? (strategy.wintrades / strategy.closedtrades) * 100 : 0
+    profitFactor := strategy.grossloss != 0 ? math.abs(strategy.grossprofit / strategy.grossloss) : 0
+
 if showStatsTable and barstate.islast
     var table statsTable = table.new(position.bottom_right, 2, 15,
          border_width=2, border_color=color.gray, frame_width=1, frame_color=color.gray)
@@ -849,12 +858,10 @@ if showStatsTable and barstate.islast
     table.cell(statsTable, 1, 1, str.tostring(strategy.closedtrades), text_color=color.white, text_size=size.small)
 
     table.cell(statsTable, 0, 2, "Win Rate", text_color=color.gray, text_size=size.small)
-    winRate = strategy.closedtrades > 0 ? (strategy.wintrades / strategy.closedtrades) * 100 : 0
     winRateColor = winRate >= 50 ? color.green : color.red
     table.cell(statsTable, 1, 2, str.tostring(winRate, "#.##") + "%", text_color=winRateColor, text_size=size.small)
 
     table.cell(statsTable, 0, 3, "Profit Factor", text_color=color.gray, text_size=size.small)
-    profitFactor = strategy.grossloss != 0 ? math.abs(strategy.grossprofit / strategy.grossloss) : 0
     pfColor = profitFactor >= 1.5 ? color.green : profitFactor >= 1.0 ? color.orange : color.red
     table.cell(statsTable, 1, 3, str.tostring(profitFactor, "#.##"), text_color=pfColor, text_size=size.small)
 
