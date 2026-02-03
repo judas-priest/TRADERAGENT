@@ -973,25 +973,31 @@ string exportMessage = syminfo.ticker + "," +
      str.tostring(greenCandleSignals) + "," +
      str.tostring(redCandleSignals)
 
-// Export alert condition
-// Условие для экспорта
+// Export alert using alert() function for dynamic messages
+// Экспорт через alert() для динамических сообщений
 bool exportCondition = enableResultsExport and (exportOnlyAtEnd ? barstate.islastconfirmedhistory : barstate.islast)
 
-alertcondition(exportCondition, title="Export Results",
-     message="EXPORT," + exportMessage)
+if exportCondition
+    alert("EXPORT," + exportMessage, alert.freq_once_per_bar)
 
-// Standard trading alerts / Стандартные торговые алерты
-alertcondition(bullishSignal, title="ALMIR Bullish Signal",
-     message="ALMIR Strategy: Bullish signal! Score: " + str.tostring(bullishScore))
+// Standard trading alerts using alert() for dynamic messages
+// Стандартные торговые алерты через alert() для динамических сообщений
+if bullishSignal
+    alert("ALMIR Strategy: Bullish signal! Score: " + str.tostring(bullishScore), alert.freq_once_per_bar)
 
-alertcondition(bearishSignal, title="ALMIR Bearish Signal",
-     message="ALMIR Strategy: Bearish signal! Score: " + str.tostring(bearishScore))
+if bearishSignal
+    alert("ALMIR Strategy: Bearish signal! Score: " + str.tostring(bearishScore), alert.freq_once_per_bar)
 
-alertcondition(strategy.position_size > 0, title="Long Position Opened",
-     message="ALMIR Strategy: Long position opened")
+// Position alerts / Алерты по позициям
+bool longOpened = strategy.position_size > 0 and strategy.position_size[1] <= 0
+bool shortOpened = strategy.position_size < 0 and strategy.position_size[1] >= 0
+bool positionClosed = strategy.position_size == 0 and strategy.position_size[1] != 0
 
-alertcondition(strategy.position_size < 0, title="Short Position Opened",
-     message="ALMIR Strategy: Short position opened")
+if longOpened
+    alert("ALMIR Strategy: Long position opened", alert.freq_once_per_bar)
 
-alertcondition(strategy.position_size == 0, title="Position Closed",
-     message="ALMIR Strategy: Position closed")
+if shortOpened
+    alert("ALMIR Strategy: Short position opened", alert.freq_once_per_bar)
+
+if positionClosed
+    alert("ALMIR Strategy: Position closed", alert.freq_once_per_bar)
