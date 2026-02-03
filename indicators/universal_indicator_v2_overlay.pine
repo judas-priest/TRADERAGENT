@@ -2,7 +2,7 @@
 // © TRADERAGENT
 
 //@version=6
-indicator("Универсальный Индикатор v2 - Fibonacci Overlay", shorttitle="Universal Indicator v2 - Fib Overlay", overlay=true, max_lines_count=500, max_labels_count=500)
+indicator("Универсальный Индикатор v2 - Fibonacci Overlay", shorttitle="UI v2 Fib", overlay=true, max_lines_count=500, max_labels_count=500)
 
 // ============================================================================
 // ОПИСАНИЕ / DESCRIPTION

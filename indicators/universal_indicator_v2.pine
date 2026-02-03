@@ -2,7 +2,7 @@
 // © TRADERAGENT
 
 //@version=6
-indicator("Универсальный Индикатор v2", shorttitle="Universal Indicator v2", overlay=false, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
+indicator("Универсальный Индикатор v2", shorttitle="UI v2", overlay=false, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
 
 // ============================================================================
 // ОПИСАНИЕ / DESCRIPTION
