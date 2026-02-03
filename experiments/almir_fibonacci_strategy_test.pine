@@ -161,15 +161,19 @@ var float fibBase = na
 var float fibTop = na
 var bool isLongPosition = false
 
+// Calculate ta.highest and ta.lowest on every bar for consistency
+highestHigh = ta.highest(high, fibLookback)
+lowestLow = ta.lowest(low, fibLookback)
+
 if bullishSignal
     isLongPosition := true
     fibBase := low
-    fibTop := ta.highest(high, fibLookback)
+    fibTop := highestHigh
 
 if bearishSignal
     isLongPosition := false
     fibBase := high
-    fibTop := ta.lowest(low, fibLookback)
+    fibTop := lowestLow
 
 // Calculate Fibonacci levels
 float fib_0_0 = na
@@ -180,7 +184,7 @@ float fib_n0_618 = na
 float fib_n1_618 = na
 float fib_n2_618 = na
 
-if not na(fibBase) and not na(fibTop) and not na(isLongPosition)
+if not na(fibBase) and not na(fibTop)
     fibRange = fibTop - fibBase
 
     if isLongPosition
