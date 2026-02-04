@@ -1,0 +1,664 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TRADERAGENT
+
+//@version=6
+indicator("ALMIR Candle Analyzer / Анализатор свечей ALMIR", shorttitle="ALMIR-Candle", overlay=true,
+         max_bars_back=500, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
+
+// ============================================================================
+// ОПИСАНИЕ / DESCRIPTION
+// ============================================================================
+// Инструмент для анализа отдельных свечей и расчёта результатов торговли
+// по стратегии ALMIR Fibonacci с указанной свечи.
+//
+// Tool for analyzing individual candles and calculating ALMIR Fibonacci
+// strategy trading results from a selected candle.
+//
+// Особенности / Features:
+// - Отображение данных выбранной свечи в таблице
+// - Построение уровней Фибоначчи по алгоритму стратегии
+// - Расчёт результатов сделок на период до 100 свечей вперёд
+// - Детальная статистика для анализа
+// - Экспорт данных (копирование из таблицы для Excel/PDF)
+// ============================================================================
+
+// ============================================================================
+// НАСТРОЙКИ / SETTINGS
+// ============================================================================
+
+// === 🎯 Candle Selection / Выбор свечи ===
+candleBarIndex = input.int(0, "Candle Bar Index (0 = current) / Индекс свечи (0 = текущая)",
+     minval=0, maxval=500, group="🎯 Candle Selection",
+     tooltip="Укажите индекс свечи относительно текущей (0 = текущая свеча, 1 = предыдущая, и т.д.)")
+
+enableAnalysis = input.bool(true, "Enable Analysis / Включить анализ", group="🎯 Candle Selection",
+     tooltip="Включить/выключить анализ и отображение данных")
+
+// === 📐 Fibonacci Settings / Настройки Фибоначчи ===
+fibLookback = input.int(100, "Fibonacci Lookback / Период поиска Фибоначчи", minval=10, group="📐 Fibonacci Settings")
+showFibLevels = input.bool(true, "Show Fibonacci Levels / Показать уровни Фибоначчи", group="📐 Fibonacci Settings")
+
+// === 📊 Analysis Settings / Настройки анализа ===
+forwardBars = input.int(100, "Forward Analysis Bars / Свечей вперёд для анализа",
+     minval=1, maxval=100, group="📊 Analysis Settings",
+     tooltip="Количество свечей вперёд для расчёта результатов сделок")
+
+analyzeDirection = input.string("Both", "Analyze Direction / Анализировать направление",
+     options=["Long", "Short", "Both"], group="📊 Analysis Settings")
+
+// === 💰 Position Management / Управление позицией ===
+useMultipleEntries = input.bool(true, "Use Multiple Entries / Множественные входы", group="💰 Position Management")
+entry1Percent = input.float(1.0, "Entry #1 Size / Размер входа #1", minval=0.1, step=0.1, group="💰 Position Management")
+entry2Percent = input.float(1.0, "Entry #2 Size / Размер входа #2", minval=0.1, step=0.1, group="💰 Position Management")
+entry3Percent = input.float(1.0, "Entry #3 Size / Размер входа #3", minval=0.1, step=0.1, group="💰 Position Management")
+
+// === 🎨 Display Settings / Настройки отображения ===
+showCandleTable = input.bool(true, "Show Candle Data Table / Показать таблицу данных свечи", group="🎨 Display Settings")
+showResultsTable = input.bool(true, "Show Results Table / Показать таблицу результатов", group="🎨 Display Settings")
+tablePosition = input.string("top_right", "Table Position / Позиция таблицы",
+     options=["top_left", "top_right", "bottom_left", "bottom_right"], group="🎨 Display Settings")
+
+// ============================================================================
+// HELPER FUNCTIONS / ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================================
+
+// Get position from string / Получить позицию из строки
+f_getPosition(pos) =>
+    pos == "top_left" ? position.top_left :
+     pos == "top_right" ? position.top_right :
+     pos == "bottom_left" ? position.bottom_left :
+     position.bottom_right
+
+// Format price / Форматирование цены
+f_formatPrice(price) =>
+    str.tostring(price, format.mintick)
+
+// Format percent / Форматирование процента
+f_formatPercent(value) =>
+    str.tostring(value, "#.##") + "%"
+
+// ============================================================================
+// CANDLE DATA COLLECTION / СБОР ДАННЫХ О СВЕЧЕ
+// ============================================================================
+
+// Get selected candle data / Получить данные выбранной свечи
+var int selectedBar = na
+var float selectedOpen = na
+var float selectedHigh = na
+var float selectedLow = na
+var float selectedClose = na
+var float selectedVolume = na
+var int selectedTime = na
+
+if enableAnalysis and barstate.islast
+    selectedBar := bar_index - candleBarIndex
+    selectedOpen := open[candleBarIndex]
+    selectedHigh := high[candleBarIndex]
+    selectedLow := low[candleBarIndex]
+    selectedClose := close[candleBarIndex]
+    selectedVolume := volume[candleBarIndex]
+    selectedTime := time[candleBarIndex]
+
+// Calculate candle properties / Расчёт свойств свечи
+candleRange = selectedHigh - selectedLow
+candleBody = math.abs(selectedClose - selectedOpen)
+candleBodyPercent = candleRange > 0 ? (candleBody / candleRange) * 100 : 0
+isGreenCandle = selectedClose > selectedOpen
+isRedCandle = selectedOpen > selectedClose
+upperWick = isGreenCandle ? selectedHigh - selectedClose : selectedHigh - selectedOpen
+lowerWick = isGreenCandle ? selectedOpen - selectedLow : selectedClose - selectedLow
+
+// ============================================================================
+// FIBONACCI LEVELS CALCULATION / РАСЧЁТ УРОВНЕЙ ФИБОНАЧЧИ
+// ============================================================================
+
+// Calculate ta.highest and ta.lowest from selected candle
+var float highestHigh = na
+var float lowestLow = na
+
+if enableAnalysis and barstate.islast and not na(selectedBar)
+    // Look back from selected candle
+    float tempHigh = selectedHigh
+    float tempLow = selectedLow
+
+    for i = 0 to math.min(fibLookback - 1, candleBarIndex)
+        if high[candleBarIndex + i] > tempHigh
+            tempHigh := high[candleBarIndex + i]
+        if low[candleBarIndex + i] < tempLow
+            tempLow := low[candleBarIndex + i]
+
+    highestHigh := tempHigh
+    lowestLow := tempLow
+
+// Calculate Fibonacci levels for Long position / Расчёт уровней для Long
+var float fib_long_1_0 = na
+var float fib_long_0_820 = na
+var float fib_long_0_618 = na
+var float fib_long_0_5 = na
+var float fib_long_0_0 = na
+var float fib_long_n0_618 = na
+var float fib_long_n1_618 = na
+var float fib_long_n2_618 = na
+
+// Calculate Fibonacci levels for Short position / Расчёт уровней для Short
+var float fib_short_1_0 = na
+var float fib_short_0_820 = na
+var float fib_short_0_618 = na
+var float fib_short_0_5 = na
+var float fib_short_0_0 = na
+var float fib_short_n0_618 = na
+var float fib_short_n1_618 = na
+var float fib_short_n2_618 = na
+
+if enableAnalysis and not na(highestHigh) and not na(lowestLow)
+    // Long position: from low (1.0) to high (0.0)
+    fibRange_long = highestHigh - selectedLow
+    fib_long_1_0 := selectedLow
+    fib_long_0_820 := selectedLow + fibRange_long * 0.820
+    fib_long_0_618 := selectedLow + fibRange_long * 0.618
+    fib_long_0_5 := selectedLow + fibRange_long * 0.5
+    fib_long_0_0 := highestHigh
+    fib_long_n0_618 := highestHigh + fibRange_long * 0.618
+    fib_long_n1_618 := highestHigh + fibRange_long * 1.618
+    fib_long_n2_618 := highestHigh + fibRange_long * 2.618
+
+    // Short position: from high (1.0) to low (0.0)
+    fibRange_short = selectedHigh - lowestLow
+    fib_short_1_0 := selectedHigh
+    fib_short_0_820 := selectedHigh - fibRange_short * 0.820
+    fib_short_0_618 := selectedHigh - fibRange_short * 0.618
+    fib_short_0_5 := selectedHigh - fibRange_short * 0.5
+    fib_short_0_0 := lowestLow
+    fib_short_n0_618 := lowestLow - fibRange_short * 0.618
+    fib_short_n1_618 := lowestLow - fibRange_short * 1.618
+    fib_short_n2_618 := lowestLow - fibRange_short * 2.618
+
+// ============================================================================
+// TRADE SIMULATION / СИМУЛЯЦИЯ СДЕЛОК
+// ============================================================================
+
+// Trade statistics variables / Переменные статистики сделок
+var float long_totalProfit = 0.0
+var float long_totalLoss = 0.0
+var int long_winTrades = 0
+var int long_lossTrades = 0
+var float long_entry1_avg = 0.0
+var float long_entry2_avg = 0.0
+var float long_entry3_avg = 0.0
+var float long_exit_avg = 0.0
+var bool long_tp1_hit = false
+var bool long_tp2_hit = false
+var bool long_tp3_hit = false
+var bool long_sl_hit = false
+
+var float short_totalProfit = 0.0
+var float short_totalLoss = 0.0
+var int short_winTrades = 0
+var int short_lossTrades = 0
+var float short_entry1_avg = 0.0
+var float short_entry2_avg = 0.0
+var float short_entry3_avg = 0.0
+var float short_exit_avg = 0.0
+var bool short_tp1_hit = false
+var bool short_tp2_hit = false
+var bool short_tp3_hit = false
+var bool short_sl_hit = false
+
+// Simulate trades from selected candle forward / Симуляция сделок от выбранной свечи
+if enableAnalysis and barstate.islast and not na(fib_long_1_0)
+
+    // === LONG POSITION SIMULATION / СИМУЛЯЦИЯ LONG ПОЗИЦИИ ===
+    if analyzeDirection == "Long" or analyzeDirection == "Both"
+        // Reset statistics
+        long_totalProfit := 0.0
+        long_totalLoss := 0.0
+        long_winTrades := 0
+        long_lossTrades := 0
+        long_entry1_avg := selectedClose  // Entry #1 at signal candle close
+        long_entry2_avg := 0.0
+        long_entry3_avg := 0.0
+        long_exit_avg := 0.0
+        long_tp1_hit := false
+        long_tp2_hit := false
+        long_tp3_hit := false
+        long_sl_hit := false
+
+        float positionSize = entry1Percent
+        float avgEntry = selectedClose
+        int entriesCount = 1
+        bool positionOpen = true
+
+        // Simulate forward bars
+        for i = 1 to math.min(forwardBars, candleBarIndex)
+            if positionOpen and i <= candleBarIndex
+                barHigh = high[candleBarIndex - i]
+                barLow = low[candleBarIndex - i]
+                barClose = close[candleBarIndex - i]
+
+                // Check Entry #2 at 0.5 level
+                if useMultipleEntries and entriesCount == 1 and barLow <= fib_long_0_5
+                    positionSize += entry2Percent
+                    avgEntry := (avgEntry * entry1Percent + fib_long_0_5 * entry2Percent) / positionSize
+                    long_entry2_avg := fib_long_0_5
+                    entriesCount := 2
+
+                // Check Entry #3 at 0.618 level
+                if useMultipleEntries and entriesCount == 2 and barLow <= fib_long_0_618
+                    positionSize += entry3Percent
+                    avgEntry := (avgEntry * (entry1Percent + entry2Percent) + fib_long_0_618 * entry3Percent) / positionSize
+                    long_entry3_avg := fib_long_0_618
+                    entriesCount := 3
+
+                // Check Stop Loss at 0.820 level
+                if barLow <= fib_long_0_820
+                    long_sl_hit := true
+                    long_exit_avg := fib_long_0_820
+                    profitPercent = ((fib_long_0_820 - avgEntry) / avgEntry) * 100
+                    if profitPercent < 0
+                        long_totalLoss += math.abs(profitPercent * positionSize)
+                        long_lossTrades += 1
+                    positionOpen := false
+
+                // Check TP levels
+                if positionOpen
+                    if barHigh >= fib_long_n2_618
+                        long_tp3_hit := true
+                        long_exit_avg := fib_long_n2_618
+                        profitPercent = ((fib_long_n2_618 - avgEntry) / avgEntry) * 100
+                        long_totalProfit += profitPercent * positionSize
+                        long_winTrades += 1
+                        positionOpen := false
+                    else if barHigh >= fib_long_n1_618
+                        long_tp2_hit := true
+                        long_exit_avg := fib_long_n1_618
+                        profitPercent = ((fib_long_n1_618 - avgEntry) / avgEntry) * 100
+                        long_totalProfit += profitPercent * positionSize
+                        long_winTrades += 1
+                        positionOpen := false
+                    else if barHigh >= fib_long_n0_618
+                        long_tp1_hit := true
+                        long_exit_avg := fib_long_n0_618
+                        profitPercent = ((fib_long_n0_618 - avgEntry) / avgEntry) * 100
+                        long_totalProfit += profitPercent * positionSize
+                        long_winTrades += 1
+                        positionOpen := false
+
+        // If position still open at end, close at current price
+        if positionOpen and candleBarIndex > 0
+            long_exit_avg := close
+            profitPercent = ((close - avgEntry) / avgEntry) * 100
+            if profitPercent > 0
+                long_totalProfit += profitPercent * positionSize
+                long_winTrades += 1
+            else
+                long_totalLoss += math.abs(profitPercent * positionSize)
+                long_lossTrades += 1
+
+    // === SHORT POSITION SIMULATION / СИМУЛЯЦИЯ SHORT ПОЗИЦИИ ===
+    if analyzeDirection == "Short" or analyzeDirection == "Both"
+        // Reset statistics
+        short_totalProfit := 0.0
+        short_totalLoss := 0.0
+        short_winTrades := 0
+        short_lossTrades := 0
+        short_entry1_avg := selectedClose  // Entry #1 at signal candle close
+        short_entry2_avg := 0.0
+        short_entry3_avg := 0.0
+        short_exit_avg := 0.0
+        short_tp1_hit := false
+        short_tp2_hit := false
+        short_tp3_hit := false
+        short_sl_hit := false
+
+        float positionSize = entry1Percent
+        float avgEntry = selectedClose
+        int entriesCount = 1
+        bool positionOpen = true
+
+        // Simulate forward bars
+        for i = 1 to math.min(forwardBars, candleBarIndex)
+            if positionOpen and i <= candleBarIndex
+                barHigh = high[candleBarIndex - i]
+                barLow = low[candleBarIndex - i]
+                barClose = close[candleBarIndex - i]
+
+                // Check Entry #2 at 0.5 level
+                if useMultipleEntries and entriesCount == 1 and barHigh >= fib_short_0_5
+                    positionSize += entry2Percent
+                    avgEntry := (avgEntry * entry1Percent + fib_short_0_5 * entry2Percent) / positionSize
+                    short_entry2_avg := fib_short_0_5
+                    entriesCount := 2
+
+                // Check Entry #3 at 0.618 level
+                if useMultipleEntries and entriesCount == 3 and barHigh >= fib_short_0_618
+                    positionSize += entry3Percent
+                    avgEntry := (avgEntry * (entry1Percent + entry2Percent) + fib_short_0_618 * entry3Percent) / positionSize
+                    short_entry3_avg := fib_short_0_618
+                    entriesCount := 3
+
+                // Check Stop Loss at 0.820 level
+                if barHigh >= fib_short_0_820
+                    short_sl_hit := true
+                    short_exit_avg := fib_short_0_820
+                    profitPercent = ((avgEntry - fib_short_0_820) / avgEntry) * 100
+                    if profitPercent < 0
+                        short_totalLoss += math.abs(profitPercent * positionSize)
+                        short_lossTrades += 1
+                    positionOpen := false
+
+                // Check TP levels
+                if positionOpen
+                    if barLow <= fib_short_n2_618
+                        short_tp3_hit := true
+                        short_exit_avg := fib_short_n2_618
+                        profitPercent = ((avgEntry - fib_short_n2_618) / avgEntry) * 100
+                        short_totalProfit += profitPercent * positionSize
+                        short_winTrades += 1
+                        positionOpen := false
+                    else if barLow <= fib_short_n1_618
+                        short_tp2_hit := true
+                        short_exit_avg := fib_short_n1_618
+                        profitPercent = ((avgEntry - fib_short_n1_618) / avgEntry) * 100
+                        short_totalProfit += profitPercent * positionSize
+                        short_winTrades += 1
+                        positionOpen := false
+                    else if barLow <= fib_short_n0_618
+                        short_tp1_hit := true
+                        short_exit_avg := fib_short_n0_618
+                        profitPercent = ((avgEntry - fib_short_n0_618) / avgEntry) * 100
+                        short_totalProfit += profitPercent * positionSize
+                        short_winTrades += 1
+                        positionOpen := false
+
+        // If position still open at end, close at current price
+        if positionOpen and candleBarIndex > 0
+            short_exit_avg := close
+            profitPercent = ((avgEntry - close) / avgEntry) * 100
+            if profitPercent > 0
+                short_totalProfit += profitPercent * positionSize
+                short_winTrades += 1
+            else
+                short_totalLoss += math.abs(profitPercent * positionSize)
+                short_lossTrades += 1
+
+// ============================================================================
+// VISUALIZATION / ВИЗУАЛИЗАЦИЯ
+// ============================================================================
+
+// Plot Fibonacci levels for Long / Отображение уровней для Long
+if showFibLevels and enableAnalysis and (analyzeDirection == "Long" or analyzeDirection == "Both")
+    var line line_long_1_0 = na
+    var line line_long_0_820 = na
+    var line line_long_0_618 = na
+    var line line_long_0_5 = na
+    var line line_long_0_0 = na
+    var line line_long_n0_618 = na
+    var line line_long_n1_618 = na
+    var line line_long_n2_618 = na
+
+    if barstate.islast and not na(fib_long_1_0)
+        x1 = bar_index - candleBarIndex
+        x2 = bar_index
+
+        line_long_1_0 := line.new(x1, fib_long_1_0, x2, fib_long_1_0, color=color.new(color.gray, 50), width=1, style=line.style_dashed)
+        line_long_0_820 := line.new(x1, fib_long_0_820, x2, fib_long_0_820, color=color.new(color.red, 30), width=2, style=line.style_solid)
+        line_long_0_618 := line.new(x1, fib_long_0_618, x2, fib_long_0_618, color=color.new(color.blue, 50), width=1, style=line.style_dashed)
+        line_long_0_5 := line.new(x1, fib_long_0_5, x2, fib_long_0_5, color=color.new(color.blue, 50), width=1, style=line.style_dashed)
+        line_long_0_0 := line.new(x1, fib_long_0_0, x2, fib_long_0_0, color=color.new(color.green, 30), width=2, style=line.style_solid)
+        line_long_n0_618 := line.new(x1, fib_long_n0_618, x2, fib_long_n0_618, color=color.new(color.yellow, 30), width=2, style=line.style_solid)
+        line_long_n1_618 := line.new(x1, fib_long_n1_618, x2, fib_long_n1_618, color=color.new(color.orange, 30), width=2, style=line.style_solid)
+        line_long_n2_618 := line.new(x1, fib_long_n2_618, x2, fib_long_n2_618, color=color.new(color.lime, 30), width=2, style=line.style_solid)
+
+        // Labels for Long levels
+        label.new(x2, fib_long_0_0, "LONG E1 (0.0)", style=label.style_label_left, color=color.new(color.green, 30), textcolor=color.white, size=size.small)
+        label.new(x2, fib_long_0_5, "LONG E2 (0.5)", style=label.style_label_left, color=color.new(color.blue, 50), textcolor=color.white, size=size.tiny)
+        label.new(x2, fib_long_0_618, "LONG E3 (0.618)", style=label.style_label_left, color=color.new(color.blue, 50), textcolor=color.white, size=size.tiny)
+        label.new(x2, fib_long_0_820, "LONG SL (0.820)", style=label.style_label_left, color=color.new(color.red, 30), textcolor=color.white, size=size.small)
+        label.new(x2, fib_long_n0_618, "LONG TP1 (-0.618)", style=label.style_label_left, color=color.new(color.yellow, 30), textcolor=color.black, size=size.small)
+        label.new(x2, fib_long_n1_618, "LONG TP2 (-1.618)", style=label.style_label_left, color=color.new(color.orange, 30), textcolor=color.white, size=size.small)
+        label.new(x2, fib_long_n2_618, "LONG TP3 (-2.618)", style=label.style_label_left, color=color.new(color.lime, 30), textcolor=color.black, size=size.small)
+
+// Plot Fibonacci levels for Short / Отображение уровней для Short
+if showFibLevels and enableAnalysis and (analyzeDirection == "Short" or analyzeDirection == "Both") and analyzeDirection != "Long"
+    var line line_short_1_0 = na
+    var line line_short_0_820 = na
+    var line line_short_0_618 = na
+    var line line_short_0_5 = na
+    var line line_short_0_0 = na
+    var line line_short_n0_618 = na
+    var line line_short_n1_618 = na
+    var line line_short_n2_618 = na
+
+    if barstate.islast and not na(fib_short_1_0)
+        x1 = bar_index - candleBarIndex
+        x2 = bar_index
+
+        line_short_1_0 := line.new(x1, fib_short_1_0, x2, fib_short_1_0, color=color.new(color.gray, 50), width=1, style=line.style_dashed)
+        line_short_0_820 := line.new(x1, fib_short_0_820, x2, fib_short_0_820, color=color.new(color.red, 30), width=2, style=line.style_solid)
+        line_short_0_618 := line.new(x1, fib_short_0_618, x2, fib_short_0_618, color=color.new(color.blue, 50), width=1, style=line.style_dashed)
+        line_short_0_5 := line.new(x1, fib_short_0_5, x2, fib_short_0_5, color=color.new(color.blue, 50), width=1, style=line.style_dashed)
+        line_short_0_0 := line.new(x1, fib_short_0_0, x2, fib_short_0_0, color=color.new(color.red, 30), width=2, style=line.style_solid)
+        line_short_n0_618 := line.new(x1, fib_short_n0_618, x2, fib_short_n0_618, color=color.new(color.yellow, 30), width=2, style=line.style_solid)
+        line_short_n1_618 := line.new(x1, fib_short_n1_618, x2, fib_short_n1_618, color=color.new(color.orange, 30), width=2, style=line.style_solid)
+        line_short_n2_618 := line.new(x1, fib_short_n2_618, x2, fib_short_n2_618, color=color.new(color.lime, 30), width=2, style=line.style_solid)
+
+        // Labels for Short levels
+        label.new(x2, fib_short_0_0, "SHORT E1 (0.0)", style=label.style_label_left, color=color.new(color.red, 30), textcolor=color.white, size=size.small)
+        label.new(x2, fib_short_0_5, "SHORT E2 (0.5)", style=label.style_label_left, color=color.new(color.blue, 50), textcolor=color.white, size=size.tiny)
+        label.new(x2, fib_short_0_618, "SHORT E3 (0.618)", style=label.style_label_left, color=color.new(color.blue, 50), textcolor=color.white, size=size.tiny)
+        label.new(x2, fib_short_0_820, "SHORT SL (0.820)", style=label.style_label_left, color=color.new(color.red, 30), textcolor=color.white, size=size.small)
+        label.new(x2, fib_short_n0_618, "SHORT TP1 (-0.618)", style=label.style_label_left, color=color.new(color.yellow, 30), textcolor=color.black, size=size.small)
+        label.new(x2, fib_short_n1_618, "SHORT TP2 (-1.618)", style=label.style_label_left, color=color.new(color.orange, 30), textcolor=color.white, size=size.small)
+        label.new(x2, fib_short_n2_618, "SHORT TP3 (-2.618)", style=label.style_label_left, color=color.new(color.lime, 30), textcolor=color.black, size=size.small)
+
+// Highlight selected candle / Подсветка выбранной свечи
+if enableAnalysis and not na(selectedBar)
+    var box selectedBox = na
+    if barstate.islast
+        selectedBox := box.new(bar_index - candleBarIndex, selectedHigh, bar_index - candleBarIndex + 1, selectedLow,
+             border_color=color.new(color.blue, 0), bgcolor=color.new(color.blue, 90), border_width=2)
+
+// ============================================================================
+// CANDLE DATA TABLE / ТАБЛИЦА ДАННЫХ СВЕЧИ
+// ============================================================================
+
+if showCandleTable and enableAnalysis and barstate.islast and not na(selectedBar)
+    var table candleTable = table.new(f_getPosition(tablePosition), 2, 15,
+         border_width=2, border_color=color.gray, frame_width=1, frame_color=color.gray)
+
+    // Header / Заголовок
+    table.cell(candleTable, 0, 0, "📊 CANDLE DATA / ДАННЫЕ СВЕЧИ", text_color=color.white,
+         bgcolor=color.new(color.blue, 30), text_size=size.normal)
+    table.merge_cells(candleTable, 0, 0, 1, 0)
+
+    // Candle index
+    table.cell(candleTable, 0, 1, "Index / Индекс", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 1, str.tostring(candleBarIndex), text_color=color.white, text_size=size.small)
+
+    // Time
+    table.cell(candleTable, 0, 2, "Time / Время", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 2, str.format_time(selectedTime, "yyyy-MM-dd HH:mm"), text_color=color.white, text_size=size.small)
+
+    // Candle type
+    table.cell(candleTable, 0, 3, "Type / Тип", text_color=color.gray, text_size=size.small)
+    candleType = isGreenCandle ? "🟢 Green / Зелёная" : isRedCandle ? "🔴 Red / Красная" : "⚪ Doji"
+    candleTypeColor = isGreenCandle ? color.green : isRedCandle ? color.red : color.gray
+    table.cell(candleTable, 1, 3, candleType, text_color=candleTypeColor, text_size=size.small)
+
+    // OHLC
+    table.cell(candleTable, 0, 4, "Open / Откр.", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 4, f_formatPrice(selectedOpen), text_color=color.white, text_size=size.small)
+
+    table.cell(candleTable, 0, 5, "High / Макс.", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 5, f_formatPrice(selectedHigh), text_color=color.white, text_size=size.small)
+
+    table.cell(candleTable, 0, 6, "Low / Мин.", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 6, f_formatPrice(selectedLow), text_color=color.white, text_size=size.small)
+
+    table.cell(candleTable, 0, 7, "Close / Закр.", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 7, f_formatPrice(selectedClose), text_color=color.white, text_size=size.small)
+
+    // Volume
+    table.cell(candleTable, 0, 8, "Volume / Объём", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 8, str.tostring(selectedVolume, "#.##"), text_color=color.white, text_size=size.small)
+
+    // Range
+    table.cell(candleTable, 0, 9, "Range / Диапазон", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 9, f_formatPrice(candleRange), text_color=color.white, text_size=size.small)
+
+    // Body
+    table.cell(candleTable, 0, 10, "Body / Тело", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 10, f_formatPrice(candleBody) + " (" + f_formatPercent(candleBodyPercent) + ")",
+         text_color=color.white, text_size=size.small)
+
+    // Upper wick
+    table.cell(candleTable, 0, 11, "Upper Wick / Верх. тень", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 11, f_formatPrice(upperWick), text_color=color.white, text_size=size.small)
+
+    // Lower wick
+    table.cell(candleTable, 0, 12, "Lower Wick / Нижн. тень", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 12, f_formatPrice(lowerWick), text_color=color.white, text_size=size.small)
+
+    // Fibonacci range
+    table.cell(candleTable, 0, 13, "Fib Lookback / Период Fib", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 13, str.tostring(fibLookback), text_color=color.white, text_size=size.small)
+
+    // Forward analysis
+    table.cell(candleTable, 0, 14, "Forward Bars / Свечей впер.", text_color=color.gray, text_size=size.small)
+    table.cell(candleTable, 1, 14, str.tostring(forwardBars), text_color=color.white, text_size=size.small)
+
+// ============================================================================
+// RESULTS TABLE / ТАБЛИЦА РЕЗУЛЬТАТОВ
+// ============================================================================
+
+if showResultsTable and enableAnalysis and barstate.islast and not na(selectedBar)
+    int tableRows = analyzeDirection == "Both" ? 20 : 16
+
+    var table resultsTable = table.new(tablePosition == "top_right" or tablePosition == "bottom_right" ?
+         f_getPosition(tablePosition == "top_right" ? "top_left" : "bottom_left") :
+         f_getPosition(tablePosition == "top_right" ? "top_right" : "bottom_right"),
+         2, tableRows, border_width=2, border_color=color.gray, frame_width=1, frame_color=color.gray)
+
+    int rowIdx = 0
+
+    // Header / Заголовок
+    table.cell(resultsTable, 0, rowIdx, "📈 TRADE RESULTS / РЕЗУЛЬТАТЫ СДЕЛОК", text_color=color.white,
+         bgcolor=color.new(color.purple, 30), text_size=size.normal)
+    table.merge_cells(resultsTable, 0, rowIdx, 1, rowIdx)
+    rowIdx += 1
+
+    // === LONG RESULTS / РЕЗУЛЬТАТЫ LONG ===
+    if analyzeDirection == "Long" or analyzeDirection == "Both"
+        table.cell(resultsTable, 0, rowIdx, "🟢 LONG POSITION", text_color=color.white,
+             bgcolor=color.new(color.green, 70), text_size=size.small)
+        table.merge_cells(resultsTable, 0, rowIdx, 1, rowIdx)
+        rowIdx += 1
+
+        // Entry prices
+        table.cell(resultsTable, 0, rowIdx, "Entry #1", text_color=color.gray, text_size=size.small)
+        table.cell(resultsTable, 1, rowIdx, f_formatPrice(long_entry1_avg), text_color=color.white, text_size=size.small)
+        rowIdx += 1
+
+        if useMultipleEntries and long_entry2_avg > 0
+            table.cell(resultsTable, 0, rowIdx, "Entry #2", text_color=color.gray, text_size=size.small)
+            table.cell(resultsTable, 1, rowIdx, f_formatPrice(long_entry2_avg), text_color=color.white, text_size=size.small)
+            rowIdx += 1
+
+        if useMultipleEntries and long_entry3_avg > 0
+            table.cell(resultsTable, 0, rowIdx, "Entry #3", text_color=color.gray, text_size=size.small)
+            table.cell(resultsTable, 1, rowIdx, f_formatPrice(long_entry3_avg), text_color=color.white, text_size=size.small)
+            rowIdx += 1
+
+        // Exit info
+        table.cell(resultsTable, 0, rowIdx, "Exit Price / Цена выхода", text_color=color.gray, text_size=size.small)
+        table.cell(resultsTable, 1, rowIdx, long_exit_avg > 0 ? f_formatPrice(long_exit_avg) : "N/A",
+             text_color=color.white, text_size=size.small)
+        rowIdx += 1
+
+        // Exit level
+        table.cell(resultsTable, 0, rowIdx, "Exit Level / Уровень", text_color=color.gray, text_size=size.small)
+        exitLevel = long_tp3_hit ? "TP3 (-2.618)" : long_tp2_hit ? "TP2 (-1.618)" :
+             long_tp1_hit ? "TP1 (-0.618)" : long_sl_hit ? "SL (0.820)" : "Market"
+        exitColor = long_tp3_hit or long_tp2_hit or long_tp1_hit ? color.green : long_sl_hit ? color.red : color.gray
+        table.cell(resultsTable, 1, rowIdx, exitLevel, text_color=exitColor, text_size=size.small)
+        rowIdx += 1
+
+        // Win/Loss trades
+        table.cell(resultsTable, 0, rowIdx, "Win / Loss Trades", text_color=color.gray, text_size=size.small)
+        table.cell(resultsTable, 1, rowIdx, str.tostring(long_winTrades) + " / " + str.tostring(long_lossTrades),
+             text_color=color.white, text_size=size.small)
+        rowIdx += 1
+
+        // Total Profit/Loss
+        long_netProfit = long_totalProfit - long_totalLoss
+        table.cell(resultsTable, 0, rowIdx, "Net P/L %", text_color=color.gray, text_size=size.small)
+        profitColor = long_netProfit > 0 ? color.green : long_netProfit < 0 ? color.red : color.gray
+        table.cell(resultsTable, 1, rowIdx, f_formatPercent(long_netProfit), text_color=profitColor, text_size=size.small)
+        rowIdx += 1
+
+    // Separator if both
+    if analyzeDirection == "Both"
+        table.cell(resultsTable, 0, rowIdx, "─────────────", text_color=color.gray, text_size=size.small)
+        table.merge_cells(resultsTable, 0, rowIdx, 1, rowIdx)
+        rowIdx += 1
+
+    // === SHORT RESULTS / РЕЗУЛЬТАТЫ SHORT ===
+    if analyzeDirection == "Short" or analyzeDirection == "Both"
+        table.cell(resultsTable, 0, rowIdx, "🔴 SHORT POSITION", text_color=color.white,
+             bgcolor=color.new(color.red, 70), text_size=size.small)
+        table.merge_cells(resultsTable, 0, rowIdx, 1, rowIdx)
+        rowIdx += 1
+
+        // Entry prices
+        table.cell(resultsTable, 0, rowIdx, "Entry #1", text_color=color.gray, text_size=size.small)
+        table.cell(resultsTable, 1, rowIdx, f_formatPrice(short_entry1_avg), text_color=color.white, text_size=size.small)
+        rowIdx += 1
+
+        if useMultipleEntries and short_entry2_avg > 0
+            table.cell(resultsTable, 0, rowIdx, "Entry #2", text_color=color.gray, text_size=size.small)
+            table.cell(resultsTable, 1, rowIdx, f_formatPrice(short_entry2_avg), text_color=color.white, text_size=size.small)
+            rowIdx += 1
+
+        if useMultipleEntries and short_entry3_avg > 0
+            table.cell(resultsTable, 0, rowIdx, "Entry #3", text_color=color.gray, text_size=size.small)
+            table.cell(resultsTable, 1, rowIdx, f_formatPrice(short_entry3_avg), text_color=color.white, text_size=size.small)
+            rowIdx += 1
+
+        // Exit info
+        table.cell(resultsTable, 0, rowIdx, "Exit Price / Цена выхода", text_color=color.gray, text_size=size.small)
+        table.cell(resultsTable, 1, rowIdx, short_exit_avg > 0 ? f_formatPrice(short_exit_avg) : "N/A",
+             text_color=color.white, text_size=size.small)
+        rowIdx += 1
+
+        // Exit level
+        table.cell(resultsTable, 0, rowIdx, "Exit Level / Уровень", text_color=color.gray, text_size=size.small)
+        exitLevel = short_tp3_hit ? "TP3 (-2.618)" : short_tp2_hit ? "TP2 (-1.618)" :
+             short_tp1_hit ? "TP1 (-0.618)" : short_sl_hit ? "SL (0.820)" : "Market"
+        exitColor = short_tp3_hit or short_tp2_hit or short_tp1_hit ? color.green : short_sl_hit ? color.red : color.gray
+        table.cell(resultsTable, 1, rowIdx, exitLevel, text_color=exitColor, text_size=size.small)
+        rowIdx += 1
+
+        // Win/Loss trades
+        table.cell(resultsTable, 0, rowIdx, "Win / Loss Trades", text_color=color.gray, text_size=size.small)
+        table.cell(resultsTable, 1, rowIdx, str.tostring(short_winTrades) + " / " + str.tostring(short_lossTrades),
+             text_color=color.white, text_size=size.small)
+        rowIdx += 1
+
+        // Total Profit/Loss
+        short_netProfit = short_totalProfit - short_totalLoss
+        table.cell(resultsTable, 0, rowIdx, "Net P/L %", text_color=color.gray, text_size=size.small)
+        profitColor = short_netProfit > 0 ? color.green : short_netProfit < 0 ? color.red : color.gray
+        table.cell(resultsTable, 1, rowIdx, f_formatPercent(short_netProfit), text_color=profitColor, text_size=size.small)
+        rowIdx += 1
+
+    // Export instructions
+    table.cell(resultsTable, 0, rowIdx, "💾 Export: Screenshot → Excel/PDF", text_color=color.yellow,
+         bgcolor=color.new(color.gray, 80), text_size=size.small)
+    table.merge_cells(resultsTable, 0, rowIdx, 1, rowIdx)
+
+// ============================================================================
+// ALERTS / АЛЕРТЫ
+// ============================================================================
+
+alertcondition(enableAnalysis and not na(selectedBar), title="Alert",
+     message="Candle analysis complete")
