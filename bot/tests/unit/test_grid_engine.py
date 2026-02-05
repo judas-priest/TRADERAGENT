@@ -158,9 +158,7 @@ class TestGridEngine:
         )
         engine.register_order(buy_order, "order123")
 
-        rebalance_order = engine.handle_order_filled(
-            "order123", Decimal("42000"), Decimal("100")
-        )
+        rebalance_order = engine.handle_order_filled("order123", Decimal("42000"), Decimal("100"))
 
         assert rebalance_order is not None
         assert rebalance_order.side == "sell"
@@ -188,15 +186,16 @@ class TestGridEngine:
         )
         engine.register_order(sell_order, "order456")
 
-        rebalance_order = engine.handle_order_filled(
-            "order456", Decimal("48000"), Decimal("100")
-        )
+        # Fill at a higher price than the order price to simulate profit
+        filled_price = Decimal("48500")
+        rebalance_order = engine.handle_order_filled("order456", filled_price, Decimal("100"))
 
         assert rebalance_order is not None
         assert rebalance_order.side == "buy"
-        assert rebalance_order.price < sell_order.price
+        assert rebalance_order.price < filled_price
         assert engine.sell_count == 1
-        assert engine.total_profit > 0
+        # Profit should be (48500 - 48000) * 100 = 50000
+        assert engine.total_profit == Decimal("50000")
         assert "order456" not in engine.active_orders
 
     def test_handle_order_filled_nonexistent(self):

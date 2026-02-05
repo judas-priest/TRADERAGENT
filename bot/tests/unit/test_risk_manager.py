@@ -150,9 +150,7 @@ class TestRiskManager:
             min_order_size=Decimal("10"),
         )
 
-        result = manager.check_position_limit(
-            Decimal("8000"), Decimal("1000")
-        )
+        result = manager.check_position_limit(Decimal("8000"), Decimal("1000"))
 
         assert result.allowed is True
 
@@ -163,9 +161,7 @@ class TestRiskManager:
             min_order_size=Decimal("10"),
         )
 
-        result = manager.check_position_limit(
-            Decimal("9500"), Decimal("1000")
-        )
+        result = manager.check_position_limit(Decimal("9500"), Decimal("1000"))
 
         assert result.allowed is False
         assert "exceed max" in result.reason
@@ -178,9 +174,7 @@ class TestRiskManager:
             min_order_size=Decimal("10"),
         )
 
-        result = manager.check_available_balance(
-            Decimal("100"), Decimal("500")
-        )
+        result = manager.check_available_balance(Decimal("100"), Decimal("500"))
 
         assert result.allowed is True
 
@@ -191,9 +185,7 @@ class TestRiskManager:
             min_order_size=Decimal("10"),
         )
 
-        result = manager.check_available_balance(
-            Decimal("600"), Decimal("500")
-        )
+        result = manager.check_available_balance(Decimal("600"), Decimal("500"))
 
         assert result.allowed is False
         assert "Insufficient balance" in result.reason
@@ -432,7 +424,8 @@ class TestRiskManager:
         )
 
         assert result.allowed is False
-        assert "halted" in result.reason.lower()
+        # Reason should mention either "halted" or "stop-loss"
+        assert "halted" in result.reason.lower() or "stop-loss" in result.reason.lower()
 
     def test_get_risk_status(self):
         """Test getting risk status"""

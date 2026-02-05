@@ -4,7 +4,6 @@ Handles DCA trigger monitoring, position averaging, and take profit management
 """
 
 from decimal import Decimal
-from typing import List, Optional
 
 from bot.utils.logger import get_logger
 
@@ -122,9 +121,9 @@ class DCAEngine:
         self.take_profit_percentage = take_profit_percentage
 
         # Position tracking
-        self.position: Optional[DCAPosition] = None
-        self.last_buy_price: Optional[Decimal] = None
-        self.highest_price_since_entry: Optional[Decimal] = None
+        self.position: DCAPosition | None = None
+        self.last_buy_price: Decimal | None = None
+        self.highest_price_since_entry: Decimal | None = None
 
         # Statistics
         self.total_dca_steps = 0
@@ -232,10 +231,7 @@ class DCAEngine:
             return False
 
         # Update highest price tracking
-        if (
-            self.highest_price_since_entry is None
-            or current_price > self.highest_price_since_entry
-        ):
+        if self.highest_price_since_entry is None or current_price > self.highest_price_since_entry:
             self.highest_price_since_entry = current_price
 
         # Calculate current profit percentage
@@ -285,7 +281,7 @@ class DCAEngine:
 
         return pnl
 
-    def get_target_sell_price(self) -> Optional[Decimal]:
+    def get_target_sell_price(self) -> Decimal | None:
         """
         Calculate target sell price based on average entry.
 
@@ -300,7 +296,7 @@ class DCAEngine:
         )
         return target_price
 
-    def get_next_dca_trigger_price(self) -> Optional[Decimal]:
+    def get_next_dca_trigger_price(self) -> Decimal | None:
         """
         Calculate next DCA trigger price.
 

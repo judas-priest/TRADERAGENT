@@ -5,7 +5,6 @@ Handles grid level calculation, order placement, execution handling, and rebalan
 
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 from bot.utils.logger import get_logger
 
@@ -28,7 +27,7 @@ class GridOrder:
         price: Decimal,
         amount: Decimal,
         side: str,
-        order_id: Optional[str] = None,
+        order_id: str | None = None,
         filled: bool = False,
     ):
         self.level = level
@@ -97,9 +96,9 @@ class GridEngine:
         self.grid_type = grid_type
 
         # Grid state
-        self.grid_orders: List[GridOrder] = []
-        self.active_orders: Dict[str, GridOrder] = {}  # order_id -> GridOrder
-        self.filled_orders: List[GridOrder] = []
+        self.grid_orders: list[GridOrder] = []
+        self.active_orders: dict[str, GridOrder] = {}  # order_id -> GridOrder
+        self.filled_orders: list[GridOrder] = []
 
         # Statistics
         self.total_profit = Decimal("0")
@@ -115,7 +114,7 @@ class GridEngine:
             grid_type=grid_type,
         )
 
-    def calculate_grid_levels(self) -> List[Decimal]:
+    def calculate_grid_levels(self) -> list[Decimal]:
         """
         Calculate grid price levels.
 
@@ -125,9 +124,7 @@ class GridEngine:
         price_range = self.upper_price - self.lower_price
         price_step = price_range / (self.grid_levels - 1)
 
-        levels = [
-            self.lower_price + (price_step * i) for i in range(self.grid_levels)
-        ]
+        levels = [self.lower_price + (price_step * i) for i in range(self.grid_levels)]
 
         logger.debug(
             "Grid levels calculated",
@@ -137,7 +134,7 @@ class GridEngine:
 
         return levels
 
-    def initialize_grid(self, current_price: Decimal) -> List[GridOrder]:
+    def initialize_grid(self, current_price: Decimal) -> list[GridOrder]:
         """
         Initialize grid orders based on current price.
 
@@ -210,7 +207,7 @@ class GridEngine:
 
     def handle_order_filled(
         self, order_id: str, filled_price: Decimal, filled_amount: Decimal
-    ) -> Optional[GridOrder]:
+    ) -> GridOrder | None:
         """
         Handle an order being filled and calculate rebalancing order.
 
@@ -249,15 +246,11 @@ class GridEngine:
         )
 
         # Create rebalancing order
-        rebalance_order = self._create_rebalance_order(
-            filled_order, filled_price
-        )
+        rebalance_order = self._create_rebalance_order(filled_order, filled_price)
 
         return rebalance_order
 
-    def _create_rebalance_order(
-        self, filled_order: GridOrder, filled_price: Decimal
-    ) -> GridOrder:
+    def _create_rebalance_order(self, filled_order: GridOrder, filled_price: Decimal) -> GridOrder:
         """
         Create a rebalancing order after a fill.
 
@@ -295,7 +288,7 @@ class GridEngine:
 
     def update_grid_bounds(
         self, new_upper: Decimal, new_lower: Decimal, current_price: Decimal
-    ) -> Tuple[List[str], List[GridOrder]]:
+    ) -> tuple[list[str], list[GridOrder]]:
         """
         Update grid boundaries for dynamic grid mode.
 
@@ -331,7 +324,7 @@ class GridEngine:
 
         return (orders_to_cancel, new_orders)
 
-    def get_grid_status(self) -> Dict:
+    def get_grid_status(self) -> dict:
         """
         Get current grid status and statistics.
 

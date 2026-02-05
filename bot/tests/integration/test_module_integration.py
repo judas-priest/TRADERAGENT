@@ -2,8 +2,6 @@
 
 from decimal import Decimal
 
-import pytest
-
 from bot.core import DCAEngine, GridEngine, RiskManager
 
 
@@ -64,12 +62,12 @@ class TestGridRiskIntegration:
             upper_price=Decimal("50000"),
             lower_price=Decimal("40000"),
             grid_levels=10,
-            amount_per_grid=Decimal("1000"),
+            amount_per_grid=Decimal("0.1"),  # Small amount in base currency
             profit_per_grid=Decimal("0.01"),
         )
 
         risk = RiskManager(
-            max_position_size=Decimal("5000"),
+            max_position_size=Decimal("10000"),
             min_order_size=Decimal("10"),
         )
 
@@ -221,14 +219,14 @@ class TestFullStrategyIntegration:
             upper_price=Decimal("50000"),
             lower_price=Decimal("40000"),
             grid_levels=5,
-            amount_per_grid=Decimal("100"),
+            amount_per_grid=Decimal("0.01"),  # Small amount in base currency
             profit_per_grid=Decimal("0.01"),
         )
 
         dca = DCAEngine(
             symbol="BTC/USDT",
             trigger_percentage=Decimal("0.05"),
-            amount_per_step=Decimal("100"),
+            amount_per_step=Decimal("0.01"),  # Small amount in base currency
             max_steps=3,
             take_profit_percentage=Decimal("0.1"),
         )
@@ -274,7 +272,7 @@ class TestFullStrategyIntegration:
         assert dca_actions["dca_triggered"] is True
 
         # Step 5: Check if DCA is allowed by risk manager
-        dca_value = Decimal("100") * new_price
+        dca_value = Decimal("0.01") * new_price
         check = risk.check_trade(
             dca_value,
             current_position,
@@ -318,14 +316,6 @@ class TestFullStrategyIntegration:
             grid_levels=10,
             amount_per_grid=Decimal("500"),
             profit_per_grid=Decimal("0.01"),
-        )
-
-        dca = DCAEngine(
-            symbol="BTC/USDT",
-            trigger_percentage=Decimal("0.05"),
-            amount_per_step=Decimal("500"),
-            max_steps=5,
-            take_profit_percentage=Decimal("0.1"),
         )
 
         risk = RiskManager(

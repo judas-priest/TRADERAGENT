@@ -4,7 +4,6 @@ Handles balance checking, position sizing, stop-loss, drawdown monitoring
 """
 
 from decimal import Decimal
-from typing import Dict, Optional
 
 from bot.utils.logger import get_logger
 
@@ -14,7 +13,7 @@ logger = get_logger(__name__)
 class RiskCheckResult:
     """Result of a risk check"""
 
-    def __init__(self, allowed: bool, reason: Optional[str] = None):
+    def __init__(self, allowed: bool, reason: str | None = None):
         self.allowed = allowed
         self.reason = reason
 
@@ -44,8 +43,8 @@ class RiskManager:
         self,
         max_position_size: Decimal,
         min_order_size: Decimal,
-        stop_loss_percentage: Optional[Decimal] = None,
-        max_daily_loss: Optional[Decimal] = None,
+        stop_loss_percentage: Decimal | None = None,
+        max_daily_loss: Decimal | None = None,
     ):
         """
         Initialize Risk Manager.
@@ -74,12 +73,12 @@ class RiskManager:
 
         # State tracking
         self.current_position_value = Decimal("0")
-        self.initial_balance: Optional[Decimal] = None
-        self.current_balance: Optional[Decimal] = None
+        self.initial_balance: Decimal | None = None
+        self.current_balance: Decimal | None = None
         self.daily_loss = Decimal("0")
-        self.peak_balance: Optional[Decimal] = None
+        self.peak_balance: Decimal | None = None
         self.is_halted = False
-        self.halt_reason: Optional[str] = None
+        self.halt_reason: str | None = None
 
         # Statistics
         self.total_trades = 0
@@ -259,15 +258,11 @@ class RiskManager:
         if self.is_halted:
             return
 
-        loss_percentage = (
-            self.initial_balance - self.current_balance
-        ) / self.initial_balance
+        loss_percentage = (self.initial_balance - self.current_balance) / self.initial_balance
 
         if loss_percentage >= self.stop_loss_percentage:
             self.is_halted = True
-            self.halt_reason = (
-                f"Portfolio stop-loss triggered: {float(loss_percentage):.2%} loss"
-            )
+            self.halt_reason = f"Portfolio stop-loss triggered: {float(loss_percentage):.2%} loss"
             self.stop_loss_triggers += 1
 
             logger.critical(
@@ -297,7 +292,7 @@ class RiskManager:
                 max_daily_loss=float(self.max_daily_loss),
             )
 
-    def get_drawdown(self) -> Optional[Decimal]:
+    def get_drawdown(self) -> Decimal | None:
         """
         Calculate current drawdown from peak balance.
 
@@ -313,7 +308,7 @@ class RiskManager:
         drawdown = (self.peak_balance - self.current_balance) / self.peak_balance
         return drawdown
 
-    def get_pnl_percentage(self) -> Optional[Decimal]:
+    def get_pnl_percentage(self) -> Decimal | None:
         """
         Calculate total PnL percentage from initial balance.
 
@@ -326,9 +321,7 @@ class RiskManager:
         if self.initial_balance == 0:
             return Decimal("0")
 
-        pnl_pct = (
-            self.current_balance - self.initial_balance
-        ) / self.initial_balance
+        pnl_pct = (self.current_balance - self.initial_balance) / self.initial_balance
         return pnl_pct
 
     def reset_daily_loss(self) -> None:
@@ -348,7 +341,7 @@ class RiskManager:
 
         logger.warning("System resumed from halt", previous_reason=old_reason)
 
-    def get_risk_status(self) -> Dict:
+    def get_risk_status(self) -> dict:
         """
         Get current risk management status.
 
@@ -358,21 +351,15 @@ class RiskManager:
         return {
             "is_halted": self.is_halted,
             "halt_reason": self.halt_reason,
-            "current_balance": float(self.current_balance)
-            if self.current_balance
-            else None,
-            "initial_balance": float(self.initial_balance)
-            if self.initial_balance
-            else None,
+            "current_balance": float(self.current_balance) if self.current_balance else None,
+            "initial_balance": float(self.initial_balance) if self.initial_balance else None,
             "peak_balance": float(self.peak_balance) if self.peak_balance else None,
             "drawdown": float(self.get_drawdown()) if self.get_drawdown() else None,
-            "pnl_percentage": float(self.get_pnl_percentage())
-            if self.get_pnl_percentage()
-            else None,
+            "pnl_percentage": (
+                float(self.get_pnl_percentage()) if self.get_pnl_percentage() else None
+            ),
             "daily_loss": float(self.daily_loss),
-            "max_daily_loss": float(self.max_daily_loss)
-            if self.max_daily_loss
-            else None,
+            "max_daily_loss": float(self.max_daily_loss) if self.max_daily_loss else None,
             "total_trades": self.total_trades,
             "rejected_trades": self.rejected_trades,
             "stop_loss_triggers": self.stop_loss_triggers,
