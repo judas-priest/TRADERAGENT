@@ -1,0 +1,146 @@
+# Alerting rules for TRADERAGENT Bot
+
+groups:
+  - name: bot_alerts
+    interval: 30s
+    rules:
+      # Bot Health Alerts
+      - alert: BotDown
+        expr: up{job="traderagent-bot"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Trading bot is down"
+          description: "The trading bot has been down for more than 2 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(bot_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Bot error rate is {{ $value }} errors/second over the last 5 minutes."
+
+      # Trading Alerts
+      - alert: LargeDrawdown
+        expr: bot_portfolio_drawdown_percent > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Large portfolio drawdown"
+          description: "Portfolio drawdown is {{ $value }}%, exceeding 10% threshold."
+
+      - alert: CriticalDrawdown
+        expr: bot_portfolio_drawdown_percent > 20
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical portfolio drawdown"
+          description: "Portfolio drawdown is {{ $value }}%, exceeding 20% critical threshold."
+
+      - alert: NoRecentTrades
+        expr: time() - bot_last_trade_timestamp > 3600
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "No recent trades"
+          description: "No trades executed in the last hour."
+
+      - alert: HighOrderFailureRate
+        expr: rate(bot_failed_orders_total[10m]) / rate(bot_total_orders_total[10m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High order failure rate"
+          description: "Order failure rate is {{ $value | humanizePercentage }} over the last 10 minutes."
+
+      # System Resource Alerts
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90%: {{ $value | humanizePercentage }}"
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80%: {{ $value }}%"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is below 10%: {{ $value | humanizePercentage }} available"
+
+      # Database Alerts
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database is down"
+          description: "PostgreSQL database has been down for more than 1 minute."
+
+      - alert: HighDatabaseConnections
+        expr: pg_stat_database_numbackends > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of database connections"
+          description: "Database has {{ $value }} active connections."
+
+      # Redis Alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache has been down for more than 1 minute."
+
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis is using {{ $value | humanizePercentage }} of available memory."
+
+      # Exchange API Alerts
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(bot_api_request_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency"
+          description: "95th percentile API latency is {{ $value }}s, exceeding 5s threshold."
+
+      - alert: RateLimitApproaching
+        expr: bot_api_rate_limit_remaining < 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API rate limit approaching"
+          description: "Only {{ $value }} API calls remaining before rate limit."
