@@ -1,0 +1,368 @@
+"""
+GridEngine - Grid trading strategy implementation
+Handles grid level calculation, order placement, execution handling, and rebalancing
+"""
+
+from decimal import Decimal
+from enum import Enum
+
+from bot.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class GridType(str, Enum):
+    """Grid type enumeration"""
+
+    STATIC = "static"
+    DYNAMIC = "dynamic"
+
+
+class GridOrder:
+    """Represents a grid order"""
+
+    def __init__(
+        self,
+        level: int,
+        price: Decimal,
+        amount: Decimal,
+        side: str,
+        order_id: str | None = None,
+        filled: bool = False,
+    ):
+        self.level = level
+        self.price = price
+        self.amount = amount
+        self.side = side  # "buy" or "sell"
+        self.order_id = order_id
+        self.filled = filled
+
+    def __repr__(self) -> str:
+        return (
+            f"GridOrder(level={self.level}, price={self.price}, "
+            f"amount={self.amount}, side={self.side}, filled={self.filled})"
+        )
+
+
+class GridEngine:
+    """
+    Grid trading engine implementation.
+
+    Features:
+    - Calculate grid levels between upper and lower price boundaries
+    - Initialize grid with buy/sell orders at each level
+    - Handle order executions and automatic rebalancing
+    - Support both static and dynamic grid modes
+    - Track grid state and performance
+    """
+
+    def __init__(
+        self,
+        symbol: str,
+        upper_price: Decimal,
+        lower_price: Decimal,
+        grid_levels: int,
+        amount_per_grid: Decimal,
+        profit_per_grid: Decimal,
+        grid_type: GridType = GridType.STATIC,
+    ):
+        """
+        Initialize Grid Engine.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USDT')
+            upper_price: Upper price boundary for grid
+            lower_price: Lower price boundary for grid
+            grid_levels: Number of grid levels
+            amount_per_grid: Amount to trade per grid level
+            profit_per_grid: Profit percentage per grid (0.01 = 1%)
+            grid_type: Type of grid (static or dynamic)
+        """
+        if upper_price <= lower_price:
+            raise ValueError("upper_price must be greater than lower_price")
+        if grid_levels < 2:
+            raise ValueError("grid_levels must be at least 2")
+        if amount_per_grid <= 0:
+            raise ValueError("amount_per_grid must be positive")
+        if profit_per_grid <= 0:
+            raise ValueError("profit_per_grid must be positive")
+
+        self.symbol = symbol
+        self.upper_price = upper_price
+        self.lower_price = lower_price
+        self.grid_levels = grid_levels
+        self.amount_per_grid = amount_per_grid
+        self.profit_per_grid = profit_per_grid
+        self.grid_type = grid_type
+
+        # Grid state
+        self.grid_orders: list[GridOrder] = []
+        self.active_orders: dict[str, GridOrder] = {}  # order_id -> GridOrder
+        self.filled_orders: list[GridOrder] = []
+
+        # Statistics
+        self.total_profit = Decimal("0")
+        self.buy_count = 0
+        self.sell_count = 0
+
+        logger.info(
+            "GridEngine initialized",
+            symbol=symbol,
+            upper_price=float(upper_price),
+            lower_price=float(lower_price),
+            grid_levels=grid_levels,
+            grid_type=grid_type,
+        )
+
+    def calculate_grid_levels(self) -> list[Decimal]:
+        """
+        Calculate grid price levels.
+
+        Returns:
+            List of price levels from lower to upper boundary
+        """
+        price_range = self.upper_price - self.lower_price
+        price_step = price_range / (self.grid_levels - 1)
+
+        levels = [self.lower_price + (price_step * i) for i in range(self.grid_levels)]
+
+        logger.debug(
+            "Grid levels calculated",
+            levels_count=len(levels),
+            price_step=float(price_step),
+        )
+
+        return levels
+
+    def initialize_grid(self, current_price: Decimal) -> list[GridOrder]:
+        """
+        Initialize grid orders based on current price.
+
+        Creates buy orders below current price and sell orders above.
+
+        Args:
+            current_price: Current market price
+
+        Returns:
+            List of GridOrder objects to be placed
+        """
+        self.grid_orders.clear()
+        levels = self.calculate_grid_levels()
+
+        orders_to_place = []
+
+        for level_idx, price in enumerate(levels):
+            # Create buy orders below current price
+            if price < current_price:
+                order = GridOrder(
+                    level=level_idx,
+                    price=price,
+                    amount=self.amount_per_grid,
+                    side="buy",
+                )
+                self.grid_orders.append(order)
+                orders_to_place.append(order)
+
+            # Create sell orders above current price
+            elif price > current_price:
+                # Calculate sell price with profit margin
+                sell_price = price * (Decimal("1") + self.profit_per_grid)
+                order = GridOrder(
+                    level=level_idx,
+                    price=sell_price,
+                    amount=self.amount_per_grid,
+                    side="sell",
+                )
+                self.grid_orders.append(order)
+                orders_to_place.append(order)
+
+        logger.info(
+            "Grid initialized",
+            total_orders=len(orders_to_place),
+            buy_orders=sum(1 for o in orders_to_place if o.side == "buy"),
+            sell_orders=sum(1 for o in orders_to_place if o.side == "sell"),
+            current_price=float(current_price),
+        )
+
+        return orders_to_place
+
+    def register_order(self, order: GridOrder, order_id: str) -> None:
+        """
+        Register an order ID for a grid order.
+
+        Args:
+            order: GridOrder object
+            order_id: Exchange order ID
+        """
+        order.order_id = order_id
+        self.active_orders[order_id] = order
+
+        logger.debug(
+            "Order registered",
+            order_id=order_id,
+            level=order.level,
+            side=order.side,
+            price=float(order.price),
+        )
+
+    def handle_order_filled(
+        self, order_id: str, filled_price: Decimal, filled_amount: Decimal
+    ) -> GridOrder | None:
+        """
+        Handle an order being filled and calculate rebalancing order.
+
+        Args:
+            order_id: Exchange order ID that was filled
+            filled_price: Price at which order was filled
+            filled_amount: Amount that was filled
+
+        Returns:
+            New GridOrder to place for rebalancing, or None
+        """
+        if order_id not in self.active_orders:
+            logger.warning("Order not found in active orders", order_id=order_id)
+            return None
+
+        filled_order = self.active_orders.pop(order_id)
+        filled_order.filled = True
+        self.filled_orders.append(filled_order)
+
+        # Update statistics
+        if filled_order.side == "buy":
+            self.buy_count += 1
+        else:
+            self.sell_count += 1
+            # Calculate profit for sell orders
+            profit = (filled_price - filled_order.price) * filled_amount
+            self.total_profit += profit
+
+        logger.info(
+            "Order filled",
+            order_id=order_id,
+            side=filled_order.side,
+            level=filled_order.level,
+            price=float(filled_price),
+            amount=float(filled_amount),
+        )
+
+        # Create rebalancing order
+        rebalance_order = self._create_rebalance_order(filled_order, filled_price)
+
+        return rebalance_order
+
+    def _create_rebalance_order(self, filled_order: GridOrder, filled_price: Decimal) -> GridOrder:
+        """
+        Create a rebalancing order after a fill.
+
+        Args:
+            filled_order: The order that was filled
+            filled_price: Price at which it was filled
+
+        Returns:
+            New GridOrder for rebalancing
+        """
+        if filled_order.side == "buy":
+            # After buying, place a sell order above
+            new_price = filled_price * (Decimal("1") + self.profit_per_grid)
+            new_side = "sell"
+        else:
+            # After selling, place a buy order below
+            new_price = filled_price * (Decimal("1") - self.profit_per_grid)
+            new_side = "buy"
+
+        rebalance_order = GridOrder(
+            level=filled_order.level,
+            price=new_price,
+            amount=self.amount_per_grid,
+            side=new_side,
+        )
+
+        logger.debug(
+            "Rebalance order created",
+            original_side=filled_order.side,
+            new_side=new_side,
+            new_price=float(new_price),
+        )
+
+        return rebalance_order
+
+    def update_grid_bounds(
+        self, new_upper: Decimal, new_lower: Decimal, current_price: Decimal
+    ) -> tuple[list[str], list[GridOrder]]:
+        """
+        Update grid boundaries for dynamic grid mode.
+
+        Args:
+            new_upper: New upper price boundary
+            new_lower: New lower price boundary
+            current_price: Current market price
+
+        Returns:
+            Tuple of (order_ids_to_cancel, new_orders_to_place)
+        """
+        if self.grid_type != GridType.DYNAMIC:
+            logger.warning("Cannot update bounds for static grid")
+            return ([], [])
+
+        logger.info(
+            "Updating grid bounds",
+            old_upper=float(self.upper_price),
+            old_lower=float(self.lower_price),
+            new_upper=float(new_upper),
+            new_lower=float(new_lower),
+        )
+
+        # Cancel all active orders
+        orders_to_cancel = list(self.active_orders.keys())
+
+        # Update boundaries
+        self.upper_price = new_upper
+        self.lower_price = new_lower
+
+        # Reinitialize grid
+        new_orders = self.initialize_grid(current_price)
+
+        return (orders_to_cancel, new_orders)
+
+    def get_grid_status(self) -> dict:
+        """
+        Get current grid status and statistics.
+
+        Returns:
+            Dictionary with grid status information
+        """
+        return {
+            "symbol": self.symbol,
+            "grid_type": self.grid_type,
+            "upper_price": float(self.upper_price),
+            "lower_price": float(self.lower_price),
+            "grid_levels": self.grid_levels,
+            "active_orders": len(self.active_orders),
+            "filled_orders": len(self.filled_orders),
+            "total_profit": float(self.total_profit),
+            "buy_count": self.buy_count,
+            "sell_count": self.sell_count,
+        }
+
+    def cancel_order(self, order_id: str) -> bool:
+        """
+        Mark an order as cancelled.
+
+        Args:
+            order_id: Exchange order ID to cancel
+
+        Returns:
+            True if order was found and cancelled, False otherwise
+        """
+        if order_id in self.active_orders:
+            order = self.active_orders.pop(order_id)
+            logger.info(
+                "Order cancelled",
+                order_id=order_id,
+                level=order.level,
+                side=order.side,
+            )
+            return True
+
+        logger.warning("Order not found for cancellation", order_id=order_id)
+        return False
