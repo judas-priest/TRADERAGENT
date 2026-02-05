@@ -1,0 +1,119 @@
+# Example Configuration for TRADERAGENT Bot
+# Copy this file and configure with your own settings
+
+# Database Configuration
+database_url: postgresql+asyncpg://user:password@localhost/traderagent
+database_pool_size: 5
+
+# Logging Configuration
+log_level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+log_to_file: true
+log_to_console: true
+json_logs: false
+
+# Encryption Key (Generate with: python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())")
+encryption_key: REPLACE_WITH_BASE64_ENCODED_32_BYTE_KEY
+
+# Bot Configurations
+bots:
+  # Example Grid Trading Bot
+  - version: 1
+    name: example_grid_bot
+    symbol: BTC/USDT
+    strategy: grid  # grid, dca, or hybrid
+
+    exchange:
+      exchange_id: binance  # binance, bybit, okx, etc.
+      credentials_name: binance_main  # Reference to stored credentials
+      sandbox: true  # Use testnet for testing
+      rate_limit: true
+
+    grid:
+      enabled: true
+      upper_price: "50000"
+      lower_price: "40000"
+      grid_levels: 10
+      amount_per_grid: "100"  # Amount in quote currency (USDT)
+      profit_per_grid: "0.01"  # 1% profit per grid level
+
+    risk_management:
+      max_position_size: "10000"  # Maximum total position in quote currency
+      stop_loss_percentage: "0.15"  # 15% stop loss (optional)
+      max_daily_loss: null  # Maximum daily loss (optional)
+      min_order_size: "10"  # Minimum order size in quote currency
+
+    notifications:
+      enabled: false
+      telegram_bot_token: null
+      telegram_chat_id: null
+      notify_on_trade: true
+      notify_on_error: true
+
+    dry_run: true  # Simulation mode - no real orders
+    auto_start: false  # Auto-start on bot initialization
+
+  # Example DCA Bot
+  - version: 1
+    name: example_dca_bot
+    symbol: ETH/USDT
+    strategy: dca
+
+    exchange:
+      exchange_id: binance
+      credentials_name: binance_main
+      sandbox: true
+
+    dca:
+      enabled: true
+      trigger_percentage: "0.05"  # Buy when price drops 5%
+      amount_per_step: "100"  # Amount per DCA step
+      max_steps: 5  # Maximum DCA steps
+      take_profit_percentage: "0.1"  # Take profit at 10% gain
+
+    risk_management:
+      max_position_size: "5000"
+      stop_loss_percentage: "0.20"
+      min_order_size: "10"
+
+    notifications:
+      enabled: false
+
+    dry_run: true
+    auto_start: false
+
+  # Example Hybrid Bot (Grid + DCA)
+  - version: 1
+    name: example_hybrid_bot
+    symbol: BTC/USDT
+    strategy: hybrid
+
+    exchange:
+      exchange_id: binance
+      credentials_name: binance_main
+      sandbox: true
+
+    grid:
+      enabled: true
+      upper_price: "50000"
+      lower_price: "45000"
+      grid_levels: 5
+      amount_per_grid: "200"
+      profit_per_grid: "0.015"  # 1.5% profit
+
+    dca:
+      enabled: true
+      trigger_percentage: "0.03"  # DCA when price drops 3% below grid
+      amount_per_step: "150"
+      max_steps: 3
+      take_profit_percentage: "0.08"
+
+    risk_management:
+      max_position_size: "15000"
+      stop_loss_percentage: "0.25"
+      min_order_size: "10"
+
+    notifications:
+      enabled: false
+
+    dry_run: true
+    auto_start: false
