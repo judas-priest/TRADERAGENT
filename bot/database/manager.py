@@ -105,6 +105,21 @@ class DatabaseManager(LoggerMixin):
             await self._engine.dispose()
             self.logger.info("Database connections closed")
 
+    async def health_check(self) -> bool:
+        """
+        Perform a health check on the database connection.
+
+        Returns:
+            True if database is accessible, False otherwise
+        """
+        try:
+            async with self.session() as session:
+                await session.execute(select(1))
+            return True
+        except Exception as e:
+            self.logger.error("database_health_check_failed", error=str(e))
+            return False
+
     async def create_all_tables(self) -> None:
         """Create all tables in the database"""
         if not self._engine:

@@ -28,3 +28,9 @@ python-json-logger>=2.0.7
 
 # File Watching
 watchdog>=3.0.0
+
+# Redis for Pub/Sub
+redis>=5.0.0
+
+# Telegram Bot
+aiogram>=3.3.0

@@ -1,0 +1,610 @@
+"""
+Telegram bot for managing and monitoring trading bots.
+Provides commands for control and status monitoring.
+"""
+
+import asyncio
+from typing import Any
+
+import redis.asyncio as redis
+from aiogram import Bot, Dispatcher, Router
+from aiogram.filters import Command, CommandStart
+from aiogram.types import Message
+
+from bot.orchestrator.bot_orchestrator import BotOrchestrator, BotState
+from bot.orchestrator.events import EventType, TradingEvent
+from bot.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class TelegramBot:
+    """
+    Telegram bot for trading bot management.
+
+    Features:
+    - Control commands: /start, /stop, /pause, /resume
+    - Status monitoring: /status, /balance, /orders, /pnl
+    - Event notifications via Redis Pub/Sub
+    - Multi-bot management support
+    """
+
+    def __init__(
+        self,
+        token: str,
+        allowed_chat_ids: list[int],
+        orchestrators: dict[str, BotOrchestrator],
+        redis_url: str = "redis://localhost:6379",
+    ):
+        """
+        Initialize Telegram Bot.
+
+        Args:
+            token: Telegram bot token
+            allowed_chat_ids: List of allowed chat IDs for security
+            orchestrators: Dictionary of bot_name -> BotOrchestrator
+            redis_url: Redis connection URL for event subscriptions
+        """
+        self.token = token
+        self.allowed_chat_ids = set(allowed_chat_ids)
+        self.orchestrators = orchestrators
+        self.redis_url = redis_url
+
+        # Aiogram setup
+        self.bot = Bot(token=token)
+        self.dp = Dispatcher()
+        self.router = Router()
+
+        # Redis for event subscriptions
+        self.redis_client: redis.Redis | None = None
+        self.event_listener_task: asyncio.Task | None = None
+
+        # Register handlers
+        self._register_handlers()
+
+        logger.info(
+            "telegram_bot_initialized",
+            bot_count=len(orchestrators),
+            allowed_chats=len(allowed_chat_ids),
+        )
+
+    def _register_handlers(self) -> None:
+        """Register command handlers."""
+        # Control commands
+        self.router.message(CommandStart())(self._cmd_start)
+        self.router.message(Command("help"))(self._cmd_help)
+        self.router.message(Command("status"))(self._cmd_status)
+        self.router.message(Command("start_bot"))(self._cmd_start_bot)
+        self.router.message(Command("stop_bot"))(self._cmd_stop_bot)
+        self.router.message(Command("pause"))(self._cmd_pause)
+        self.router.message(Command("resume"))(self._cmd_resume)
+
+        # Monitoring commands
+        self.router.message(Command("balance"))(self._cmd_balance)
+        self.router.message(Command("orders"))(self._cmd_orders)
+        self.router.message(Command("pnl"))(self._cmd_pnl)
+        self.router.message(Command("list"))(self._cmd_list)
+
+        # Register router with dispatcher
+        self.dp.include_router(self.router)
+
+    def _check_auth(self, message: Message) -> bool:
+        """
+        Check if user is authorized.
+
+        Args:
+            message: Telegram message
+
+        Returns:
+            True if authorized, False otherwise
+        """
+        if message.from_user is None:
+            return False
+
+        chat_id = message.chat.id
+        if chat_id not in self.allowed_chat_ids:
+            logger.warning(
+                "unauthorized_access_attempt",
+                chat_id=chat_id,
+                user_id=message.from_user.id,
+            )
+            return False
+        return True
+
+    async def _cmd_start(self, message: Message) -> None:
+        """Handle /start command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        welcome_text = (
+            "🤖 *TRADERAGENT Bot Manager*\n\n"
+            "Welcome to the trading bot management interface.\n\n"
+            "*Available Commands:*\n\n"
+            "*Control:*\n"
+            "/start\\_bot <name> - Start a trading bot\n"
+            "/stop\\_bot <name> - Stop a trading bot\n"
+            "/pause <name> - Pause trading bot\n"
+            "/resume <name> - Resume trading bot\n\n"
+            "*Monitoring:*\n"
+            "/status [name] - Bot status (all bots if no name)\n"
+            "/balance <name> - Current balance\n"
+            "/orders <name> - Open orders\n"
+            "/pnl <name> - Profit and Loss\n"
+            "/list - List all bots\n\n"
+            "*Other:*\n"
+            "/help - Show this help message\n"
+        )
+        await message.answer(welcome_text, parse_mode="Markdown")
+
+    async def _cmd_help(self, message: Message) -> None:
+        """Handle /help command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        await self._cmd_start(message)
+
+    async def _cmd_list(self, message: Message) -> None:
+        """Handle /list command - list all bots."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        if not self.orchestrators:
+            await message.answer("📋 No bots configured")
+            return
+
+        response = "📋 *Available Bots:*\n\n"
+        for name, orch in self.orchestrators.items():
+            state_emoji = self._get_state_emoji(orch.state)
+            response += (
+                f"{state_emoji} *{name}*\n"
+                f"  Symbol: {orch.config.symbol}\n"
+                f"  Strategy: {orch.config.strategy}\n"
+                f"  State: {orch.state.value}\n\n"
+            )
+
+        await message.answer(response, parse_mode="Markdown")
+
+    async def _cmd_status(self, message: Message) -> None:
+        """Handle /status command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        # Extract bot name from command
+        args = message.text.split() if message.text else []
+        bot_name = args[1] if len(args) > 1 else None
+
+        if bot_name:
+            # Show status for specific bot
+            if bot_name not in self.orchestrators:
+                await message.answer(f"❌ Bot '{bot_name}' not found")
+                return
+
+            orch = self.orchestrators[bot_name]
+            status = await orch.get_status()
+            response = self._format_status(status)
+            await message.answer(response, parse_mode="Markdown")
+        else:
+            # Show status for all bots
+            if not self.orchestrators:
+                await message.answer("📋 No bots configured")
+                return
+
+            response = "📊 *Bot Status Summary:*\n\n"
+            for name, orch in self.orchestrators.items():
+                state_emoji = self._get_state_emoji(orch.state)
+                response += f"{state_emoji} *{name}*: {orch.state.value}\n"
+
+            response += "\nUse `/status <bot_name>` for detailed info"
+            await message.answer(response, parse_mode="Markdown")
+
+    async def _cmd_start_bot(self, message: Message) -> None:
+        """Handle /start_bot command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /start_bot <bot_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        try:
+            await orch.start()
+            await message.answer(f"✅ Bot '{bot_name}' started successfully")
+        except Exception as e:
+            logger.error("start_bot_failed", bot_name=bot_name, error=str(e))
+            await message.answer(f"❌ Failed to start bot: {str(e)}")
+
+    async def _cmd_stop_bot(self, message: Message) -> None:
+        """Handle /stop_bot command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /stop_bot <bot_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        try:
+            await orch.stop()
+            await message.answer(f"🛑 Bot '{bot_name}' stopped successfully")
+        except Exception as e:
+            logger.error("stop_bot_failed", bot_name=bot_name, error=str(e))
+            await message.answer(f"❌ Failed to stop bot: {str(e)}")
+
+    async def _cmd_pause(self, message: Message) -> None:
+        """Handle /pause command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /pause <bot_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        try:
+            await orch.pause()
+            await message.answer(f"⏸️ Bot '{bot_name}' paused")
+        except Exception as e:
+            logger.error("pause_bot_failed", bot_name=bot_name, error=str(e))
+            await message.answer(f"❌ Failed to pause bot: {str(e)}")
+
+    async def _cmd_resume(self, message: Message) -> None:
+        """Handle /resume command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /resume <bot_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        try:
+            await orch.resume()
+            await message.answer(f"▶️ Bot '{bot_name}' resumed")
+        except Exception as e:
+            logger.error("resume_bot_failed", bot_name=bot_name, error=str(e))
+            await message.answer(f"❌ Failed to resume bot: {str(e)}")
+
+    async def _cmd_balance(self, message: Message) -> None:
+        """Handle /balance command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /balance <bot_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        try:
+            balance = await orch.exchange.get_balance()
+            quote_currency = orch.config.symbol.split("/")[1]
+            available = balance.get(quote_currency, 0)
+
+            response = (
+                f"💰 *Balance for {bot_name}*\n\n"
+                f"Currency: {quote_currency}\n"
+                f"Available: {available}\n"
+            )
+
+            if orch.risk_manager:
+                risk_status = orch.risk_manager.get_risk_status()
+                response += (
+                    f"\n*Risk Status:*\n"
+                    f"Initial Balance: {risk_status['initial_balance']}\n"
+                    f"Current Balance: {risk_status['current_balance']}\n"
+                )
+                if risk_status["drawdown"] is not None:
+                    response += f"Drawdown: {float(risk_status['drawdown']):.2%}\n"
+
+            await message.answer(response, parse_mode="Markdown")
+        except Exception as e:
+            logger.error("balance_fetch_failed", bot_name=bot_name, error=str(e))
+            await message.answer(f"❌ Failed to fetch balance: {str(e)}")
+
+    async def _cmd_orders(self, message: Message) -> None:
+        """Handle /orders command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /orders <bot_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        try:
+            orders = await orch.exchange.fetch_open_orders(orch.config.symbol)
+
+            if not orders:
+                await message.answer(f"📋 No open orders for {bot_name}")
+                return
+
+            response = f"📋 *Open Orders for {bot_name}*\n\n"
+            for order in orders[:10]:  # Limit to 10 orders
+                response += (
+                    f"ID: `{order['id']}`\n"
+                    f"Side: {order['side'].upper()}\n"
+                    f"Price: {order['price']}\n"
+                    f"Amount: {order['amount']}\n\n"
+                )
+
+            if len(orders) > 10:
+                response += f"... and {len(orders) - 10} more orders"
+
+            await message.answer(response, parse_mode="Markdown")
+        except Exception as e:
+            logger.error("orders_fetch_failed", bot_name=bot_name, error=str(e))
+            await message.answer(f"❌ Failed to fetch orders: {str(e)}")
+
+    async def _cmd_pnl(self, message: Message) -> None:
+        """Handle /pnl command."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /pnl <bot_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        response = f"📊 *P&L for {bot_name}*\n\n"
+
+        # Grid P&L
+        if orch.grid_engine:
+            grid_status = orch.grid_engine.get_grid_status()
+            response += (
+                f"*Grid Trading:*\n"
+                f"Total Profit: {grid_status['total_profit']}\n"
+                f"Buy Count: {grid_status['buy_count']}\n"
+                f"Sell Count: {grid_status['sell_count']}\n\n"
+            )
+
+        # DCA P&L
+        if orch.dca_engine and orch.dca_engine.position and orch.current_price:
+            dca_status = orch.dca_engine.get_position_status()
+            pnl = orch.dca_engine.position.get_pnl(orch.current_price)
+            pnl_pct = orch.dca_engine.position.get_pnl_percentage(orch.current_price)
+            response += (
+                f"*DCA Position:*\n"
+                f"P&L: {pnl}\n"
+                f"P&L %: {float(pnl_pct):.2%}\n"
+                f"Avg Entry: {dca_status['avg_entry_price']}\n"
+                f"Current Price: {orch.current_price}\n\n"
+            )
+
+        # Risk Manager P&L
+        if orch.risk_manager:
+            risk_status = orch.risk_manager.get_risk_status()
+            if risk_status["pnl_percentage"] is not None:
+                response += f"*Overall:*\n" f"P&L %: {float(risk_status['pnl_percentage']):.2%}\n"
+
+        await message.answer(response, parse_mode="Markdown")
+
+    async def _listen_to_events(self) -> None:
+        """Listen to Redis events and send notifications."""
+        logger.info("event_listener_started")
+
+        self.redis_client = redis.from_url(self.redis_url, encoding="utf-8", decode_responses=True)
+
+        # Subscribe to all bot channels
+        pubsub = self.redis_client.pubsub()
+        for bot_name in self.orchestrators.keys():
+            channel = f"trading_events:{bot_name}"
+            await pubsub.subscribe(channel)
+
+        logger.info("subscribed_to_events", bot_count=len(self.orchestrators))
+
+        try:
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
+
+                try:
+                    event = TradingEvent.from_json(message["data"])
+                    await self._handle_event(event)
+                except Exception as e:
+                    logger.error("event_handling_failed", error=str(e))
+
+        except asyncio.CancelledError:
+            logger.info("event_listener_cancelled")
+        finally:
+            await pubsub.unsubscribe()
+            await self.redis_client.aclose()
+
+        logger.info("event_listener_stopped")
+
+    async def _handle_event(self, event: TradingEvent) -> None:
+        """
+        Handle incoming trading event and send notifications.
+
+        Args:
+            event: Trading event
+        """
+        # Only notify on important events
+        important_events = {
+            EventType.BOT_STARTED,
+            EventType.BOT_STOPPED,
+            EventType.BOT_EMERGENCY_STOP,
+            EventType.ORDER_FILLED,
+            EventType.DCA_TRIGGERED,
+            EventType.TAKE_PROFIT_HIT,
+            EventType.RISK_LIMIT_HIT,
+            EventType.STOP_LOSS_TRIGGERED,
+            EventType.ERROR_OCCURRED,
+        }
+
+        if event.event_type not in important_events:
+            return
+
+        # Format notification message
+        notification = self._format_event_notification(event)
+
+        # Send to all allowed chats
+        for chat_id in self.allowed_chat_ids:
+            try:
+                await self.bot.send_message(
+                    chat_id=chat_id,
+                    text=notification,
+                    parse_mode="Markdown",
+                )
+            except Exception as e:
+                logger.error("notification_send_failed", chat_id=chat_id, error=str(e))
+
+    def _format_event_notification(self, event: TradingEvent) -> str:
+        """Format event as notification message."""
+        emoji_map = {
+            EventType.BOT_STARTED: "✅",
+            EventType.BOT_STOPPED: "🛑",
+            EventType.BOT_EMERGENCY_STOP: "🚨",
+            EventType.ORDER_FILLED: "✅",
+            EventType.DCA_TRIGGERED: "📉",
+            EventType.TAKE_PROFIT_HIT: "💰",
+            EventType.RISK_LIMIT_HIT: "⚠️",
+            EventType.STOP_LOSS_TRIGGERED: "🛑",
+            EventType.ERROR_OCCURRED: "❌",
+        }
+
+        emoji = emoji_map.get(event.event_type, "ℹ️")
+        title = event.event_type.value.replace("_", " ").title()
+
+        message = f"{emoji} *{title}*\n\n"
+        message += f"Bot: {event.bot_name}\n"
+        message += f"Time: {event.timestamp}\n"
+
+        if event.data:
+            message += "\n*Details:*\n"
+            for key, value in event.data.items():
+                message += f"{key}: {value}\n"
+
+        return message
+
+    def _format_status(self, status: dict[str, Any]) -> str:
+        """Format bot status as message."""
+        state_emoji = self._get_state_emoji(BotState(status["state"]))
+
+        message = (
+            f"{state_emoji} *Bot Status: {status['bot_name']}*\n\n"
+            f"Symbol: {status['symbol']}\n"
+            f"Strategy: {status['strategy']}\n"
+            f"State: {status['state']}\n"
+            f"Dry Run: {'Yes' if status['dry_run'] else 'No'}\n"
+        )
+
+        if status.get("current_price"):
+            message += f"Current Price: {status['current_price']}\n"
+
+        if "grid" in status:
+            grid = status["grid"]
+            message += (
+                f"\n*Grid Status:*\n"
+                f"Active Orders: {grid['active_orders']}\n"
+                f"Total Profit: {grid['total_profit']}\n"
+            )
+
+        if "dca" in status:
+            dca = status["dca"]
+            if dca["has_position"]:
+                message += (
+                    f"\n*DCA Position:*\n"
+                    f"Steps: {dca['current_step']}/{dca['max_steps']}\n"
+                    f"Avg Entry: {dca['avg_entry_price']}\n"
+                )
+
+        if "risk" in status:
+            risk = status["risk"]
+            message += f"\n*Risk Status:*\n" f"Halted: {'Yes' if risk['halted'] else 'No'}\n"
+            if risk["drawdown"]:
+                message += f"Drawdown: {float(risk['drawdown']):.2%}\n"
+
+        return message
+
+    @staticmethod
+    def _get_state_emoji(state: BotState) -> str:
+        """Get emoji for bot state."""
+        emoji_map = {
+            BotState.STOPPED: "⚫",
+            BotState.STARTING: "🟡",
+            BotState.RUNNING: "🟢",
+            BotState.PAUSED: "🟡",
+            BotState.STOPPING: "🟠",
+            BotState.EMERGENCY: "🔴",
+        }
+        return emoji_map.get(state, "⚪")
+
+    async def start(self) -> None:
+        """Start the Telegram bot."""
+        logger.info("starting_telegram_bot")
+
+        # Start event listener
+        self.event_listener_task = asyncio.create_task(self._listen_to_events())
+
+        # Start polling
+        await self.dp.start_polling(self.bot)
+
+    async def stop(self) -> None:
+        """Stop the Telegram bot."""
+        logger.info("stopping_telegram_bot")
+
+        # Stop event listener
+        if self.event_listener_task:
+            self.event_listener_task.cancel()
+            try:
+                await self.event_listener_task
+            except asyncio.CancelledError:
+                pass
+
+        # Close bot session
+        await self.bot.session.close()
+
+        logger.info("telegram_bot_stopped")

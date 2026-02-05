@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: traderagent-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-traderagent}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: ${DB_NAME:-traderagent}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-traderagent}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - traderagent-network
+
+  # Redis for Pub/Sub
+  redis:
+    image: redis:7-alpine
+    container_name: traderagent-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - traderagent-network
+
+  # Trading Bot
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traderagent-bot
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-traderagent}:${DB_PASSWORD:-changeme}@postgres:5432/${DB_NAME:-traderagent}
+
+      # Redis
+      REDIS_URL: redis://redis:6379
+
+      # Config
+      CONFIG_PATH: /app/configs/${CONFIG_FILE:-production.yaml}
+
+      # Telegram Bot
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ALLOWED_CHAT_IDS: ${TELEGRAM_ALLOWED_CHAT_IDS}
+
+      # Encryption
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # Python
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./logs:/app/logs
+      - ./bot:/app/bot:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - traderagent-network
+    # Uncomment for debugging
+    # ports:
+    #   - "8000:8000"
+
+  # Database migrations (run once)
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traderagent-migrations
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-traderagent}:${DB_PASSWORD:-changeme}@postgres:5432/${DB_NAME:-traderagent}
+    command: alembic upgrade head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - traderagent-network
+    profiles:
+      - migration
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  traderagent-network:
+    driver: bridge
