@@ -1,0 +1,310 @@
+# DCA-Grid Trading Bot Configuration Example
+# Version: 1.0
+# Last Updated: 2026-02-05
+
+# =============================================================================
+# BOT IDENTIFICATION
+# =============================================================================
+bot:
+  name: "btc_usdt_hybrid_bot_1"           # Unique bot name (no spaces)
+  description: "BTC/USDT hybrid strategy with grid + DCA"
+
+# =============================================================================
+# EXCHANGE SETTINGS
+# =============================================================================
+exchange:
+  name: "binance"                          # Exchange name: binance, bybit, okx
+  type: "spot"                             # Market type: spot, futures (futures not yet supported)
+  testnet: false                           # Use testnet (true for testing)
+
+  # API credentials (stored encrypted in database)
+  # These values are loaded from environment variables or encrypted DB
+  api_key: "${BINANCE_API_KEY}"
+  api_secret: "${BINANCE_API_SECRET}"
+  # passphrase: "${EXCHANGE_PASSPHRASE}"  # Required for OKX
+
+  # Rate limiting
+  rate_limit:
+    enabled: true                          # Use built-in rate limiter
+    requests_per_minute: 1000              # Max requests per minute
+    orders_per_second: 5                   # Max order placement rate
+
+# =============================================================================
+# TRADING PAIR
+# =============================================================================
+trading:
+  symbol: "BTC/USDT"                       # Trading pair
+  base_currency: "BTC"                     # Base currency
+  quote_currency: "USDT"                   # Quote currency
+
+# =============================================================================
+# CAPITAL MANAGEMENT
+# =============================================================================
+capital:
+  total: 10000.0                           # Total capital in quote currency (USDT)
+
+  # Capital allocation (must sum to 100)
+  allocation:
+    grid: 60.0                             # 60% for grid trading
+    dca: 30.0                              # 30% for DCA
+    reserve: 10.0                          # 10% reserve (for fees, emergencies)
+
+# =============================================================================
+# STRATEGY TYPE
+# Options: 'grid', 'dca', 'hybrid'
+# =============================================================================
+strategy:
+  type: "hybrid"                           # Use hybrid (grid + DCA)
+
+  # Variant selection for hybrid strategy
+  # Options: 'grid_with_dca_insurance', 'parallel', 'adaptive'
+  hybrid_variant: "grid_with_dca_insurance"
+
+# =============================================================================
+# GRID TRADING CONFIGURATION
+# =============================================================================
+grid:
+  enabled: true
+
+  # Grid boundaries
+  price_range:
+    lower_bound: 40000.0                   # Lower price boundary (USDT)
+    upper_bound: 50000.0                   # Upper price boundary (USDT)
+
+    # Auto-adjustment (optional)
+    auto_adjust: false                     # Dynamically adjust bounds based on volatility
+    auto_adjust_percent: 20.0              # Adjust by ±20% from current price
+
+  # Grid levels
+  levels:
+    count: 20                              # Number of grid levels
+    distribution: "arithmetic"             # 'arithmetic' or 'geometric'
+
+    # Geometric parameters (if distribution: geometric)
+    geometric_ratio: 1.02                  # 2% between levels
+
+  # Order sizing
+  order_size:
+    type: "fixed"                          # 'fixed', 'percentage', or 'martingale'
+    amount: 0.001                          # Fixed amount in base currency (BTC)
+
+    # For percentage type
+    # percent_of_allocated: 5.0            # 5% of allocated capital per order
+
+    # For martingale type
+    # martingale_multiplier: 1.5           # Increase size by 1.5x on each level
+
+  # Order types
+  orders:
+    type: "limit"                          # 'limit' or 'market' (limit recommended)
+    time_in_force: "GTC"                   # GTC (Good-Till-Cancel) or IOC (Immediate-Or-Cancel)
+    post_only: true                        # Only maker orders (avoid taker fees)
+
+  # Grid behavior
+  behavior:
+    rebalance_on_fill: true                # Auto-place opposite order when filled
+    trailing: false                        # Move grid with price (not recommended for beginners)
+
+    # Profit taking
+    take_profit_percent: 0.5               # Target profit per grid level (0.5%)
+
+# =============================================================================
+# DCA (Dollar-Cost Averaging) CONFIGURATION
+# =============================================================================
+dca:
+  enabled: true
+
+  # Trigger conditions
+  trigger:
+    type: "price_drop"                     # 'price_drop', 'time_based', or 'manual'
+
+    # Price drop trigger
+    price_drop_percent: 3.0                # Activate DCA on 3% drop below grid lower bound
+    reference_price: "grid_lower_bound"    # 'grid_lower_bound', 'last_buy', or 'average_entry'
+
+  # DCA steps
+  steps:
+    max_steps: 5                           # Maximum number of DCA steps
+    step_percent: 3.0                      # Price drop % between each DCA step
+
+    # Step progression (how much to buy at each step)
+    progression: "fixed"                   # 'fixed', 'increasing', or 'martingale'
+
+    # Fixed amount per step
+    amount_per_step: 0.002                 # BTC per DCA step
+
+    # Martingale (if progression: martingale)
+    # martingale_multiplier: 2.0           # Double position each step (RISKY!)
+
+    # Increasing (if progression: increasing)
+    # increase_factor: 1.5                 # Increase by 1.5x each step
+
+  # Order execution
+  orders:
+    type: "market"                         # 'market' (faster) or 'limit' (better price)
+    limit_offset_percent: 0.1              # If limit: place 0.1% below trigger price
+
+  # Exit strategy
+  exit:
+    type: "take_profit"                    # 'take_profit' or 'new_grid'
+
+    # Take profit
+    take_profit_percent: 5.0               # Sell DCA position at 5% profit
+
+    # New grid (if type: new_grid)
+    # create_new_grid: true                # Create new grid after DCA accumulation
+    # new_grid_offset_percent: 2.0         # New grid 2% above average DCA price
+
+# =============================================================================
+# RISK MANAGEMENT
+# =============================================================================
+risk:
+  # Stop loss
+  stop_loss:
+    enabled: true
+    type: "portfolio"                      # 'portfolio' (total) or 'position' (per trade)
+    percent: 15.0                          # Stop if portfolio drops 15%
+    action: "close_all"                    # 'close_all', 'pause', or 'emergency_stop'
+
+  # Take profit (portfolio level)
+  take_profit:
+    enabled: true
+    percent: 30.0                          # Take profit at 30% portfolio gain
+    action: "pause"                        # 'pause' or 'close_all'
+
+  # Drawdown monitoring
+  drawdown:
+    max_drawdown_percent: 20.0             # Alert at 20% drawdown
+    action: "alert"                        # 'alert', 'pause', or 'emergency_stop'
+
+  # Position limits
+  position:
+    max_position_size: 0.1                 # Max BTC position
+    max_open_orders: 50                    # Max simultaneous open orders
+
+  # Balance checks
+  balance:
+    min_balance_percent: 5.0               # Stop if balance < 5% of total capital
+    reserve_balance: 100.0                 # Always keep 100 USDT reserve
+
+# =============================================================================
+# MONITORING & ALERTS
+# =============================================================================
+monitoring:
+  # Health checks
+  health_check:
+    interval_seconds: 60                   # Check health every 60 seconds
+    exchange_connectivity: true            # Monitor exchange connection
+    balance_check: true                    # Verify balance consistency
+
+  # Performance tracking
+  performance:
+    calculate_pnl: true                    # Calculate P&L in real-time
+    log_interval_minutes: 5                # Log performance every 5 minutes
+
+  # State snapshots (for recovery)
+  snapshots:
+    enabled: true
+    interval_minutes: 10                   # Save state every 10 minutes
+    retention_days: 30                     # Keep snapshots for 30 days
+
+# =============================================================================
+# NOTIFICATIONS (Telegram Bot)
+# =============================================================================
+notifications:
+  telegram:
+    enabled: true
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+
+    # What to notify about
+    events:
+      bot_started: true
+      bot_stopped: true
+      order_filled: true
+      trade_completed: true
+      dca_triggered: true
+      stop_loss_hit: true
+      take_profit_hit: true
+      error_occurred: true
+      daily_summary: true                  # Send daily P&L summary
+
+    # Notification frequency limits
+    rate_limit:
+      max_per_hour: 20                     # Max 20 notifications per hour
+      cooldown_seconds: 60                 # Min 60 seconds between similar messages
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+logging:
+  level: "INFO"                            # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+  # Log to file
+  file:
+    enabled: true
+    path: "logs/bot.log"
+    max_size_mb: 100                       # Rotate at 100 MB
+    backup_count: 5                        # Keep 5 backup files
+
+  # Log to console
+  console:
+    enabled: true
+    colored: true                          # Colored output
+
+  # Database logging
+  database:
+    enabled: true
+    level: "INFO"                          # Only INFO and above to database
+    batch_size: 100                        # Insert logs in batches
+
+# =============================================================================
+# ADVANCED SETTINGS
+# =============================================================================
+advanced:
+  # Recovery & restart
+  recovery:
+    auto_recovery: true                    # Auto-recover from errors
+    max_recovery_attempts: 3
+    recovery_delay_seconds: 30
+
+  # Order management
+  orders:
+    cancel_timeout_seconds: 30             # Cancel order if not filled in 30s
+    sync_interval_seconds: 10              # Sync orders with exchange every 10s
+
+  # WebSocket
+  websocket:
+    enabled: true                          # Use WebSocket for real-time data
+    reconnect_attempts: 5
+    ping_interval_seconds: 30
+
+  # Backtesting mode
+  backtest:
+    enabled: false                         # Set to true for backtesting
+    data_source: "historical"              # 'historical' or 'simulation'
+    start_date: "2025-01-01"
+    end_date: "2025-12-31"
+
+# =============================================================================
+# SYSTEM
+# =============================================================================
+system:
+  # Database
+  database:
+    url: "${DATABASE_URL}"                 # postgresql://user:pass@host/db
+    pool_size: 5
+    max_overflow: 10
+
+  # Redis (for event bus)
+  redis:
+    url: "${REDIS_URL}"                    # redis://localhost:6379/0
+    db: 0
+
+  # Timezone
+  timezone: "UTC"                          # Always use UTC for trading
+
+  # Performance
+  performance:
+    max_workers: 4                         # Thread pool size
+    queue_size: 1000                       # Event queue size
