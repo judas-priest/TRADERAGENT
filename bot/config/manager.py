@@ -168,9 +168,7 @@ class ConfigManager(LoggerMixin):
             raise RuntimeError("Configuration not loaded")
         return self._config_hash
 
-    def register_reload_callback(
-        self, callback: Callable[[AppConfig], None]
-    ) -> None:
+    def register_reload_callback(self, callback: Callable[[AppConfig], None]) -> None:
         """
         Register a callback to be called when configuration is reloaded.
 
@@ -178,9 +176,7 @@ class ConfigManager(LoggerMixin):
             callback: Function to call with new config
         """
         self._reload_callbacks.append(callback)
-        self.logger.info(
-            "Registered reload callback", callback=callback.__name__
-        )
+        self.logger.info("Registered reload callback", callback=callback.__name__)
 
     def enable_watch(self) -> None:
         """Enable file watching for hot reload"""
@@ -196,15 +192,11 @@ class ConfigManager(LoggerMixin):
 
             def on_modified(self, event: FileSystemEvent) -> None:
                 if event.src_path == str(self.manager.config_path):
-                    self.manager.logger.info(
-                        "Configuration file modified, reloading..."
-                    )
+                    self.manager.logger.info("Configuration file modified, reloading...")
                     try:
                         self.manager.reload()
                     except Exception as e:
-                        self.manager.logger.error(
-                            "Failed to reload configuration", error=str(e)
-                        )
+                        self.manager.logger.error("Failed to reload configuration", error=str(e))
 
         # Set up file observer
         self._observer = Observer()
