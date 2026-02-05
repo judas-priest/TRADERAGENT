@@ -267,9 +267,7 @@ class DatabaseManager(LoggerMixin):
             )
             return result.scalar_one_or_none()
 
-    async def get_bot_orders(
-        self, bot_id: int, status: Optional[str] = None
-    ) -> List[Order]:
+    async def get_bot_orders(self, bot_id: int, status: Optional[str] = None) -> List[Order]:
         """Get all orders for a bot, optionally filtered by status"""
         async with self.session() as session:
             query = select(Order).where(Order.bot_id == bot_id)

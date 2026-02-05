@@ -1,111 +1,843 @@
-# TRADERAGENT - Universal Indicator v2
+# TRADERAGENT - Autonomous DCA-Grid Trading Bot
 
-Профессиональная торговая система для TradingView с универсальным индикатором разворота на основе RSI, объема и уровней Фибоначчи.
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-Professional trading system for TradingView with universal reversal indicator based on RSI, volume and Fibonacci levels.
+Автономный торговый бот для криптовалютных бирж с поддержкой стратегий Grid Trading, DCA (Dollar Cost Averaging) и Hybrid режима.
 
-## 📚 Документация / Documentation
-
-- 🇷🇺 [Полное руководство по Universal Indicator v2](UNIVERSAL_INDICATOR_GUIDE_RU.md)
-- 🇷🇺 [Полное руководство по ALMIR Indicator](ALMIR_INDICATOR_GUIDE_RU.md)
-- 🇷🇺 [Инструкция по установке](INSTALLATION_RU.md)
-- 📋 [Action Plan для Issue #79](ACTION_PLAN_ISSUE_79.md)
-
-## 🎯 О системе / About
-
-**Universal Indicator v2** — это автоматизированный технический индикатор для определения точек разворота тренда с высокой точностью.
-
-**Universal Indicator v2** is an automated technical indicator for identifying trend reversal points with high accuracy.
-
-### Основные возможности / Key Features
-
-✅ Автоматическое определение ключевых свечей разворота / Automatic detection of key reversal candles
-✅ Построение уровней Фибоначчи от значимых точек / Fibonacci levels from significant points
-✅ Многоиндикаторное подтверждение сигналов (RSI, MACD, Stochastic, Volume, Price Action) / Multi-indicator confirmation
-✅ Определение дивергенций RSI / RSI divergence detection
-✅ Адаптивная фильтрация на основе волатильности и тренда / Adaptive filtering based on volatility and trend
-✅ Система взвешенных баллов (Confluence) для качественных сигналов / Weighted scoring system for quality signals
-✅ Детальная визуализация состояния рынка / Detailed market state visualization
-
-## 📊 Состав системы / System Components
-
-### Индикаторы / Indicators
-
-#### Universal Indicator v2
-
-1. **universal_indicator_v2.pine** — основной индикатор с панелью RSI и моментума
-   - Main indicator with RSI and momentum panel
-
-2. **universal_indicator_v2_overlay.pine** — overlay-компонент для отображения уровней Фибоначчи на графике цены
-   - Overlay component for displaying Fibonacci levels on price chart
-
-#### ALMIR Indicator (Issue #79)
-
-3. **almir_indicator.pine** — индикатор ALMIR для автоматического определения ключевых свечей
-   - ALMIR indicator for automatic key candle detection
-   - 🇷🇺 [Полное руководство по ALMIR](ALMIR_INDICATOR_GUIDE_RU.md)
-
-4. **almir_indicator_overlay.pine** — overlay-компонент ALMIR для Fibonacci уровней
-   - ALMIR overlay component for Fibonacci levels
-
-### Тесты / Tests
-
-- **experiments/universal_indicator_v2_test.pine** — тестовый скрипт для проверки работы индикатора
-  - Test script for indicator validation
-
-- **experiments/almir_indicator_analysis.md** — анализ и методология ALMIR
-  - ALMIR analysis and methodology
-
-## 🚀 Быстрый старт / Quick Start
-
-### Установка / Installation
-
-1. Откройте TradingView и перейдите в Pine Editor
-2. Создайте новый индикатор и вставьте код из `indicators/universal_indicator_v2.pine`
-3. Сохраните и добавьте на график
-4. (Опционально) Создайте второй индикатор из `indicators/universal_indicator_v2_overlay.pine` для отображения уровней Фибоначчи
-
-Подробная инструкция: [INSTALLATION_RU.md](INSTALLATION_RU.md)
-
-### Использование / Usage
-
-Подробное руководство по настройке и использованию: [UNIVERSAL_INDICATOR_GUIDE_RU.md](UNIVERSAL_INDICATOR_GUIDE_RU.md)
-
-## 🔧 Технические особенности / Technical Features
-
-### Адаптивная фильтрация (Issue #71)
-- Определение волатильности через ATR
-- Определение силы и направления тренда через ADX
-- Автоматическая адаптация параметров к рыночным условиям
-- Фильтры против торговли в неблагоприятных условиях
-
-### Определение дивергенций (Issue #68)
-- Бычьи и медвежьи дивергенции RSI
-- Оценка силы дивергенции
-- Интеграция в общую логику сигналов
-
-### Confluence анализ (Issue #69)
-- Система взвешенных баллов от 6 индикаторов
-- Настраиваемые веса для каждого индикатора
-- Минимальный порог подтверждения
-- Визуализация состояния всех индикаторов
-
-### Улучшенный анализ объема (Issue #67)
-- Адаптивный порог на основе стандартного отклонения
-- Определение кластеров объема
-- Анализ направленного объема (покупательский vs продавательский)
-- Улучшенная формула моментума с учетом изменения цены
-
-## 📝 Лицензия / License
-
-Mozilla Public License 2.0
-
-## 👨‍💻 Автор / Author
-
-© TRADERAGENT
+Autonomous trading bot for cryptocurrency exchanges supporting Grid Trading, DCA (Dollar Cost Averaging), and Hybrid strategies.
 
 ---
 
-**Важно:** Данный индикатор предназначен только для образовательных целей. Всегда проводите собственный анализ перед принятием торговых решений.
+## 📋 Table of Contents / Содержание
 
-**Important:** This indicator is for educational purposes only. Always conduct your own analysis before making trading decisions.
+- [Features / Возможности](#-features--возможности)
+- [Architecture / Архитектура](#️-architecture--архитектура)
+- [Quick Start / Быстрый старт](#-quick-start--быстрый-старт)
+- [Installation / Установка](#-installation--установка)
+- [Configuration / Конфигурация](#️-configuration--конфигурация)
+- [Trading Strategies / Торговые стратегии](#-trading-strategies--торговые-стратегии)
+- [Documentation / Документация](#-documentation--документация)
+- [Testing / Тестирование](#-testing--тестирование)
+- [Deployment / Развертывание](#-deployment--развертывание)
+- [Monitoring / Мониторинг](#-monitoring--мониторинг)
+- [Roadmap / План развития](#️-roadmap--план-развития)
+- [FAQ / Часто задаваемые вопросы](#-faq--часто-задаваемые-вопросы)
+- [Contributing / Участие в разработке](#-contributing--участие-в-разработке)
+- [License / Лицензия](#-license--лицензия)
+- [Disclaimer / Отказ от ответственности](#️-disclaimer--отказ-от-ответственности)
+
+---
+
+## 🎯 Features / Возможности
+
+### Core Features / Основные возможности
+
+✅ **Multi-Strategy Support / Поддержка нескольких стратегий**
+- Grid Trading - сеточная торговля в заданном диапазоне
+- DCA (Dollar Cost Averaging) - усреднение позиции при просадках
+- Hybrid - комбинированная стратегия Grid + DCA
+
+✅ **Exchange Integration / Интеграция с биржами**
+- Поддержка всех бирж через CCXT (Binance, Bybit, OKX, и др.)
+- Testnet/Sandbox режим для безопасного тестирования
+- WebSocket соединения для real-time данных
+- Автоматическое управление rate limits
+
+✅ **Risk Management / Управление рисками**
+- Настраиваемые stop-loss уровни
+- Ограничение максимального размера позиции
+- Ограничение максимальной дневной потери
+- Проверка минимального размера ордера
+
+✅ **Persistence & Reliability / Надежность**
+- PostgreSQL база данных для хранения состояния
+- Восстановление состояния после перезапуска
+- История всех сделок и ордеров
+- Асинхронная архитектура для высокой производительности
+
+✅ **Configuration Management / Управление конфигурацией**
+- YAML конфигурационные файлы
+- Hot reload конфигурации
+- Валидация всех параметров
+- Шифрование API ключей (AES-256)
+
+✅ **Logging & Monitoring / Логирование и мониторинг**
+- Структурированное логирование (JSON поддержка)
+- Ротация лог-файлов
+- Prometheus метрики
+- Grafana дашборды
+
+✅ **Notifications / Уведомления**
+- Telegram бот для управления и уведомлений
+- Уведомления о сделках
+- Уведомления об ошибках
+- Отчеты о состоянии портфеля
+
+✅ **Testing Infrastructure / Инфраструктура тестирования**
+- Comprehensive unit tests (>100 tests)
+- Integration tests
+- Backtesting framework с реалистичной симуляцией
+- Testnet testing suite
+
+---
+
+## 🏗️ Architecture / Архитектура
+
+### High-Level Architecture / Высокоуровневая архитектура
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Bot Orchestrator                         │
+│         (Управление жизненным циклом ботов)                  │
+└────────────────┬────────────────────────────┬────────────────┘
+                 │                            │
+     ┌───────────▼──────────┐    ┌───────────▼──────────┐
+     │   Grid Engine        │    │    DCA Engine        │
+     │ (Сеточная торговля)  │    │   (Усреднение)       │
+     └───────────┬──────────┘    └───────────┬──────────┘
+                 │                            │
+                 └──────────┬─────────────────┘
+                            │
+              ┌─────────────▼─────────────┐
+              │    Risk Manager           │
+              │ (Управление рисками)      │
+              └─────────────┬─────────────┘
+                            │
+         ┌──────────────────┴──────────────────┐
+         │                                     │
+┌────────▼─────────┐              ┌───────────▼──────────┐
+│ Exchange Client  │              │  Database Manager    │
+│  (API биржи)     │              │   (PostgreSQL)       │
+└──────────────────┘              └──────────────────────┘
+```
+
+### Key Components / Ключевые компоненты
+
+- **BotOrchestrator** - координация работы всех компонентов
+- **GridEngine** - реализация сеточной торговли
+- **DCAEngine** - реализация DCA стратегии
+- **RiskManager** - проверки и ограничения рисков
+- **ExchangeClient** - взаимодействие с биржей через CCXT
+- **DatabaseManager** - управление состоянием и историей
+- **ConfigManager** - загрузка и валидация конфигурации
+- **TelegramBot** - интерфейс управления и уведомлений
+
+---
+
+## 🚀 Quick Start / Быстрый старт
+
+### Prerequisites / Предварительные требования
+
+- Python 3.10 или выше
+- PostgreSQL 13+ (или используйте Docker)
+- Аккаунт на криптобирже с API ключами
+- (Опционально) Telegram бот для уведомлений
+
+### Installation via Docker (Recommended) / Установка через Docker (Рекомендуется)
+
+```bash
+# 1. Clone repository / Клонируйте репозиторий
+git clone https://github.com/alekseymavai/TRADERAGENT.git
+cd TRADERAGENT
+
+# 2. Configure environment / Настройте окружение
+cp .env.example .env
+nano .env  # Edit with your values / Отредактируйте своими значениями
+
+# 3. Configure bot / Настройте бота
+cp configs/example.yaml configs/production.yaml
+nano configs/production.yaml  # Configure trading parameters / Настройте параметры торговли
+
+# 4. Deploy / Разверните
+chmod +x deploy.sh
+./deploy.sh
+```
+
+### Manual Installation / Ручная установка
+
+```bash
+# 1. Clone repository / Клонируйте репозиторий
+git clone https://github.com/alekseymavai/TRADERAGENT.git
+cd TRADERAGENT
+
+# 2. Create virtual environment / Создайте виртуальное окружение
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# 3. Install dependencies / Установите зависимости
+pip install -r requirements.txt
+
+# 4. Setup database / Настройте базу данных
+cp alembic.ini.example alembic.ini
+# Edit database URL in alembic.ini
+alembic upgrade head
+
+# 5. Configure bot / Настройте бота
+cp configs/example.yaml configs/production.yaml
+nano configs/production.yaml
+
+# 6. Run bot / Запустите бота
+python -m bot.main --config configs/production.yaml
+```
+
+---
+
+## 📦 Installation / Установка
+
+### System Requirements / Системные требования
+
+**Minimum / Минимальные:**
+- CPU: 2 cores / ядра
+- RAM: 2 GB
+- Storage / Хранилище: 10 GB
+- OS: Ubuntu 20.04+, Debian 11+, или любой Linux с Docker
+
+**Recommended / Рекомендуемые:**
+- CPU: 4 cores / ядра
+- RAM: 4 GB
+- Storage / Хранилище: 20 GB
+- SSD для базы данных
+
+### Docker Installation / Установка Docker
+
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Install Docker Compose
+sudo apt-get install docker-compose-plugin
+
+# Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+### Python Installation / Установка Python
+
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install python3.11 python3.11-venv python3-pip
+
+# Check Python version
+python3.11 --version
+```
+
+### Database Setup / Настройка базы данных
+
+#### With Docker (Recommended) / С Docker (Рекомендуется)
+
+Docker Compose автоматически настроит PostgreSQL и Redis.
+
+#### Manual PostgreSQL Setup / Ручная настройка PostgreSQL
+
+```bash
+# Install PostgreSQL
+sudo apt-get install postgresql postgresql-contrib
+
+# Create database and user
+sudo -u postgres psql
+```
+
+```sql
+CREATE DATABASE traderagent;
+CREATE USER traderagent WITH ENCRYPTED PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE traderagent TO traderagent;
+\q
+```
+
+---
+
+## ⚙️ Configuration / Конфигурация
+
+### Environment Variables / Переменные окружения
+
+Создайте файл `.env` на основе `.env.example`:
+
+```bash
+# Database
+DB_USER=traderagent
+DB_PASSWORD=your_secure_password
+DB_NAME=traderagent
+DB_PORT=5432
+
+# Redis
+REDIS_PORT=6379
+
+# Bot
+CONFIG_FILE=production.yaml
+LOG_LEVEL=INFO
+
+# Telegram
+TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+TELEGRAM_ALLOWED_CHAT_IDS=123456789
+
+# Security - Generate with: python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"
+ENCRYPTION_KEY=your_base64_encoded_32_byte_key
+```
+
+### Bot Configuration / Конфигурация бота
+
+Создайте `configs/production.yaml` на основе `configs/example.yaml`. См. [CONFIGURATION.md](CONFIGURATION.md) для детального описания всех параметров.
+
+**Example Grid Bot / Пример Grid бота:**
+
+```yaml
+bots:
+  - name: btc_grid_bot
+    symbol: BTC/USDT
+    strategy: grid
+
+    exchange:
+      exchange_id: binance
+      credentials_name: binance_main
+      sandbox: true  # Use testnet for testing!
+
+    grid:
+      upper_price: "50000"
+      lower_price: "40000"
+      grid_levels: 10
+      amount_per_grid: "100"
+      profit_per_grid: "0.01"  # 1% profit per level
+
+    risk_management:
+      max_position_size: "10000"
+      stop_loss_percentage: "0.15"  # 15% stop loss
+
+    dry_run: true  # Simulation mode - no real orders!
+```
+
+**Example DCA Bot / Пример DCA бота:**
+
+```yaml
+bots:
+  - name: eth_dca_bot
+    symbol: ETH/USDT
+    strategy: dca
+
+    exchange:
+      exchange_id: binance
+      credentials_name: binance_main
+      sandbox: true
+
+    dca:
+      trigger_percentage: "0.05"  # Buy when price drops 5%
+      amount_per_step: "100"
+      max_steps: 5
+      take_profit_percentage: "0.1"  # Take profit at 10%
+
+    risk_management:
+      max_position_size: "5000"
+      stop_loss_percentage: "0.20"
+
+    dry_run: true
+```
+
+**Example Hybrid Bot / Пример Hybrid бота:**
+
+```yaml
+bots:
+  - name: btc_hybrid_bot
+    symbol: BTC/USDT
+    strategy: hybrid
+
+    exchange:
+      exchange_id: binance
+      credentials_name: binance_main
+      sandbox: true
+
+    grid:
+      upper_price: "50000"
+      lower_price: "45000"
+      grid_levels: 5
+      amount_per_grid: "200"
+      profit_per_grid: "0.015"
+
+    dca:
+      trigger_percentage: "0.03"  # DCA when price drops 3% below grid
+      amount_per_step: "150"
+      max_steps: 3
+      take_profit_percentage: "0.08"
+
+    risk_management:
+      max_position_size: "15000"
+      stop_loss_percentage: "0.25"
+
+    dry_run: true
+```
+
+---
+
+## 📊 Trading Strategies / Торговые стратегии
+
+### Grid Trading / Сеточная торговля
+
+**Описание:** Размещение сетки ордеров на покупку и продажу в заданном ценовом диапазоне. При исполнении ордера на покупку автоматически создается ордер на продажу с прибылью, и наоборот.
+
+**Когда использовать:**
+- Рынок находится в боковом движении (флэт)
+- Известен диапазон колебаний цены
+- Нужен пассивный доход от волатильности
+
+**Параметры:**
+- `upper_price` - верхняя граница сетки
+- `lower_price` - нижняя граница сетки
+- `grid_levels` - количество уровней (2-100)
+- `amount_per_grid` - объем на каждый уровень
+- `profit_per_grid` - процент прибыли на уровень
+
+**Пример работы:**
+```
+Price Range: 40,000 - 50,000 USDT
+Grid Levels: 10
+Amount per Grid: 100 USDT
+
+Grid будет размещать ордера на:
+Level 1: 41,000 (buy) → 41,410 (sell, +1% profit)
+Level 2: 42,000 (buy) → 42,420 (sell, +1% profit)
+...
+Level 10: 50,000 (buy) → 50,500 (sell, +1% profit)
+```
+
+### DCA (Dollar Cost Averaging) / Усреднение
+
+**Описание:** Постепенное наращивание позиции при падении цены для снижения средней цены входа. При достижении take profit - продажа всей позиции.
+
+**Когда использовать:**
+- Вера в долгосрочный рост актива
+- Готовность к просадкам
+- Хочется снизить риск неудачного входа
+
+**Параметры:**
+- `trigger_percentage` - процент падения для входа
+- `amount_per_step` - объем каждого шага усреднения
+- `max_steps` - максимальное количество шагов (1-20)
+- `take_profit_percentage` - процент для выхода в прибыль
+
+**Пример работы:**
+```
+Initial Price: 45,000 USDT
+Trigger: 5% drop
+Amount per step: 100 USDT
+Max steps: 5
+
+Entry 1: 45,000 (initial position)
+Entry 2: 42,750 (-5%, average: 43,875)
+Entry 3: 40,612 (-5%, average: 42,787)
+...
+Take Profit: 47,076 (+10% from average)
+```
+
+### Hybrid Strategy / Гибридная стратегия
+
+**Описание:** Комбинация Grid и DCA. Grid работает в основном диапазоне, DCA активируется при выходе цены ниже нижней границы grid.
+
+**Когда использовать:**
+- Нужна защита от сильных просадок
+- Хочется совместить преимущества обеих стратегий
+- Неопределенность направления рынка
+
+**Логика работы:**
+1. Grid торгует в диапазоне `lower_price` - `upper_price`
+2. Если цена падает ниже `lower_price` на `trigger_percentage` - активируется DCA
+3. DCA усредняет позицию до `max_steps`
+4. При восстановлении цены выше средней на `take_profit_percentage` - продажа DCA позиции
+5. Grid продолжает работать в своем диапазоне
+
+---
+
+## 📚 Documentation / Документация
+
+### Core Documentation / Основная документация
+
+- 📘 [Configuration Guide / Руководство по конфигурации](CONFIGURATION.md) - подробное описание всех параметров
+- 🚀 [Deployment Guide / Руководство по развертыванию](DEPLOYMENT.md) - развертывание на VPS
+- 🧪 [Testing Guide / Руководство по тестированию](TESTING.md) - запуск тестов и бэктестинга
+- 📊 [Monitoring Guide / Руководство по мониторингу](monitoring/README.md) - настройка Prometheus и Grafana
+- ❓ [FAQ / Часто задаваемые вопросы](FAQ.md) - ответы на распространенные вопросы
+- 🐛 [Troubleshooting / Решение проблем](TROUBLESHOOTING.md) - диагностика и устранение проблем
+- 🗺️ [Roadmap / План развития](ROADMAP.md) - планы на будущие версии
+
+### Module Documentation / Документация модулей
+
+- [Bot Module README](bot/README.md) - основная документация модуля бота
+- [ExchangeClient API](bot/api/exchange_client.py) - работа с биржами
+- [Database Models](bot/database/models.py) - схема базы данных
+- [Configuration Schemas](bot/config/schemas.py) - схемы валидации конфигов
+
+### Testnet Testing / Тестирование на testnet
+
+- [Testnet Testing Guide](bot/tests/testnet/README.md) - полное руководство по testnet тестированию
+
+---
+
+## 🧪 Testing / Тестирование
+
+### Unit Tests / Модульные тесты
+
+```bash
+# Run all unit tests
+pytest bot/tests/unit/ -v
+
+# Run with coverage
+pytest bot/tests/unit/ --cov=bot --cov-report=html
+
+# Run specific test
+pytest bot/tests/unit/test_grid_engine.py -v
+```
+
+### Integration Tests / Интеграционные тесты
+
+```bash
+# Run integration tests
+pytest bot/tests/integration/ -v
+```
+
+### Backtesting / Бэктестинг
+
+```bash
+# Run backtesting tests
+pytest bot/tests/backtesting/ -v
+
+# Run custom backtest
+python -m bot.tests.backtesting.backtesting_engine \
+    --symbol BTC/USDT \
+    --strategy grid \
+    --start-date 2024-01-01 \
+    --end-date 2024-01-31
+```
+
+### Testnet Testing / Тестирование на testnet
+
+⚠️ **ВАЖНО:** Всегда тестируйте на testnet перед real trading!
+
+```bash
+# Setup testnet credentials (see bot/tests/testnet/README.md)
+# Run testnet tests
+pytest bot/tests/testnet/ --testnet -v
+```
+
+См. [TESTING.md](TESTING.md) для подробного руководства по тестированию.
+
+---
+
+## 🚢 Deployment / Развертывание
+
+### Docker Deployment (Recommended) / Развертывание через Docker (Рекомендуется)
+
+```bash
+# Automatic deployment
+./deploy.sh
+
+# Or manual deployment
+docker-compose build
+docker-compose up -d postgres redis
+docker-compose run --rm migrations
+docker-compose up -d bot
+```
+
+### Manual Deployment / Ручное развертывание
+
+```bash
+# Setup virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run migrations
+alembic upgrade head
+
+# Start bot
+python -m bot.main --config configs/production.yaml
+```
+
+### Production Deployment Checklist / Чеклист production развертывания
+
+- [ ] Testnet тестирование завершено успешно
+- [ ] Все тесты проходят (`pytest`)
+- [ ] Конфигурация проверена и валидна
+- [ ] Безопасное хранение API ключей (шифрование включено)
+- [ ] `.env` файл настроен с production значениями
+- [ ] `dry_run: false` в конфигурации бота
+- [ ] `sandbox: false` для real trading
+- [ ] Backup стратегия настроена
+- [ ] Мониторинг настроен (Prometheus + Grafana)
+- [ ] Уведомления Telegram настроены
+- [ ] Логирование настроено и работает
+- [ ] Начинайте с малых сумм для проверки
+
+См. [DEPLOYMENT.md](DEPLOYMENT.md) для детального руководства.
+
+---
+
+## 📈 Monitoring / Мониторинг
+
+### Monitoring Stack / Стек мониторинга
+
+Бот включает полноценный monitoring stack:
+
+- **Prometheus** - сбор метрик
+- **Grafana** - визуализация и дашборды
+- **AlertManager** - уведомления о проблемах
+- **Exporters** - метрики бота, PostgreSQL, Redis, системы
+
+### Starting Monitoring / Запуск мониторинга
+
+```bash
+# Start monitoring stack
+docker-compose -f docker-compose.monitoring.yml up -d
+
+# Access dashboards
+# Grafana: http://localhost:3000 (admin/admin)
+# Prometheus: http://localhost:9090
+# AlertManager: http://localhost:9093
+```
+
+### Key Metrics / Ключевые метрики
+
+**Trading Metrics / Торговые метрики:**
+- Portfolio value (USDT) / Стоимость портфеля
+- Total return (%) / Общая доходность
+- Drawdown (%) / Просадка
+- Number of trades / Количество сделок
+- Win rate / Процент прибыльных сделок
+
+**System Metrics / Системные метрики:**
+- CPU/Memory usage / Использование CPU/памяти
+- Database connections / Соединения с БД
+- Exchange API latency / Задержка API биржи
+- Error rate / Частота ошибок
+
+**Alerts / Алерты:**
+- Bot down / Бот не работает
+- Critical drawdown / Критическая просадка
+- High error rate / Высокая частота ошибок
+- Database issues / Проблемы с БД
+- Rate limit approaching / Приближение к лимиту API
+
+См. [monitoring/README.md](monitoring/README.md) для подробной настройки мониторинга.
+
+---
+
+## 🗺️ Roadmap / План развития
+
+### Current Version: v1.0.0
+
+✅ **Stage 1: Core Infrastructure** - Базовая инфраструктура
+✅ **Stage 2: Trading Modules** - Торговые модули (Grid, DCA, Risk Manager)
+✅ **Stage 3: Integration & Orchestration** - Интеграция и оркестрация
+✅ **Stage 4: Testing & Deployment** - Тестирование и развертывание
+✅ **Stage 5: Documentation** - Документация
+
+### v2.0.0 - Web Interface & Multi-Account (Q2 2026)
+
+🔄 **Web UI Dashboard**
+- React/Vue веб-интерфейс
+- Real-time мониторинг портфеля
+- Визуальная настройка стратегий
+- Управление ботами через UI
+- Графики и аналитика
+
+🔄 **Multi-Account Support**
+- Управление несколькими биржевыми аккаунтами
+- Раздельная статистика по аккаунтам
+- Агрегированный портфель
+- Account-level risk management
+
+🔄 **Advanced Analytics**
+- Детальная аналитика производительности
+- Сравнение стратегий
+- Оптимизация параметров
+- Backtesting через UI
+
+### v3.0.0 - Advanced Strategies & Signals (Q4 2026)
+
+🔄 **Additional Trading Strategies**
+- Martingale strategy
+- Fibonacci retracement strategy
+- Moving Average strategies
+- Custom strategy builder
+
+🔄 **TradingView Integration**
+- Импорт сигналов из TradingView
+- Webhook поддержка
+- Strategy alerts integration
+- Pine Script indicators support
+
+🔄 **Social Trading**
+- Copy trading функционал
+- Sharing strategies
+- Leaderboard
+- Community marketplace
+
+🔄 **AI/ML Features**
+- Предсказание цен (ML models)
+- Автоматическая оптимизация параметров
+- Sentiment analysis
+- Pattern recognition
+
+См. [ROADMAP.md](ROADMAP.md) для детального плана развития.
+
+---
+
+## ❓ FAQ / Часто задаваемые вопросы
+
+### Общие вопросы / General Questions
+
+**Q: Безопасно ли использовать бота?**
+A: Бот использует шифрование API ключей (AES-256) и не отправляет данные на внешние сервера. Всегда начинайте с testnet и малых сумм.
+
+**Q: Какие биржи поддерживаются?**
+A: Все биржи, поддерживаемые CCXT (150+). Тестировалось на Binance, Bybit, OKX.
+
+**Q: Нужен ли VPS для запуска?**
+A: Рекомендуется для 24/7 работы, но можно запустить на домашнем компьютере.
+
+**Q: Можно ли запустить несколько ботов одновременно?**
+A: Да, в одном конфиге можно указать несколько ботов на разных парах/стратегиях.
+
+**Q: Как часто обновляются цены?**
+A: Через WebSocket в real-time или polling каждые 5-10 секунд.
+
+### Технические вопросы / Technical Questions
+
+**Q: Какая база данных используется?**
+A: PostgreSQL для production, SQLite для тестов.
+
+**Q: Какой язык программирования?**
+A: Python 3.10+ с async/await архитектурой.
+
+**Q: Есть ли API для интеграции?**
+A: Telegram бот API доступен. REST API планируется в v2.0.
+
+См. [FAQ.md](FAQ.md) для полного списка вопросов и ответов.
+
+---
+
+## 🤝 Contributing / Участие в разработке
+
+Мы приветствуем вклад в проект! Пожалуйста, следуйте этим шагам:
+
+### How to Contribute / Как внести вклад
+
+1. **Fork** репозиторий
+2. **Create** feature branch (`git checkout -b feature/amazing-feature`)
+3. **Run** tests и linters
+4. **Commit** изменения (`git commit -m 'Add amazing feature'`)
+5. **Push** в branch (`git push origin feature/amazing-feature`)
+6. **Open** Pull Request
+
+### Development Setup / Настройка для разработки
+
+```bash
+# Clone your fork
+git clone https://github.com/your-username/TRADERAGENT.git
+cd TRADERAGENT
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run tests
+pytest
+
+# Run linters
+black bot/
+ruff check bot/
+mypy bot/
+```
+
+### Code Quality Standards / Стандарты качества кода
+
+- **Code Style**: Black formatting (100 chars)
+- **Linting**: Ruff
+- **Type Checking**: MyPy
+- **Testing**: Pytest with >80% coverage
+- **Documentation**: Docstrings for all public functions
+
+### Reporting Issues / Сообщение о проблемах
+
+Если вы нашли баг или хотите предложить улучшение:
+
+1. Проверьте, нет ли уже похожей issue
+2. Создайте новую issue с подробным описанием
+3. Приложите логи, если это баг
+4. Опишите шаги для воспроизведения
+
+---
+
+## 📄 License / Лицензия
+
+Этот проект распространяется под лицензией **Mozilla Public License 2.0**.
+
+См. файл [LICENSE](LICENSE) для подробностей.
+
+---
+
+## ⚠️ Disclaimer / Отказ от ответственности
+
+**ВАЖНО / IMPORTANT:**
+
+⚠️ Этот бот предназначен только для образовательных целей и не является финансовым советом.
+
+⚠️ This bot is for educational purposes only and does not constitute financial advice.
+
+**Риски / Risks:**
+- Торговля криптовалютами связана с высокими рисками
+- Вы можете потерять весь инвестированный капитал
+- Прошлые результаты не гарантируют будущих результатов
+- Всегда используйте только те средства, которые можете позволить себе потерять
+
+**Рекомендации / Recommendations:**
+1. ✅ Всегда начинайте с testnet/sandbox режима
+2. ✅ Тестируйте с малыми суммами перед полноценным использованием
+3. ✅ Регулярно проверяйте работу бота
+4. ✅ Используйте stop-loss и risk management
+5. ✅ Делайте собственный анализ перед принятием решений
+
+**Автор не несет ответственности за:**
+- Финансовые потери
+- Технические сбои
+- Ошибки в работе бота
+- Проблемы с биржами
+
+**The author is not responsible for:**
+- Financial losses
+- Technical failures
+- Bot errors
+- Exchange issues
+
+---
+
+## 📞 Support / Поддержка
+
+- 📧 **Issues**: [GitHub Issues](https://github.com/alekseymavai/TRADERAGENT/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/alekseymavai/TRADERAGENT/discussions)
+- 📖 **Documentation**: [Full Documentation](https://github.com/alekseymavai/TRADERAGENT/tree/main)
+
+---
+
+## 👨‍💻 Author / Автор
+
+© 2024-2026 TRADERAGENT
+
+Сделано с ❤️ для крипто-сообщества
+
+Made with ❤️ for the crypto community
+
+---
+
+**⭐ Если этот проект был вам полезен, поставьте звезду на GitHub!**
+
+**⭐ If you find this project useful, give it a star on GitHub!**

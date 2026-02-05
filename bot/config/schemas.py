@@ -26,15 +26,9 @@ class ExchangeConfig(BaseModel):
         description="Exchange identifier (e.g., 'binance', 'bybit')",
         examples=["binance", "bybit", "okx"],
     )
-    credentials_name: str = Field(
-        ..., description="Name of stored credentials to use"
-    )
-    sandbox: bool = Field(
-        default=False, description="Use testnet/sandbox mode"
-    )
-    rate_limit: bool = Field(
-        default=True, description="Enable rate limiting"
-    )
+    credentials_name: str = Field(..., description="Name of stored credentials to use")
+    sandbox: bool = Field(default=False, description="Use testnet/sandbox mode")
+    rate_limit: bool = Field(default=True, description="Enable rate limiting")
 
 
 class GridConfig(BaseModel):
@@ -136,18 +130,10 @@ class NotificationConfig(BaseModel):
     """Notification configuration"""
 
     enabled: bool = Field(default=False, description="Enable notifications")
-    telegram_bot_token: Optional[str] = Field(
-        default=None, description="Telegram bot token"
-    )
-    telegram_chat_id: Optional[str] = Field(
-        default=None, description="Telegram chat ID"
-    )
-    notify_on_trade: bool = Field(
-        default=True, description="Notify on trade execution"
-    )
-    notify_on_error: bool = Field(
-        default=True, description="Notify on errors"
-    )
+    telegram_bot_token: Optional[str] = Field(default=None, description="Telegram bot token")
+    telegram_chat_id: Optional[str] = Field(default=None, description="Telegram chat ID")
+    notify_on_trade: bool = Field(default=True, description="Notify on trade execution")
+    notify_on_error: bool = Field(default=True, description="Notify on errors")
 
 
 class BotConfig(BaseModel):
@@ -155,31 +141,19 @@ class BotConfig(BaseModel):
 
     version: int = Field(default=1, ge=1, description="Configuration version")
     name: str = Field(..., min_length=1, max_length=100, description="Bot name")
-    symbol: str = Field(
-        ..., description="Trading pair symbol (e.g., 'BTC/USDT')"
-    )
+    symbol: str = Field(..., description="Trading pair symbol (e.g., 'BTC/USDT')")
     strategy: StrategyType = Field(..., description="Trading strategy type")
 
     # Sub-configurations
     exchange: ExchangeConfig
-    grid: Optional[GridConfig] = Field(
-        default=None, description="Grid trading configuration"
-    )
-    dca: Optional[DCAConfig] = Field(
-        default=None, description="DCA configuration"
-    )
+    grid: Optional[GridConfig] = Field(default=None, description="Grid trading configuration")
+    dca: Optional[DCAConfig] = Field(default=None, description="DCA configuration")
     risk_management: RiskManagementConfig
-    notifications: NotificationConfig = Field(
-        default_factory=NotificationConfig
-    )
+    notifications: NotificationConfig = Field(default_factory=NotificationConfig)
 
     # Operational settings
-    dry_run: bool = Field(
-        default=False, description="Run in simulation mode without real orders"
-    )
-    auto_start: bool = Field(
-        default=False, description="Auto-start bot on initialization"
-    )
+    dry_run: bool = Field(default=False, description="Run in simulation mode without real orders")
+    auto_start: bool = Field(default=False, description="Auto-start bot on initialization")
 
     @field_validator("strategy")
     @classmethod
@@ -230,9 +204,7 @@ class AppConfig(BaseModel):
     """Application-wide configuration"""
 
     # Database
-    database_url: str = Field(
-        ..., description="PostgreSQL database URL"
-    )
+    database_url: str = Field(..., description="PostgreSQL database URL")
     database_pool_size: int = Field(
         default=5, ge=1, le=50, description="Database connection pool size"
     )
@@ -244,12 +216,8 @@ class AppConfig(BaseModel):
         pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
     )
     log_to_file: bool = Field(default=True, description="Enable file logging")
-    log_to_console: bool = Field(
-        default=True, description="Enable console logging"
-    )
-    json_logs: bool = Field(
-        default=False, description="Use JSON format for logs"
-    )
+    log_to_console: bool = Field(default=True, description="Enable console logging")
+    json_logs: bool = Field(default=False, description="Use JSON format for logs")
 
     # Encryption
     encryption_key: str = Field(
@@ -257,9 +225,7 @@ class AppConfig(BaseModel):
     )
 
     # Bots
-    bots: List[BotConfig] = Field(
-        default_factory=list, description="Bot configurations"
-    )
+    bots: List[BotConfig] = Field(default_factory=list, description="Bot configurations")
 
     class Config:
         json_schema_extra = {
