@@ -317,7 +317,7 @@ class DatabaseManager(LoggerMixin):
         async with self.session() as session:
             query = select(GridLevel).where(GridLevel.bot_id == bot_id)
             if active_only:
-                query = query.where(GridLevel.is_active is True)
+                query = query.where(GridLevel.is_active.is_(True))
             query = query.order_by(GridLevel.level)
             result = await session.execute(query)
             return list(result.scalars().all())
