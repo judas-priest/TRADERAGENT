@@ -2,11 +2,10 @@
 Configuration Manager with YAML support, Pydantic validation, and hot reload.
 """
 
-import asyncio
 import hashlib
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
 
 import yaml
 from pydantic import ValidationError
@@ -37,10 +36,10 @@ class ConfigManager(LoggerMixin):
             config_path: Path to main configuration file
         """
         self.config_path = config_path
-        self._config: Optional[AppConfig] = None
-        self._config_hash: Optional[str] = None
+        self._config: AppConfig | None = None
+        self._config_hash: str | None = None
         self._reload_callbacks: list[Callable[[AppConfig], None]] = []
-        self._observer: Optional[Observer] = None
+        self._observer: Observer | None = None
         self._watch_enabled = False
 
         self.logger.info("Initializing ConfigManager", path=str(config_path))
@@ -61,7 +60,7 @@ class ConfigManager(LoggerMixin):
 
         try:
             # Read YAML file
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 raw_config = yaml.safe_load(f)
 
             # Calculate config hash for versioning
@@ -141,7 +140,7 @@ class ConfigManager(LoggerMixin):
             raise RuntimeError("Configuration not loaded. Call load() first.")
         return self._config
 
-    def get_bot_config(self, bot_name: str) -> Optional[BotConfig]:
+    def get_bot_config(self, bot_name: str) -> BotConfig | None:
         """
         Get configuration for a specific bot.
 
@@ -227,7 +226,7 @@ class ConfigManager(LoggerMixin):
         self._watch_enabled = False
         self.logger.info("File watching disabled")
 
-    def save_config(self, config: AppConfig, path: Optional[Path] = None) -> None:
+    def save_config(self, config: AppConfig, path: Path | None = None) -> None:
         """
         Save configuration to file.
 

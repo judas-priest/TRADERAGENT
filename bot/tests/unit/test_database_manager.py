@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database import (
     Bot,
-    DatabaseManager,
     ExchangeCredential,
     GridLevel,
     Order,

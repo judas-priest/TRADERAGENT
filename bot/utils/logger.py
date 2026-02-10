@@ -7,7 +7,7 @@ import logging
 import logging.handlers
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from structlog.types import Processor
@@ -15,7 +15,7 @@ from structlog.types import Processor
 
 def setup_logging(
     log_level: str = "INFO",
-    log_dir: Optional[Path] = None,
+    log_dir: Path | None = None,
     log_to_console: bool = True,
     log_to_file: bool = True,
     json_logs: bool = False,

@@ -1,6 +1,5 @@
 """Exchange API client modules"""
 
-from bot.api.exchange_client import ExchangeAPIClient
 from bot.api.exceptions import (
     AuthenticationError,
     ExchangeAPIError,
@@ -11,6 +10,7 @@ from bot.api.exceptions import (
     OrderError,
     RateLimitError,
 )
+from bot.api.exchange_client import ExchangeAPIClient
 
 __all__ = [
     "ExchangeAPIClient",

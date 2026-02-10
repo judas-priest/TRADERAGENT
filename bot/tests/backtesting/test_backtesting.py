@@ -1,11 +1,12 @@
 """Tests for backtesting framework"""
 
-import pytest
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from bot.tests.backtesting.market_simulator import MarketSimulator, OrderSide, OrderStatus
+import pytest
+
 from bot.tests.backtesting.backtesting_engine import BacktestingEngine
+from bot.tests.backtesting.market_simulator import MarketSimulator
 from bot.tests.backtesting.test_data import HistoricalDataProvider
 
 
@@ -124,7 +125,7 @@ class TestMarketSimulator:
         simulator.set_price(Decimal("45000"))
 
         # Try to buy more than balance allows
-        with pytest.raises(Exception):
+        with pytest.raises((Exception, ValueError)):
             await simulator.create_order(
                 symbol="BTC/USDT",
                 order_type="market",

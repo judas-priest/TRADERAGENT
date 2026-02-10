@@ -36,7 +36,7 @@ COPY --from=builder --chown=botuser:botuser /root/.local /home/botuser/.local
 # Copy application code
 COPY --chown=botuser:botuser bot/ ./bot/
 COPY --chown=botuser:botuser alembic/ ./alembic/
-COPY --chown=botuser:botuser alembic.ini ./
+COPY --chown=botuser:botuser alembic.ini.example ./alembic.ini
 COPY --chown=botuser:botuser configs/ ./configs/
 
 # Switch to non-root user
