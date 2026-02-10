@@ -59,14 +59,38 @@ class BotApplication:
         for bot_config in main_config.bots:
             logger.info("initializing_bot", bot_name=bot_config.name)
 
+            # Load API credentials from database
+            credentials = await self.db_manager.get_credentials_by_name(
+                bot_config.exchange.credentials_name
+            )
+            if not credentials:
+                logger.error(
+                    "credentials_not_found",
+                    bot_name=bot_config.name,
+                    credentials_name=bot_config.exchange.credentials_name,
+                )
+                continue
+
+            # Decrypt credentials
+            encryption_key = os.getenv("ENCRYPTION_KEY", main_config.encryption_key)
+            from cryptography.fernet import Fernet
+
+            fernet = Fernet(encryption_key.encode())
+            api_key = fernet.decrypt(credentials.api_key_encrypted.encode()).decode()
+            api_secret = fernet.decrypt(credentials.api_secret_encrypted.encode()).decode()
+            password = None
+            if credentials.password_encrypted:
+                password = fernet.decrypt(credentials.password_encrypted.encode()).decode()
+
             # Create exchange client
-            # Note: In production, API keys should be loaded from encrypted storage
             exchange_client = ExchangeAPIClient(
                 exchange_id=bot_config.exchange.exchange_id,
-                api_key="",  # Load from encrypted storage
-                api_secret="",  # Load from encrypted storage
+                api_key=api_key,
+                api_secret=api_secret,
+                password=password,
                 sandbox=bot_config.exchange.sandbox,
             )
+            await exchange_client.initialize()
 
             # Create orchestrator
             orchestrator = BotOrchestrator(

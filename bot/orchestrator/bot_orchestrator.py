@@ -119,9 +119,13 @@ class BotOrchestrator:
             )
 
             # Initialize with current balance
-            balance = await self.exchange.get_balance()
+            balance = await self.exchange.fetch_balance()
             quote_currency = self.config.symbol.split("/")[1]
-            available_balance = Decimal(str(balance.get(quote_currency, 0)))
+            currency_balance = balance.get(quote_currency, {})
+            if isinstance(currency_balance, dict):
+                available_balance = Decimal(str(currency_balance.get("free", 0)))
+            else:
+                available_balance = Decimal(str(currency_balance))
             self.risk_manager.initialize_balance(available_balance)
             logger.info(
                 "risk_manager_initialized",
@@ -475,7 +479,7 @@ class BotOrchestrator:
 
         # Check if risk limits triggered emergency stop
         risk_status = self.risk_manager.get_risk_status()
-        if risk_status["halted"]:
+        if risk_status["is_halted"]:
             logger.warning(
                 "risk_limit_triggered",
                 reason=risk_status["halt_reason"],
@@ -559,9 +563,12 @@ class BotOrchestrator:
 
     async def _get_available_balance(self) -> Decimal:
         """Get available balance in quote currency."""
-        balance = await self.exchange.get_balance()
+        balance = await self.exchange.fetch_balance()
         quote_currency = self.config.symbol.split("/")[1]
-        return Decimal(str(balance.get(quote_currency, 0)))
+        currency_balance = balance.get(quote_currency, {})
+        if isinstance(currency_balance, dict):
+            return Decimal(str(currency_balance.get("total", currency_balance.get("free", 0))))
+        return Decimal(str(currency_balance))
 
     async def _publish_event(self, event_type: EventType, data: dict[str, Any]) -> None:
         """

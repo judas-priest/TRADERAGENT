@@ -121,6 +121,11 @@ class RiskManager:
 
         self.current_balance = balance
 
+        # Fix initial_balance if it was 0 at startup
+        if self.initial_balance is not None and self.initial_balance == 0 and balance > 0:
+            self.initial_balance = balance
+            logger.info("Initial balance updated from 0", balance=float(balance))
+
         # Update peak balance
         if self.peak_balance is None or balance > self.peak_balance:
             self.peak_balance = balance
@@ -252,6 +257,7 @@ class RiskManager:
             self.stop_loss_percentage is None
             or self.initial_balance is None
             or self.current_balance is None
+            or self.initial_balance == 0
         ):
             return
 
