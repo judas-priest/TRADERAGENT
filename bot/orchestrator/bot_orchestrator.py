@@ -479,7 +479,7 @@ class BotOrchestrator:
 
         # Check if risk limits triggered emergency stop
         risk_status = self.risk_manager.get_risk_status()
-        if risk_status["halted"]:
+        if risk_status["is_halted"]:
             logger.warning(
                 "risk_limit_triggered",
                 reason=risk_status["halt_reason"],
@@ -567,7 +567,7 @@ class BotOrchestrator:
         quote_currency = self.config.symbol.split("/")[1]
         currency_balance = balance.get(quote_currency, {})
         if isinstance(currency_balance, dict):
-            return Decimal(str(currency_balance.get("free", 0)))
+            return Decimal(str(currency_balance.get("total", currency_balance.get("free", 0))))
         return Decimal(str(currency_balance))
 
     async def _publish_event(self, event_type: EventType, data: dict[str, Any]) -> None:

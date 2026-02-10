@@ -257,6 +257,46 @@ class ExchangeAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
+
+    async def create_order(
+        self,
+        symbol: str,
+        order_type: str,
+        side: str,
+        amount: float,
+        price: float | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Create an order (limit or market).
+
+        Args:
+            symbol: Trading pair symbol
+            order_type: 'limit' or 'market'
+            side: 'buy' or 'sell'
+            amount: Order amount
+            price: Order price (required for limit orders)
+            params: Additional parameters
+
+        Returns:
+            Dictionary with order information
+        """
+        if order_type == "limit" and price is not None:
+            return await self.create_limit_order(
+                symbol=symbol,
+                side=side,
+                amount=Decimal(str(amount)),
+                price=Decimal(str(price)),
+                params=params,
+            )
+        else:
+            return await self.create_market_order(
+                symbol=symbol,
+                side=side,
+                amount=Decimal(str(amount)),
+                params=params,
+            )
+
     async def create_limit_order(
         self,
         symbol: str,
@@ -477,6 +517,22 @@ class ExchangeAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
+
+    async def cancel_all_orders(self, symbol: str) -> list[dict[str, Any]]:
+        """Cancel all open orders for a symbol."""
+        self._handle_rate_limit()
+        self._request_count += 1
+        try:
+            if not self._exchange:
+                raise ExchangeAPIError("Exchange not initialized")
+            result = await self._exchange.cancel_all_orders(symbol)
+            logger.info("All orders cancelled", symbol=symbol)
+            return result
+        except Exception as e:
+            self._error_count += 1
+            logger.error("Failed to cancel all orders", symbol=symbol, error=str(e))
+            raise self._map_exception(e) from e
+
     async def fetch_open_orders(
         self, symbol: str | None = None, params: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
