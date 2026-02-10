@@ -6,7 +6,7 @@ Defines the structure and validation rules for bot configurations.
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class StrategyType(str, Enum):
@@ -154,18 +154,16 @@ class BotConfig(BaseModel):
     dry_run: bool = Field(default=False, description="Run in simulation mode without real orders")
     auto_start: bool = Field(default=False, description="Auto-start bot on initialization")
 
-    @field_validator("strategy")
-    @classmethod
-    def validate_strategy_config(cls, v: StrategyType, info) -> StrategyType:
+    @model_validator(mode="after")
+    def validate_strategy_config(self) -> "BotConfig":
         """Ensure strategy has corresponding configuration"""
-        data = info.data
-        if v in (StrategyType.GRID, StrategyType.HYBRID):
-            if "grid" not in data or data.get("grid") is None:
-                raise ValueError(f"Strategy '{v}' requires grid configuration")
-        if v in (StrategyType.DCA, StrategyType.HYBRID):
-            if "dca" not in data or data.get("dca") is None:
-                raise ValueError(f"Strategy '{v}' requires dca configuration")
-        return v
+        if self.strategy in (StrategyType.GRID, StrategyType.HYBRID):
+            if self.grid is None:
+                raise ValueError(f"Strategy '{self.strategy}' requires grid configuration")
+        if self.strategy in (StrategyType.DCA, StrategyType.HYBRID):
+            if self.dca is None:
+                raise ValueError(f"Strategy '{self.strategy}' requires dca configuration")
+        return self
 
     class Config:
         use_enum_values = True
