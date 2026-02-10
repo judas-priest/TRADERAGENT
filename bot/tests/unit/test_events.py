@@ -1,10 +1,7 @@
 """Unit tests for event system"""
 
 import json
-from datetime import UTC, datetime
 from decimal import Decimal
-
-import pytest
 
 from bot.orchestrator.events import EventType, TradingEvent
 

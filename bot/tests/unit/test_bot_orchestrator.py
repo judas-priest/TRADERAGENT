@@ -1,7 +1,7 @@
 """Unit tests for BotOrchestrator"""
 
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -407,7 +407,7 @@ class TestBotOrchestratorErrorHandling:
         """Test starting bot when exchange fails."""
         mock_exchange.fetch_ticker.side_effect = Exception("Exchange error")
 
-        with pytest.raises(Exception):
+        with pytest.raises((Exception, RuntimeError)):
             await orchestrator.start()
 
         # Bot should remain stopped

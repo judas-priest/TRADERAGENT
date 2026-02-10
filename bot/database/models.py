@@ -5,13 +5,11 @@ Defines tables for bots, credentials, orders, trades, and logs.
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import (
     DECIMAL,
     BigInteger,
     Boolean,
-    Column,
     DateTime,
     Enum,
     ForeignKey,
@@ -39,7 +37,7 @@ class ExchangeCredential(Base):
     exchange_id: Mapped[str] = mapped_column(String(50), nullable=False)
     api_key_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
     api_secret_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
-    password_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    password_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_sandbox: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
@@ -82,8 +80,8 @@ class Bot(Base):
         DECIMAL(20, 8), default=Decimal("0"), nullable=False
     )
     total_trades: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    stopped_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    stopped_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -130,13 +128,13 @@ class Order(Base):
         default="open",
         nullable=False,
     )
-    grid_level: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    grid_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_dca: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
-    filled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    filled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     bot: Mapped["Bot"] = relationship("Bot", back_populates="orders")
@@ -170,7 +168,7 @@ class Trade(Base):
     amount: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
     fee: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), default=Decimal("0"), nullable=False)
     fee_currency: Mapped[str] = mapped_column(String(10), nullable=False)
-    profit: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(20, 8), nullable=True)
+    profit: Mapped[Decimal | None] = mapped_column(DECIMAL(20, 8), nullable=True)
     executed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -200,8 +198,8 @@ class GridLevel(Base):
     bot_id: Mapped[int] = mapped_column(Integer, ForeignKey("bots.id"), nullable=False)
     level: Mapped[int] = mapped_column(Integer, nullable=False)
     price: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
-    buy_order_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    sell_order_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    buy_order_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sell_order_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -264,7 +262,7 @@ class BotLog(Base):
         Enum("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", name="log_level"), nullable=False
     )
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
+    context: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False, index=True
     )

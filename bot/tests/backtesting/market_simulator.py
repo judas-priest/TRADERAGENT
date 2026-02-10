@@ -4,8 +4,8 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any
 
 
 class OrderSide(str, Enum):
@@ -115,9 +115,9 @@ class MarketSimulator:
         self.slippage = slippage
 
         self.current_price = Decimal("45000")  # Default starting price
-        self.orders: Dict[str, SimulatedOrder] = {}
+        self.orders: dict[str, SimulatedOrder] = {}
         self.order_id_counter = 0
-        self.trade_history: List[Dict[str, Any]] = []
+        self.trade_history: list[dict[str, Any]] = []
 
     def set_price(self, price: Decimal) -> None:
         """Update current market price"""
@@ -125,7 +125,7 @@ class MarketSimulator:
         # Check and execute limit orders
         self._check_limit_orders()
 
-    def get_ticker(self) -> Dict[str, Any]:
+    def get_ticker(self) -> dict[str, Any]:
         """Get current market ticker"""
         return {
             "symbol": self.symbol,
@@ -135,7 +135,7 @@ class MarketSimulator:
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-    def get_balance(self) -> Dict[str, Dict[str, float]]:
+    def get_balance(self) -> dict[str, dict[str, float]]:
         """Get account balance"""
         base_currency = self.symbol.split("/")[0]
         quote_currency = self.symbol.split("/")[1]
@@ -159,8 +159,8 @@ class MarketSimulator:
         order_type: str,
         side: str,
         amount: Decimal,
-        price: Optional[Decimal] = None,
-    ) -> Dict[str, Any]:
+        price: Decimal | None = None,
+    ) -> dict[str, Any]:
         """
         Create a simulated order.
 
@@ -231,7 +231,7 @@ class MarketSimulator:
                     if order.order_type == OrderType.MARKET
                     else order.amount * self.maker_fee
                 )
-                amount_after_fee = order.amount - fee
+                order.amount - fee
 
                 # Execute buy
                 self.balance.execute_buy(order.amount, order.price)
@@ -266,13 +266,13 @@ class MarketSimulator:
 
         except ValueError as e:
             order.status = OrderStatus.CANCELED
-            raise Exception(f"Order execution failed: {e}")
+            raise Exception(f"Order execution failed: {e}") from e
 
     def _check_limit_orders(self) -> None:
         """Check and execute limit orders that meet price conditions"""
         orders_to_execute = []
 
-        for order_id, order in self.orders.items():
+        for _order_id, order in self.orders.items():
             if order.status != OrderStatus.OPEN:
                 continue
 
@@ -293,7 +293,7 @@ class MarketSimulator:
             except Exception:
                 pass  # Order execution failed, already marked as canceled
 
-    async def cancel_order(self, order_id: str) -> Dict[str, Any]:
+    async def cancel_order(self, order_id: str) -> dict[str, Any]:
         """Cancel an order"""
         if order_id not in self.orders:
             raise ValueError(f"Order not found: {order_id}")
@@ -305,14 +305,14 @@ class MarketSimulator:
         order.status = OrderStatus.CANCELED
         return self._order_to_dict(order)
 
-    def get_order(self, order_id: str) -> Dict[str, Any]:
+    def get_order(self, order_id: str) -> dict[str, Any]:
         """Get order information"""
         if order_id not in self.orders:
             raise ValueError(f"Order not found: {order_id}")
 
         return self._order_to_dict(self.orders[order_id])
 
-    def get_open_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         """Get all open orders"""
         open_orders = [
             order
@@ -321,7 +321,7 @@ class MarketSimulator:
         ]
         return [self._order_to_dict(order) for order in open_orders]
 
-    def _order_to_dict(self, order: SimulatedOrder) -> Dict[str, Any]:
+    def _order_to_dict(self, order: SimulatedOrder) -> dict[str, Any]:
         """Convert order to dictionary"""
         return {
             "id": order.id,
@@ -341,7 +341,7 @@ class MarketSimulator:
         base_value = self.balance.base * self.current_price
         return self.balance.quote + base_value
 
-    def get_trade_history(self) -> List[Dict[str, Any]]:
+    def get_trade_history(self) -> list[dict[str, Any]]:
         """Get all executed trades"""
         return self.trade_history.copy()
 

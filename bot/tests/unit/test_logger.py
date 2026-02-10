@@ -28,7 +28,7 @@ class TestLogger:
 
     def test_log_context(self):
         """Test log context manager"""
-        logger = get_logger("test")
+        get_logger("test")
 
         with log_context(user_id=123, action="test"):
             # Context should be bound here

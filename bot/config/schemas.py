@@ -5,7 +5,6 @@ Defines the structure and validation rules for bot configurations.
 
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -108,13 +107,13 @@ class RiskManagementConfig(BaseModel):
         gt=0,
         description="Maximum position size in quote currency",
     )
-    stop_loss_percentage: Optional[Decimal] = Field(
+    stop_loss_percentage: Decimal | None = Field(
         default=None,
         gt=0,
         le=1,
         description="Stop loss percentage (0.2 = 20%)",
     )
-    max_daily_loss: Optional[Decimal] = Field(
+    max_daily_loss: Decimal | None = Field(
         default=None,
         gt=0,
         description="Maximum daily loss in quote currency",
@@ -130,8 +129,8 @@ class NotificationConfig(BaseModel):
     """Notification configuration"""
 
     enabled: bool = Field(default=False, description="Enable notifications")
-    telegram_bot_token: Optional[str] = Field(default=None, description="Telegram bot token")
-    telegram_chat_id: Optional[str] = Field(default=None, description="Telegram chat ID")
+    telegram_bot_token: str | None = Field(default=None, description="Telegram bot token")
+    telegram_chat_id: str | None = Field(default=None, description="Telegram chat ID")
     notify_on_trade: bool = Field(default=True, description="Notify on trade execution")
     notify_on_error: bool = Field(default=True, description="Notify on errors")
 
@@ -146,8 +145,8 @@ class BotConfig(BaseModel):
 
     # Sub-configurations
     exchange: ExchangeConfig
-    grid: Optional[GridConfig] = Field(default=None, description="Grid trading configuration")
-    dca: Optional[DCAConfig] = Field(default=None, description="DCA configuration")
+    grid: GridConfig | None = Field(default=None, description="Grid trading configuration")
+    dca: DCAConfig | None = Field(default=None, description="DCA configuration")
     risk_management: RiskManagementConfig
     notifications: NotificationConfig = Field(default_factory=NotificationConfig)
 
@@ -225,7 +224,7 @@ class AppConfig(BaseModel):
     )
 
     # Bots
-    bots: List[BotConfig] = Field(default_factory=list, description="Bot configurations")
+    bots: list[BotConfig] = Field(default_factory=list, description="Bot configurations")
 
     class Config:
         json_schema_extra = {

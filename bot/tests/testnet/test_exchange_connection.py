@@ -1,15 +1,15 @@
 """Tests for exchange connectivity on testnet"""
 
-import pytest
+from typing import Any
+
 import ccxt
-from decimal import Decimal
-from typing import Dict, Any
+import pytest
 
 pytestmark = pytest.mark.testnet
 
 
 @pytest.fixture
-def testnet_config() -> Dict[str, Any]:
+def testnet_config() -> dict[str, Any]:
     """Get testnet configuration from environment or use defaults"""
     import os
 
@@ -22,7 +22,7 @@ def testnet_config() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def exchange_client(testnet_config: Dict[str, Any]):
+def exchange_client(testnet_config: dict[str, Any]):
     """Create CCXT exchange client for testnet"""
     if not testnet_config["api_key"] or not testnet_config["secret"]:
         pytest.skip("Testnet credentials not configured")
@@ -65,7 +65,7 @@ class TestExchangeConnection:
             assert "total" in balance
             assert "free" in balance
             assert "used" in balance
-            print(f"\n✅ Balance fetched successfully")
+            print("\n✅ Balance fetched successfully")
             print(f"   Free USDT: {balance.get('USDT', {}).get('free', 0)}")
             print(f"   Free BTC: {balance.get('BTC', {}).get('free', 0)}")
         except Exception as e:
@@ -81,7 +81,7 @@ class TestExchangeConnection:
             assert "bid" in ticker
             assert "ask" in ticker
             assert ticker["last"] > 0
-            print(f"\n✅ Ticker fetched successfully")
+            print("\n✅ Ticker fetched successfully")
             print(f"   BTC/USDT Last Price: ${ticker['last']:,.2f}")
         except Exception as e:
             pytest.fail(f"Failed to fetch ticker: {e}")
@@ -96,7 +96,7 @@ class TestExchangeConnection:
             assert "asks" in orderbook
             assert len(orderbook["bids"]) > 0
             assert len(orderbook["asks"]) > 0
-            print(f"\n✅ Order book fetched successfully")
+            print("\n✅ Order book fetched successfully")
             print(f"   Best Bid: ${orderbook['bids'][0][0]:,.2f}")
             print(f"   Best Ask: ${orderbook['asks'][0][0]:,.2f}")
         except Exception as e:
@@ -110,7 +110,7 @@ class TestExchangeConnection:
             assert ohlcv is not None
             assert len(ohlcv) > 0
             assert len(ohlcv[0]) == 6  # timestamp, open, high, low, close, volume
-            print(f"\n✅ OHLCV data fetched successfully")
+            print("\n✅ OHLCV data fetched successfully")
             print(f"   Retrieved {len(ohlcv)} candles")
         except Exception as e:
             pytest.fail(f"Failed to fetch OHLCV: {e}")
@@ -126,7 +126,7 @@ class TestExchangeConnection:
             # Find BTC/USDT market
             btc_usdt = next((m for m in markets if m["symbol"] == "BTC/USDT"), None)
             assert btc_usdt is not None
-            print(f"\n✅ Markets fetched successfully")
+            print("\n✅ Markets fetched successfully")
             print(f"   Total markets: {len(markets)}")
             print(f"   BTC/USDT found: {btc_usdt['symbol']}")
         except Exception as e:
@@ -154,7 +154,7 @@ class TestOrderOperations:
             assert order["id"] is not None
             assert order["status"] in ["open", "pending"]
 
-            print(f"\n✅ Limit buy order created successfully")
+            print("\n✅ Limit buy order created successfully")
             print(f"   Order ID: {order['id']}")
             print(f"   Price: ${buy_price:,.2f}")
             print(f"   Amount: {amount} BTC")
@@ -163,7 +163,7 @@ class TestOrderOperations:
             canceled = exchange_client.cancel_order(order["id"], "BTC/USDT")
             assert canceled is not None
 
-            print(f"✅ Order canceled successfully")
+            print("✅ Order canceled successfully")
 
         except Exception as e:
             pytest.fail(f"Failed order operation: {e}")
@@ -174,7 +174,7 @@ class TestOrderOperations:
         try:
             orders = exchange_client.fetch_open_orders("BTC/USDT")
             assert orders is not None
-            print(f"\n✅ Open orders fetched successfully")
+            print("\n✅ Open orders fetched successfully")
             print(f"   Open orders count: {len(orders)}")
         except Exception as e:
             pytest.fail(f"Failed to fetch open orders: {e}")
@@ -185,7 +185,7 @@ class TestOrderOperations:
         try:
             orders = exchange_client.fetch_closed_orders("BTC/USDT", limit=10)
             assert orders is not None
-            print(f"\n✅ Closed orders fetched successfully")
+            print("\n✅ Closed orders fetched successfully")
             print(f"   Closed orders count: {len(orders)}")
         except Exception as e:
             # Some exchanges might not support this
@@ -204,13 +204,13 @@ class TestRateLimiting:
             # Make multiple rapid requests
             start_time = time.time()
 
-            for i in range(5):
+            for _i in range(5):
                 exchange_client.fetch_ticker("BTC/USDT")
 
             elapsed = time.time() - start_time
 
             # Should take at least some time due to rate limiting
-            print(f"\n✅ Rate limiting test completed")
+            print("\n✅ Rate limiting test completed")
             print(f"   5 requests took {elapsed:.2f} seconds")
             print(f"   Rate limit enabled: {exchange_client.enableRateLimit}")
 

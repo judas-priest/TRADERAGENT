@@ -13,7 +13,6 @@ from bot.config.schemas import (
     RiskManagementConfig,
 )
 from bot.orchestrator.bot_orchestrator import BotOrchestrator, BotState
-from bot.orchestrator.events import EventType
 
 
 @pytest.fixture
@@ -139,7 +138,7 @@ class TestHybridStrategyOrchestration:
         orchestrator.current_price = Decimal("38000")
 
         # Check if DCA would trigger
-        dca_result = orchestrator.dca_engine.update_price(Decimal("38000"))
+        orchestrator.dca_engine.update_price(Decimal("38000"))
 
         # At this price (below grid), DCA should be ready to trigger
         # (actual trigger logic depends on DCA engine implementation)

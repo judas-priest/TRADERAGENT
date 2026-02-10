@@ -3,8 +3,9 @@ Database Manager with async operations and connection pooling.
 Provides high-level interface for database operations.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, List, Optional, Type, TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import (
@@ -13,7 +14,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import selectinload
 
 from bot.database.models import (
     Base,
@@ -61,8 +61,8 @@ class DatabaseManager(LoggerMixin):
             echo: Whether to log all SQL statements
         """
         self.database_url = database_url
-        self._engine: Optional[AsyncEngine] = None
-        self._session_factory: Optional[async_sessionmaker[AsyncSession]] = None
+        self._engine: AsyncEngine | None = None
+        self._session_factory: async_sessionmaker[AsyncSession] | None = None
         self._pool_size = pool_size
         self._max_overflow = max_overflow
         self._pool_pre_ping = pool_pre_ping
@@ -169,7 +169,7 @@ class DatabaseManager(LoggerMixin):
             await session.refresh(obj)
             return obj
 
-    async def get(self, model: Type[T], id: int) -> Optional[T]:
+    async def get(self, model: type[T], id: int) -> T | None:
         """Get object by ID"""
         async with self.session() as session:
             result = await session.execute(select(model).where(model.id == id))
@@ -195,17 +195,17 @@ class DatabaseManager(LoggerMixin):
         self.logger.info("Creating bot", name=bot.name, symbol=bot.symbol)
         return await self.create(bot)
 
-    async def get_bot(self, bot_id: int) -> Optional[Bot]:
+    async def get_bot(self, bot_id: int) -> Bot | None:
         """Get bot by ID"""
         return await self.get(Bot, bot_id)
 
-    async def get_bot_by_name(self, name: str) -> Optional[Bot]:
+    async def get_bot_by_name(self, name: str) -> Bot | None:
         """Get bot by name"""
         async with self.session() as session:
             result = await session.execute(select(Bot).where(Bot.name == name))
             return result.scalar_one_or_none()
 
-    async def get_all_bots(self, status: Optional[str] = None) -> List[Bot]:
+    async def get_all_bots(self, status: str | None = None) -> list[Bot]:
         """Get all bots, optionally filtered by status"""
         async with self.session() as session:
             query = select(Bot)
@@ -230,11 +230,11 @@ class DatabaseManager(LoggerMixin):
         )
         return await self.create(credentials)
 
-    async def get_credentials(self, credentials_id: int) -> Optional[ExchangeCredential]:
+    async def get_credentials(self, credentials_id: int) -> ExchangeCredential | None:
         """Get credentials by ID"""
         return await self.get(ExchangeCredential, credentials_id)
 
-    async def get_credentials_by_name(self, name: str) -> Optional[ExchangeCredential]:
+    async def get_credentials_by_name(self, name: str) -> ExchangeCredential | None:
         """Get credentials by name"""
         async with self.session() as session:
             result = await session.execute(
@@ -255,11 +255,11 @@ class DatabaseManager(LoggerMixin):
         )
         return await self.create(order)
 
-    async def get_order(self, order_id: int) -> Optional[Order]:
+    async def get_order(self, order_id: int) -> Order | None:
         """Get order by ID"""
         return await self.get(Order, order_id)
 
-    async def get_order_by_exchange_id(self, exchange_order_id: str) -> Optional[Order]:
+    async def get_order_by_exchange_id(self, exchange_order_id: str) -> Order | None:
         """Get order by exchange order ID"""
         async with self.session() as session:
             result = await session.execute(
@@ -267,7 +267,7 @@ class DatabaseManager(LoggerMixin):
             )
             return result.scalar_one_or_none()
 
-    async def get_bot_orders(self, bot_id: int, status: Optional[str] = None) -> List[Order]:
+    async def get_bot_orders(self, bot_id: int, status: str | None = None) -> list[Order]:
         """Get all orders for a bot, optionally filtered by status"""
         async with self.session() as session:
             query = select(Order).where(Order.bot_id == bot_id)
@@ -296,8 +296,8 @@ class DatabaseManager(LoggerMixin):
     async def get_bot_trades(
         self,
         bot_id: int,
-        limit: Optional[int] = None,
-    ) -> List[Trade]:
+        limit: int | None = None,
+    ) -> list[Trade]:
         """Get trades for a bot, optionally limited"""
         async with self.session() as session:
             query = select(Trade).where(Trade.bot_id == bot_id).order_by(Trade.executed_at.desc())
@@ -312,12 +312,12 @@ class DatabaseManager(LoggerMixin):
         """Create a grid level"""
         return await self.create(grid_level)
 
-    async def get_bot_grid_levels(self, bot_id: int, active_only: bool = True) -> List[GridLevel]:
+    async def get_bot_grid_levels(self, bot_id: int, active_only: bool = True) -> list[GridLevel]:
         """Get grid levels for a bot"""
         async with self.session() as session:
             query = select(GridLevel).where(GridLevel.bot_id == bot_id)
             if active_only:
-                query = query.where(GridLevel.is_active == True)
+                query = query.where(GridLevel.is_active is True)
             query = query.order_by(GridLevel.level)
             result = await session.execute(query)
             return list(result.scalars().all())
@@ -341,8 +341,8 @@ class DatabaseManager(LoggerMixin):
     async def get_bot_dca_history(
         self,
         bot_id: int,
-        limit: Optional[int] = None,
-    ) -> List[DCAHistory]:
+        limit: int | None = None,
+    ) -> list[DCAHistory]:
         """Get DCA history for a bot"""
         async with self.session() as session:
             query = (
@@ -364,9 +364,9 @@ class DatabaseManager(LoggerMixin):
     async def get_bot_logs(
         self,
         bot_id: int,
-        level: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[BotLog]:
+        level: str | None = None,
+        limit: int | None = 100,
+    ) -> list[BotLog]:
         """Get logs for a bot"""
         async with self.session() as session:
             query = select(BotLog).where(BotLog.bot_id == bot_id)
@@ -380,9 +380,9 @@ class DatabaseManager(LoggerMixin):
 
     # Statistics and Analytics
 
-    async def get_bot_statistics(self, bot_id: int) -> Dict[str, Any]:
+    async def get_bot_statistics(self, bot_id: int) -> dict[str, Any]:
         """Get comprehensive statistics for a bot"""
-        async with self.session() as session:
+        async with self.session():
             bot = await self.get_bot(bot_id)
             if not bot:
                 return {}

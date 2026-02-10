@@ -1,8 +1,8 @@
 """Pytest configuration and shared fixtures"""
 
 import asyncio
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine

@@ -3,10 +3,9 @@ Exchange API Client with CCXT wrapper
 Handles rate limiting, retry logic, error handling, and WebSocket support
 """
 
-import asyncio
 import time
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import ccxt.pro as ccxtpro
 from ccxt.async_support import Exchange as CCXTExchange
@@ -49,7 +48,7 @@ class ExchangeAPIClient:
         exchange_id: str,
         api_key: str,
         api_secret: str,
-        password: Optional[str] = None,
+        password: str | None = None,
         sandbox: bool = False,
         rate_limit: bool = True,
     ) -> None:
@@ -72,10 +71,10 @@ class ExchangeAPIClient:
         self._rate_limit = rate_limit
 
         # Initialize REST exchange
-        self._exchange: Optional[CCXTExchange] = None
+        self._exchange: CCXTExchange | None = None
 
         # Initialize WebSocket exchange
-        self._ws_exchange: Optional[ccxtpro.Exchange] = None
+        self._ws_exchange: ccxtpro.Exchange | None = None
 
         # Rate limiting state
         self._last_request_time = 0.0
@@ -175,7 +174,7 @@ class ExchangeAPIClient:
 
     def _map_ccxt_exception(self, e: Exception) -> ExchangeAPIError:
         """Map CCXT exceptions to custom exceptions"""
-        error_str = str(e).lower()
+        str(e).lower()
 
         if isinstance(e, ccxtpro.RateLimitExceeded):
             return RateLimitError(f"Rate limit exceeded: {e}")
@@ -199,7 +198,7 @@ class ExchangeAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    async def fetch_balance(self) -> Dict[str, Any]:
+    async def fetch_balance(self) -> dict[str, Any]:
         """
         Fetch account balance.
 
@@ -227,7 +226,7 @@ class ExchangeAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    async def fetch_ticker(self, symbol: str) -> Dict[str, Any]:
+    async def fetch_ticker(self, symbol: str) -> dict[str, Any]:
         """
         Fetch ticker data for a symbol.
 
@@ -264,8 +263,8 @@ class ExchangeAPIClient:
         side: str,
         amount: Decimal,
         price: Decimal,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Create a limit order.
 
@@ -326,8 +325,8 @@ class ExchangeAPIClient:
         symbol: str,
         side: str,
         amount: Decimal,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Create a market order.
 
@@ -380,8 +379,8 @@ class ExchangeAPIClient:
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
     async def cancel_order(
-        self, order_id: str, symbol: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, order_id: str, symbol: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Cancel an order.
 
@@ -429,8 +428,8 @@ class ExchangeAPIClient:
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
     async def fetch_order(
-        self, order_id: str, symbol: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, order_id: str, symbol: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Fetch order details.
 
@@ -479,8 +478,8 @@ class ExchangeAPIClient:
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
     async def fetch_open_orders(
-        self, symbol: Optional[str] = None, params: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        self, symbol: str | None = None, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Fetch open orders.
 
@@ -519,7 +518,7 @@ class ExchangeAPIClient:
             )
             raise self._map_ccxt_exception(e) from e
 
-    async def watch_ticker(self, symbol: str) -> Dict[str, Any]:
+    async def watch_ticker(self, symbol: str) -> dict[str, Any]:
         """
         Watch ticker updates via WebSocket.
 
@@ -544,7 +543,7 @@ class ExchangeAPIClient:
             )
             raise self._map_ccxt_exception(e) from e
 
-    async def watch_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def watch_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         """
         Watch order updates via WebSocket.
 
@@ -569,7 +568,7 @@ class ExchangeAPIClient:
             )
             raise self._map_ccxt_exception(e) from e
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get client statistics"""
         return {
             "exchange": self.exchange_id,

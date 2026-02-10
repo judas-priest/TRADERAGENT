@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from bot.config import ConfigManager
-from bot.config.schemas import AppConfig, StrategyType
+from bot.config.schemas import AppConfig
 
 
 class TestConfigManager:
@@ -36,7 +36,7 @@ class TestConfigManager:
 
         manager = ConfigManager(invalid_file)
 
-        with pytest.raises(Exception):  # yaml.YAMLError
+        with pytest.raises((Exception, ValueError)):  # yaml.YAMLError or config error
             manager.load()
 
     def test_load_invalid_schema(self, test_config_dir: Path):

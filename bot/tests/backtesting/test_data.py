@@ -3,7 +3,7 @@
 import random
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 
 
 class HistoricalDataProvider:
@@ -15,7 +15,7 @@ class HistoricalDataProvider:
     """
 
     def __init__(self):
-        self.cache: Dict[str, List[Dict[str, Any]]] = {}
+        self.cache: dict[str, list[dict[str, Any]]] = {}
 
     def get_historical_prices(
         self,
@@ -23,7 +23,7 @@ class HistoricalDataProvider:
         start_date: datetime,
         end_date: datetime,
         interval: str = "1h",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get historical OHLCV candlestick data.
 
@@ -58,7 +58,7 @@ class HistoricalDataProvider:
         start_date: datetime,
         end_date: datetime,
         interval: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Generate realistic synthetic OHLCV data"""
         # Convert interval to timedelta
         interval_delta = self._parse_interval(interval)
@@ -122,7 +122,7 @@ class HistoricalDataProvider:
         else:
             raise ValueError(f"Invalid interval: {interval}")
 
-    def load_csv_data(self, filepath: str) -> List[Dict[str, Any]]:
+    def load_csv_data(self, filepath: str) -> list[dict[str, Any]]:
         """
         Load historical data from CSV file.
 
@@ -132,7 +132,7 @@ class HistoricalDataProvider:
 
         candles = []
 
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 candle = {
@@ -155,7 +155,7 @@ class HistoricalDataProvider:
         interval: str,
         trend: str = "up",  # "up", "down", or "sideways"
         base_price: Decimal = Decimal("45000"),
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Generate synthetic data with a specific trend.
 

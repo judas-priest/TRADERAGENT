@@ -1,11 +1,11 @@
 """Backtesting engine for evaluating trading strategies"""
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
-import json
+from typing import Any
 
 from .market_simulator import MarketSimulator
 from .test_data import HistoricalDataProvider
@@ -41,13 +41,13 @@ class BacktestResult:
     avg_profit_per_trade: Decimal
 
     # Risk metrics
-    sharpe_ratio: Optional[Decimal] = None
+    sharpe_ratio: Decimal | None = None
     max_position_value: Decimal = Decimal("0")
 
-    trade_history: List[Dict[str, Any]] = field(default_factory=list)
-    equity_curve: List[Dict[str, Any]] = field(default_factory=list)
+    trade_history: list[dict[str, Any]] = field(default_factory=list)
+    equity_curve: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary"""
         return {
             "strategy_name": self.strategy_name,
@@ -106,7 +106,7 @@ class BacktestResult:
         print(f"  Sell Orders:      {self.total_sell_orders}")
         print(f"  Avg Profit/Trade: ${self.avg_profit_per_trade:.2f}")
         if self.sharpe_ratio:
-            print(f"\nRisk Metrics:")
+            print("\nRisk Metrics:")
             print(f"  Sharpe Ratio:     {self.sharpe_ratio:.4f}")
         print("=" * 70)
 
@@ -138,7 +138,7 @@ class BacktestingEngine:
     async def run_backtest(
         self,
         strategy_name: str,
-        strategy_config: Dict[str, Any],
+        strategy_config: dict[str, Any],
         start_date: datetime,
         end_date: datetime,
         data_interval: str = "1h",
@@ -176,7 +176,7 @@ class BacktestingEngine:
         max_drawdown = Decimal("0")
 
         # Simulate strategy over historical data
-        for i, candle in enumerate(price_data):
+        for _i, candle in enumerate(price_data):
             timestamp = candle["timestamp"]
             price = Decimal(str(candle["close"]))
 
@@ -220,7 +220,7 @@ class BacktestingEngine:
         start_time: datetime,
         end_time: datetime,
         max_drawdown: Decimal,
-        equity_curve: List[Dict[str, Any]],
+        equity_curve: list[dict[str, Any]],
     ) -> BacktestResult:
         """Calculate backtest results"""
         # Get trade history
@@ -296,7 +296,7 @@ class BacktestingEngine:
             equity_curve=equity_curve,
         )
 
-    def _calculate_sharpe_ratio(self, equity_curve: List[Dict[str, Any]]) -> Optional[Decimal]:
+    def _calculate_sharpe_ratio(self, equity_curve: list[dict[str, Any]]) -> Decimal | None:
         """Calculate Sharpe ratio from equity curve"""
         if len(equity_curve) < 2:
             return None
@@ -329,7 +329,7 @@ class BacktestingEngine:
 
     async def run_grid_backtest(
         self,
-        grid_config: Dict[str, Any],
+        grid_config: dict[str, Any],
         start_date: datetime,
         end_date: datetime,
     ) -> BacktestResult:
@@ -338,11 +338,11 @@ class BacktestingEngine:
         upper_price = Decimal(str(grid_config["upper_price"]))
         lower_price = Decimal(str(grid_config["lower_price"]))
         grid_levels = grid_config["grid_levels"]
-        amount_per_grid = Decimal(str(grid_config["amount_per_grid"]))
+        Decimal(str(grid_config["amount_per_grid"]))
 
         # Calculate grid prices
         price_step = (upper_price - lower_price) / Decimal(grid_levels - 1)
-        grid_prices = [lower_price + price_step * Decimal(i) for i in range(grid_levels)]
+        [lower_price + price_step * Decimal(i) for i in range(grid_levels)]
 
         # Run backtest
         return await self.run_backtest(
