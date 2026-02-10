@@ -90,6 +90,7 @@ class BotApplication:
                 password=password,
                 sandbox=bot_config.exchange.sandbox,
             )
+            await exchange_client.initialize()
 
             # Create orchestrator
             orchestrator = BotOrchestrator(
