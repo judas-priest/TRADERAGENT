@@ -62,13 +62,12 @@ class GridConfig(BaseModel):
         description="Profit percentage per grid (0.01 = 1%)",
     )
 
-    @field_validator("upper_price")
-    @classmethod
-    def validate_upper_price(cls, v: Decimal, info) -> Decimal:
+    @model_validator(mode="after")
+    def validate_price_range(self) -> "GridConfig":
         """Ensure upper price is greater than lower price"""
-        if "lower_price" in info.data and v <= info.data["lower_price"]:
+        if self.upper_price <= self.lower_price:
             raise ValueError("upper_price must be greater than lower_price")
-        return v
+        return self
 
 
 class DCAConfig(BaseModel):

@@ -127,6 +127,11 @@ class TestBotOrchestratorInitialization:
                 amount_per_grid="100",
                 profit_per_grid="0.01",
             ),
+            risk_management=RiskManagementConfig(
+                max_position_size="5000",
+                stop_loss_percentage="0.15",
+                min_order_size="10",
+            ),
             dry_run=True,
             auto_start=False,
         )
@@ -168,6 +173,11 @@ class TestBotOrchestratorInitialization:
                 amount_per_step="100",
                 max_steps=3,
                 take_profit_percentage="0.1",
+            ),
+            risk_management=RiskManagementConfig(
+                max_position_size="5000",
+                stop_loss_percentage="0.15",
+                min_order_size="10",
             ),
             dry_run=True,
             auto_start=False,
