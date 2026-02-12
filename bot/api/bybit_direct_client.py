@@ -188,15 +188,16 @@ class ByBitDirectClient:
         headers = {}
         params_str = ""
 
+        # Build query string for GET requests (authenticated or not)
+        if method == "GET" and params:
+            params_str = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
+            url = f"{url}?{params_str}" if params_str else url
+
         if authenticated:
             timestamp = int(time.time() * 1000)
 
-            if method == "GET":
-                # For GET: params as query string
-                params_str = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
-                url = f"{url}?{params_str}" if params_str else url
-            else:
-                # For POST: params as JSON body
+            if method == "POST":
+                # For POST: params as JSON body for signature
                 import json
 
                 params_str = json.dumps(params) if params else ""
@@ -205,6 +206,15 @@ class ByBitDirectClient:
             headers = self._build_headers(timestamp, signature)
 
         try:
+            # Log request for debugging
+            logger.debug(
+                "bybit_api_request",
+                method=method,
+                url=url,
+                params=params if method == "POST" else None,
+                authenticated=authenticated,
+            )
+
             if method == "GET":
                 async with self._session.get(url, headers=headers) as response:
                     data = await response.json()
@@ -225,6 +235,7 @@ class ByBitDirectClient:
                 logger.error(
                     "ByBit API error",
                     endpoint=endpoint,
+                    url=url,
                     ret_code=ret_code,
                     ret_msg=ret_msg,
                 )
@@ -285,8 +296,11 @@ class ByBitDirectClient:
 
         for coin_data in coins:
             currency = coin_data.get("coin", "")
-            total = float(coin_data.get("walletBalance", "0"))
-            free = float(coin_data.get("availableToWithdraw", str(total)))
+            wallet_balance = coin_data.get("walletBalance", "0") or "0"
+            available = coin_data.get("availableToWithdraw", "") or str(wallet_balance)
+
+            total = float(wallet_balance) if wallet_balance else 0.0
+            free = float(available) if available else total
             used = total - free
 
             balance["total"][currency] = total
@@ -478,6 +492,8 @@ class ByBitDirectClient:
             "orderType": "Limit",
             "qty": str(amount),
             "price": str(price),
+            "timeInForce": "GTC",  # Good Till Cancel
+            "positionIdx": 0,  # One-way mode for futures
             **params,
         }
 
@@ -560,6 +576,25 @@ class ByBitDirectClient:
             "side": side.lower(),
             "amount": float(amount),
         }
+    async def create_order(
+        self,
+        symbol: str,
+        order_type: str,
+        side: str,
+        amount: float,
+        price: float | None = None,
+        params: dict | None = None,
+    ) -> dict[str, Any]:
+        """Create an order wrapper for compatibility."""
+        if order_type.lower() == 'limit':
+            if price is None:
+                raise ValueError("Price required for limit orders")
+            return await self.create_limit_order(symbol, side, amount, price, params)
+        elif order_type.lower() == 'market':
+            return await self.create_market_order(symbol, side, amount, params)
+        else:
+            raise ValueError(f"Unknown order type: {order_type}")
+
 
     def get_statistics(self) -> dict[str, Any]:
         """Get client statistics"""

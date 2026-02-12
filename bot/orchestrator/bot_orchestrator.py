@@ -121,11 +121,9 @@ class BotOrchestrator:
             # Initialize with current balance
             balance = await self.exchange.fetch_balance()
             quote_currency = self.config.symbol.split("/")[1]
-            currency_balance = balance.get(quote_currency, {})
-            if isinstance(currency_balance, dict):
-                available_balance = Decimal(str(currency_balance.get("free", 0)))
-            else:
-                available_balance = Decimal(str(currency_balance))
+            # balance structure: {'free': {'USDT': 100000, ...}, 'total': {...}, 'used': {...}}
+            free_balances = balance.get('free', {})
+            available_balance = Decimal(str(free_balances.get(quote_currency, 0)))
             self.risk_manager.initialize_balance(available_balance)
             logger.info(
                 "risk_manager_initialized",
@@ -565,10 +563,9 @@ class BotOrchestrator:
         """Get available balance in quote currency."""
         balance = await self.exchange.fetch_balance()
         quote_currency = self.config.symbol.split("/")[1]
-        currency_balance = balance.get(quote_currency, {})
-        if isinstance(currency_balance, dict):
-            return Decimal(str(currency_balance.get("total", currency_balance.get("free", 0))))
-        return Decimal(str(currency_balance))
+        # balance structure: {'free': {...}, 'total': {...}, 'used': {...}}
+        free_balances = balance.get('free', {})
+        return Decimal(str(free_balances.get(quote_currency, 0)))
 
     async def _publish_event(self, event_type: EventType, data: dict[str, Any]) -> None:
         """
@@ -631,7 +628,16 @@ class BotOrchestrator:
         if self.state != BotState.STOPPED:
             await self.stop()
 
+        # Close exchange client connection
+        if self.exchange:
+            try:
+                await self.exchange.close()
+                logger.info("exchange_client_closed")
+            except Exception as e:
+                logger.error("exchange_close_failed", error=str(e))
+
         if self.redis_client:
             await self.redis_client.aclose()
 
         logger.info("orchestrator_cleaned_up")
+

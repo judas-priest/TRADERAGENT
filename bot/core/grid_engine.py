@@ -152,12 +152,16 @@ class GridEngine:
         orders_to_place = []
 
         for level_idx, price in enumerate(levels):
+            # Convert amount from quote currency (USD) to base currency (BTC)
+            # amount_per_grid is in USDT, but exchange expects BTC quantity
+            base_amount = (self.amount_per_grid / price).quantize(Decimal("0.001"))
+
             # Create buy orders below current price
             if price < current_price:
                 order = GridOrder(
                     level=level_idx,
                     price=price,
-                    amount=self.amount_per_grid,
+                    amount=base_amount,
                     side="buy",
                 )
                 self.grid_orders.append(order)
@@ -167,10 +171,12 @@ class GridEngine:
             elif price > current_price:
                 # Calculate sell price with profit margin
                 sell_price = price * (Decimal("1") + self.profit_per_grid)
+                # Convert amount at sell price
+                sell_base_amount = (self.amount_per_grid / sell_price).quantize(Decimal("0.001"))
                 order = GridOrder(
                     level=level_idx,
                     price=sell_price,
-                    amount=self.amount_per_grid,
+                    amount=sell_base_amount,
                     side="sell",
                 )
                 self.grid_orders.append(order)
@@ -270,10 +276,13 @@ class GridEngine:
             new_price = filled_price * (Decimal("1") - self.profit_per_grid)
             new_side = "buy"
 
+        # Convert amount from quote currency (USD) to base currency (BTC)
+        base_amount = (self.amount_per_grid / new_price).quantize(Decimal("0.001"))
+
         rebalance_order = GridOrder(
             level=filled_order.level,
             price=new_price,
-            amount=self.amount_per_grid,
+            amount=base_amount,
             side=new_side,
         )
 
