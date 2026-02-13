@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backtest Reports Index</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .section {
+            padding: 40px;
+        }
+        .section h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .report-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .report-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .report-card .meta {
+            color: #666;
+            font-size: 0.9em;
+            margin: 5px 0;
+        }
+        .report-card .links {
+            margin-top: 15px;
+        }
+        .report-card a {
+            display: inline-block;
+            margin-right: 10px;
+            margin-top: 5px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .report-card a:hover {
+            background: #5568d3;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .stat {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .stat .label {
+            font-size: 0.8em;
+            color: #666;
+        }
+        .stat .value {
+            font-weight: bold;
+            color: #333;
+        }
+        .stat .value.positive {
+            color: #10b981;
+        }
+        .stat .value.negative {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Backtest Reports</h1>
+            <div style="margin-top: 10px; opacity: 0.9;">Generated: 2/13/2026, 12:57:21 PM</div>
+        </div>
+
+        <div class="section">
+            <h2>📊 Available Reports (4)</h2>
+            <div class="report-grid">
+                
+                    <div class="report-card">
+                        <h3>Simplified Trend-Follower</h3>
+                        <div class="meta">
+                            ETH/USDT • 1h
+                        </div>
+                        <div class="meta">
+                            2025-08-17T09:00:00 → 2026-02-13T08:00:00
+                        </div>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="label">Return</div>
+                                <div class="value positive">
+                                    +217044666700.67%
+                                </div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Sharpe</div>
+                                <div class="value">19.41</div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Trades</div>
+                                <div class="value">226</div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Win Rate</div>
+                                <div class="value">29.2%</div>
+                            </div>
+                        </div>
+                        <div class="links">
+                            <a href="html/2026-02-13T09-56-54_Simplified-Trend-Follower_ETH-USDT_1h.html">📄 View Report</a>
+                            <a href="csv/2026-02-13T09-56-54_Simplified-Trend-Follower_ETH-USDT_1h/summary.csv">📊 CSV</a>
+                        </div>
+                    </div>
+                
+                    <div class="report-card">
+                        <h3>Simplified SMC</h3>
+                        <div class="meta">
+                            ETH/USDT • 1h
+                        </div>
+                        <div class="meta">
+                            2025-08-17T09:00:00 → 2026-02-13T08:00:00
+                        </div>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="label">Return</div>
+                                <div class="value positive">
+                                    +12999.00%
+                                </div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Sharpe</div>
+                                <div class="value">10.21</div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Trades</div>
+                                <div class="value">51</div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Win Rate</div>
+                                <div class="value">41.2%</div>
+                            </div>
+                        </div>
+                        <div class="links">
+                            <a href="html/2026-02-13T09-56-54_Simplified-SMC_ETH-USDT_1h.html">📄 View Report</a>
+                            <a href="csv/2026-02-13T09-56-54_Simplified-SMC_ETH-USDT_1h/summary.csv">📊 CSV</a>
+                        </div>
+                    </div>
+                
+                    <div class="report-card">
+                        <h3>Simplified Trend-Follower</h3>
+                        <div class="meta">
+                            ETH/USDT • 1h
+                        </div>
+                        <div class="meta">
+                            2025-08-17T09:00:00 → 2026-02-13T08:00:00
+                        </div>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="label">Return</div>
+                                <div class="value positive">
+                                    +217044666700.67%
+                                </div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Sharpe</div>
+                                <div class="value">19.41</div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Trades</div>
+                                <div class="value">226</div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Win Rate</div>
+                                <div class="value">29.2%</div>
+                            </div>
+                        </div>
+                        <div class="links">
+                            <a href="html/2026-02-13T09-07-00_Simplified-Trend-Follower_ETH-USDT_1h.html">📄 View Report</a>
+                            <a href="csv/2026-02-13T09-07-00_Simplified-Trend-Follower_ETH-USDT_1h/summary.csv">📊 CSV</a>
+                        </div>
+                    </div>
+                
+                    <div class="report-card">
+                        <h3>Simplified SMC</h3>
+                        <div class="meta">
+                            ETH/USDT • 1h
+                        </div>
+                        <div class="meta">
+                            2025-08-17T09:00:00 → 2026-02-13T08:00:00
+                        </div>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="label">Return</div>
+                                <div class="value positive">
+                                    +12999.00%
+                                </div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Sharpe</div>
+                                <div class="value">10.21</div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Trades</div>
+                                <div class="value">51</div>
+                            </div>
+                            <div class="stat">
+                                <div class="label">Win Rate</div>
+                                <div class="value">41.2%</div>
+                            </div>
+                        </div>
+                        <div class="links">
+                            <a href="html/2026-02-13T09-07-00_Simplified-SMC_ETH-USDT_1h.html">📄 View Report</a>
+                            <a href="csv/2026-02-13T09-07-00_Simplified-SMC_ETH-USDT_1h/summary.csv">📊 CSV</a>
+                        </div>
+                    </div>
+                
+            </div>
+        </div>
+
+        
+        <div class="section">
+            <h2>🔍 Comparison Reports</h2>
+            <div class="report-grid">
+                <div class="report-card">
+                    <h3>Strategy Comparison</h3>
+                    <div class="meta">Compare all strategies side-by-side</div>
+                    <div class="links">
+                        <a href="html/comparison_ETH-USDT_1h.html">📊 View Comparison</a>
+                        <a href="csv/comparison_ETH-USDT_1h.csv">📄 CSV</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div style="padding: 20px; text-align: center; background: #f8f9fa; color: #666;">
+            <p>TRADERAGENT Backtest Module • Powered by Claude Code</p>
+        </div>
+    </div>
+</body>
+</html>

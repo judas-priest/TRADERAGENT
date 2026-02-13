@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backtest Report - Simplified SMC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 40px;
+            background: #f8f9fa;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .metric-card .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .metric-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .metric-card .value.positive {
+            color: #10b981;
+        }
+
+        .metric-card .value.negative {
+            color: #ef4444;
+        }
+
+        .section {
+            padding: 40px;
+        }
+
+        .section h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        table tr:hover {
+            background: #f3f4f6;
+        }
+
+        .trade-row.win {
+            background: #d1fae5;
+        }
+
+        .trade-row.loss {
+            background: #fee2e2;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge.win {
+            background: #10b981;
+            color: white;
+        }
+
+        .badge.loss {
+            background: #ef4444;
+            color: white;
+        }
+
+        .footer {
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .summary {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Backtest Report</h1>
+            <div class="subtitle">Simplified SMC</div>
+            <div class="subtitle">ETH/USDT • 1h</div>
+            <div class="subtitle">2025-08-17T09:00:00 → 2026-02-13T08:00:00</div>
+        </div>
+
+        <div class="summary">
+            
+            <div class="metric-card">
+                <div class="label">Начальный баланс</div>
+                <div class="value ">$10,000</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="label">Конечный баланс</div>
+                <div class="value positive">$1,309,899.978</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="label">Общая доходность</div>
+                <div class="value positive">+12999.00%</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="label">Всего сделок</div>
+                <div class="value ">51</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="label">Win Rate</div>
+                <div class="value negative">41.2%</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="label">Profit Factor</div>
+                <div class="value positive">2.61</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📊 Детальные метрики</h2>
+            
+        <table>
+            <tr>
+                <th>Метрика</th>
+                <th>Значение</th>
+            </tr>
+            <tr>
+                <td>Прибыльные сделки</td>
+                <td>21</td>
+            </tr>
+            <tr>
+                <td>Убыточные сделки</td>
+                <td>30</td>
+            </tr>
+            <tr>
+                <td>Средняя прибыль</td>
+                <td>$1231.90</td>
+            </tr>
+            <tr>
+                <td>Средний убыток</td>
+                <td>$330.74</td>
+            </tr>
+            <tr>
+                <td>Наибольшая прибыль</td>
+                <td>$9094.80</td>
+            </tr>
+            <tr>
+                <td>Наибольший убыток</td>
+                <td>$-1782.21</td>
+            </tr>
+            <tr>
+                <td><strong>Sharpe Ratio</strong></td>
+                <td><strong>10.21</strong></td>
+            </tr>
+            <tr>
+                <td><strong>Sortino Ratio</strong></td>
+                <td><strong>930.53</strong></td>
+            </tr>
+            <tr>
+                <td><strong>Max Drawdown</strong></td>
+                <td><strong>0.21%</strong></td>
+            </tr>
+            <tr>
+                <td>Calmar Ratio</td>
+                <td>124753.13</td>
+            </tr>
+            <tr>
+                <td>Recovery Factor</td>
+                <td>764.16</td>
+            </tr>
+            <tr>
+                <td>Волатильность</td>
+                <td>103.47%</td>
+            </tr>
+            <tr>
+                <td>Средняя длительность сделки</td>
+                <td>17.1 часов</td>
+            </tr>
+        </table>
+        </div>
+
+        <div class="section">
+            <h2>💼 История сделок</h2>
+            
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Тип</th>
+                <th>Вход</th>
+                <th>Выход</th>
+                <th>P&L</th>
+                <th>P&L %</th>
+                <th>Причина</th>
+                <th>Дата</th>
+            </tr>
+            
+            <tr class="trade-row loss">
+                <td>trade_1</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$4276.51</td>
+                <td>$4152.08</td>
+                <td>$-30.07</td>
+                <td>-3.01%</td>
+                <td>SL</td>
+                <td>8/18/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_2</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$4144.52</td>
+                <td>$4354.12</td>
+                <td>+$54.32</td>
+                <td>+4.95%</td>
+                <td>TP</td>
+                <td>8/19/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_3</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$4251.69</td>
+                <td>$4406.95</td>
+                <td>+$43.00</td>
+                <td>+3.55%</td>
+                <td>TP</td>
+                <td>8/21/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_4</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$4707.28</td>
+                <td>$4896.99</td>
+                <td>+$52.50</td>
+                <td>+3.93%</td>
+                <td>TP</td>
+                <td>8/23/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_5</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$4593.66</td>
+                <td>$4438.83</td>
+                <td>$-51.18</td>
+                <td>-3.47%</td>
+                <td>SL</td>
+                <td>8/25/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_6</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$4422.55</td>
+                <td>$4282.18</td>
+                <td>$-52.94</td>
+                <td>-3.27%</td>
+                <td>SL</td>
+                <td>8/25/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_7</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$4374.16</td>
+                <td>$4446.13</td>
+                <td>$-31.00</td>
+                <td>-1.75%</td>
+                <td>SL</td>
+                <td>8/30/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_8</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$4349.50</td>
+                <td>$4419.06</td>
+                <td>$-33.15</td>
+                <td>-1.70%</td>
+                <td>SL</td>
+                <td>9/3/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_9</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$4394.20</td>
+                <td>$4332.67</td>
+                <td>$-32.08</td>
+                <td>-1.50%</td>
+                <td>SL</td>
+                <td>9/4/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_10</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$4343.85</td>
+                <td>$4268.71</td>
+                <td>$-42.98</td>
+                <td>-1.83%</td>
+                <td>SL</td>
+                <td>9/4/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_11</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$4415.08</td>
+                <td>$4488.72</td>
+                <td>$-45.68</td>
+                <td>-1.77%</td>
+                <td>SL</td>
+                <td>9/5/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_12</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$4468.88</td>
+                <td>$4318.71</td>
+                <td>+$92.53</td>
+                <td>+3.26%</td>
+                <td>TP</td>
+                <td>9/5/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_13</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$4297.60</td>
+                <td>$4335.22</td>
+                <td>$-30.53</td>
+                <td>-0.98%</td>
+                <td>SL</td>
+                <td>9/7/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_14</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$4636.41</td>
+                <td>$4569.66</td>
+                <td>$-52.87</td>
+                <td>-1.54%</td>
+                <td>SL</td>
+                <td>9/13/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_15</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$3987.86</td>
+                <td>$4061.00</td>
+                <td>+$65.39</td>
+                <td>+1.73%</td>
+                <td>TP</td>
+                <td>9/27/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_16</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$4160.18</td>
+                <td>$4105.97</td>
+                <td>$-58.29</td>
+                <td>-1.40%</td>
+                <td>SL</td>
+                <td>9/30/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_17</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$4121.93</td>
+                <td>$4232.40</td>
+                <td>+$117.74</td>
+                <td>+2.58%</td>
+                <td>TP</td>
+                <td>9/30/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_18</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$4489.79</td>
+                <td>$4446.61</td>
+                <td>$-53.43</td>
+                <td>-1.06%</td>
+                <td>SL</td>
+                <td>10/4/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_19</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$3818.09</td>
+                <td>$3913.48</td>
+                <td>$-143.94</td>
+                <td>-2.60%</td>
+                <td>SL</td>
+                <td>10/12/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_20</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$3973.20</td>
+                <td>$4080.55</td>
+                <td>$-170.30</td>
+                <td>-2.80%</td>
+                <td>SL</td>
+                <td>10/12/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_21</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$3852.50</td>
+                <td>$3965.91</td>
+                <td>$-202.97</td>
+                <td>-3.05%</td>
+                <td>SL</td>
+                <td>10/18/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_22</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$3976.00</td>
+                <td>$3904.83</td>
+                <td>$-137.97</td>
+                <td>-1.89%</td>
+                <td>SL</td>
+                <td>10/20/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_23</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$3850.17</td>
+                <td>$3703.59</td>
+                <td>+$297.75</td>
+                <td>+3.71%</td>
+                <td>TP</td>
+                <td>10/31/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_24</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$3396.66</td>
+                <td>$3216.85</td>
+                <td>+$460.36</td>
+                <td>+5.20%</td>
+                <td>TP</td>
+                <td>11/5/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_25</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$3543.39</td>
+                <td>$3477.13</td>
+                <td>$-192.60</td>
+                <td>-1.97%</td>
+                <td>SL</td>
+                <td>11/10/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_26</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$3486.85</td>
+                <td>$3411.97</td>
+                <td>$-241.23</td>
+                <td>-2.25%</td>
+                <td>SL</td>
+                <td>11/11/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_27</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$3547.61</td>
+                <td>$3421.19</td>
+                <td>+$408.85</td>
+                <td>+3.47%</td>
+                <td>TP</td>
+                <td>11/12/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_28</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$3527.43</td>
+                <td>$3342.36</td>
+                <td>+$670.33</td>
+                <td>+5.15%</td>
+                <td>TP</td>
+                <td>11/13/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_29</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$3029.33</td>
+                <td>$2877.92</td>
+                <td>+$705.07</td>
+                <td>+4.90%</td>
+                <td>TP</td>
+                <td>11/20/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_30</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$2873.14</td>
+                <td>$2978.31</td>
+                <td>+$565.08</td>
+                <td>+3.56%</td>
+                <td>TP</td>
+                <td>11/25/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_31</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$2903.05</td>
+                <td>$2996.89</td>
+                <td>+$548.56</td>
+                <td>+3.13%</td>
+                <td>TP</td>
+                <td>11/26/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_32</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$2801.81</td>
+                <td>$2855.28</td>
+                <td>$-388.73</td>
+                <td>-2.01%</td>
+                <td>SL</td>
+                <td>12/2/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_33</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$2893.53</td>
+                <td>$2943.59</td>
+                <td>$-388.84</td>
+                <td>-1.83%</td>
+                <td>SL</td>
+                <td>12/2/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_34</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$3093.17</td>
+                <td>$3120.74</td>
+                <td>$-231.29</td>
+                <td>-0.99%</td>
+                <td>SL</td>
+                <td>12/13/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_35</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$3114.70</td>
+                <td>$3062.33</td>
+                <td>+$405.54</td>
+                <td>+1.58%</td>
+                <td>TP</td>
+                <td>12/13/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_36</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$2857.66</td>
+                <td>$2890.96</td>
+                <td>$-357.36</td>
+                <td>-1.27%</td>
+                <td>SL</td>
+                <td>12/18/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_37</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$2962.62</td>
+                <td>$2875.47</td>
+                <td>+$881.80</td>
+                <td>+2.84%</td>
+                <td>TP</td>
+                <td>12/18/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_38</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$2969.01</td>
+                <td>$3005.08</td>
+                <td>+$380.60</td>
+                <td>+1.11%</td>
+                <td>TP</td>
+                <td>12/21/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_39</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$2928.53</td>
+                <td>$2949.25</td>
+                <td>$-304.29</td>
+                <td>-0.81%</td>
+                <td>SL</td>
+                <td>12/27/2025</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_40</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$2976.11</td>
+                <td>$3013.60</td>
+                <td>$-562.95</td>
+                <td>-1.36%</td>
+                <td>SL</td>
+                <td>12/30/2025</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_41</td>
+                <td><span class="badge win">LONG</span></td>
+                <td>$3100.04</td>
+                <td>$3157.85</td>
+                <td>+$801.09</td>
+                <td>+1.76%</td>
+                <td>TP</td>
+                <td>1/3/2026</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_42</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$3101.41</td>
+                <td>$3123.36</td>
+                <td>$-404.77</td>
+                <td>-0.81%</td>
+                <td>SL</td>
+                <td>1/10/2026</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_43</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$3123.90</td>
+                <td>$3142.60</td>
+                <td>$-384.77</td>
+                <td>-0.70%</td>
+                <td>SL</td>
+                <td>1/11/2026</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_44</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$3289.91</td>
+                <td>$3315.61</td>
+                <td>$-533.33</td>
+                <td>-0.88%</td>
+                <td>SL</td>
+                <td>1/17/2026</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_45</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$3328.29</td>
+                <td>$3296.90</td>
+                <td>+$560.98</td>
+                <td>+0.84%</td>
+                <td>TP</td>
+                <td>1/17/2026</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_46</td>
+                <td><span class="badge loss">SHORT</span></td>
+                <td>$2901.24</td>
+                <td>$2959.28</td>
+                <td>$-1538.39</td>
+                <td>-2.10%</td>
+                <td>SL</td>
+                <td>1/26/2026</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_47</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$2994.21</td>
+                <td>$2943.39</td>
+                <td>$-1442.05</td>
+                <td>-1.80%</td>
+                <td>SL</td>
+                <td>1/29/2026</td>
+            </tr>
+            <tr class="trade-row loss">
+                <td>trade_48</td>
+                <td><span class="badge loss">LONG</span></td>
+                <td>$2960.93</td>
+                <td>$2904.00</td>
+                <td>$-1782.21</td>
+                <td>-2.02%</td>
+                <td>SL</td>
+                <td>1/29/2026</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_49</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$2355.36</td>
+                <td>$2153.03</td>
+                <td>+$8229.70</td>
+                <td>+8.50%</td>
+                <td>TP</td>
+                <td>2/2/2026</td>
+            </tr>
+            <tr class="trade-row win">
+                <td>trade_50</td>
+                <td><span class="badge win">SHORT</span></td>
+                <td>$2278.59</td>
+                <td>$2083.43</td>
+                <td>+$9094.80</td>
+                <td>+8.47%</td>
+                <td>TP</td>
+                <td>2/4/2026</td>
+            </tr>
+        </table>
+        <p style="margin-top: 20px; color: #666;">Показаны первые 50 из 51 сделок</p>
+        </div>
+
+        <div class="footer">
+            <p>Generated by TRADERAGENT Backtest Module • 2/13/2026, 12:57:21 PM</p>
+            <p>🤖 Powered by Claude Code</p>
+        </div>
+    </div>
+</body>
+</html>

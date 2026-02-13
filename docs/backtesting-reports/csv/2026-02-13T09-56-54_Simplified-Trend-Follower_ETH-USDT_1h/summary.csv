@@ -1,0 +1,34 @@
+Metric,Value
+Strategy,Simplified Trend-Follower
+Symbol,ETH/USDT
+Timeframe,1h
+Period Start,2025-08-17T09:00:00
+Period End,2026-02-13T08:00:00
+
+Initial Balance,10000
+Final Balance,21704466680066.74
+Total Return,21704466670066.74
+Total Return %,217044666700.6674
+
+Total Trades,226
+Winning Trades,66
+Losing Trades,160
+Win Rate %,29.20353982300885
+
+Gross Profit,580718710492.6885
+Gross Loss,357852554804.9035
+Net Profit,21704466670066.74
+Profit Factor,1.6227876612737575
+Average Win,8798768340.79831
+Average Loss,2236578467.530647
+Largest Win,95539584779.20271
+Largest Loss,-68335724698.98593
+
+Sharpe Ratio,19.412623035630762
+Sortino Ratio,4313.304420715305
+Max Drawdown,68423382714.94922
+Max Drawdown %,0.3159422046857585
+Calmar Ratio,1393356912209.3003
+Recovery Factor,317.20832570478456
+Volatility,2.536120253748566
+Avg Trade Duration (hours),18.0929203539823

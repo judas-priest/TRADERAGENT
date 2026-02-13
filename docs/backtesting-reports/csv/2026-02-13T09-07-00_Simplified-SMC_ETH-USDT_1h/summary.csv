@@ -1,0 +1,34 @@
+Metric,Value
+Strategy,Simplified SMC
+Symbol,ETH/USDT
+Timeframe,1h
+Period Start,2025-08-17T09:00:00
+Period End,2026-02-13T08:00:00
+
+Initial Balance,10000
+Final Balance,1309899.9780501944
+Total Return,1299899.9780501944
+Total Return %,12998.999780501945
+
+Total Trades,51
+Winning Trades,21
+Losing Trades,30
+Win Rate %,41.17647058823529
+
+Gross Profit,25869.88262932698
+Gross Loss,9922.20379032423
+Net Profit,1299899.9780501944
+Profit Factor,2.6072718496826623
+Average Win,1231.8991728250944
+Average Loss,330.740126344141
+Largest Win,9094.80053299205
+Largest Loss,-1782.2116402185206
+
+Sharpe Ratio,10.21242281482844
+Sortino Ratio,930.5288751581458
+Max Drawdown,1701.0884164026938
+Max Drawdown %,0.21133887739753052
+Calmar Ratio,124753.12760816803
+Recovery Factor,764.1577977464005
+Volatility,1.034706237892362
+Avg Trade Duration (hours),17.058823529411764
