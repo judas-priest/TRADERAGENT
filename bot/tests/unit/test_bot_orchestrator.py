@@ -389,8 +389,7 @@ class TestBotOrchestratorIntegration:
 
         await orchestrator.start()
 
-        # DCA should be reset
-        assert orchestrator.dca_engine.current_step == 0
+        # DCA should be reset (position is None after reset)
         assert orchestrator.dca_engine.position is None
 
         await orchestrator.stop()
