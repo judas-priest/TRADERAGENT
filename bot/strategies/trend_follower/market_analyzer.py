@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 
 class MarketPhase(str, Enum):
     """Market phase classification"""
+
     BULLISH_TREND = "bullish_trend"
     BEARISH_TREND = "bearish_trend"
     SIDEWAYS = "sideways"
@@ -30,6 +31,7 @@ class MarketPhase(str, Enum):
 
 class TrendStrength(str, Enum):
     """Trend strength classification"""
+
     STRONG = "strong"
     WEAK = "weak"
     NONE = "none"
@@ -38,6 +40,7 @@ class TrendStrength(str, Enum):
 @dataclass
 class MarketConditions:
     """Current market conditions"""
+
     phase: MarketPhase
     trend_strength: TrendStrength
     ema_fast: Decimal
@@ -71,10 +74,10 @@ class MarketAnalyzer:
         ema_slow_period: int = 50,
         atr_period: int = 14,
         rsi_period: int = 14,
-        ema_divergence_threshold: Decimal = Decimal('0.005'),
+        ema_divergence_threshold: Decimal = Decimal("0.005"),
         ranging_lookback: int = 50,
-        weak_trend_threshold: Decimal = Decimal('0.01'),
-        strong_trend_threshold: Decimal = Decimal('0.02')
+        weak_trend_threshold: Decimal = Decimal("0.01"),
+        strong_trend_threshold: Decimal = Decimal("0.02"),
     ):
         """
         Initialize Market Analyzer
@@ -102,7 +105,7 @@ class MarketAnalyzer:
             "MarketAnalyzer initialized",
             ema_periods=(ema_fast_period, ema_slow_period),
             atr_period=atr_period,
-            rsi_period=rsi_period
+            rsi_period=rsi_period,
         )
 
     def analyze(self, df: pd.DataFrame) -> MarketConditions:
@@ -126,7 +129,7 @@ class MarketAnalyzer:
         atr = self._calculate_atr(df, self.atr_period)
         rsi = self._calculate_rsi(df, self.rsi_period)
 
-        current_price = Decimal(str(df['close'].iloc[-1]))
+        current_price = Decimal(str(df["close"].iloc[-1]))
         ema_fast_val = Decimal(str(ema_fast.iloc[-1]))
         ema_slow_val = Decimal(str(ema_slow.iloc[-1]))
         atr_val = Decimal(str(atr.iloc[-1]))
@@ -162,7 +165,7 @@ class MarketAnalyzer:
             is_in_range=is_in_range,
             range_high=range_high,
             range_low=range_low,
-            timestamp=df.index[-1]
+            timestamp=df.index[-1],
         )
 
         logger.debug(
@@ -171,31 +174,28 @@ class MarketAnalyzer:
             trend_strength=trend_strength,
             price=float(current_price),
             ema_divergence=float(ema_divergence_pct),
-            rsi=float(rsi_val)
+            rsi=float(rsi_val),
         )
 
         return conditions
 
     def _validate_dataframe(self, df: pd.DataFrame) -> None:
         """Validate input dataframe"""
-        required_columns = ['open', 'high', 'low', 'close', 'volume']
+        required_columns = ["open", "high", "low", "close", "volume"]
         missing_columns = [col for col in required_columns if col not in df.columns]
 
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
 
         min_required = max(
-            self.ema_slow_period, self.atr_period,
-            self.rsi_period, self.ranging_lookback
+            self.ema_slow_period, self.atr_period, self.rsi_period, self.ranging_lookback
         )
         if len(df) < min_required:
-            raise ValueError(
-                f"Insufficient data: need {min_required} candles, got {len(df)}"
-            )
+            raise ValueError(f"Insufficient data: need {min_required} candles, got {len(df)}")
 
     def _calculate_ema(self, df: pd.DataFrame, period: int) -> pd.Series:
         """Calculate Exponential Moving Average"""
-        return df['close'].ewm(span=period, adjust=False).mean()
+        return df["close"].ewm(span=period, adjust=False).mean()
 
     def _calculate_atr(self, df: pd.DataFrame, period: int) -> pd.Series:
         """
@@ -204,16 +204,16 @@ class MarketAnalyzer:
         ATR = Average of True Range over period
         True Range = max(high - low, abs(high - prev_close), abs(low - prev_close))
         """
-        high = df['high']
-        low = df['low']
-        close = df['close']
+        high = df["high"]
+        low = df["low"]
+        close = df["close"]
         prev_close = close.shift(1)
 
         tr1 = high - low
         tr2 = abs(high - prev_close)
         tr3 = abs(low - prev_close)
 
-        true_range = pd.DataFrame({'tr1': tr1, 'tr2': tr2, 'tr3': tr3}).max(axis=1)
+        true_range = pd.DataFrame({"tr1": tr1, "tr2": tr2, "tr3": tr3}).max(axis=1)
         atr = true_range.rolling(window=period).mean()
 
         return atr
@@ -225,7 +225,7 @@ class MarketAnalyzer:
         RSI = 100 - (100 / (1 + RS))
         RS = Average Gain / Average Loss over period
         """
-        close = df['close']
+        close = df["close"]
         delta = close.diff()
 
         gain = delta.where(delta > 0, 0.0)
@@ -249,8 +249,8 @@ class MarketAnalyzer:
             Tuple of (is_in_range, range_high, range_low)
         """
         lookback_data = df.tail(self.ranging_lookback)
-        range_high = Decimal(str(lookback_data['high'].max()))
-        range_low = Decimal(str(lookback_data['low'].min()))
+        range_high = Decimal(str(lookback_data["high"].max()))
+        range_low = Decimal(str(lookback_data["low"].min()))
 
         # Check if current price is within the range
         is_in_range = range_low <= current_price <= range_high
@@ -263,7 +263,7 @@ class MarketAnalyzer:
         ema_fast: Decimal,
         ema_slow: Decimal,
         ema_divergence_pct: Decimal,
-        is_in_range: bool
+        is_in_range: bool,
     ) -> MarketPhase:
         """
         Determine current market phase based on Issue #124 rules:
@@ -277,15 +277,19 @@ class MarketAnalyzer:
             return MarketPhase.SIDEWAYS
 
         # Bullish trend detection
-        if (ema_fast > ema_slow and
-            price > ema_fast and
-            ema_divergence_pct > self.ema_divergence_threshold):
+        if (
+            ema_fast > ema_slow
+            and price > ema_fast
+            and ema_divergence_pct > self.ema_divergence_threshold
+        ):
             return MarketPhase.BULLISH_TREND
 
         # Bearish trend detection
-        if (ema_fast < ema_slow and
-            price < ema_fast and
-            ema_divergence_pct > self.ema_divergence_threshold):
+        if (
+            ema_fast < ema_slow
+            and price < ema_fast
+            and ema_divergence_pct > self.ema_divergence_threshold
+        ):
             return MarketPhase.BEARISH_TREND
 
         # If no clear phase matches

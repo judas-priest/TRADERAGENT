@@ -39,7 +39,7 @@ def generate_sample_data(periods: int = 200) -> pd.DataFrame:
         trend = 0.002 if i < periods / 2 else -0.001
         # Add random walk
         change = np.random.normal(trend, 0.01)
-        current_price *= (1 + change)
+        current_price *= 1 + change
         prices.append(current_price)
 
     # Create OHLC data
@@ -47,17 +47,19 @@ def generate_sample_data(periods: int = 200) -> pd.DataFrame:
     for i, price in enumerate(prices):
         high = price * (1 + abs(np.random.normal(0, 0.005)))
         low = price * (1 - abs(np.random.normal(0, 0.005)))
-        open_price = prices[i-1] if i > 0 else price
+        open_price = prices[i - 1] if i > 0 else price
         close = price
         volume = np.random.uniform(100, 1000)
 
-        data.append({
-            'open': open_price,
-            'high': max(high, open_price, close),
-            'low': min(low, open_price, close),
-            'close': close,
-            'volume': volume
-        })
+        data.append(
+            {
+                "open": open_price,
+                "high": max(high, open_price, close),
+                "low": min(low, open_price, close),
+                "close": close,
+                "volume": volume,
+            }
+        )
 
     df = pd.DataFrame(data, index=timestamps)
     print(f"✓ Generated data from {df.index[0]} to {df.index[-1]}")
@@ -80,28 +82,24 @@ def main():
         ema_slow_period=50,
         atr_period=14,
         rsi_period=14,
-
         # Entry logic
         require_volume_confirmation=True,
-        volume_multiplier=Decimal('1.3'),  # More lenient for example
-        max_atr_filter_pct=Decimal('0.05'),
-
+        volume_multiplier=Decimal("1.3"),  # More lenient for example
+        max_atr_filter_pct=Decimal("0.05"),
         # Position management
         enable_trailing_stop=True,
         enable_partial_close=True,
         enable_breakeven=True,
-
         # Risk management (updated per owner requirements)
-        risk_per_trade_pct=Decimal('0.01'),  # 1% per position
-        max_total_exposure_pct=Decimal('0.20'),  # Max 20% total exposure
+        risk_per_trade_pct=Decimal("0.01"),  # 1% per position
+        max_total_exposure_pct=Decimal("0.20"),  # Max 20% total exposure
         max_consecutive_losses=3,
-        max_daily_loss_usd=Decimal('500'),
+        max_daily_loss_usd=Decimal("500"),
         max_positions=20,  # Allow up to 20 positions (20 x 1% = 20%)
-
         # Logging
         log_all_signals=True,
         log_market_phases=True,
-        debug_mode=False
+        debug_mode=False,
     )
 
     # Initialize strategy
@@ -113,7 +111,7 @@ def main():
         config=config,
         initial_capital=initial_capital,
         log_trades=True,
-        log_file_path="logs/trend_follower_example.jsonl"
+        log_file_path="logs/trend_follower_example.jsonl",
     )
 
     # Generate sample data
@@ -184,16 +182,15 @@ def main():
         print("-" * 70)
 
         # Generate a few more candles
-        extended_df = pd.concat([
-            df,
-            generate_sample_data(periods=10).iloc[-10:]
-        ])
+        extended_df = pd.concat([df, generate_sample_data(periods=10).iloc[-10:]])
 
         for i in range(5):
-            current_price = Decimal(str(extended_df['close'].iloc[-5 + i]))
+            current_price = Decimal(str(extended_df["close"].iloc[-5 + i]))
             print(f"\n📊 Update #{i+1}: Price = ${current_price:.2f}")
 
-            exit_reason = strategy.update_position(position_id, current_price, extended_df.iloc[:len(df) + i + 1])
+            exit_reason = strategy.update_position(
+                position_id, current_price, extended_df.iloc[: len(df) + i + 1]
+            )
 
             position = strategy.get_active_positions().get(position_id)
             if position:
@@ -233,8 +230,8 @@ def main():
     print(f"   Active Positions: {stats['active_positions']}")
     print()
 
-    if 'trade_statistics' in stats:
-        trade_stats = stats['trade_statistics']
+    if "trade_statistics" in stats:
+        trade_stats = stats["trade_statistics"]
         print(f"📈 Trade Statistics:")
         print(f"   Total Trades: {trade_stats['total_trades']}")
         print(f"   Win Rate: {trade_stats['win_rate']:.1f}%")
@@ -247,22 +244,24 @@ def main():
         print()
 
     # Validate performance (if enough trades)
-    if stats.get('trade_statistics', {}).get('total_trades', 0) > 0:
+    if stats.get("trade_statistics", {}).get("total_trades", 0) > 0:
         print("-" * 70)
         print("PERFORMANCE VALIDATION")
         print("-" * 70)
 
         validation = strategy.validate_performance()
 
-        if validation['validated']:
+        if validation["validated"]:
             print("✅ Strategy meets all performance criteria!")
         else:
             print(f"⚠️  Strategy validation: {len(validation['failed_criteria'])} criteria failed")
 
         print()
-        for criterion, data in validation['criteria'].items():
-            status = "✓" if data['pass'] else "✗"
-            print(f"  {status} {criterion}: {data['value']:.2f} (threshold: {data['threshold']:.2f})")
+        for criterion, data in validation["criteria"].items():
+            status = "✓" if data["pass"] else "✗"
+            print(
+                f"  {status} {criterion}: {data['value']:.2f} (threshold: {data['threshold']:.2f})"
+            )
         print()
 
     print("=" * 70)

@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 @dataclass
 class TradeRecord:
     """Record of a completed trade"""
+
     timestamp: datetime
     signal_type: SignalType
     entry_price: Decimal
@@ -34,6 +35,7 @@ class TradeRecord:
 @dataclass
 class RiskMetrics:
     """Current risk metrics"""
+
     current_capital: Decimal
     available_capital: Decimal
     daily_pnl: Decimal
@@ -60,15 +62,15 @@ class RiskManager:
     def __init__(
         self,
         initial_capital: Decimal,
-        risk_per_trade_pct: Decimal = Decimal('0.01'),  # Updated to 1%
-        max_risk_per_trade_pct: Decimal = Decimal('0.01'),
-        max_position_size_usd: Decimal = Decimal('10000'),
-        max_total_exposure_pct: Decimal = Decimal('0.20'),  # New: max 20% total exposure
+        risk_per_trade_pct: Decimal = Decimal("0.01"),  # Updated to 1%
+        max_risk_per_trade_pct: Decimal = Decimal("0.01"),
+        max_position_size_usd: Decimal = Decimal("10000"),
+        max_total_exposure_pct: Decimal = Decimal("0.20"),  # New: max 20% total exposure
         max_consecutive_losses: int = 3,
-        size_reduction_factor: Decimal = Decimal('0.5'),
-        max_daily_loss_usd: Decimal = Decimal('500'),
+        size_reduction_factor: Decimal = Decimal("0.5"),
+        max_daily_loss_usd: Decimal = Decimal("500"),
         max_positions: int = 20,  # Updated to 20 (20 x 1% = 20% max)
-        min_balance_buffer_pct: Decimal = Decimal('0.1')
+        min_balance_buffer_pct: Decimal = Decimal("0.1"),
     ):
         """
         Initialize Risk Manager
@@ -101,9 +103,9 @@ class RiskManager:
         self.consecutive_losses = 0
         self.trade_history: list[TradeRecord] = []
         self.active_positions_count = 0
-        self.active_positions_total_value = Decimal('0')  # Track total value in open positions
+        self.active_positions_total_value = Decimal("0")  # Track total value in open positions
         self.current_date = date.today()
-        self.daily_pnl = Decimal('0')
+        self.daily_pnl = Decimal("0")
         self.daily_trades = 0
 
         logger.info(
@@ -112,14 +114,10 @@ class RiskManager:
             risk_per_trade=float(risk_per_trade_pct),
             max_total_exposure=float(max_total_exposure_pct),
             max_daily_loss=float(max_daily_loss_usd),
-            max_positions=max_positions
+            max_positions=max_positions,
         )
 
-    def check_can_trade(
-        self,
-        entry_signal: EntrySignal,
-        current_balance: Decimal
-    ) -> RiskMetrics:
+    def check_can_trade(self, entry_signal: EntrySignal, current_balance: Decimal) -> RiskMetrics:
         """
         Check if trading is allowed and calculate position size
 
@@ -145,10 +143,10 @@ class RiskManager:
                 daily_pnl=self.daily_pnl,
                 consecutive_losses=self.consecutive_losses,
                 total_trades_today=self.daily_trades,
-                max_position_size_allowed=Decimal('0'),
+                max_position_size_allowed=Decimal("0"),
                 risk_per_trade_pct=self.risk_per_trade_pct,
                 can_trade=False,
-                rejection_reason="Insufficient balance (below buffer threshold)"
+                rejection_reason="Insufficient balance (below buffer threshold)",
             )
 
         # Check daily loss limit
@@ -159,17 +157,16 @@ class RiskManager:
                 daily_pnl=self.daily_pnl,
                 consecutive_losses=self.consecutive_losses,
                 total_trades_today=self.daily_trades,
-                max_position_size_allowed=Decimal('0'),
+                max_position_size_allowed=Decimal("0"),
                 risk_per_trade_pct=self.risk_per_trade_pct,
                 can_trade=False,
-                rejection_reason=f"Daily loss limit reached: ${float(abs(self.daily_pnl))}"
+                rejection_reason=f"Daily loss limit reached: ${float(abs(self.daily_pnl))}",
             )
 
         # Check max positions
         if self.active_positions_count >= self.max_positions:
             pos_msg = (
-                f"Max positions reached: "
-                f"{self.active_positions_count}/{self.max_positions}"
+                f"Max positions reached: " f"{self.active_positions_count}/{self.max_positions}"
             )
             return RiskMetrics(
                 current_capital=self.current_capital,
@@ -177,10 +174,10 @@ class RiskManager:
                 daily_pnl=self.daily_pnl,
                 consecutive_losses=self.consecutive_losses,
                 total_trades_today=self.daily_trades,
-                max_position_size_allowed=Decimal('0'),
+                max_position_size_allowed=Decimal("0"),
                 risk_per_trade_pct=self.risk_per_trade_pct,
                 can_trade=False,
-                rejection_reason=pos_msg
+                rejection_reason=pos_msg,
             )
 
         # Check total exposure limit (new requirement: max 20% of capital in open positions)
@@ -198,10 +195,10 @@ class RiskManager:
                 daily_pnl=self.daily_pnl,
                 consecutive_losses=self.consecutive_losses,
                 total_trades_today=self.daily_trades,
-                max_position_size_allowed=Decimal('0'),
+                max_position_size_allowed=Decimal("0"),
                 risk_per_trade_pct=self.risk_per_trade_pct,
                 can_trade=False,
-                rejection_reason=exposure_msg
+                rejection_reason=exposure_msg,
             )
 
         # Calculate position size with risk management
@@ -215,13 +212,11 @@ class RiskManager:
             total_trades_today=self.daily_trades,
             max_position_size_allowed=position_size,
             risk_per_trade_pct=self.risk_per_trade_pct,
-            can_trade=True
+            can_trade=True,
         )
 
     def _calculate_position_size(
-        self,
-        entry_signal: EntrySignal,
-        available_capital: Decimal
+        self, entry_signal: EntrySignal, available_capital: Decimal
     ) -> Decimal:
         """
         Calculate position size based on risk management rules
@@ -241,7 +236,7 @@ class RiskManager:
                 "Position size reduced due to consecutive losses",
                 losses=self.consecutive_losses,
                 reduction_factor=float(self.size_reduction_factor),
-                new_size=float(base_size)
+                new_size=float(base_size),
             )
 
         # Calculate size based on stop loss distance to respect max risk
@@ -250,7 +245,7 @@ class RiskManager:
 
         # Estimate SL distance based on ATR
         atr = market_conditions.atr
-        sl_distance = atr * Decimal('1.0')  # Conservative estimate
+        sl_distance = atr * Decimal("1.0")  # Conservative estimate
 
         # Max risk in USD
         max_risk_usd = available_capital * self.max_risk_per_trade_pct
@@ -269,17 +264,13 @@ class RiskManager:
             base_size=float(base_size),
             risk_based_size=float(risk_based_size),
             final_size=float(position_size),
-            risk_pct=float((position_size * sl_distance / entry_price) / available_capital)
+            risk_pct=float((position_size * sl_distance / entry_price) / available_capital),
         )
 
         return position_size
 
     def record_trade(
-        self,
-        signal_type: SignalType,
-        entry_price: Decimal,
-        exit_price: Decimal,
-        size: Decimal
+        self, signal_type: SignalType, entry_price: Decimal, exit_price: Decimal, size: Decimal
     ) -> None:
         """
         Record completed trade and update metrics
@@ -306,7 +297,7 @@ class RiskManager:
             exit_price=exit_price,
             size=size,
             profit_loss=profit_loss,
-            is_win=is_win
+            is_win=is_win,
         )
 
         self.trade_history.append(trade)
@@ -329,7 +320,7 @@ class RiskManager:
             is_win=is_win,
             consecutive_losses=self.consecutive_losses,
             new_capital=float(self.current_capital),
-            daily_pnl=float(self.daily_pnl)
+            daily_pnl=float(self.daily_pnl),
         )
 
     def position_opened(self, position_value: Decimal) -> None:
@@ -345,7 +336,7 @@ class RiskManager:
             "Position opened",
             active_count=self.active_positions_count,
             position_value=float(position_value),
-            total_exposure=float(self.active_positions_total_value)
+            total_exposure=float(self.active_positions_total_value),
         )
 
     def position_closed(self, position_value: Decimal) -> None:
@@ -356,12 +347,14 @@ class RiskManager:
             position_value: USD value of the closed position
         """
         self.active_positions_count = max(0, self.active_positions_count - 1)
-        self.active_positions_total_value = max(Decimal('0'), self.active_positions_total_value - position_value)
+        self.active_positions_total_value = max(
+            Decimal("0"), self.active_positions_total_value - position_value
+        )
         logger.debug(
             "Position closed",
             active_count=self.active_positions_count,
             position_value=float(position_value),
-            total_exposure=float(self.active_positions_total_value)
+            total_exposure=float(self.active_positions_total_value),
         )
 
     def _update_daily_metrics(self) -> None:
@@ -371,10 +364,10 @@ class RiskManager:
             logger.info(
                 "New trading day",
                 previous_daily_pnl=float(self.daily_pnl),
-                previous_trades=self.daily_trades
+                previous_trades=self.daily_trades,
             )
             self.current_date = current_date
-            self.daily_pnl = Decimal('0')
+            self.daily_pnl = Decimal("0")
             self.daily_trades = 0
 
     def get_statistics(self) -> dict:
@@ -386,13 +379,13 @@ class RiskManager:
         """
         if not self.trade_history:
             return {
-                'total_trades': 0,
-                'win_rate': 0.0,
-                'total_pnl': 0.0,
-                'avg_win': 0.0,
-                'avg_loss': 0.0,
-                'profit_factor': 0.0,
-                'current_capital': float(self.current_capital)
+                "total_trades": 0,
+                "win_rate": 0.0,
+                "total_pnl": 0.0,
+                "avg_win": 0.0,
+                "avg_loss": 0.0,
+                "profit_factor": 0.0,
+                "current_capital": float(self.current_capital),
             }
 
         wins = [t for t in self.trade_history if t.is_win]
@@ -401,16 +394,16 @@ class RiskManager:
         total_win = sum(t.profit_loss for t in wins)
         total_loss = abs(sum(t.profit_loss for t in losses))
 
-        profit_factor = float(total_win / total_loss) if total_loss > 0 else float('inf')
+        profit_factor = float(total_win / total_loss) if total_loss > 0 else float("inf")
 
         return {
-            'total_trades': len(self.trade_history),
-            'win_rate': len(wins) / len(self.trade_history) * 100,
-            'total_pnl': float(sum(t.profit_loss for t in self.trade_history)),
-            'avg_win': float(total_win / len(wins)) if wins else 0.0,
-            'avg_loss': float(total_loss / len(losses)) if losses else 0.0,
-            'profit_factor': profit_factor,
-            'current_capital': float(self.current_capital),
-            'daily_pnl': float(self.daily_pnl),
-            'consecutive_losses': self.consecutive_losses
+            "total_trades": len(self.trade_history),
+            "win_rate": len(wins) / len(self.trade_history) * 100,
+            "total_pnl": float(sum(t.profit_loss for t in self.trade_history)),
+            "avg_win": float(total_win / len(wins)) if wins else 0.0,
+            "avg_loss": float(total_loss / len(losses)) if losses else 0.0,
+            "profit_factor": profit_factor,
+            "current_capital": float(self.current_capital),
+            "daily_pnl": float(self.daily_pnl),
+            "consecutive_losses": self.consecutive_losses,
         }

@@ -58,7 +58,12 @@ def bot_config():
 def mock_exchange():
     """Create mock exchange client."""
     exchange = AsyncMock()
-    exchange.get_balance.return_value = {"USDT": 10000}
+    # Correct structure for fetch_balance (CCXT format)
+    exchange.fetch_balance.return_value = {
+        "free": {"USDT": 10000},
+        "used": {"USDT": 0},
+        "total": {"USDT": 10000},
+    }
     exchange.fetch_ticker.return_value = {"last": 45000}
     exchange.fetch_open_orders.return_value = []
     exchange.create_order.return_value = {"id": "order_123"}

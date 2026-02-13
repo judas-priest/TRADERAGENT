@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 
 class PositionStatus(str, Enum):
     """Position status"""
+
     OPEN = "open"
     PARTIAL_CLOSED = "partial_closed"
     BREAKEVEN = "breakeven"
@@ -32,6 +33,7 @@ class PositionStatus(str, Enum):
 
 class ExitReason(str, Enum):
     """Reason for position exit"""
+
     TAKE_PROFIT = "take_profit"
     STOP_LOSS = "stop_loss"
     PARTIAL_TAKE_PROFIT = "partial_take_profit"
@@ -42,6 +44,7 @@ class ExitReason(str, Enum):
 @dataclass
 class PositionLevels:
     """Position price levels"""
+
     entry_price: Decimal
     stop_loss: Decimal
     take_profit: Decimal
@@ -53,6 +56,7 @@ class PositionLevels:
 @dataclass
 class Position:
     """Active trading position"""
+
     signal_type: SignalType
     entry_price: Decimal
     entry_time: datetime
@@ -61,9 +65,9 @@ class Position:
     status: PositionStatus
     market_conditions: MarketConditions
     entry_signal: EntrySignal
-    max_profit: Decimal = Decimal('0')
-    current_profit: Decimal = Decimal('0')
-    partial_closed_size: Decimal = Decimal('0')
+    max_profit: Decimal = Decimal("0")
+    current_profit: Decimal = Decimal("0")
+    partial_closed_size: Decimal = Decimal("0")
 
 
 class PositionManager:
@@ -88,16 +92,16 @@ class PositionManager:
 
     def __init__(
         self,
-        tp_multipliers: tuple = (Decimal('1.2'), Decimal('1.8'), Decimal('2.5')),
-        sl_multipliers: tuple = (Decimal('0.7'), Decimal('1.0'), Decimal('1.0')),
+        tp_multipliers: tuple = (Decimal("1.2"), Decimal("1.8"), Decimal("2.5")),
+        sl_multipliers: tuple = (Decimal("0.7"), Decimal("1.0"), Decimal("1.0")),
         enable_breakeven: bool = True,
-        breakeven_activation_atr: Decimal = Decimal('1.0'),
+        breakeven_activation_atr: Decimal = Decimal("1.0"),
         enable_trailing: bool = True,
-        trailing_activation_atr: Decimal = Decimal('1.5'),
-        trailing_distance_atr: Decimal = Decimal('0.5'),
+        trailing_activation_atr: Decimal = Decimal("1.5"),
+        trailing_distance_atr: Decimal = Decimal("0.5"),
         enable_partial_close: bool = True,
-        partial_close_percentage: Decimal = Decimal('0.50'),
-        partial_tp_percentage: Decimal = Decimal('0.70')
+        partial_close_percentage: Decimal = Decimal("0.50"),
+        partial_tp_percentage: Decimal = Decimal("0.70"),
     ):
         """
         Initialize Position Manager
@@ -132,14 +136,11 @@ class PositionManager:
             tp_multipliers=tuple(float(x) for x in tp_multipliers),
             sl_multipliers=tuple(float(x) for x in sl_multipliers),
             trailing_enabled=enable_trailing,
-            partial_close_enabled=enable_partial_close
+            partial_close_enabled=enable_partial_close,
         )
 
     def open_position(
-        self,
-        entry_signal: EntrySignal,
-        position_size: Decimal,
-        position_id: str
+        self, entry_signal: EntrySignal, position_size: Decimal, position_id: str
     ) -> Position:
         """
         Open a new position based on entry signal
@@ -156,9 +157,7 @@ class PositionManager:
 
         # Calculate TP and SL levels
         levels = self._calculate_levels(
-            entry_signal.signal_type,
-            entry_signal.entry_price,
-            conditions
+            entry_signal.signal_type, entry_signal.entry_price, conditions
         )
 
         position = Position(
@@ -169,7 +168,7 @@ class PositionManager:
             levels=levels,
             status=PositionStatus.OPEN,
             market_conditions=conditions,
-            entry_signal=entry_signal
+            entry_signal=entry_signal,
         )
 
         self.active_positions[position_id] = position
@@ -181,16 +180,13 @@ class PositionManager:
             entry=float(entry_signal.entry_price),
             sl=float(levels.stop_loss),
             tp=float(levels.take_profit),
-            size=float(position_size)
+            size=float(position_size),
         )
 
         return position
 
     def update_position(
-        self,
-        position_id: str,
-        current_price: Decimal,
-        market_conditions: MarketConditions
+        self, position_id: str, current_price: Decimal, market_conditions: MarketConditions
     ) -> Optional[ExitReason]:
         """
         Update position with current price and check exit conditions
@@ -227,30 +223,37 @@ class PositionManager:
             return ExitReason.TAKE_PROFIT
 
         # Check partial take profit
-        if (self.enable_partial_close and
-            position.status == PositionStatus.OPEN and
-            self._check_partial_tp(position, current_price)):
+        if (
+            self.enable_partial_close
+            and position.status == PositionStatus.OPEN
+            and self._check_partial_tp(position, current_price)
+        ):
             self._execute_partial_close(position, position_id)
             return ExitReason.PARTIAL_TAKE_PROFIT
 
         # Move to breakeven
-        if (self.enable_breakeven and
-            position.status == PositionStatus.OPEN and
-            self._should_move_to_breakeven(position, market_conditions)):
+        if (
+            self.enable_breakeven
+            and position.status == PositionStatus.OPEN
+            and self._should_move_to_breakeven(position, market_conditions)
+        ):
             self._move_to_breakeven(position)
 
         # Activate trailing stop
         valid_statuses = (
-            PositionStatus.OPEN, PositionStatus.BREAKEVEN, PositionStatus.PARTIAL_CLOSED
+            PositionStatus.OPEN,
+            PositionStatus.BREAKEVEN,
+            PositionStatus.PARTIAL_CLOSED,
         )
-        if (self.enable_trailing and
-            position.status in valid_statuses and
-            self._should_activate_trailing(position, market_conditions)):
+        if (
+            self.enable_trailing
+            and position.status in valid_statuses
+            and self._should_activate_trailing(position, market_conditions)
+        ):
             self._activate_trailing_stop(position, current_price, market_conditions)
 
         # Update trailing stop
-        if (position.status == PositionStatus.TRAILING and
-            position.levels.trailing_stop):
+        if position.status == PositionStatus.TRAILING and position.levels.trailing_stop:
             self._update_trailing_stop(position, current_price, market_conditions)
             if self._check_trailing_stop(position, current_price):
                 return ExitReason.TRAILING_STOP
@@ -268,16 +271,13 @@ class PositionManager:
                 id=position_id,
                 reason=reason,
                 profit=float(position.current_profit),
-                duration=(datetime.now() - position.entry_time).total_seconds()
+                duration=(datetime.now() - position.entry_time).total_seconds(),
             )
 
             del self.active_positions[position_id]
 
     def _calculate_levels(
-        self,
-        signal_type: SignalType,
-        entry_price: Decimal,
-        conditions: MarketConditions
+        self, signal_type: SignalType, entry_price: Decimal, conditions: MarketConditions
     ) -> PositionLevels:
         """Calculate TP and SL levels based on market phase"""
         atr = conditions.atr
@@ -311,7 +311,7 @@ class PositionManager:
             entry_price=entry_price,
             stop_loss=stop_loss,
             take_profit=take_profit,
-            partial_tp_price=partial_tp_price
+            partial_tp_price=partial_tp_price,
         )
 
     def _check_stop_loss(self, position: Position, current_price: Decimal) -> bool:
@@ -352,12 +352,10 @@ class PositionManager:
             id=position_id,
             closed_size=float(close_size),
             remaining_size=float(position.size),
-            profit=float(position.current_profit)
+            profit=float(position.current_profit),
         )
 
-    def _should_move_to_breakeven(
-        self, position: Position, conditions: MarketConditions
-    ) -> bool:
+    def _should_move_to_breakeven(self, position: Position, conditions: MarketConditions) -> bool:
         """Check if position should move to breakeven"""
         profit_threshold = conditions.atr * self.breakeven_activation_atr
         return position.current_profit >= profit_threshold
@@ -371,12 +369,10 @@ class PositionManager:
         logger.info(
             "Moved to breakeven",
             entry=float(position.entry_price),
-            profit=float(position.current_profit)
+            profit=float(position.current_profit),
         )
 
-    def _should_activate_trailing(
-        self, position: Position, conditions: MarketConditions
-    ) -> bool:
+    def _should_activate_trailing(self, position: Position, conditions: MarketConditions) -> bool:
         """Check if trailing stop should be activated"""
         profit_threshold = conditions.atr * self.trailing_activation_atr
         return position.current_profit >= profit_threshold
@@ -398,7 +394,7 @@ class PositionManager:
             "Trailing stop activated",
             current_price=float(current_price),
             trailing_stop=float(position.levels.trailing_stop),
-            distance=float(trailing_distance)
+            distance=float(trailing_distance),
         )
 
     def _update_trailing_stop(
@@ -417,7 +413,7 @@ class PositionManager:
                 logger.debug(
                     "Trailing stop updated",
                     new_stop=float(new_trailing),
-                    current_price=float(current_price)
+                    current_price=float(current_price),
                 )
         else:
             new_trailing = current_price + trailing_distance
@@ -426,7 +422,7 @@ class PositionManager:
                 logger.debug(
                     "Trailing stop updated",
                     new_stop=float(new_trailing),
-                    current_price=float(current_price)
+                    current_price=float(current_price),
                 )
 
     def _check_trailing_stop(self, position: Position, current_price: Decimal) -> bool:

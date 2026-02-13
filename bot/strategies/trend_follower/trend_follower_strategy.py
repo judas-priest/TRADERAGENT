@@ -66,7 +66,7 @@ class TrendFollowerStrategy:
         config: Optional[TrendFollowerConfig] = None,
         initial_capital: Decimal = Decimal("10000"),
         log_trades: bool = True,
-        log_file_path: Optional[str] = None
+        log_file_path: Optional[str] = None,
     ):
         """
         Initialize Trend-Follower Strategy
@@ -88,7 +88,7 @@ class TrendFollowerStrategy:
             ema_divergence_threshold=self.config.ema_divergence_threshold,
             ranging_lookback=self.config.ranging_high_low_lookback,
             weak_trend_threshold=self.config.weak_trend_threshold,
-            strong_trend_threshold=self.config.strong_trend_threshold
+            strong_trend_threshold=self.config.strong_trend_threshold,
         )
 
         self.entry_logic = EntryLogicAnalyzer(
@@ -100,7 +100,7 @@ class TrendFollowerStrategy:
             support_resistance_lookback=self.config.support_resistance_lookback,
             support_resistance_threshold=self.config.support_resistance_threshold,
             rsi_oversold=self.config.rsi_oversold,
-            rsi_overbought=self.config.rsi_overbought
+            rsi_overbought=self.config.rsi_overbought,
         )
 
         self.position_manager = PositionManager(
@@ -113,7 +113,7 @@ class TrendFollowerStrategy:
             trailing_distance_atr=self.config.trailing_distance_atr,
             enable_partial_close=self.config.enable_partial_close,
             partial_close_percentage=self.config.partial_close_percentage,
-            partial_tp_percentage=self.config.partial_tp_percentage
+            partial_tp_percentage=self.config.partial_tp_percentage,
         )
 
         self.risk_manager = RiskManager(
@@ -125,14 +125,14 @@ class TrendFollowerStrategy:
             size_reduction_factor=self.config.size_reduction_factor,
             max_daily_loss_usd=self.config.max_daily_loss_usd,
             max_positions=self.config.max_positions,
-            min_balance_buffer_pct=self.config.min_balance_buffer_pct
+            min_balance_buffer_pct=self.config.min_balance_buffer_pct,
         )
 
         if log_trades:
             self.trade_logger = TradeLogger(
                 log_file_path=log_file_path,
                 log_to_file=True,
-                log_to_console=self.config.log_all_signals
+                log_to_console=self.config.log_all_signals,
             )
         else:
             self.trade_logger = None
@@ -145,7 +145,7 @@ class TrendFollowerStrategy:
             "TrendFollowerStrategy initialized",
             initial_capital=float(initial_capital),
             config=self.config.__class__.__name__,
-            logging_enabled=log_trades
+            logging_enabled=log_trades,
         )
 
     def analyze_market(self, df: pd.DataFrame) -> MarketConditions:
@@ -168,15 +168,13 @@ class TrendFollowerStrategy:
                 price=float(self.current_market_conditions.current_price),
                 ema_divergence=float(self.current_market_conditions.ema_divergence_pct),
                 atr_pct=float(self.current_market_conditions.atr_pct),
-                rsi=float(self.current_market_conditions.rsi)
+                rsi=float(self.current_market_conditions.rsi),
             )
 
         return self.current_market_conditions
 
     def check_entry_signal(
-        self,
-        df: pd.DataFrame,
-        current_balance: Decimal
+        self, df: pd.DataFrame, current_balance: Decimal
     ) -> Optional[tuple[EntrySignal, RiskMetrics, Decimal]]:
         """
         Check for entry signals and validate with risk management
@@ -204,7 +202,7 @@ class TrendFollowerStrategy:
             logger.info(
                 "Trade rejected by risk management",
                 reason=risk_metrics.rejection_reason,
-                signal_type=entry_signal.signal_type
+                signal_type=entry_signal.signal_type,
             )
             return None
 
@@ -216,16 +214,12 @@ class TrendFollowerStrategy:
             reason=entry_signal.entry_reason,
             price=float(entry_signal.entry_price),
             size=float(position_size),
-            confidence=float(entry_signal.confidence)
+            confidence=float(entry_signal.confidence),
         )
 
         return entry_signal, risk_metrics, position_size
 
-    def open_position(
-        self,
-        entry_signal: EntrySignal,
-        position_size: Decimal
-    ) -> str:
+    def open_position(self, entry_signal: EntrySignal, position_size: Decimal) -> str:
         """
         Open a new position
 
@@ -240,9 +234,7 @@ class TrendFollowerStrategy:
 
         # Open position with position manager
         position = self.position_manager.open_position(
-            entry_signal=entry_signal,
-            position_size=position_size,
-            position_id=position_id
+            entry_signal=entry_signal, position_size=position_size, position_id=position_id
         )
 
         # Update risk manager
@@ -255,16 +247,13 @@ class TrendFollowerStrategy:
             entry=float(entry_signal.entry_price),
             size=float(position_size),
             sl=float(position.levels.stop_loss),
-            tp=float(position.levels.take_profit)
+            tp=float(position.levels.take_profit),
         )
 
         return position_id
 
     def update_position(
-        self,
-        position_id: str,
-        current_price: Decimal,
-        df: pd.DataFrame
+        self, position_id: str, current_price: Decimal, df: pd.DataFrame
     ) -> Optional[ExitReason]:
         """
         Update position with current price
@@ -284,7 +273,7 @@ class TrendFollowerStrategy:
         exit_reason = self.position_manager.update_position(
             position_id=position_id,
             current_price=current_price,
-            market_conditions=market_conditions
+            market_conditions=market_conditions,
         )
 
         if exit_reason and self.config.log_position_updates:
@@ -292,16 +281,13 @@ class TrendFollowerStrategy:
                 "Position exit triggered",
                 id=position_id,
                 reason=exit_reason,
-                price=float(current_price)
+                price=float(current_price),
             )
 
         return exit_reason
 
     def close_position(
-        self,
-        position_id: str,
-        exit_reason: ExitReason,
-        exit_price: Decimal
+        self, position_id: str, exit_reason: ExitReason, exit_price: Decimal
     ) -> None:
         """
         Close position and record trade
@@ -322,7 +308,7 @@ class TrendFollowerStrategy:
             signal_type=position.signal_type,
             entry_price=position.entry_price,
             exit_price=exit_price,
-            size=position.size
+            size=position.size,
         )
 
         # Log trade if logger enabled
@@ -338,7 +324,7 @@ class TrendFollowerStrategy:
                 take_profit=position.levels.take_profit,
                 max_favorable_excursion=position.max_profit,
                 max_adverse_excursion=None,  # Could track this in position manager
-                notes=f"Status: {position.status}"
+                notes=f"Status: {position.status}",
             )
 
         # Close position in position manager
@@ -351,7 +337,7 @@ class TrendFollowerStrategy:
             "Position closed and recorded",
             id=position_id,
             reason=exit_reason,
-            exit_price=float(exit_price)
+            exit_price=float(exit_price),
         )
 
     def get_active_positions(self) -> Dict[str, Position]:
@@ -369,22 +355,22 @@ class TrendFollowerStrategy:
             - Performance metrics (Sharpe ratio, max drawdown)
         """
         stats = {
-            'risk_metrics': self.risk_manager.get_statistics(),
-            'active_positions': len(self.position_manager.active_positions),
-            'current_market': None
+            "risk_metrics": self.risk_manager.get_statistics(),
+            "active_positions": len(self.position_manager.active_positions),
+            "current_market": None,
         }
 
         if self.current_market_conditions:
-            stats['current_market'] = {
-                'phase': self.current_market_conditions.phase,
-                'trend_strength': self.current_market_conditions.trend_strength,
-                'price': float(self.current_market_conditions.current_price),
-                'rsi': float(self.current_market_conditions.rsi),
-                'atr_pct': float(self.current_market_conditions.atr_pct)
+            stats["current_market"] = {
+                "phase": self.current_market_conditions.phase,
+                "trend_strength": self.current_market_conditions.trend_strength,
+                "price": float(self.current_market_conditions.current_price),
+                "rsi": float(self.current_market_conditions.rsi),
+                "atr_pct": float(self.current_market_conditions.atr_pct),
             }
 
         if self.trade_logger:
-            stats['trade_statistics'] = self.trade_logger.get_statistics()
+            stats["trade_statistics"] = self.trade_logger.get_statistics()
 
         return stats
 
@@ -403,84 +389,77 @@ class TrendFollowerStrategy:
             Dictionary with validation results
         """
         if not self.trade_logger:
-            return {
-                'validated': False,
-                'reason': 'Trade logging not enabled'
-            }
+            return {"validated": False, "reason": "Trade logging not enabled"}
 
         stats = self.trade_logger.get_statistics()
 
-        validation = {
-            'validated': True,
-            'criteria': {},
-            'failed_criteria': []
-        }
+        validation = {"validated": True, "criteria": {}, "failed_criteria": []}
 
         # Check Sharpe Ratio
-        sharpe_pass = stats['sharpe_ratio'] >= float(self.config.min_sharpe_ratio)
-        validation['criteria']['sharpe_ratio'] = {
-            'value': stats['sharpe_ratio'],
-            'threshold': float(self.config.min_sharpe_ratio),
-            'pass': sharpe_pass
+        sharpe_pass = stats["sharpe_ratio"] >= float(self.config.min_sharpe_ratio)
+        validation["criteria"]["sharpe_ratio"] = {
+            "value": stats["sharpe_ratio"],
+            "threshold": float(self.config.min_sharpe_ratio),
+            "pass": sharpe_pass,
         }
         if not sharpe_pass:
-            validation['failed_criteria'].append('sharpe_ratio')
+            validation["failed_criteria"].append("sharpe_ratio")
 
         # Check Max Drawdown
-        dd_pass = stats['max_drawdown'] <= float(self.config.max_drawdown_pct) * 100
-        validation['criteria']['max_drawdown'] = {
-            'value': stats['max_drawdown'],
-            'threshold': float(self.config.max_drawdown_pct) * 100,
-            'pass': dd_pass
+        dd_pass = stats["max_drawdown"] <= float(self.config.max_drawdown_pct) * 100
+        validation["criteria"]["max_drawdown"] = {
+            "value": stats["max_drawdown"],
+            "threshold": float(self.config.max_drawdown_pct) * 100,
+            "pass": dd_pass,
         }
         if not dd_pass:
-            validation['failed_criteria'].append('max_drawdown')
+            validation["failed_criteria"].append("max_drawdown")
 
         # Check Profit Factor
-        pf_pass = stats['profit_factor'] >= float(self.config.min_profit_factor)
-        validation['criteria']['profit_factor'] = {
-            'value': stats['profit_factor'],
-            'threshold': float(self.config.min_profit_factor),
-            'pass': pf_pass
+        pf_pass = stats["profit_factor"] >= float(self.config.min_profit_factor)
+        validation["criteria"]["profit_factor"] = {
+            "value": stats["profit_factor"],
+            "threshold": float(self.config.min_profit_factor),
+            "pass": pf_pass,
         }
         if not pf_pass:
-            validation['failed_criteria'].append('profit_factor')
+            validation["failed_criteria"].append("profit_factor")
 
         # Check Win Rate
-        wr_pass = stats['win_rate'] >= float(self.config.min_win_rate_pct)
-        validation['criteria']['win_rate'] = {
-            'value': stats['win_rate'],
-            'threshold': float(self.config.min_win_rate_pct),
-            'pass': wr_pass
+        wr_pass = stats["win_rate"] >= float(self.config.min_win_rate_pct)
+        validation["criteria"]["win_rate"] = {
+            "value": stats["win_rate"],
+            "threshold": float(self.config.min_win_rate_pct),
+            "pass": wr_pass,
         }
         if not wr_pass:
-            validation['failed_criteria'].append('win_rate')
+            validation["failed_criteria"].append("win_rate")
 
         # Check Profit/Loss Ratio
-        if stats['avg_loss'] > 0:
-            pl_ratio = stats['avg_win'] / stats['avg_loss']
+        if stats["avg_loss"] > 0:
+            pl_ratio = stats["avg_win"] / stats["avg_loss"]
         else:
-            pl_ratio = float('inf')
+            pl_ratio = float("inf")
 
         pl_pass = pl_ratio >= float(self.config.min_profit_loss_ratio)
-        validation['criteria']['profit_loss_ratio'] = {
-            'value': pl_ratio,
-            'threshold': float(self.config.min_profit_loss_ratio),
-            'pass': pl_pass
+        validation["criteria"]["profit_loss_ratio"] = {
+            "value": pl_ratio,
+            "threshold": float(self.config.min_profit_loss_ratio),
+            "pass": pl_pass,
         }
         if not pl_pass:
-            validation['failed_criteria'].append('profit_loss_ratio')
+            validation["failed_criteria"].append("profit_loss_ratio")
 
         # Overall validation
-        validation['validated'] = len(validation['failed_criteria']) == 0
+        validation["validated"] = len(validation["failed_criteria"]) == 0
 
-        if validation['validated']:
-            logger.info("Strategy performance validation PASSED", criteria=validation['criteria'])
+        if validation["validated"]:
+            logger.info("Strategy performance validation PASSED", criteria=validation["criteria"])
         else:
             logger.warning(
                 "Strategy performance validation FAILED",
-                failed=validation['failed_criteria'],
-                criteria=validation['criteria']
+                failed=validation["failed_criteria"],
+                criteria=validation["criteria"],
             )
 
         return validation

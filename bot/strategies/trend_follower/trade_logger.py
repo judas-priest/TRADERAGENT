@@ -21,6 +21,7 @@ logger = get_logger(__name__)
 @dataclass
 class TradeLog:
     """Complete trade log entry"""
+
     # Trade identification
     trade_id: str
     timestamp: datetime
@@ -58,7 +59,7 @@ class TradeLog:
 
     # Additional info
     volume_confirmed: bool = False
-    confidence: Decimal = Decimal('0')
+    confidence: Decimal = Decimal("0")
     notes: str = ""
 
 
@@ -75,7 +76,7 @@ class TradeLogger:
         self,
         log_file_path: Optional[str] = None,
         log_to_file: bool = True,
-        log_to_console: bool = True
+        log_to_console: bool = True,
     ):
         """
         Initialize Trade Logger
@@ -103,7 +104,7 @@ class TradeLogger:
             "TradeLogger initialized",
             log_file=str(self.log_file) if log_to_file else None,
             log_to_file=log_to_file,
-            log_to_console=log_to_console
+            log_to_console=log_to_console,
         )
 
     def log_trade(
@@ -118,7 +119,7 @@ class TradeLogger:
         take_profit: Decimal,
         max_favorable_excursion: Optional[Decimal] = None,
         max_adverse_excursion: Optional[Decimal] = None,
-        notes: str = ""
+        notes: str = "",
     ) -> None:
         """
         Log a completed trade
@@ -142,7 +143,7 @@ class TradeLogger:
         else:
             profit_loss = entry_signal.entry_price - exit_price
 
-        profit_loss_pct = (profit_loss / entry_signal.entry_price) * Decimal('100')
+        profit_loss_pct = (profit_loss / entry_signal.entry_price) * Decimal("100")
 
         # Calculate duration
         duration = (exit_time - entry_signal.timestamp).total_seconds()
@@ -174,7 +175,7 @@ class TradeLogger:
             max_adverse_excursion=max_adverse_excursion,
             volume_confirmed=entry_signal.volume_confirmed,
             confidence=entry_signal.confidence,
-            notes=notes
+            notes=notes,
         )
 
         self.trade_logs.append(trade_log)
@@ -190,7 +191,7 @@ class TradeLogger:
                 pnl=float(profit_loss),
                 pnl_pct=float(profit_loss_pct),
                 duration=duration,
-                market_phase=entry_signal.market_conditions.phase
+                market_phase=entry_signal.market_conditions.phase,
             )
 
         # Log to file
@@ -211,8 +212,8 @@ class TradeLogger:
                     log_dict[key] = value.isoformat()
 
             # Append to file
-            with open(self.log_file, 'a') as f:
-                f.write(json.dumps(log_dict) + '\n')
+            with open(self.log_file, "a") as f:
+                f.write(json.dumps(log_dict) + "\n")
 
         except Exception as e:
             logger.error("Failed to write trade log to file", error=str(e))
@@ -235,14 +236,14 @@ class TradeLogger:
         """
         if not self.trade_logs:
             return {
-                'total_trades': 0,
-                'win_rate': 0.0,
-                'profit_factor': 0.0,
-                'total_profit': 0.0,
-                'avg_win': 0.0,
-                'avg_loss': 0.0,
-                'max_drawdown': 0.0,
-                'sharpe_ratio': 0.0
+                "total_trades": 0,
+                "win_rate": 0.0,
+                "profit_factor": 0.0,
+                "total_profit": 0.0,
+                "avg_win": 0.0,
+                "avg_loss": 0.0,
+                "max_drawdown": 0.0,
+                "sharpe_ratio": 0.0,
             }
 
         wins = [t for t in self.trade_logs if t.profit_loss > 0]
@@ -251,7 +252,7 @@ class TradeLogger:
         total_win = sum(float(t.profit_loss) for t in wins)
         total_loss = abs(sum(float(t.profit_loss) for t in losses))
 
-        profit_factor = total_win / total_loss if total_loss > 0 else float('inf')
+        profit_factor = total_win / total_loss if total_loss > 0 else float("inf")
 
         # Calculate drawdown
         capital = 10000.0  # Starting capital assumption
@@ -270,23 +271,22 @@ class TradeLogger:
         if returns:
             avg_return = sum(returns) / len(returns)
             std_return = (sum((r - avg_return) ** 2 for r in returns) / len(returns)) ** 0.5
-            sharpe_ratio = (avg_return / std_return * (252 ** 0.5)) if std_return > 0 else 0.0
+            sharpe_ratio = (avg_return / std_return * (252**0.5)) if std_return > 0 else 0.0
         else:
             sharpe_ratio = 0.0
 
         return {
-            'total_trades': len(self.trade_logs),
-            'win_rate': len(wins) / len(self.trade_logs) * 100 if self.trade_logs else 0.0,
-            'profit_factor': profit_factor,
-            'total_profit': sum(float(t.profit_loss) for t in self.trade_logs),
-            'avg_win': total_win / len(wins) if wins else 0.0,
-            'avg_loss': total_loss / len(losses) if losses else 0.0,
-            'max_drawdown': max_drawdown * 100,
-            'sharpe_ratio': sharpe_ratio,
-            'avg_duration_hours': (
-                sum(t.duration_seconds for t in self.trade_logs) /
-                len(self.trade_logs) / 3600
-            )
+            "total_trades": len(self.trade_logs),
+            "win_rate": len(wins) / len(self.trade_logs) * 100 if self.trade_logs else 0.0,
+            "profit_factor": profit_factor,
+            "total_profit": sum(float(t.profit_loss) for t in self.trade_logs),
+            "avg_win": total_win / len(wins) if wins else 0.0,
+            "avg_loss": total_loss / len(losses) if losses else 0.0,
+            "max_drawdown": max_drawdown * 100,
+            "sharpe_ratio": sharpe_ratio,
+            "avg_duration_hours": (
+                sum(t.duration_seconds for t in self.trade_logs) / len(self.trade_logs) / 3600
+            ),
         }
 
     def export_to_csv(self, output_path: str) -> None:
@@ -298,7 +298,7 @@ class TradeLogger:
             return
 
         try:
-            with open(output_path, 'w', newline='') as f:
+            with open(output_path, "w", newline="") as f:
                 # Get field names from first trade
                 fieldnames = list(asdict(self.trade_logs[0]).keys())
                 writer = csv.DictWriter(f, fieldnames=fieldnames)

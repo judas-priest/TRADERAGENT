@@ -27,6 +27,7 @@ logger = get_logger(__name__)
 
 class SignalType(str, Enum):
     """Trading signal type"""
+
     LONG = "long"
     SHORT = "short"
     NONE = "none"
@@ -34,6 +35,7 @@ class SignalType(str, Enum):
 
 class EntryReason(str, Enum):
     """Reason for entry signal"""
+
     # Trend scenarios
     TREND_PULLBACK_TO_EMA = "trend_pullback_to_ema"
     TREND_BOUNCE_FROM_SUPPORT = "trend_bounce_from_support"
@@ -49,6 +51,7 @@ class EntryReason(str, Enum):
 @dataclass
 class EntrySignal:
     """Entry signal with all relevant information"""
+
     signal_type: SignalType
     entry_reason: EntryReason
     entry_price: Decimal
@@ -61,6 +64,7 @@ class EntrySignal:
 @dataclass
 class SupportResistanceLevel:
     """Support or Resistance level"""
+
     price: Decimal
     is_support: bool  # True for support, False for resistance
     touches: int  # Number of times price touched this level
@@ -85,13 +89,13 @@ class EntryLogicAnalyzer:
         self,
         market_analyzer: MarketAnalyzer,
         require_volume_confirmation: bool = True,
-        volume_multiplier: Decimal = Decimal('1.5'),
+        volume_multiplier: Decimal = Decimal("1.5"),
         volume_lookback: int = 20,
-        max_atr_filter_pct: Decimal = Decimal('0.05'),
+        max_atr_filter_pct: Decimal = Decimal("0.05"),
         support_resistance_lookback: int = 50,
-        support_resistance_threshold: Decimal = Decimal('0.01'),
-        rsi_oversold: Decimal = Decimal('30'),
-        rsi_overbought: Decimal = Decimal('70')
+        support_resistance_threshold: Decimal = Decimal("0.01"),
+        rsi_oversold: Decimal = Decimal("30"),
+        rsi_overbought: Decimal = Decimal("70"),
     ):
         """
         Initialize Entry Logic Analyzer
@@ -121,7 +125,7 @@ class EntryLogicAnalyzer:
             "EntryLogicAnalyzer initialized",
             volume_confirmation=require_volume_confirmation,
             volume_multiplier=float(volume_multiplier),
-            max_atr_filter=float(max_atr_filter_pct)
+            max_atr_filter=float(max_atr_filter_pct),
         )
 
     def analyze_entry(self, df: pd.DataFrame) -> Optional[EntrySignal]:
@@ -142,7 +146,7 @@ class EntryLogicAnalyzer:
             logger.debug(
                 "ATR filter triggered - volatility too high",
                 atr_pct=float(market_conditions.atr_pct),
-                max_atr=float(self.max_atr_filter_pct)
+                max_atr=float(self.max_atr_filter_pct),
             )
             return None
 
@@ -167,9 +171,7 @@ class EntryLogicAnalyzer:
                 df, market_conditions, sr_levels, volume_confirmed
             )
         elif market_conditions.phase == MarketPhase.SIDEWAYS:
-            signal = self._analyze_sideways_entry(
-                df, market_conditions, volume_confirmed
-            )
+            signal = self._analyze_sideways_entry(df, market_conditions, volume_confirmed)
         else:
             logger.debug("Market phase unknown - no entry signal")
             return None
@@ -180,21 +182,19 @@ class EntryLogicAnalyzer:
                 type=signal.signal_type,
                 reason=signal.entry_reason,
                 price=float(signal.entry_price),
-                confidence=float(signal.confidence)
+                confidence=float(signal.confidence),
             )
 
         return signal
 
     def _check_volume_confirmation(self, df: pd.DataFrame) -> bool:
         """Check if current volume is above average"""
-        avg_volume = df['volume'].tail(self.volume_lookback).mean()
-        current_volume = df['volume'].iloc[-1]
+        avg_volume = df["volume"].tail(self.volume_lookback).mean()
+        current_volume = df["volume"].iloc[-1]
 
         return current_volume >= (avg_volume * float(self.volume_multiplier))
 
-    def _find_support_resistance_levels(
-        self, df: pd.DataFrame
-    ) -> List[SupportResistanceLevel]:
+    def _find_support_resistance_levels(self, df: pd.DataFrame) -> List[SupportResistanceLevel]:
         """
         Identify support and resistance levels
 
@@ -205,32 +205,40 @@ class EntryLogicAnalyzer:
 
         # Find local highs (potential resistance)
         for i in range(2, len(lookback_data) - 2):
-            high = lookback_data['high'].iloc[i]
-            if (high > lookback_data['high'].iloc[i-2:i].max() and
-                high > lookback_data['high'].iloc[i+1:i+3].max()):
+            high = lookback_data["high"].iloc[i]
+            if (
+                high > lookback_data["high"].iloc[i - 2 : i].max()
+                and high > lookback_data["high"].iloc[i + 1 : i + 3].max()
+            ):
                 # Count touches near this level
                 touches = self._count_touches(df, Decimal(str(high)), is_high=True)
                 if touches >= 2:  # At least 2 touches to be valid
-                    levels.append(SupportResistanceLevel(
-                        price=Decimal(str(high)),
-                        is_support=False,
-                        touches=touches,
-                        strength=Decimal(str(min(touches / 5.0, 1.0)))  # Normalize to 0-1
-                    ))
+                    levels.append(
+                        SupportResistanceLevel(
+                            price=Decimal(str(high)),
+                            is_support=False,
+                            touches=touches,
+                            strength=Decimal(str(min(touches / 5.0, 1.0))),  # Normalize to 0-1
+                        )
+                    )
 
         # Find local lows (potential support)
         for i in range(2, len(lookback_data) - 2):
-            low = lookback_data['low'].iloc[i]
-            if (low < lookback_data['low'].iloc[i-2:i].min() and
-                low < lookback_data['low'].iloc[i+1:i+3].min()):
+            low = lookback_data["low"].iloc[i]
+            if (
+                low < lookback_data["low"].iloc[i - 2 : i].min()
+                and low < lookback_data["low"].iloc[i + 1 : i + 3].min()
+            ):
                 touches = self._count_touches(df, Decimal(str(low)), is_high=False)
                 if touches >= 2:
-                    levels.append(SupportResistanceLevel(
-                        price=Decimal(str(low)),
-                        is_support=True,
-                        touches=touches,
-                        strength=Decimal(str(min(touches / 5.0, 1.0)))
-                    ))
+                    levels.append(
+                        SupportResistanceLevel(
+                            price=Decimal(str(low)),
+                            is_support=True,
+                            touches=touches,
+                            strength=Decimal(str(min(touches / 5.0, 1.0))),
+                        )
+                    )
 
         return levels
 
@@ -239,7 +247,7 @@ class EntryLogicAnalyzer:
         threshold = level * self.support_resistance_threshold
         touches = 0
 
-        price_series = df['high'] if is_high else df['low']
+        price_series = df["high"] if is_high else df["low"]
         for price in price_series:
             if abs(Decimal(str(price)) - level) <= threshold:
                 touches += 1
@@ -256,7 +264,7 @@ class EntryLogicAnalyzer:
         df: pd.DataFrame,
         conditions: MarketConditions,
         sr_levels: List[SupportResistanceLevel],
-        volume_confirmed: bool
+        volume_confirmed: bool,
     ) -> Optional[EntrySignal]:
         """
         Analyze LONG entry in bullish trend
@@ -265,21 +273,21 @@ class EntryLogicAnalyzer:
         Enter on bounce with volume confirmation.
         """
         current_price = conditions.current_price
-        prev_close = Decimal(str(df['close'].iloc[-2]))
+        prev_close = Decimal(str(df["close"].iloc[-2]))
 
         # Check if price pulled back to EMA(20)
         if self._is_near_level(current_price, conditions.ema_fast):
             # Check for bounce (price rising)
             if current_price > prev_close:
-                confidence = Decimal('0.8') if volume_confirmed else Decimal('0.6')
+                confidence = Decimal("0.8") if volume_confirmed else Decimal("0.6")
                 return EntrySignal(
                     signal_type=SignalType.LONG,
                     entry_reason=EntryReason.TREND_PULLBACK_TO_EMA,
                     entry_price=current_price,
-                    confidence=confidence * (Decimal('1.0') + conditions.ema_divergence_pct),
+                    confidence=confidence * (Decimal("1.0") + conditions.ema_divergence_pct),
                     market_conditions=conditions,
                     volume_confirmed=volume_confirmed,
-                    timestamp=conditions.timestamp
+                    timestamp=conditions.timestamp,
                 )
 
         # Check for bounce from support
@@ -288,10 +296,10 @@ class EntryLogicAnalyzer:
             if self._is_near_level(current_price, support.price):
                 # Check for bounce
                 if current_price > prev_close:
-                    confidence = Decimal('0.75') * support.strength
+                    confidence = Decimal("0.75") * support.strength
                     if volume_confirmed:
-                        confidence *= Decimal('1.2')
-                    confidence = min(confidence, Decimal('0.95'))
+                        confidence *= Decimal("1.2")
+                    confidence = min(confidence, Decimal("0.95"))
 
                     return EntrySignal(
                         signal_type=SignalType.LONG,
@@ -300,7 +308,7 @@ class EntryLogicAnalyzer:
                         confidence=confidence,
                         market_conditions=conditions,
                         volume_confirmed=volume_confirmed,
-                        timestamp=conditions.timestamp
+                        timestamp=conditions.timestamp,
                     )
 
         return None
@@ -310,7 +318,7 @@ class EntryLogicAnalyzer:
         df: pd.DataFrame,
         conditions: MarketConditions,
         sr_levels: List[SupportResistanceLevel],
-        volume_confirmed: bool
+        volume_confirmed: bool,
     ) -> Optional[EntrySignal]:
         """
         Analyze SHORT entry in bearish trend
@@ -318,21 +326,21 @@ class EntryLogicAnalyzer:
         Inverse of bullish logic: pullback to EMA(20) or resistance, then rejection.
         """
         current_price = conditions.current_price
-        prev_close = Decimal(str(df['close'].iloc[-2]))
+        prev_close = Decimal(str(df["close"].iloc[-2]))
 
         # Check if price pulled back to EMA(20)
         if self._is_near_level(current_price, conditions.ema_fast):
             # Check for rejection (price falling)
             if current_price < prev_close:
-                confidence = Decimal('0.8') if volume_confirmed else Decimal('0.6')
+                confidence = Decimal("0.8") if volume_confirmed else Decimal("0.6")
                 return EntrySignal(
                     signal_type=SignalType.SHORT,
                     entry_reason=EntryReason.TREND_PULLBACK_TO_EMA,
                     entry_price=current_price,
-                    confidence=confidence * (Decimal('1.0') + conditions.ema_divergence_pct),
+                    confidence=confidence * (Decimal("1.0") + conditions.ema_divergence_pct),
                     market_conditions=conditions,
                     volume_confirmed=volume_confirmed,
-                    timestamp=conditions.timestamp
+                    timestamp=conditions.timestamp,
                 )
 
         # Check for rejection from resistance
@@ -341,10 +349,10 @@ class EntryLogicAnalyzer:
             if self._is_near_level(current_price, resistance.price):
                 # Check for rejection
                 if current_price < prev_close:
-                    confidence = Decimal('0.75') * resistance.strength
+                    confidence = Decimal("0.75") * resistance.strength
                     if volume_confirmed:
-                        confidence *= Decimal('1.2')
-                    confidence = min(confidence, Decimal('0.95'))
+                        confidence *= Decimal("1.2")
+                    confidence = min(confidence, Decimal("0.95"))
 
                     return EntrySignal(
                         signal_type=SignalType.SHORT,
@@ -353,16 +361,13 @@ class EntryLogicAnalyzer:
                         confidence=confidence,
                         market_conditions=conditions,
                         volume_confirmed=volume_confirmed,
-                        timestamp=conditions.timestamp
+                        timestamp=conditions.timestamp,
                     )
 
         return None
 
     def _analyze_sideways_entry(
-        self,
-        df: pd.DataFrame,
-        conditions: MarketConditions,
-        volume_confirmed: bool
+        self, df: pd.DataFrame, conditions: MarketConditions, volume_confirmed: bool
     ) -> Optional[EntrySignal]:
         """
         Analyze entry in sideways market
@@ -377,10 +382,10 @@ class EntryLogicAnalyzer:
 
         # Check RSI oversold exit (LONG signal)
         if prev_rsi < self.rsi_oversold and conditions.rsi >= self.rsi_oversold:
-            confidence = Decimal('0.7')
+            confidence = Decimal("0.7")
             if volume_confirmed:
-                confidence *= Decimal('1.3')
-            confidence = min(confidence, Decimal('0.9'))
+                confidence *= Decimal("1.3")
+            confidence = min(confidence, Decimal("0.9"))
 
             return EntrySignal(
                 signal_type=SignalType.LONG,
@@ -389,15 +394,15 @@ class EntryLogicAnalyzer:
                 confidence=confidence,
                 market_conditions=conditions,
                 volume_confirmed=volume_confirmed,
-                timestamp=conditions.timestamp
+                timestamp=conditions.timestamp,
             )
 
         # Check RSI overbought exit (SHORT signal)
         if prev_rsi > self.rsi_overbought and conditions.rsi <= self.rsi_overbought:
-            confidence = Decimal('0.7')
+            confidence = Decimal("0.7")
             if volume_confirmed:
-                confidence *= Decimal('1.3')
-            confidence = min(confidence, Decimal('0.9'))
+                confidence *= Decimal("1.3")
+            confidence = min(confidence, Decimal("0.9"))
 
             return EntrySignal(
                 signal_type=SignalType.SHORT,
@@ -406,12 +411,12 @@ class EntryLogicAnalyzer:
                 confidence=confidence,
                 market_conditions=conditions,
                 volume_confirmed=volume_confirmed,
-                timestamp=conditions.timestamp
+                timestamp=conditions.timestamp,
             )
 
         # Check range breakout (with volume confirmation required)
         if conditions.range_high and conditions.range_low:
-            prev_price = Decimal(str(df['close'].iloc[-2]))
+            prev_price = Decimal(str(df["close"].iloc[-2]))
 
             # Upward breakout (LONG signal)
             if prev_price <= conditions.range_high and current_price > conditions.range_high:
@@ -420,10 +425,10 @@ class EntryLogicAnalyzer:
                         signal_type=SignalType.LONG,
                         entry_reason=EntryReason.SIDEWAYS_RANGE_BREAKOUT_UP,
                         entry_price=current_price,
-                        confidence=Decimal('0.85'),
+                        confidence=Decimal("0.85"),
                         market_conditions=conditions,
                         volume_confirmed=True,
-                        timestamp=conditions.timestamp
+                        timestamp=conditions.timestamp,
                     )
 
             # Downward breakout (SHORT signal)
@@ -433,10 +438,10 @@ class EntryLogicAnalyzer:
                         signal_type=SignalType.SHORT,
                         entry_reason=EntryReason.SIDEWAYS_RANGE_BREAKOUT_DOWN,
                         entry_price=current_price,
-                        confidence=Decimal('0.85'),
+                        confidence=Decimal("0.85"),
                         market_conditions=conditions,
                         volume_confirmed=True,
-                        timestamp=conditions.timestamp
+                        timestamp=conditions.timestamp,
                     )
 
         return None
