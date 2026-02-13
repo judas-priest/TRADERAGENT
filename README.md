@@ -250,6 +250,143 @@ GRANT ALL PRIVILEGES ON DATABASE traderagent TO traderagent;
 \q
 ```
 
+### Database Migrations / Миграции базы данных
+
+Проект использует **Alembic** для управления версиями схемы базы данных. Alembic позволяет отслеживать изменения в структуре БД и применять их автоматически.
+
+#### Running Migrations with Docker / Запуск миграций с Docker
+
+При использовании Docker Compose миграции выполняются автоматически перед запуском бота:
+
+```bash
+# Automatic migration during deployment
+./deploy.sh
+
+# Or manually run migrations
+docker-compose --profile migration up migrations
+
+# The migrations service will run and exit automatically
+```
+
+**Что происходит:**
+1. Docker создает контейнер `traderagent-migrations`
+2. Ждет готовности PostgreSQL (healthcheck)
+3. Выполняет `alembic upgrade head`
+4. Применяет все pending migrations
+5. Завершает работу (exit code 0 = success)
+
+#### Manual Migration Setup / Ручная настройка миграций
+
+Если вы используете локальную установку без Docker:
+
+```bash
+# 1. Configure Alembic
+cp alembic.ini.example alembic.ini
+nano alembic.ini  # Edit sqlalchemy.url with your database credentials
+
+# Example database URL:
+# sqlalchemy.url = postgresql+asyncpg://traderagent:password@localhost:5432/traderagent
+
+# 2. Run migrations
+alembic upgrade head
+
+# 3. Verify migration status
+alembic current
+alembic history
+```
+
+#### Common Migration Commands / Основные команды миграций
+
+```bash
+# Check current migration version
+alembic current
+
+# View migration history
+alembic history --verbose
+
+# Upgrade to latest version
+alembic upgrade head
+
+# Upgrade to specific version
+alembic upgrade <revision_id>
+
+# Downgrade one revision
+alembic downgrade -1
+
+# Downgrade to specific version
+alembic downgrade <revision_id>
+
+# Create new migration (auto-generate from models)
+alembic revision --autogenerate -m "Description of changes"
+
+# Create empty migration
+alembic revision -m "Description of changes"
+```
+
+#### Migration Files / Файлы миграций
+
+Миграции находятся в директории `alembic/versions/`:
+
+```
+alembic/
+├── versions/
+│   └── 20260213084501_initial_schema.py  # Initial database schema
+├── env.py                                 # Alembic environment configuration
+└── script.py.mako                         # Migration template
+```
+
+**Initial Migration (20260213084501_initial_schema.py)** создает следующие таблицы:
+- `exchange_credentials` - зашифрованные API ключи бирж
+- `bots` - конфигурация и состояние ботов
+- `orders` - история ордеров
+- `trades` - история сделок
+- `grid_levels` - состояние Grid Trading
+- `dca_history` - история DCA усреднений
+- `bot_logs` - логи работы ботов
+
+#### Troubleshooting / Решение проблем
+
+**Ошибка: "Can't locate revision identified by..."**
+```bash
+# Reset migration state (ВНИМАНИЕ: потеря данных!)
+alembic stamp head
+```
+
+**Ошибка: "Target database is not up to date"**
+```bash
+# Apply pending migrations
+alembic upgrade head
+```
+
+**Проверка подключения к БД:**
+```bash
+# Test PostgreSQL connection
+psql -h localhost -U traderagent -d traderagent -c "SELECT version();"
+```
+
+**Просмотр текущей схемы:**
+```bash
+# List all tables
+psql -h localhost -U traderagent -d traderagent -c "\dt"
+
+# Describe specific table
+psql -h localhost -U traderagent -d traderagent -c "\d bots"
+```
+
+#### Environment Variables for Migrations / Переменные окружения
+
+Alembic использует переменные из `.env` при запуске через Docker:
+
+```bash
+DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+```
+
+Для ручного запуска можно переопределить через environment:
+```bash
+export DATABASE_URL="postgresql+asyncpg://user:password@host:5432/database"
+alembic upgrade head
+```
+
 ---
 
 ## ⚙️ Configuration / Конфигурация
