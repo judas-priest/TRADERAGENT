@@ -9,18 +9,17 @@ Detects price action patterns for precise entry signals:
 - Signal generation with entry, SL, TP levels
 """
 
+from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional, Tuple
-from dataclasses import dataclass, field
-from datetime import datetime
+from typing import Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from bot.utils.logger import get_logger
+from bot.strategies.smc.confluence_zones import ConfluenceZoneAnalyzer
 from bot.strategies.smc.market_structure import MarketStructureAnalyzer, TrendDirection
-from bot.strategies.smc.confluence_zones import ConfluenceZoneAnalyzer, OrderBlock, FairValueGap
+from bot.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -90,7 +89,7 @@ class SMCSignal:
     risk_reward_ratio: float
 
     # Confluence
-    confluence_zones: List[str] = field(default_factory=list)
+    confluence_zones: list[str] = field(default_factory=list)
     confluence_score: float = 0.0
 
     # Market context
@@ -142,14 +141,14 @@ class EntrySignalGenerator:
         self.min_risk_reward = min_risk_reward
         self.sl_buffer_pct = sl_buffer_pct
 
-        self.detected_patterns: List[PriceActionPattern] = []
-        self.generated_signals: List[SMCSignal] = []
+        self.detected_patterns: list[PriceActionPattern] = []
+        self.generated_signals: list[SMCSignal] = []
 
         logger.info(
             "EntrySignalGenerator initialized", min_rr=min_risk_reward, sl_buffer=sl_buffer_pct
         )
 
-    def analyze(self, df: pd.DataFrame) -> List[SMCSignal]:
+    def analyze(self, df: pd.DataFrame) -> list[SMCSignal]:
         """
         Analyze price data and generate trading signals
 
@@ -546,7 +545,7 @@ class EntrySignalGenerator:
 
     def _calculate_entry_sl_tp(
         self, pattern: PriceActionPattern
-    ) -> Tuple[Optional[Decimal], Optional[Decimal], Optional[Decimal]]:
+    ) -> tuple[Optional[Decimal], Optional[Decimal], Optional[Decimal]]:
         """
         Calculate entry, stop loss, and take profit levels
 
@@ -573,7 +572,7 @@ class EntrySignalGenerator:
 
         return entry, sl, tp
 
-    def _check_confluence(self, pattern: PriceActionPattern) -> Tuple[float, List[str]]:
+    def _check_confluence(self, pattern: PriceActionPattern) -> tuple[float, list[str]]:
         """
         Check for confluence with Order Blocks and Fair Value Gaps
 
@@ -645,7 +644,7 @@ class EntrySignalGenerator:
         else:
             return False  # Ranging market
 
-    def get_latest_signals(self, limit: int = 5) -> List[SMCSignal]:
+    def get_latest_signals(self, limit: int = 5) -> list[SMCSignal]:
         """Get most recent signals"""
         return self.generated_signals[-limit:] if self.generated_signals else []
 

@@ -9,17 +9,17 @@ Manages position sizing, stop loss, take profit, and risk validation:
 - Position performance tracking
 """
 
-from decimal import Decimal
-from enum import Enum
-from typing import List, Optional, Dict, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
+from enum import Enum
+from typing import Optional
 
 import pandas as pd
 
+from bot.strategies.smc.entry_signals import SMCSignal
+from bot.strategies.smc.market_structure import MarketStructureAnalyzer
 from bot.utils.logger import get_logger
-from bot.strategies.smc.entry_signals import SMCSignal, SignalDirection
-from bot.strategies.smc.market_structure import MarketStructureAnalyzer, SwingPoint
 
 logger = get_logger(__name__)
 
@@ -121,7 +121,7 @@ class PerformanceStats:
         else:
             self.avg_hold_time_hours = total_hold
 
-    def get_kelly_inputs(self) -> Tuple[float, float]:
+    def get_kelly_inputs(self) -> tuple[float, float]:
         """
         Get inputs for Kelly Criterion
 
@@ -171,8 +171,8 @@ class PositionManager:
         self.use_kelly = use_kelly
         self.kelly_fraction = kelly_fraction
 
-        self.open_positions: Dict[str, PositionMetrics] = {}
-        self.closed_positions: List[PositionMetrics] = []
+        self.open_positions: dict[str, PositionMetrics] = {}
+        self.closed_positions: list[PositionMetrics] = []
         self.performance_stats = PerformanceStats()
 
         logger.info(
@@ -411,7 +411,7 @@ class PositionManager:
 
     def check_exit_conditions(
         self, position_id: str, current_price: Decimal
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, Optional[str]]:
         """
         Check if position should be exited
 
@@ -495,7 +495,7 @@ class PositionManager:
 
         return position
 
-    def validate_position_risk(self, signal: SMCSignal, position_size: Decimal) -> Tuple[bool, str]:
+    def validate_position_risk(self, signal: SMCSignal, position_size: Decimal) -> tuple[bool, str]:
         """
         Validate position meets risk management rules
 

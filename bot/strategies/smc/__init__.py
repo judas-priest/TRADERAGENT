@@ -12,35 +12,35 @@ Version: 1.0.0
 Issue: https://github.com/alekseymavai/TRADERAGENT/issues/123
 """
 
-from bot.strategies.smc.smc_strategy import SMCStrategy
-from bot.strategies.smc.config import SMCConfig, DEFAULT_SMC_CONFIG
-from bot.strategies.smc.market_structure import (
-    MarketStructureAnalyzer,
-    TrendDirection,
-    StructureBreak,
-    SwingPoint,
-    StructureEvent,
-)
+from bot.strategies.smc.config import DEFAULT_SMC_CONFIG, SMCConfig
 from bot.strategies.smc.confluence_zones import (
     ConfluenceZoneAnalyzer,
-    OrderBlock,
     FairValueGap,
-    ZoneType,
+    OrderBlock,
     ZoneStatus,
+    ZoneType,
 )
 from bot.strategies.smc.entry_signals import (
     EntrySignalGenerator,
-    SMCSignal,
-    PriceActionPattern,
     PatternType,
+    PriceActionPattern,
     SignalDirection,
+    SMCSignal,
+)
+from bot.strategies.smc.market_structure import (
+    MarketStructureAnalyzer,
+    StructureBreak,
+    StructureEvent,
+    SwingPoint,
+    TrendDirection,
 )
 from bot.strategies.smc.position_manager import (
+    PerformanceStats,
     PositionManager,
     PositionMetrics,
     PositionStatus,
-    PerformanceStats,
 )
+from bot.strategies.smc.smc_strategy import SMCStrategy
 
 __all__ = [
     # Main strategy

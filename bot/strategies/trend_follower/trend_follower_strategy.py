@@ -12,7 +12,7 @@ Complete adaptive trend-following trading strategy with:
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import Optional
 
 import pandas as pd
 
@@ -340,7 +340,7 @@ class TrendFollowerStrategy:
             exit_price=float(exit_price),
         )
 
-    def get_active_positions(self) -> Dict[str, Position]:
+    def get_active_positions(self) -> dict[str, Position]:
         """Get all active positions"""
         return self.position_manager.active_positions.copy()
 

@@ -8,13 +8,12 @@ Identifies market structure elements:
 - Change of Character (CHoCH)
 """
 
+from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional, Tuple
-from dataclasses import dataclass
+from typing import Optional
 
 import pandas as pd
-import numpy as np
 
 from bot.utils.logger import get_logger
 
@@ -77,9 +76,9 @@ class MarketStructureAnalyzer:
         self.swing_length = swing_length
         self.trend_period = trend_period
 
-        self.swing_highs: List[SwingPoint] = []
-        self.swing_lows: List[SwingPoint] = []
-        self.structure_events: List[StructureEvent] = []
+        self.swing_highs: list[SwingPoint] = []
+        self.swing_lows: list[SwingPoint] = []
+        self.structure_events: list[StructureEvent] = []
         self.current_trend: TrendDirection = TrendDirection.RANGING
 
         logger.info(
@@ -424,7 +423,7 @@ class MarketStructureAnalyzer:
         """Get most recent swing low"""
         return self.swing_lows[-1] if self.swing_lows else None
 
-    def get_structure_events(self, limit: int = 10) -> List[StructureEvent]:
+    def get_structure_events(self, limit: int = 10) -> list[StructureEvent]:
         """
         Get recent structure events
 

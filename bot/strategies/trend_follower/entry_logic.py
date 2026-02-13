@@ -11,7 +11,7 @@ Implements entry conditions for LONG and SHORT positions:
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 
 import pandas as pd
 
@@ -194,13 +194,13 @@ class EntryLogicAnalyzer:
 
         return current_volume >= (avg_volume * float(self.volume_multiplier))
 
-    def _find_support_resistance_levels(self, df: pd.DataFrame) -> List[SupportResistanceLevel]:
+    def _find_support_resistance_levels(self, df: pd.DataFrame) -> list[SupportResistanceLevel]:
         """
         Identify support and resistance levels
 
         Uses local highs and lows from recent price action
         """
-        levels: List[SupportResistanceLevel] = []
+        levels: list[SupportResistanceLevel] = []
         lookback_data = df.tail(self.support_resistance_lookback)
 
         # Find local highs (potential resistance)
@@ -263,7 +263,7 @@ class EntryLogicAnalyzer:
         self,
         df: pd.DataFrame,
         conditions: MarketConditions,
-        sr_levels: List[SupportResistanceLevel],
+        sr_levels: list[SupportResistanceLevel],
         volume_confirmed: bool,
     ) -> Optional[EntrySignal]:
         """
@@ -317,7 +317,7 @@ class EntryLogicAnalyzer:
         self,
         df: pd.DataFrame,
         conditions: MarketConditions,
-        sr_levels: List[SupportResistanceLevel],
+        sr_levels: list[SupportResistanceLevel],
         volume_confirmed: bool,
     ) -> Optional[EntrySignal]:
         """

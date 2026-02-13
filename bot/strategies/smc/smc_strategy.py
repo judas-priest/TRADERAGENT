@@ -5,13 +5,14 @@ Issue #123
 """
 
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
+
 import pandas as pd
 
-from bot.strategies.smc.config import SMCConfig, DEFAULT_SMC_CONFIG
-from bot.strategies.smc.market_structure import MarketStructureAnalyzer, TrendDirection
+from bot.strategies.smc.config import DEFAULT_SMC_CONFIG, SMCConfig
 from bot.strategies.smc.confluence_zones import ConfluenceZoneAnalyzer
 from bot.strategies.smc.entry_signals import EntrySignalGenerator, SMCSignal
+from bot.strategies.smc.market_structure import MarketStructureAnalyzer, TrendDirection
 from bot.strategies.smc.position_manager import PositionManager, PositionMetrics
 from bot.utils.logger import get_logger
 
@@ -68,7 +69,7 @@ class SMCStrategy:
         # State tracking
         self.current_trend = TrendDirection.RANGING
         self.trend_strength = 0.0
-        self.active_signals: List[SMCSignal] = []
+        self.active_signals: list[SMCSignal] = []
 
         logger.info(
             "SMC Strategy initialized",
@@ -78,7 +79,7 @@ class SMCStrategy:
 
     def analyze_market(
         self, df_d1: pd.DataFrame, df_h4: pd.DataFrame, df_h1: pd.DataFrame, df_m15: pd.DataFrame
-    ) -> Dict:
+    ) -> dict:
         """
         Perform complete multi-timeframe market analysis
 
@@ -126,7 +127,7 @@ class SMCStrategy:
 
         return analysis_result
 
-    def generate_signals(self, df_h1: pd.DataFrame, df_m15: pd.DataFrame) -> List[SMCSignal]:
+    def generate_signals(self, df_h1: pd.DataFrame, df_m15: pd.DataFrame) -> list[SMCSignal]:
         """
         Generate trading signals based on current market conditions
 
@@ -171,7 +172,7 @@ class SMCStrategy:
 
         return validated_signals
 
-    def _filter_signals(self, signals: List[SMCSignal]) -> List[SMCSignal]:
+    def _filter_signals(self, signals: list[SMCSignal]) -> list[SMCSignal]:
         """
         Filter signals based on strategy rules
 
@@ -205,8 +206,8 @@ class SMCStrategy:
         return filtered[:3]
 
     def manage_positions(
-        self, current_prices: Dict[str, Decimal], df: Optional[pd.DataFrame] = None
-    ) -> List[PositionMetrics]:
+        self, current_prices: dict[str, Decimal], df: Optional[pd.DataFrame] = None
+    ) -> list[PositionMetrics]:
         """
         Update and manage open positions
 
@@ -249,7 +250,7 @@ class SMCStrategy:
 
         return updated_positions
 
-    def get_strategy_state(self) -> Dict:
+    def get_strategy_state(self) -> dict:
         """
         Get complete strategy state
 
@@ -282,7 +283,7 @@ class SMCStrategy:
             },
         }
 
-    def get_performance_report(self) -> Dict:
+    def get_performance_report(self) -> dict:
         """
         Get detailed performance report
 

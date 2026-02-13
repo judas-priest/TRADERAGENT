@@ -6,7 +6,7 @@ Defines the structure and validation rules for bot configurations.
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class StrategyType(str, Enum):

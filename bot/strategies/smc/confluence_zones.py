@@ -8,22 +8,20 @@ Detects and manages institutional order zones:
 - Zone invalidation tracking
 """
 
-from decimal import Decimal
-from enum import Enum
-from typing import List, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
+from enum import Enum
+from typing import Optional
 
 import pandas as pd
-import numpy as np
 
-from bot.utils.logger import get_logger
 from bot.strategies.smc.market_structure import (
     MarketStructureAnalyzer,
     StructureEvent,
-    StructureBreak,
     TrendDirection,
 )
+from bot.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -159,8 +157,8 @@ class ConfluenceZoneAnalyzer:
         self.timeframe = timeframe
         self.max_active_zones = max_active_zones
 
-        self.order_blocks: List[OrderBlock] = []
-        self.fair_value_gaps: List[FairValueGap] = []
+        self.order_blocks: list[OrderBlock] = []
+        self.fair_value_gaps: list[FairValueGap] = []
 
         logger.info(
             "ConfluenceZoneAnalyzer initialized", timeframe=timeframe, max_zones=max_active_zones
@@ -532,7 +530,7 @@ class ConfluenceZoneAnalyzer:
             },
         }
 
-    def get_active_order_blocks(self, is_bullish: Optional[bool] = None) -> List[OrderBlock]:
+    def get_active_order_blocks(self, is_bullish: Optional[bool] = None) -> list[OrderBlock]:
         """
         Get active Order Blocks
 
@@ -552,7 +550,7 @@ class ConfluenceZoneAnalyzer:
 
         return obs
 
-    def get_active_fvgs(self, is_bullish: Optional[bool] = None) -> List[FairValueGap]:
+    def get_active_fvgs(self, is_bullish: Optional[bool] = None) -> list[FairValueGap]:
         """
         Get active Fair Value Gaps
 

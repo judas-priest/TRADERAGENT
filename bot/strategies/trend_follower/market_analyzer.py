@@ -11,7 +11,7 @@ Calculates technical indicators and determines market phase:
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Optional
 
 import pandas as pd
 
@@ -241,7 +241,7 @@ class MarketAnalyzer:
 
     def _detect_ranging(
         self, df: pd.DataFrame, current_price: Decimal
-    ) -> Tuple[bool, Optional[Decimal], Optional[Decimal]]:
+    ) -> tuple[bool, Optional[Decimal], Optional[Decimal]]:
         """
         Detect if market is in ranging (sideways) mode
 

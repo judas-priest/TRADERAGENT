@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import structlog
-
 from bot.utils.logger import LoggerMixin, get_logger, log_context, setup_logging
 
 
