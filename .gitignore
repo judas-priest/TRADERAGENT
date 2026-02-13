@@ -71,3 +71,6 @@ configs/*.yaml
 
 # Alembic
 alembic.ini
+
+# Historical data CSV files
+data/historical/*.csv
