@@ -49,8 +49,9 @@ class RiskManager:
     """
     Manages trading risk and capital allocation
 
-    Implements risk management from Issue #124:
-    - Position Size: 2% of current capital per trade
+    Implements risk management from Issue #124 (updated per owner requirements):
+    - Position Size: 1% of current capital per trade (updated from 2%)
+    - Max Total Exposure: 20% of capital in open positions (new requirement)
     - Max Drawdown: Not more than 1% of capital per trade
     - Drawdown Protection: Reduce size by 50% after 3 consecutive losses
     - Daily Limits: Stop trading after max daily loss reached
@@ -59,13 +60,14 @@ class RiskManager:
     def __init__(
         self,
         initial_capital: Decimal,
-        risk_per_trade_pct: Decimal = Decimal('0.02'),
+        risk_per_trade_pct: Decimal = Decimal('0.01'),  # Updated to 1%
         max_risk_per_trade_pct: Decimal = Decimal('0.01'),
         max_position_size_usd: Decimal = Decimal('10000'),
+        max_total_exposure_pct: Decimal = Decimal('0.20'),  # New: max 20% total exposure
         max_consecutive_losses: int = 3,
         size_reduction_factor: Decimal = Decimal('0.5'),
         max_daily_loss_usd: Decimal = Decimal('500'),
-        max_positions: int = 3,
+        max_positions: int = 20,  # Updated to 20 (20 x 1% = 20% max)
         min_balance_buffer_pct: Decimal = Decimal('0.1')
     ):
         """
@@ -73,13 +75,14 @@ class RiskManager:
 
         Args:
             initial_capital: Starting capital
-            risk_per_trade_pct: Risk per trade as % of capital (default: 2%)
+            risk_per_trade_pct: Risk per trade as % of capital (default: 1%, updated)
             max_risk_per_trade_pct: Max drawdown per trade (default: 1%)
             max_position_size_usd: Maximum position size in USD
+            max_total_exposure_pct: Max % of capital in open positions (default: 20%, new)
             max_consecutive_losses: Trigger for size reduction (default: 3)
             size_reduction_factor: Size reduction after losses (default: 50%)
             max_daily_loss_usd: Max daily loss before stopping (default: $500)
-            max_positions: Maximum concurrent positions (default: 3)
+            max_positions: Maximum concurrent positions (default: 20, updated)
             min_balance_buffer_pct: Min balance buffer % (default: 10%)
         """
         self.initial_capital = initial_capital
@@ -87,6 +90,7 @@ class RiskManager:
         self.risk_per_trade_pct = risk_per_trade_pct
         self.max_risk_per_trade_pct = max_risk_per_trade_pct
         self.max_position_size_usd = max_position_size_usd
+        self.max_total_exposure_pct = max_total_exposure_pct
         self.max_consecutive_losses = max_consecutive_losses
         self.size_reduction_factor = size_reduction_factor
         self.max_daily_loss_usd = max_daily_loss_usd
@@ -97,6 +101,7 @@ class RiskManager:
         self.consecutive_losses = 0
         self.trade_history: list[TradeRecord] = []
         self.active_positions_count = 0
+        self.active_positions_total_value = Decimal('0')  # Track total value in open positions
         self.current_date = date.today()
         self.daily_pnl = Decimal('0')
         self.daily_trades = 0
@@ -105,6 +110,7 @@ class RiskManager:
             "RiskManager initialized",
             initial_capital=float(initial_capital),
             risk_per_trade=float(risk_per_trade_pct),
+            max_total_exposure=float(max_total_exposure_pct),
             max_daily_loss=float(max_daily_loss_usd),
             max_positions=max_positions
         )
@@ -177,6 +183,27 @@ class RiskManager:
                 rejection_reason=pos_msg
             )
 
+        # Check total exposure limit (new requirement: max 20% of capital in open positions)
+        max_total_exposure_usd = current_balance * self.max_total_exposure_pct
+        if self.active_positions_total_value >= max_total_exposure_usd:
+            exposure_msg = (
+                f"Max total exposure reached: "
+                f"${float(self.active_positions_total_value):.2f} / "
+                f"${float(max_total_exposure_usd):.2f} "
+                f"({float(self.max_total_exposure_pct * 100):.0f}% of capital)"
+            )
+            return RiskMetrics(
+                current_capital=self.current_capital,
+                available_capital=available_capital,
+                daily_pnl=self.daily_pnl,
+                consecutive_losses=self.consecutive_losses,
+                total_trades_today=self.daily_trades,
+                max_position_size_allowed=Decimal('0'),
+                risk_per_trade_pct=self.risk_per_trade_pct,
+                can_trade=False,
+                rejection_reason=exposure_msg
+            )
+
         # Calculate position size with risk management
         position_size = self._calculate_position_size(entry_signal, available_capital)
 
@@ -199,12 +226,12 @@ class RiskManager:
         """
         Calculate position size based on risk management rules
 
-        - Base size: risk_per_trade_pct% of capital
+        - Base size: risk_per_trade_pct% of capital (1% per owner requirement)
         - Adjust for consecutive losses (reduce by size_reduction_factor)
         - Limit by max_position_size_usd
         - Ensure max drawdown <= max_risk_per_trade_pct%
         """
-        # Base position size (2% of capital)
+        # Base position size (1% of capital per owner requirement)
         base_size = available_capital * self.risk_per_trade_pct
 
         # Apply consecutive loss reduction
@@ -305,15 +332,37 @@ class RiskManager:
             daily_pnl=float(self.daily_pnl)
         )
 
-    def position_opened(self) -> None:
-        """Increment active positions counter"""
-        self.active_positions_count += 1
-        logger.debug("Position opened", active_count=self.active_positions_count)
+    def position_opened(self, position_value: Decimal) -> None:
+        """
+        Increment active positions counter and track total exposure
 
-    def position_closed(self) -> None:
-        """Decrement active positions counter"""
+        Args:
+            position_value: USD value of the opened position
+        """
+        self.active_positions_count += 1
+        self.active_positions_total_value += position_value
+        logger.debug(
+            "Position opened",
+            active_count=self.active_positions_count,
+            position_value=float(position_value),
+            total_exposure=float(self.active_positions_total_value)
+        )
+
+    def position_closed(self, position_value: Decimal) -> None:
+        """
+        Decrement active positions counter and reduce total exposure
+
+        Args:
+            position_value: USD value of the closed position
+        """
         self.active_positions_count = max(0, self.active_positions_count - 1)
-        logger.debug("Position closed", active_count=self.active_positions_count)
+        self.active_positions_total_value = max(Decimal('0'), self.active_positions_total_value - position_value)
+        logger.debug(
+            "Position closed",
+            active_count=self.active_positions_count,
+            position_value=float(position_value),
+            total_exposure=float(self.active_positions_total_value)
+        )
 
     def _update_daily_metrics(self) -> None:
         """Reset daily metrics if new day"""

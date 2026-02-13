@@ -95,10 +95,11 @@ The strategy continuously analyzes market conditions using technical indicators:
 
 ### 4. Risk Management
 
-**Position Sizing:**
-- Base size: 2% of current capital per trade
+**Position Sizing (Updated per owner requirements):**
+- Base size: **1% of current capital per trade** (updated from 2%)
 - Max drawdown: ≤ 1% of capital per trade
 - Maximum position: $10,000 (configurable)
+- **Max total exposure: 20% of capital in open positions** (new requirement)
 
 **Drawdown Protection:**
 - Track consecutive losses
@@ -109,12 +110,13 @@ The strategy continuously analyzes market conditions using technical indicators:
 - Maximum daily loss: $500 (configurable)
 - Stop trading when limit reached
 - Reset at start of new trading day
-- Maximum concurrent positions: 3
+- Maximum concurrent positions: **20** (updated from 3, to allow up to 20% exposure with 1% per position)
 
 **Balance Checks:**
 - Ensure sufficient balance before trading
 - Maintain 10% buffer for margin
 - API availability verification
+- Check total exposure doesn't exceed 20% of capital
 
 ### 5. Trade Logging
 
@@ -219,13 +221,14 @@ config = TrendFollowerConfig(
     enable_partial_close=True,
     partial_close_percentage=Decimal('0.50'),
 
-    # Risk Management
-    risk_per_trade_pct=Decimal('0.02'),  # 2%
+    # Risk Management (updated per owner requirements)
+    risk_per_trade_pct=Decimal('0.01'),  # 1% (updated from 2%)
     max_risk_per_trade_pct=Decimal('0.01'),  # 1%
     max_position_size_usd=Decimal('10000'),
+    max_total_exposure_pct=Decimal('0.20'),  # 20% max total exposure (new)
     max_consecutive_losses=3,
     max_daily_loss_usd=Decimal('500'),
-    max_positions=3,
+    max_positions=20,  # Updated from 3 (allows 20 x 1% = 20% max)
 
     # Logging
     log_all_signals=True,
@@ -276,16 +279,41 @@ pytest tests/strategies/trend_follower/ --cov=bot.strategies.trend_follower --co
 
 ### Backtesting
 
+**Owner's Testing Requirements (per PR #131 comments):**
+
 ```bash
-# Run backtest on historical data
+# Test configuration as specified by repository owner:
+# Symbol: ETH/USDT
+# Exchange: Bybit
+# Timeframes: d1, h4, h1, m15, m5
+# Date range: 2024-01-01 to 2026-02-10
+# Position size: 1% of deposit
+# Max total exposure: 20% of deposit (USDT)
+
+# Example backtest command for each timeframe:
 python -m bot.tests.backtesting.backtesting_engine \
     --strategy trend_follower \
-    --symbol BTC/USDT \
+    --exchange bybit \
+    --symbol ETH/USDT \
+    --timeframe 1d \
     --start-date 2024-01-01 \
-    --end-date 2024-12-31 \
+    --end-date 2026-02-10 \
     --initial-capital 10000
 
-# Expected metrics (2 months minimum):
+# Run all required timeframes:
+for tf in 1d 4h 1h 15m 5m; do
+    python -m bot.tests.backtesting.backtesting_engine \
+        --strategy trend_follower \
+        --exchange bybit \
+        --symbol ETH/USDT \
+        --timeframe $tf \
+        --start-date 2024-01-01 \
+        --end-date 2026-02-10 \
+        --initial-capital 10000 \
+        --output results_${tf}.json
+done
+
+# Expected metrics (minimum requirements from Issue #124):
 # - Sharpe Ratio: > 1.0
 # - Max Drawdown: < 20%
 # - Profit Factor: > 1.5
@@ -374,10 +402,12 @@ Based on backtesting requirements from Issue #124:
 - `enable_partial_close`: Enable partial profit taking (default: True)
 
 ### Risk Management
-- `risk_per_trade_pct`: Risk per trade (default: 0.02 = 2%)
+- `risk_per_trade_pct`: Risk per trade (default: 0.01 = 1%, updated from 2%)
 - `max_risk_per_trade_pct`: Max drawdown (default: 0.01 = 1%)
+- `max_total_exposure_pct`: Max total exposure in positions (default: 0.20 = 20%, new)
 - `max_consecutive_losses`: Trigger for size reduction (default: 3)
 - `max_daily_loss_usd`: Daily stop loss (default: $500)
+- `max_positions`: Max concurrent positions (default: 20, updated from 3)
 
 See [config.py](config.py) for complete parameter list with descriptions.
 

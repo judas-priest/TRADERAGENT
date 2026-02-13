@@ -74,12 +74,15 @@ class TrendFollowerConfig:
     partial_tp_percentage: Decimal = Decimal('0.70')     # Partial TP at 70% of full TP
 
     # ===== CAPITAL MANAGEMENT =====
-    # Risk per trade
-    risk_per_trade_pct: Decimal = Decimal('0.02')  # 2% of capital per trade
+    # Risk per trade (updated per owner requirement: 1% per position)
+    risk_per_trade_pct: Decimal = Decimal('0.01')  # 1% of capital per trade
     max_risk_per_trade_pct: Decimal = Decimal('0.01')  # Max 1% drawdown per trade
 
     # Position sizing
     max_position_size_usd: Decimal = Decimal('10000')  # Maximum position size
+
+    # Total exposure limit (updated per owner requirement: max 20% total in positions)
+    max_total_exposure_pct: Decimal = Decimal('0.20')  # Max 20% of capital in open positions
 
     # Drawdown protection
     max_consecutive_losses: int = 3  # Reduce size after N losses
@@ -87,7 +90,7 @@ class TrendFollowerConfig:
 
     # Daily limits
     max_daily_loss_usd: Decimal = Decimal('500')  # Stop trading after daily loss
-    max_positions: int = 3  # Maximum concurrent positions
+    max_positions: int = 20  # Maximum concurrent positions (20 x 1% = 20% max exposure)
 
     # ===== BACKTESTING & VALIDATION =====
     # Performance targets (for validation)

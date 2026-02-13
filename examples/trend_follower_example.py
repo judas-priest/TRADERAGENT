@@ -91,11 +91,12 @@ def main():
         enable_partial_close=True,
         enable_breakeven=True,
 
-        # Risk management
-        risk_per_trade_pct=Decimal('0.02'),
+        # Risk management (updated per owner requirements)
+        risk_per_trade_pct=Decimal('0.01'),  # 1% per position
+        max_total_exposure_pct=Decimal('0.20'),  # Max 20% total exposure
         max_consecutive_losses=3,
         max_daily_loss_usd=Decimal('500'),
-        max_positions=3,
+        max_positions=20,  # Allow up to 20 positions (20 x 1% = 20%)
 
         # Logging
         log_all_signals=True,
