@@ -15,6 +15,7 @@ class StrategyType(str, Enum):
     GRID = "grid"
     DCA = "dca"
     HYBRID = "hybrid"
+    TREND_FOLLOWER = "trend_follower"
 
 
 class ExchangeConfig(BaseModel):
@@ -98,6 +99,109 @@ class DCAConfig(BaseModel):
     )
 
 
+class TrendFollowerConfig(BaseModel):
+    """Trend-Follower Strategy configuration"""
+
+    enabled: bool = Field(default=True, description="Enable Trend-Follower strategy")
+
+    # Market analysis settings
+    ema_fast_period: int = Field(
+        default=20,
+        ge=5,
+        le=50,
+        description="Fast EMA period for trend detection",
+    )
+    ema_slow_period: int = Field(
+        default=50,
+        ge=20,
+        le=200,
+        description="Slow EMA period for trend detection",
+    )
+    atr_period: int = Field(
+        default=14,
+        ge=7,
+        le=30,
+        description="ATR period for volatility measurement",
+    )
+    rsi_period: int = Field(
+        default=14,
+        ge=7,
+        le=30,
+        description="RSI period for momentum confirmation",
+    )
+
+    # Entry settings
+    volume_multiplier: Decimal = Field(
+        default=Decimal("1.5"),
+        gt=1,
+        description="Volume multiplier for confirmation (1.5 = 150% of average)",
+    )
+    atr_filter_threshold: Decimal = Field(
+        default=Decimal("0.05"),
+        gt=0,
+        description="Minimum ATR percentage for volatility filter (0.05 = 5%)",
+    )
+
+    # Position management - Take Profit ATR multipliers
+    tp_atr_multiplier_sideways: Decimal = Field(
+        default=Decimal("1.2"),
+        gt=0,
+        description="TP ATR multiplier for sideways market",
+    )
+    tp_atr_multiplier_weak: Decimal = Field(
+        default=Decimal("1.8"),
+        gt=0,
+        description="TP ATR multiplier for weak trend",
+    )
+    tp_atr_multiplier_strong: Decimal = Field(
+        default=Decimal("2.5"),
+        gt=0,
+        description="TP ATR multiplier for strong trend",
+    )
+
+    # Position management - Stop Loss ATR multipliers
+    sl_atr_multiplier_sideways: Decimal = Field(
+        default=Decimal("0.7"),
+        gt=0,
+        description="SL ATR multiplier for sideways market",
+    )
+    sl_atr_multiplier_trend: Decimal = Field(
+        default=Decimal("1.0"),
+        gt=0,
+        description="SL ATR multiplier for trending market",
+    )
+
+    # Risk management
+    risk_per_trade_pct: Decimal = Field(
+        default=Decimal("0.02"),
+        gt=0,
+        le=0.1,
+        description="Risk per trade as percentage of balance (0.02 = 2%)",
+    )
+    max_position_size_usd: Decimal = Field(
+        default=Decimal("5000"),
+        gt=0,
+        description="Maximum position size in USD",
+    )
+    max_daily_loss_usd: Decimal = Field(
+        default=Decimal("500"),
+        gt=0,
+        description="Maximum daily loss in USD",
+    )
+    max_positions: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum number of concurrent positions",
+    )
+
+    # Logging
+    log_all_signals: bool = Field(
+        default=False,
+        description="Log all signals including non-executed ones",
+    )
+
+
 class RiskManagementConfig(BaseModel):
     """Risk management configuration"""
 
@@ -146,6 +250,9 @@ class BotConfig(BaseModel):
     exchange: ExchangeConfig
     grid: GridConfig | None = Field(default=None, description="Grid trading configuration")
     dca: DCAConfig | None = Field(default=None, description="DCA configuration")
+    trend_follower: TrendFollowerConfig | None = Field(
+        default=None, description="Trend-Follower strategy configuration"
+    )
     risk_management: RiskManagementConfig
     notifications: NotificationConfig = Field(default_factory=NotificationConfig)
 
@@ -162,6 +269,9 @@ class BotConfig(BaseModel):
         if self.strategy in (StrategyType.DCA, StrategyType.HYBRID):
             if self.dca is None:
                 raise ValueError(f"Strategy '{self.strategy}' requires dca configuration")
+        if self.strategy == StrategyType.TREND_FOLLOWER:
+            if self.trend_follower is None:
+                raise ValueError("Strategy 'trend_follower' requires trend_follower configuration")
         return self
 
     class Config:
