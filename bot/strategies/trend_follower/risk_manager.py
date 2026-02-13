@@ -391,8 +391,8 @@ class RiskManager:
         wins = [t for t in self.trade_history if t.is_win]
         losses = [t for t in self.trade_history if not t.is_win]
 
-        total_win = sum(t.profit_loss for t in wins)
-        total_loss = abs(sum(t.profit_loss for t in losses))
+        total_win = Decimal(sum(t.profit_loss for t in wins) if wins else 0)
+        total_loss = abs(Decimal(sum(t.profit_loss for t in losses) if losses else 0))
 
         profit_factor = float(total_win / total_loss) if total_loss > 0 else float("inf")
 

@@ -12,7 +12,7 @@ Complete adaptive trend-following trading strategy with:
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -128,6 +128,7 @@ class TrendFollowerStrategy:
             min_balance_buffer_pct=self.config.min_balance_buffer_pct,
         )
 
+        self.trade_logger: Optional[TradeLogger]
         if log_trades:
             self.trade_logger = TradeLogger(
                 log_file_path=log_file_path,
@@ -238,7 +239,8 @@ class TrendFollowerStrategy:
         )
 
         # Update risk manager
-        self.risk_manager.position_opened()
+        position_value = entry_signal.entry_price * position_size
+        self.risk_manager.position_opened(position_value=position_value)
 
         logger.info(
             "Position opened",
@@ -331,7 +333,8 @@ class TrendFollowerStrategy:
         self.position_manager.close_position(position_id, exit_reason)
 
         # Update risk manager
-        self.risk_manager.position_closed()
+        position_value = position.entry_price * position.size
+        self.risk_manager.position_closed(position_value=position_value)
 
         logger.info(
             "Position closed and recorded",
@@ -393,7 +396,7 @@ class TrendFollowerStrategy:
 
         stats = self.trade_logger.get_statistics()
 
-        validation = {"validated": True, "criteria": {}, "failed_criteria": []}
+        validation: dict[str, Any] = {"validated": True, "criteria": {}, "failed_criteria": []}
 
         # Check Sharpe Ratio
         sharpe_pass = stats["sharpe_ratio"] >= float(self.config.min_sharpe_ratio)

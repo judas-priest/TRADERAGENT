@@ -192,7 +192,7 @@ class EntryLogicAnalyzer:
         avg_volume = df["volume"].tail(self.volume_lookback).mean()
         current_volume = df["volume"].iloc[-1]
 
-        return current_volume >= (avg_volume * float(self.volume_multiplier))
+        return bool(current_volume >= (avg_volume * float(self.volume_multiplier)))
 
     def _find_support_resistance_levels(self, df: pd.DataFrame) -> list[SupportResistanceLevel]:
         """
