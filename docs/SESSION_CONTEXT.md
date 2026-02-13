@@ -22,11 +22,15 @@
 
 ## 📊 Текущий статус проекта
 
-### ✅ Завершено (v1.0.0)
+### ✅ Завершено (v1.1.0)
 
 **1. SMC Strategy - ПОЛНОСТЬЮ РЕАЛИЗОВАНА (100%)**
 
-Статус: ✅ Production Ready (Released 2026-02-12)
+Статус: ✅ Production Ready (Released 2026-02-12, v1.0.0)
+
+**2. Trend-Follower Strategy - ПОЛНОСТЬЮ РЕАЛИЗОВАНА (100%)**
+
+Статус: ✅ Production Ready (Released 2026-02-13, v1.1.0)
 
 Компоненты:
 - ✅ Market Structure Analyzer (Issue #126) - анализ структуры рынка, BOS/CHoCH
@@ -40,12 +44,25 @@
 - 🧪 `tests/strategies/smc/` - 60+ comprehensive tests
 - 📝 Покрытие: >80% test coverage
 
-**2. Git Operations - ЗАВЕРШЕНЫ**
-- ✅ PR #125 смержен в main (commit: `8b4945c`)
-- ✅ Все 6 issues закрыты (#123, #126, #127, #128, #129, #130)
-- ✅ Release v1.0.0 создан: https://github.com/alekseymavai/TRADERAGENT/releases/tag/v1.0.0
-- ✅ Tag v1.0.0 залит (sha: `7718849`)
-- ✅ README.md обновлен с разделом SMC Strategy (commit: `0cd6ef4`)
+Компоненты:
+- ✅ Market Analyzer (Issue #124) - EMA, ATR, RSI индикаторы + определение фазы рынка
+- ✅ Entry Logic (Issue #124) - LONG/SHORT сигналы с volume confirmation
+- ✅ Position Manager (Issue #124) - динамичные TP/SL на основе ATR + trailing stops
+- ✅ Risk Manager (Issue #124) - sizing (2% per trade), drawdown protection, daily limits
+- ✅ Trade Logger (Issue #124) - полный журнал сделок + performance metrics
+
+Код:
+- 📁 `bot/strategies/trend_follower/` - 2,400+ production lines
+- 📁 `examples/trend_follower_example.py` - пример использования
+- 📝 Полная типизация: 0 mypy errors
+
+**4. Git Operations - ЗАВЕРШЕНЫ**
+- ✅ PR #125 смержен в main - SMC Strategy (commit: `8b4945c`)
+- ✅ PR #131 смержен в main - Trend-Follower Strategy (commit: `b8bd50e`)
+- ✅ Issue #124 закрыт (Trend-Follower)
+- ✅ Все issues SMC закрыты (#123, #126, #127, #128, #129, #130)
+- ✅ Release v1.0.0: https://github.com/alekseymavai/TRADERAGENT/releases/tag/v1.0.0
+- ✅ README.md обновлен с разделами SMC + Trend-Follower
 
 **3. Документация - ЗАВЕРШЕНА**
 - ✅ Release notes v1.0.0 с полным описанием
@@ -109,6 +126,90 @@ class SMCGridAdvisor:
 
 ---
 
+## 🎓 О Trend-Follower Strategy
+
+**Ключевое понимание:** Trend-Follower - это **адаптивная трендовая стратегия** с автоматической подстройкой под фазу рынка.
+
+**Назначение:**
+- Определяет фазу рынка (Bullish Trend, Bearish Trend, Sideways)
+- Генерирует LONG/SHORT сигналы в зависимости от фазы
+- Адаптирует TP/SL к волатильности (ATR-based)
+- Управляет рисками (2% per trade, drawdown protection, daily limits)
+- Логирует все сделки с метриками performance
+
+**Фазы рынка и логика входа:**
+
+| Фаза | Условие | LONG вход | SHORT вход |
+|------|---------|-----------|------------|
+| Bullish Trend | EMA20 > EMA50, divergence > 0.5% | Pullback к EMA20/support | - |
+| Bearish Trend | EMA20 < EMA50, divergence > 0.5% | - | Pullback к EMA20/resistance |
+| Sideways | Divergence < 0.5% | RSI exit oversold или breakout вверх | RSI exit overbought или breakout вниз |
+
+**TP/SL (Dynamic ATR-based):**
+
+| Фаза | TP Multiplier | SL Multiplier |
+|------|---------------|---------------|
+| Sideways | 1.2 × ATR | 0.7 × ATR |
+| Weak Trend | 1.8 × ATR | 1.0 × ATR |
+| Strong Trend | 2.5 × ATR | 1.0 × ATR |
+
+**Advanced Features:**
+- Trailing Stop (активируется после 1.5×ATR прибыли, трейлит на 0.5×ATR)
+- Breakeven Move (переносит SL в точку входа после 1×ATR прибыли)
+- Partial Close (закрывает 50% на 70% от TP, остальное трейлится)
+
+**Интеграция:**
+```python
+from bot.strategies.trend_follower import TrendFollowerStrategy, TrendFollowerConfig
+
+# Инициализация
+strategy = TrendFollowerStrategy(
+    config=TrendFollowerConfig(),  # или custom config
+    initial_capital=Decimal("10000")
+)
+
+# Анализ рынка
+conditions = strategy.analyze_market(df)
+print(f"Phase: {conditions.phase}, Trend: {conditions.trend_strength}")
+
+# Проверка сигнала
+entry_data = strategy.check_entry_signal(df, current_balance)
+if entry_data:
+    signal, metrics, position_size = entry_data
+    position_id = strategy.open_position(signal, position_size)
+
+# Обновление позиции
+exit_reason = strategy.update_position(position_id, current_price, df)
+if exit_reason:
+    strategy.close_position(position_id, exit_reason, current_price)
+
+# Получение статистики
+stats = strategy.get_statistics()
+validation = strategy.validate_performance()  # проверка метрик из issue #124
+```
+
+---
+
+## 📂 Структура кода Trend-Follower
+
+```
+bot/strategies/trend_follower/
+├── __init__.py                     (13 lines)  - API exports
+├── config.py                       (146 lines) - TrendFollowerConfig class
+├── market_analyzer.py              (322 lines) - Market analysis, indicators, phase detection
+├── entry_logic.py                  (465 lines) - Entry signal generation, volume confirmation
+├── position_manager.py             (398 lines) - Position management, TP/SL, trailing
+├── risk_manager.py                 (287 lines) - Risk & capital management
+├── trade_logger.py                 (310 lines) - Trade logging & performance metrics
+├── trend_follower_strategy.py      (462 lines) - Main orchestration class
+└── README.md                       (459 lines) - Detailed documentation
+
+examples/
+└── trend_follower_example.py       (274 lines) - Example usage script
+```
+
+---
+
 ## 📂 Структура кода SMC
 
 ```
@@ -134,26 +235,40 @@ tests/strategies/smc/
 
 ## 🔄 Что дальше (Next Steps)
 
-### Приоритет 1: Backtesting & Validation
-- [ ] Запустить полный backtest на 6+ месяцев исторических данных BTC/USDT
-- [ ] Проверить достижение target метрик (Profit Factor >1.5, Win Rate >45%)
-- [ ] Сгенерировать отчет с графиками
-
-### Приоритет 2: Integration Testing
+### Приоритет 1: Integration Testing (ТЕКУЩАЯ ЗАДАЧА)
+- [x] Обновить SESSION_CONTEXT.md с информацией о Trend-Follower
+- [ ] **Создать integration tests для Trend-Follower с orchestrator**
 - [ ] Интегрировать SMCGridAdvisor в main bot orchestrator
 - [ ] Протестировать decision-making flow для запуска Grid ботов
 - [ ] Проверить multi-timeframe data pipeline
 
+### Приоритет 2: Backtesting & Validation
+**SMC Strategy:**
+- [ ] Запустить полный backtest на 6+ месяцев исторических данных BTC/USDT
+- [ ] Проверить достижение target метрик (Sharpe >1.0, Win Rate >45%)
+
+**Trend-Follower Strategy:**
+- [ ] Запустить backtest на 6+ месяцев данных
+- [ ] Валидация против требований issue #124:
+  - [ ] Sharpe Ratio > 1.0
+  - [ ] Max Drawdown < 20%
+  - [ ] Profit Factor > 1.5
+  - [ ] Win Rate > 45%
+  - [ ] Profit/Loss Ratio > 1.5
+- [ ] Сгенерировать отчет с графиками
+
 ### Приоритет 3: Paper Trading
 - [ ] Настроить paper trading environment
-- [ ] Запустить SMC Strategy в testnet режиме
-- [ ] Мониторинг сигналов и производительности (минимум 2 недели)
+- [ ] Запустить обе стратегии в testnet режиме
+- [ ] Мониторинг сигналов (минимум 2 недели)
+- [ ] Сравнительный анализ SMC vs Trend-Follower
 
 ### Приоритет 4: Production Deployment
 - [ ] После успешного paper trading - перенести на live
 - [ ] Настроить monitoring (Prometheus + Grafana)
 - [ ] Настроить alerts (Telegram)
 - [ ] Начать с малых сумм
+- [ ] A/B тестирование обеих стратегий
 
 ---
 
@@ -325,4 +440,4 @@ pytest tests/strategies/smc/ --cov=bot.strategies.smc --cov-report=html
 
 **Важно:** После прочтения этого контекста, ты полностью в курсе проекта. Теперь спроси меня: "Над чем будем работать дальше?" и мы продолжим!
 
-**Последнее обновление контекста:** 2026-02-12 (после Release v1.0.0)
+**Последнее обновление контекста:** 2026-02-13 (после Release v1.1.0 - Trend-Follower Strategy merge)
