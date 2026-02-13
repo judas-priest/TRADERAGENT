@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 
 class TrendDirection(str, Enum):
     """Market trend direction"""
+
     BULLISH = "bullish"
     BEARISH = "bearish"
     RANGING = "ranging"
@@ -30,6 +31,7 @@ class TrendDirection(str, Enum):
 
 class StructureBreak(str, Enum):
     """Type of market structure break"""
+
     BOS = "break_of_structure"  # Continuation
     CHOCH = "change_of_character"  # Reversal
 
@@ -37,6 +39,7 @@ class StructureBreak(str, Enum):
 @dataclass
 class SwingPoint:
     """Represents a swing high or swing low"""
+
     index: int
     price: Decimal
     timestamp: pd.Timestamp
@@ -47,6 +50,7 @@ class SwingPoint:
 @dataclass
 class StructureEvent:
     """Market structure event (BOS or CHoCH)"""
+
     event_type: StructureBreak
     index: int
     price: Decimal
@@ -81,7 +85,7 @@ class MarketStructureAnalyzer:
         logger.info(
             "MarketStructureAnalyzer initialized",
             swing_length=swing_length,
-            trend_period=trend_period
+            trend_period=trend_period,
         )
 
     def analyze(self, df: pd.DataFrame) -> dict:
@@ -98,7 +102,7 @@ class MarketStructureAnalyzer:
             logger.warning(
                 "Insufficient data for structure analysis",
                 required=self.swing_length * 2 + 1,
-                available=len(df)
+                available=len(df),
             )
             return self.get_current_structure()
 
@@ -116,7 +120,7 @@ class MarketStructureAnalyzer:
             swing_highs=len(self.swing_highs),
             swing_lows=len(self.swing_lows),
             trend=self.current_trend,
-            events=len(self.structure_events)
+            events=len(self.structure_events),
         )
 
         return self.get_current_structure()
@@ -140,10 +144,10 @@ class MarketStructureAnalyzer:
             if self._is_swing_high(df, i):
                 swing_high = SwingPoint(
                     index=i,
-                    price=Decimal(str(df.iloc[i]['high'])),
+                    price=Decimal(str(df.iloc[i]["high"])),
                     timestamp=df.iloc[i].name,
                     is_high=True,
-                    strength=self.swing_length
+                    strength=self.swing_length,
                 )
                 self.swing_highs.append(swing_high)
 
@@ -151,17 +155,17 @@ class MarketStructureAnalyzer:
             if self._is_swing_low(df, i):
                 swing_low = SwingPoint(
                     index=i,
-                    price=Decimal(str(df.iloc[i]['low'])),
+                    price=Decimal(str(df.iloc[i]["low"])),
                     timestamp=df.iloc[i].name,
                     is_high=False,
-                    strength=self.swing_length
+                    strength=self.swing_length,
                 )
                 self.swing_lows.append(swing_low)
 
         logger.debug(
             "Swing points detected",
             swing_highs=len(self.swing_highs),
-            swing_lows=len(self.swing_lows)
+            swing_lows=len(self.swing_lows),
         )
 
     def _is_swing_high(self, df: pd.DataFrame, index: int) -> bool:
@@ -175,16 +179,16 @@ class MarketStructureAnalyzer:
         Returns:
             True if it's a swing high, False otherwise
         """
-        current_high = df.iloc[index]['high']
+        current_high = df.iloc[index]["high"]
 
         # Check left side
         for i in range(index - self.swing_length, index):
-            if df.iloc[i]['high'] >= current_high:
+            if df.iloc[i]["high"] >= current_high:
                 return False
 
         # Check right side
         for i in range(index + 1, index + self.swing_length + 1):
-            if df.iloc[i]['high'] >= current_high:
+            if df.iloc[i]["high"] >= current_high:
                 return False
 
         return True
@@ -200,16 +204,16 @@ class MarketStructureAnalyzer:
         Returns:
             True if it's a swing low, False otherwise
         """
-        current_low = df.iloc[index]['low']
+        current_low = df.iloc[index]["low"]
 
         # Check left side
         for i in range(index - self.swing_length, index):
-            if df.iloc[i]['low'] <= current_low:
+            if df.iloc[i]["low"] <= current_low:
                 return False
 
         # Check right side
         for i in range(index + 1, index + self.swing_length + 1):
-            if df.iloc[i]['low'] <= current_low:
+            if df.iloc[i]["low"] <= current_low:
                 return False
 
         return True
@@ -269,7 +273,7 @@ class MarketStructureAnalyzer:
 
         # Check for breaks of swing highs (bullish breaks)
         for i in range(len(df)):
-            close_price = Decimal(str(df.iloc[i]['close']))
+            close_price = Decimal(str(df.iloc[i]["close"]))
 
             # Check if price breaks above recent swing high
             for swing_high in reversed(self.swing_highs):
@@ -293,7 +297,7 @@ class MarketStructureAnalyzer:
                         price=close_price,
                         timestamp=df.iloc[i].name,
                         previous_swing=swing_high,
-                        current_trend=self.current_trend
+                        current_trend=self.current_trend,
                     )
                     self.structure_events.append(event)
 
@@ -301,7 +305,7 @@ class MarketStructureAnalyzer:
                         "Structure break detected",
                         type=event_type,
                         price=float(close_price),
-                        swing_price=float(swing_high.price)
+                        swing_price=float(swing_high.price),
                     )
                     break
 
@@ -327,7 +331,7 @@ class MarketStructureAnalyzer:
                         price=close_price,
                         timestamp=df.iloc[i].name,
                         previous_swing=swing_low,
-                        current_trend=self.current_trend
+                        current_trend=self.current_trend,
                     )
                     self.structure_events.append(event)
 
@@ -335,7 +339,7 @@ class MarketStructureAnalyzer:
                         "Structure break detected",
                         type=event_type,
                         price=float(close_price),
-                        swing_price=float(swing_low.price)
+                        swing_price=float(swing_low.price),
                     )
                     break
 
@@ -351,50 +355,51 @@ class MarketStructureAnalyzer:
             Dictionary with multi-timeframe trend analysis
         """
         result = {
-            'd1_trend': TrendDirection.RANGING,
-            'h4_trend': TrendDirection.RANGING,
-            'trend_strength': 0.0,
-            'trend_aligned': False
+            "d1_trend": TrendDirection.RANGING,
+            "h4_trend": TrendDirection.RANGING,
+            "trend_strength": 0.0,
+            "trend_aligned": False,
         }
 
         # Analyze D1 trend
         if len(df_d1) >= self.trend_period:
             d1_analyzer = MarketStructureAnalyzer(
-                swing_length=self.swing_length,
-                trend_period=self.trend_period
+                swing_length=self.swing_length, trend_period=self.trend_period
             )
             d1_analyzer.analyze(df_d1)
-            result['d1_trend'] = d1_analyzer.current_trend
+            result["d1_trend"] = d1_analyzer.current_trend
 
         # Analyze H4 trend
         if len(df_h4) >= self.trend_period:
             h4_analyzer = MarketStructureAnalyzer(
-                swing_length=self.swing_length,
-                trend_period=self.trend_period
+                swing_length=self.swing_length, trend_period=self.trend_period
             )
             h4_analyzer.analyze(df_h4)
-            result['h4_trend'] = h4_analyzer.current_trend
+            result["h4_trend"] = h4_analyzer.current_trend
 
         # Check if trends are aligned
-        result['trend_aligned'] = (
-            result['d1_trend'] == result['h4_trend'] 
-            and result['d1_trend'] != TrendDirection.RANGING
+        result["trend_aligned"] = (
+            result["d1_trend"] == result["h4_trend"]
+            and result["d1_trend"] != TrendDirection.RANGING
         )
 
         # Calculate trend strength (0.0 to 1.0)
-        if result['trend_aligned']:
-            result['trend_strength'] = 1.0
-        elif result['d1_trend'] != TrendDirection.RANGING or result['h4_trend'] != TrendDirection.RANGING:
-            result['trend_strength'] = 0.5
+        if result["trend_aligned"]:
+            result["trend_strength"] = 1.0
+        elif (
+            result["d1_trend"] != TrendDirection.RANGING
+            or result["h4_trend"] != TrendDirection.RANGING
+        ):
+            result["trend_strength"] = 0.5
         else:
-            result['trend_strength'] = 0.0
+            result["trend_strength"] = 0.0
 
         logger.info(
             "Multi-timeframe trend analyzed",
-            d1_trend=result['d1_trend'],
-            h4_trend=result['h4_trend'],
-            strength=result['trend_strength'],
-            aligned=result['trend_aligned']
+            d1_trend=result["d1_trend"],
+            h4_trend=result["h4_trend"],
+            strength=result["trend_strength"],
+            aligned=result["trend_aligned"],
         )
 
         return result
@@ -402,13 +407,13 @@ class MarketStructureAnalyzer:
     def get_current_structure(self) -> dict:
         """Get current market structure summary"""
         return {
-            'swing_highs_count': len(self.swing_highs),
-            'swing_lows_count': len(self.swing_lows),
-            'last_swing_high': self.swing_highs[-1] if self.swing_highs else None,
-            'last_swing_low': self.swing_lows[-1] if self.swing_lows else None,
-            'current_trend': self.current_trend,
-            'structure_events_count': len(self.structure_events),
-            'last_structure_event': self.structure_events[-1] if self.structure_events else None,
+            "swing_highs_count": len(self.swing_highs),
+            "swing_lows_count": len(self.swing_lows),
+            "last_swing_high": self.swing_highs[-1] if self.swing_highs else None,
+            "last_swing_low": self.swing_lows[-1] if self.swing_lows else None,
+            "current_trend": self.current_trend,
+            "structure_events_count": len(self.structure_events),
+            "last_structure_event": self.structure_events[-1] if self.structure_events else None,
         }
 
     def get_recent_swing_high(self) -> Optional[SwingPoint]:

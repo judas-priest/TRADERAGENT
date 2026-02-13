@@ -19,61 +19,57 @@ from bot.strategies.smc.market_structure import (
     TrendDirection,
     StructureBreak,
     SwingPoint,
-    StructureEvent
+    StructureEvent,
 )
 from bot.strategies.smc.confluence_zones import (
     ConfluenceZoneAnalyzer,
     OrderBlock,
     FairValueGap,
     ZoneType,
-    ZoneStatus
+    ZoneStatus,
 )
 from bot.strategies.smc.entry_signals import (
     EntrySignalGenerator,
     SMCSignal,
     PriceActionPattern,
     PatternType,
-    SignalDirection
+    SignalDirection,
 )
 from bot.strategies.smc.position_manager import (
     PositionManager,
     PositionMetrics,
     PositionStatus,
-    PerformanceStats
+    PerformanceStats,
 )
 
 __all__ = [
     # Main strategy
-    'SMCStrategy',
-    'SMCConfig',
-    'DEFAULT_SMC_CONFIG',
-    
+    "SMCStrategy",
+    "SMCConfig",
+    "DEFAULT_SMC_CONFIG",
     # Market Structure
-    'MarketStructureAnalyzer',
-    'TrendDirection',
-    'StructureBreak',
-    'SwingPoint',
-    'StructureEvent',
-    
+    "MarketStructureAnalyzer",
+    "TrendDirection",
+    "StructureBreak",
+    "SwingPoint",
+    "StructureEvent",
     # Confluence Zones
-    'ConfluenceZoneAnalyzer',
-    'OrderBlock',
-    'FairValueGap',
-    'ZoneType',
-    'ZoneStatus',
-    
+    "ConfluenceZoneAnalyzer",
+    "OrderBlock",
+    "FairValueGap",
+    "ZoneType",
+    "ZoneStatus",
     # Entry Signals
-    'EntrySignalGenerator',
-    'SMCSignal',
-    'PriceActionPattern',
-    'PatternType',
-    'SignalDirection',
-    
+    "EntrySignalGenerator",
+    "SMCSignal",
+    "PriceActionPattern",
+    "PatternType",
+    "SignalDirection",
     # Position Management
-    'PositionManager',
-    'PositionMetrics',
-    'PositionStatus',
-    'PerformanceStats',
+    "PositionManager",
+    "PositionMetrics",
+    "PositionStatus",
+    "PerformanceStats",
 ]
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"

@@ -122,7 +122,7 @@ class BotOrchestrator:
             balance = await self.exchange.fetch_balance()
             quote_currency = self.config.symbol.split("/")[1]
             # balance structure: {'free': {'USDT': 100000, ...}, 'total': {...}, 'used': {...}}
-            free_balances = balance.get('free', {})
+            free_balances = balance.get("free", {})
             available_balance = Decimal(str(free_balances.get(quote_currency, 0)))
             self.risk_manager.initialize_balance(available_balance)
             logger.info(
@@ -564,7 +564,7 @@ class BotOrchestrator:
         balance = await self.exchange.fetch_balance()
         quote_currency = self.config.symbol.split("/")[1]
         # balance structure: {'free': {...}, 'total': {...}, 'used': {...}}
-        free_balances = balance.get('free', {})
+        free_balances = balance.get("free", {})
         return Decimal(str(free_balances.get(quote_currency, 0)))
 
     async def _publish_event(self, event_type: EventType, data: dict[str, Any]) -> None:
@@ -640,4 +640,3 @@ class BotOrchestrator:
             await self.redis_client.aclose()
 
         logger.info("orchestrator_cleaned_up")
-
