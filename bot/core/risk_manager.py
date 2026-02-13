@@ -360,9 +360,9 @@ class RiskManager:
             "current_balance": float(self.current_balance) if self.current_balance else None,
             "initial_balance": float(self.initial_balance) if self.initial_balance else None,
             "peak_balance": float(self.peak_balance) if self.peak_balance else None,
-            "drawdown": float(self.get_drawdown()) if self.get_drawdown() else None,
+            "drawdown": (float(dd) if (dd := self.get_drawdown()) is not None else None),
             "pnl_percentage": (
-                float(self.get_pnl_percentage()) if self.get_pnl_percentage() else None
+                float(pnl) if (pnl := self.get_pnl_percentage()) is not None else None
             ),
             "daily_loss": float(self.daily_loss),
             "max_daily_loss": float(self.max_daily_loss) if self.max_daily_loss else None,

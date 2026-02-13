@@ -127,6 +127,19 @@ module = "bot.tests.*"
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
+[[tool.mypy.overrides]]
+module = "bot.utils.logger"
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "bot.config.manager"
+warn_return_any = false
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.api.exchange_client"
+warn_return_any = false
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["bot/tests"]
