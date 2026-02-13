@@ -117,7 +117,7 @@ class TradingEvent:
         Returns:
             Dictionary with Decimals converted to strings
         """
-        result = {}
+        result: dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, Decimal):
                 result[key] = str(value)

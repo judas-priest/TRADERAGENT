@@ -122,6 +122,11 @@ strict_equality = true
 module = "ccxt.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "bot.tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["bot/tests"]
