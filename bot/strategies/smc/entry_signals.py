@@ -209,7 +209,6 @@ class EntrySignalGenerator:
                 and curr["open"] <= prev["close"]  # Current bullish
                 and curr["close"] >= prev["open"]  # Opens at/below prev close
             ):  # Closes at/above prev open
-
                 quality = self._calculate_engulfing_quality(curr, prev, True)
 
                 if quality >= 50:  # Min quality threshold
@@ -242,7 +241,6 @@ class EntrySignalGenerator:
                 and curr["open"] >= prev["close"]  # Current bearish
                 and curr["close"] <= prev["open"]  # Opens at/above prev close
             ):  # Closes at/below prev open
-
                 quality = self._calculate_engulfing_quality(curr, prev, False)
 
                 if quality >= 50:
@@ -326,7 +324,6 @@ class EntrySignalGenerator:
                 and body_size < candle_range * 0.4  # Long lower wick
                 and upper_wick < candle_range * 0.2  # Small body
             ):  # Small upper wick
-
                 quality = self._calculate_pin_bar_quality(candle, True)
 
                 if quality >= 50:
@@ -352,7 +349,6 @@ class EntrySignalGenerator:
                 and body_size < candle_range * 0.4  # Long upper wick
                 and lower_wick < candle_range * 0.2  # Small body
             ):  # Small lower wick
-
                 quality = self._calculate_pin_bar_quality(candle, False)
 
                 if quality >= 50:
@@ -426,7 +422,6 @@ class EntrySignalGenerator:
 
             # Inside bar condition
             if curr["high"] <= prev["high"] and curr["low"] >= prev["low"]:
-
                 # Determine bias based on close relative to previous candle
                 is_bullish = curr["close"] > (prev["high"] + prev["low"]) / 2
 
