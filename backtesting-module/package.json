@@ -1,0 +1,25 @@
+{
+  "name": "traderagent-backtest-module",
+  "version": "1.0.0",
+  "description": "Standalone backtesting module for TRADERAGENT strategies",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx src/test-runner.ts",
+    "backtest:simple": "tsx src/scripts/simple-backtest.ts",
+    "backtest:strategies": "tsx src/scripts/test-strategies.ts",
+    "backtest:full": "tsx src/scripts/full-backtest.ts",
+    "reports:generate": "tsx src/scripts/generate-reports.ts"
+  },
+  "keywords": ["backtest", "trading", "cryptocurrency"],
+  "author": "TRADERAGENT",
+  "license": "MIT",
+  "dependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1"
+  }
+}
