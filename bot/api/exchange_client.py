@@ -257,7 +257,6 @@ class ExchangeAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-
     async def create_order(
         self,
         symbol: str,
@@ -517,7 +516,6 @@ class ExchangeAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-
     async def cancel_all_orders(self, symbol: str) -> list[dict[str, Any]]:
         """Cancel all open orders for a symbol."""
         self._handle_rate_limit()

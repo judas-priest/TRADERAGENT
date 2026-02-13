@@ -82,9 +82,7 @@ class ByBitDirectClient:
         self.market_type = market_type
 
         # Demo Trading uses production keys with demo URL
-        self.base_url = (
-            "https://api-demo.bybit.com" if testnet else "https://api.bybit.com"
-        )
+        self.base_url = "https://api-demo.bybit.com" if testnet else "https://api.bybit.com"
 
         # Category for API requests
         self.category = "spot" if market_type == "spot" else "linear"
@@ -219,9 +217,7 @@ class ByBitDirectClient:
                 async with self._session.get(url, headers=headers) as response:
                     data = await response.json()
             elif method == "POST":
-                async with self._session.post(
-                    url, json=params, headers=headers
-                ) as response:
+                async with self._session.post(url, json=params, headers=headers) as response:
                     data = await response.json()
             else:
                 raise ExchangeAPIError(f"Unsupported method: {method}")
@@ -414,9 +410,7 @@ class ByBitDirectClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    async def fetch_open_orders(
-        self, symbol: str | None = None
-    ) -> list[dict[str, Any]]:
+    async def fetch_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         """
         Fetch open orders.
 
@@ -431,9 +425,7 @@ class ByBitDirectClient:
         if symbol:
             params["symbol"] = symbol.replace("/", "")
 
-        data = await self._request(
-            "GET", "/v5/order/realtime", params, authenticated=True
-        )
+        data = await self._request("GET", "/v5/order/realtime", params, authenticated=True)
 
         orders = []
         for order_data in data.get("list", []):
@@ -497,9 +489,7 @@ class ByBitDirectClient:
             **params,
         }
 
-        data = await self._request(
-            "POST", "/v5/order/create", order_params, authenticated=True
-        )
+        data = await self._request("POST", "/v5/order/create", order_params, authenticated=True)
 
         logger.info(
             "Created limit order",
@@ -556,9 +546,7 @@ class ByBitDirectClient:
             **params,
         }
 
-        data = await self._request(
-            "POST", "/v5/order/create", order_params, authenticated=True
-        )
+        data = await self._request("POST", "/v5/order/create", order_params, authenticated=True)
 
         logger.info(
             "Created market order",
@@ -576,6 +564,7 @@ class ByBitDirectClient:
             "side": side.lower(),
             "amount": float(amount),
         }
+
     async def create_order(
         self,
         symbol: str,
@@ -586,15 +575,14 @@ class ByBitDirectClient:
         params: dict | None = None,
     ) -> dict[str, Any]:
         """Create an order wrapper for compatibility."""
-        if order_type.lower() == 'limit':
+        if order_type.lower() == "limit":
             if price is None:
                 raise ValueError("Price required for limit orders")
             return await self.create_limit_order(symbol, side, amount, price, params)
-        elif order_type.lower() == 'market':
+        elif order_type.lower() == "market":
             return await self.create_market_order(symbol, side, amount, params)
         else:
             raise ValueError(f"Unknown order type: {order_type}")
-
 
     def get_statistics(self) -> dict[str, Any]:
         """Get client statistics"""
@@ -604,8 +592,6 @@ class ByBitDirectClient:
             "total_requests": self._request_count,
             "total_errors": self._error_count,
             "error_rate": (
-                self._error_count / self._request_count
-                if self._request_count > 0
-                else 0
+                self._error_count / self._request_count if self._request_count > 0 else 0
             ),
         }

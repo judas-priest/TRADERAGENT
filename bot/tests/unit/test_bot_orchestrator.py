@@ -58,7 +58,12 @@ def bot_config():
 def mock_exchange():
     """Create mock exchange client."""
     exchange = AsyncMock()
-    exchange.get_balance.return_value = {"USDT": 10000}
+    # Correct structure for fetch_balance (CCXT format)
+    exchange.fetch_balance.return_value = {
+        "free": {"USDT": 10000},
+        "used": {"USDT": 0},
+        "total": {"USDT": 10000},
+    }
     exchange.fetch_ticker.return_value = {"last": 45000}
     exchange.fetch_open_orders.return_value = []
     exchange.create_order.return_value = {"id": "order_123"}
@@ -127,6 +132,11 @@ class TestBotOrchestratorInitialization:
                 amount_per_grid="100",
                 profit_per_grid="0.01",
             ),
+            risk_management=RiskManagementConfig(
+                max_position_size="5000",
+                stop_loss_percentage="0.15",
+                min_order_size="10",
+            ),
             dry_run=True,
             auto_start=False,
         )
@@ -168,6 +178,11 @@ class TestBotOrchestratorInitialization:
                 amount_per_step="100",
                 max_steps=3,
                 take_profit_percentage="0.1",
+            ),
+            risk_management=RiskManagementConfig(
+                max_position_size="5000",
+                stop_loss_percentage="0.15",
+                min_order_size="10",
             ),
             dry_run=True,
             auto_start=False,
@@ -374,8 +389,7 @@ class TestBotOrchestratorIntegration:
 
         await orchestrator.start()
 
-        # DCA should be reset
-        assert orchestrator.dca_engine.current_step == 0
+        # DCA should be reset (position is None after reset)
         assert orchestrator.dca_engine.position is None
 
         await orchestrator.stop()

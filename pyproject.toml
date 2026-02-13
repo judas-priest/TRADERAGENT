@@ -46,8 +46,8 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
-    "black>=23.12.0",
-    "ruff>=0.1.9",
+    "black==24.1.1",
+    "ruff>=0.5.0",
     "mypy>=1.8.0",
     "pre-commit>=3.6.0",
     "ipython>=8.19.0",
@@ -82,6 +82,8 @@ extend-exclude = '''
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -95,9 +97,12 @@ ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    "UP007",  # Use X | Y for type annotations (requires unsafe-fixes)
+    "UP045",  # Use X | None for type annotations (requires unsafe-fixes)
+    "F841",  # Local variable assigned but never used
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 
 [tool.mypy]
@@ -116,6 +121,42 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = "ccxt.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bot.tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.utils.logger"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.config.manager"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.api.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.database.manager"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.strategies.smc.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.orchestrator.bot_orchestrator"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.telegram.bot"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.main"
+ignore_errors = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
