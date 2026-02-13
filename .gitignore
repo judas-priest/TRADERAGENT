@@ -68,6 +68,7 @@ Thumbs.db
 configs/*.yaml
 !configs/example.yaml
 !configs/schema.yaml
+!configs/trend_follower_production.yaml
 
 # Alembic
 alembic.ini
