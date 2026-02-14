@@ -15,6 +15,13 @@ from bot.orchestrator.strategy_registry import (
     StrategyRegistry,
     StrategyState,
 )
+from bot.orchestrator.strategy_selector import (
+    SelectionResult,
+    StrategySelector,
+    StrategyWeight,
+    TransitionRecord,
+    TransitionState,
+)
 
 __all__ = [
     "BotOrchestrator",
@@ -34,4 +41,9 @@ __all__ = [
     "HealthCheckResult",
     "HealthStatus",
     "HealthThresholds",
+    "StrategySelector",
+    "SelectionResult",
+    "StrategyWeight",
+    "TransitionRecord",
+    "TransitionState",
 ]
