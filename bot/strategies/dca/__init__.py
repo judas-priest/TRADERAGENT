@@ -1,4 +1,4 @@
-"""DCA Strategy Package — v2.0 Signal Generator, Position Manager, Risk Manager, Trailing Stop, Engine."""
+"""DCA Strategy Package — v2.0 Signal Generator, Position Manager, Risk Manager, Trailing Stop, Engine, Config, Backtester."""
 
 from bot.strategies.dca.dca_signal_generator import (
     ConditionResult,
@@ -40,6 +40,17 @@ from bot.strategies.dca.dca_engine import (
     EngineAction,
     FalseSignalFilter,
 )
+from bot.strategies.dca.dca_config import (
+    DCAStrategyConfig,
+    MarketPreset,
+    MARKET_PRESETS,
+)
+from bot.strategies.dca.dca_backtester import (
+    BacktestResult,
+    BacktestTrade,
+    DCABacktester,
+    compare_strategies,
+)
 
 __all__ = [
     "DCASignalGenerator",
@@ -72,4 +83,11 @@ __all__ = [
     "EngineAction",
     "DealExitSignal",
     "FalseSignalFilter",
+    "DCAStrategyConfig",
+    "MarketPreset",
+    "MARKET_PRESETS",
+    "DCABacktester",
+    "BacktestResult",
+    "BacktestTrade",
+    "compare_strategies",
 ]
