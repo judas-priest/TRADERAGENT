@@ -54,6 +54,11 @@ class EventType(str, Enum):
     STOP_LOSS_TRIGGERED = "stop_loss_triggered"
     POSITION_LIMIT_REACHED = "position_limit_reached"
 
+    # Hybrid strategy events (v2.0)
+    GRID_BREAKOUT = "grid_breakout"
+    HYBRID_MODE_ACTIVATED = "hybrid_mode_activated"
+    HYBRID_TRANSITION = "hybrid_transition"
+
     # Price events
     PRICE_UPDATED = "price_updated"
 
