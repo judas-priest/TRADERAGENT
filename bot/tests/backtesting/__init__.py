@@ -6,6 +6,7 @@ from .monte_carlo import MonteCarloConfig, MonteCarloResult, MonteCarloSimulatio
 from .multi_tf_data_loader import MultiTimeframeData, MultiTimeframeDataLoader
 from .multi_tf_engine import MultiTFBacktestConfig, MultiTimeframeBacktestEngine
 from .optimization import OptimizationConfig, OptimizationResult, ParameterOptimizer
+from .report_generator import ReportConfig, ReportGenerator
 from .sensitivity import SensitivityAnalysis, SensitivityConfig, SensitivityResult
 from .strategy_comparison import StrategyComparison, StrategyComparisonResult
 from .test_data import HistoricalDataProvider
@@ -33,4 +34,6 @@ __all__ = [
     "SensitivityAnalysis",
     "SensitivityConfig",
     "SensitivityResult",
+    "ReportGenerator",
+    "ReportConfig",
 ]
