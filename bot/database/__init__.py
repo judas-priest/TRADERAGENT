@@ -1,6 +1,8 @@
 """Database management modules"""
 
+from bot.database.backup import BackupInfo, BackupManager
 from bot.database.manager import DatabaseManager
+from bot.database.migrations import MigrationInfo, MigrationRunner, MigrationStatus
 from bot.database.models import (
     Base,
     Bot,
@@ -38,4 +40,10 @@ __all__ = [
     "DCADeal",
     "DCAOrder",
     "DCASignal",
+    # Utilities
+    "MigrationRunner",
+    "MigrationInfo",
+    "MigrationStatus",
+    "BackupManager",
+    "BackupInfo",
 ]
