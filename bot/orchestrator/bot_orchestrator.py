@@ -1,6 +1,8 @@
 """
 BotOrchestrator - Main coordinator for trading strategies and lifecycle management.
-Manages Grid and DCA engines, handles state transitions, and publishes events via Redis.
+
+v2.0: Multi-strategy support with market regime detection and health monitoring.
+Manages Grid, DCA, SMC, and Trend-Follower engines with dynamic strategy selection.
 """
 
 import asyncio
@@ -18,6 +20,18 @@ from bot.core.grid_engine import GridEngine, GridType
 from bot.core.risk_manager import RiskManager
 from bot.database.manager import DatabaseManager
 from bot.orchestrator.events import EventType, TradingEvent
+from bot.orchestrator.health_monitor import HealthMonitor, HealthCheckResult, HealthThresholds
+from bot.orchestrator.market_regime import (
+    MarketRegimeDetector,
+    MarketRegime,
+    RecommendedStrategy,
+    RegimeAnalysis,
+)
+from bot.orchestrator.strategy_registry import (
+    StrategyInstance,
+    StrategyRegistry,
+    StrategyState,
+)
 from bot.strategies.trend_follower import TrendFollowerStrategy
 from bot.strategies.trend_follower.entry_logic import SignalType
 from bot.utils.logger import get_logger
@@ -40,8 +54,11 @@ class BotOrchestrator:
     """
     Main orchestrator for coordinating trading strategies.
 
-    Features:
-    - Manages lifecycle of Grid and DCA engines
+    v2.0 Features:
+    - Multi-strategy lifecycle management via StrategyRegistry
+    - Market regime detection for dynamic strategy selection
+    - Health monitoring with auto-restart capabilities
+    - Manages lifecycle of Grid, DCA, SMC, and Trend-Follower engines
     - Coordinates strategy execution and conflict resolution
     - Publishes events via Redis Pub/Sub
     - Handles state transitions (Running, Paused, Stopped, Emergency)
@@ -87,13 +104,30 @@ class BotOrchestrator:
         self._running = False
         self._main_task: asyncio.Task | None = None
         self._price_monitor_task: asyncio.Task | None = None
+        self._regime_monitor_task: asyncio.Task | None = None
         self.current_price: Decimal | None = None
+
+        # v2.0: Multi-strategy components
+        self.strategy_registry = StrategyRegistry(max_strategies=10)
+        self.market_regime_detector = MarketRegimeDetector()
+        self.health_monitor = HealthMonitor(
+            registry=self.strategy_registry,
+            thresholds=HealthThresholds(),
+            check_interval=30.0,
+        )
+        self._current_regime: RegimeAnalysis | None = None
+        self._regime_check_interval: float = 60.0  # seconds
+
+        # Set health callbacks
+        self.health_monitor.set_unhealthy_callback(self._on_strategy_unhealthy)
+        self.health_monitor.set_critical_callback(self._on_strategy_critical)
 
         logger.info(
             "bot_orchestrator_initialized",
             bot_name=bot_config.name,
             symbol=bot_config.symbol,
             strategy=bot_config.strategy,
+            version="2.0",
         )
 
     async def initialize(self) -> None:
@@ -230,9 +264,15 @@ class BotOrchestrator:
                 self._main_task = asyncio.create_task(self._main_loop())
                 self._price_monitor_task = asyncio.create_task(self._price_monitor())
 
+                # v2.0: Start regime monitor and health monitor
+                self._regime_monitor_task = asyncio.create_task(
+                    self._regime_monitor_loop()
+                )
+                await self.health_monitor.start()
+
                 await self._publish_event(
                     EventType.BOT_STARTED,
-                    {"strategy": self.config.strategy},
+                    {"strategy": self.config.strategy, "version": "2.0"},
                 )
 
                 logger.info("bot_started", bot_name=self.config.name)
@@ -271,6 +311,18 @@ class BotOrchestrator:
                     await self._price_monitor_task
                 except asyncio.CancelledError:
                     pass
+
+            # v2.0: Stop regime monitor
+            if self._regime_monitor_task and not self._regime_monitor_task.done():
+                self._regime_monitor_task.cancel()
+                try:
+                    await self._regime_monitor_task
+                except asyncio.CancelledError:
+                    pass
+
+            # v2.0: Stop health monitor and all strategies
+            await self.health_monitor.stop()
+            await self.strategy_registry.stop_all()
 
             # Cancel all open orders (if not dry run)
             if not self.config.dry_run:
@@ -792,7 +844,7 @@ class BotOrchestrator:
         Get current bot status.
 
         Returns:
-            Status dictionary
+            Status dictionary with v2.0 components
         """
         status = {
             "bot_name": self.config.name,
@@ -801,6 +853,7 @@ class BotOrchestrator:
             "state": self.state.value,
             "current_price": str(self.current_price) if self.current_price else None,
             "dry_run": self.config.dry_run,
+            "version": "2.0",
         }
 
         # Add grid status
@@ -838,14 +891,265 @@ class BotOrchestrator:
         if self.risk_manager:
             status["risk"] = self.risk_manager.get_risk_status()
 
+        # v2.0: Strategy registry status
+        status["strategy_registry"] = self.strategy_registry.get_registry_status()
+
+        # v2.0: Market regime
+        if self._current_regime:
+            status["market_regime"] = self._current_regime.to_dict()
+
+        # v2.0: Health monitor
+        status["health"] = self.health_monitor.get_health_summary()
+
         return status
 
+    # =========================================================================
+    # v2.0: Multi-Strategy Management
+    # =========================================================================
+
+    def register_strategy(
+        self,
+        strategy_id: str,
+        strategy_type: str,
+        config: dict[str, Any] | None = None,
+    ) -> StrategyInstance:
+        """
+        Register a new strategy with the orchestrator.
+
+        Args:
+            strategy_id: Unique identifier for the strategy.
+            strategy_type: Type of strategy ('grid', 'dca', 'smc', 'trend_follower').
+            config: Strategy-specific configuration.
+
+        Returns:
+            The registered StrategyInstance.
+        """
+        instance = self.strategy_registry.register(
+            strategy_id=strategy_id,
+            strategy_type=strategy_type,
+            config=config,
+        )
+
+        self._publish_event_sync(
+            EventType.STRATEGY_REGISTERED,
+            {
+                "strategy_id": strategy_id,
+                "strategy_type": strategy_type,
+            },
+        )
+
+        return instance
+
+    async def start_strategy(self, strategy_id: str) -> bool:
+        """Start a registered strategy."""
+        result = await self.strategy_registry.start_strategy(strategy_id)
+
+        if result:
+            await self._publish_event(
+                EventType.STRATEGY_STARTED,
+                {"strategy_id": strategy_id},
+            )
+
+        return result
+
+    async def stop_strategy(self, strategy_id: str) -> bool:
+        """Stop a running strategy."""
+        result = await self.strategy_registry.stop_strategy(strategy_id)
+
+        if result:
+            await self._publish_event(
+                EventType.STRATEGY_STOPPED,
+                {"strategy_id": strategy_id},
+            )
+
+        return result
+
+    async def pause_strategy(self, strategy_id: str) -> bool:
+        """Pause a running strategy."""
+        result = await self.strategy_registry.pause_strategy(strategy_id)
+
+        if result:
+            await self._publish_event(
+                EventType.STRATEGY_PAUSED,
+                {"strategy_id": strategy_id},
+            )
+
+        return result
+
+    async def resume_strategy(self, strategy_id: str) -> bool:
+        """Resume a paused strategy."""
+        result = await self.strategy_registry.resume_strategy(strategy_id)
+
+        if result:
+            await self._publish_event(
+                EventType.STRATEGY_RESUMED,
+                {"strategy_id": strategy_id},
+            )
+
+        return result
+
+    def get_active_strategies(self) -> list[StrategyInstance]:
+        """Get all currently active strategies."""
+        return self.strategy_registry.get_active()
+
+    def get_strategy_status(self, strategy_id: str) -> dict[str, Any] | None:
+        """Get status of a specific strategy."""
+        instance = self.strategy_registry.get(strategy_id)
+        if instance:
+            return instance.get_status()
+        return None
+
+    # =========================================================================
+    # v2.0: Market Regime Detection
+    # =========================================================================
+
+    async def detect_market_regime(self) -> RegimeAnalysis | None:
+        """
+        Fetch market data and detect current regime.
+
+        Returns:
+            RegimeAnalysis or None on failure.
+        """
+        try:
+            ohlcv = await self.exchange.fetch_ohlcv(
+                symbol=self.config.symbol,
+                timeframe="1h",
+                limit=100,
+            )
+
+            df = pd.DataFrame(
+                ohlcv,
+                columns=["timestamp", "open", "high", "low", "close", "volume"],
+            )
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+
+            analysis = self.market_regime_detector.analyze(df)
+
+            # Check for regime change
+            old_regime = self._current_regime
+            self._current_regime = analysis
+
+            if old_regime and old_regime.regime != analysis.regime:
+                await self._publish_event(
+                    EventType.REGIME_CHANGED,
+                    {
+                        "old_regime": old_regime.regime.value,
+                        "new_regime": analysis.regime.value,
+                        "confidence": analysis.confidence,
+                        "recommended_strategy": analysis.recommended_strategy.value,
+                    },
+                )
+                logger.info(
+                    "market_regime_changed",
+                    old=old_regime.regime.value,
+                    new=analysis.regime.value,
+                    recommended=analysis.recommended_strategy.value,
+                )
+            else:
+                await self._publish_event(
+                    EventType.REGIME_DETECTED,
+                    analysis.to_dict(),
+                )
+
+            return analysis
+
+        except Exception as e:
+            logger.error("regime_detection_failed", error=str(e), exc_info=True)
+            return None
+
+    def get_strategy_recommendation(self) -> RecommendedStrategy | None:
+        """Get current strategy recommendation based on market regime."""
+        if self._current_regime:
+            return self._current_regime.recommended_strategy
+        return None
+
+    async def _regime_monitor_loop(self) -> None:
+        """Periodic market regime detection loop."""
+        logger.info("regime_monitor_started")
+
+        while self._running:
+            try:
+                await self.detect_market_regime()
+                await asyncio.sleep(self._regime_check_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("regime_monitor_error", error=str(e))
+                await asyncio.sleep(self._regime_check_interval)
+
+        logger.info("regime_monitor_stopped")
+
+    # =========================================================================
+    # v2.0: Health Monitoring Callbacks
+    # =========================================================================
+
+    async def _on_strategy_unhealthy(
+        self, strategy_id: str, result: HealthCheckResult
+    ) -> None:
+        """Handle unhealthy strategy event."""
+        logger.warning(
+            "strategy_unhealthy",
+            strategy_id=strategy_id,
+            message=result.message,
+        )
+        await self._publish_event(
+            EventType.HEALTH_DEGRADED,
+            {
+                "strategy_id": strategy_id,
+                "status": result.status.value,
+                "message": result.message,
+            },
+        )
+
+    async def _on_strategy_critical(
+        self, strategy_id: str, result: HealthCheckResult
+    ) -> None:
+        """Handle critical strategy health event."""
+        logger.error(
+            "strategy_critical",
+            strategy_id=strategy_id,
+            message=result.message,
+        )
+        await self._publish_event(
+            EventType.HEALTH_CRITICAL,
+            {
+                "strategy_id": strategy_id,
+                "status": result.status.value,
+                "message": result.message,
+            },
+        )
+
+    def _publish_event_sync(self, event_type: EventType, data: dict[str, Any]) -> None:
+        """Fire-and-forget event publishing (for sync contexts)."""
+        if not self.redis_client:
+            return
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._publish_event(event_type, data))
+        except RuntimeError:
+            pass
+
     async def cleanup(self) -> None:
-        """Cleanup resources."""
+        """Cleanup resources including v2.0 components."""
         logger.info("cleaning_up_orchestrator")
 
         if self.state != BotState.STOPPED:
             await self.stop()
+
+        # v2.0: Stop health monitor
+        await self.health_monitor.stop()
+
+        # v2.0: Stop all strategies
+        await self.strategy_registry.stop_all()
+
+        # v2.0: Cancel regime monitor
+        if self._regime_monitor_task and not self._regime_monitor_task.done():
+            self._regime_monitor_task.cancel()
+            try:
+                await self._regime_monitor_task
+            except asyncio.CancelledError:
+                pass
 
         # Close exchange client connection
         if self.exchange:
