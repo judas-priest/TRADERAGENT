@@ -1,4 +1,4 @@
-"""DCA Strategy Package — v2.0 Signal Generator, Position Manager, and related utilities."""
+"""DCA Strategy Package — v2.0 Signal Generator, Position Manager, Risk Manager."""
 
 from bot.strategies.dca.dca_signal_generator import (
     ConditionResult,
@@ -18,6 +18,14 @@ from bot.strategies.dca.dca_position_manager import (
     DealStatus,
     SafetyOrderLevel,
 )
+from bot.strategies.dca.dca_risk_manager import (
+    DCARiskAction,
+    DCARiskConfig,
+    DCARiskManager,
+    DealRiskState,
+    PortfolioRiskState,
+    RiskCheckResult,
+)
 
 __all__ = [
     "DCASignalGenerator",
@@ -34,4 +42,10 @@ __all__ = [
     "DCAOrderStatus",
     "SafetyOrderLevel",
     "CloseResult",
+    "DCARiskManager",
+    "DCARiskConfig",
+    "DCARiskAction",
+    "RiskCheckResult",
+    "DealRiskState",
+    "PortfolioRiskState",
 ]
