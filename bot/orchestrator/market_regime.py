@@ -12,11 +12,18 @@ Strategy Selection Logic (v2.0):
 - Sideways → Grid Engine
 - Trend + Low Confluence (<0.7) → DCA Engine
 - Trend + High Confluence (≥0.7) → Hybrid Mode (Grid + DCA)
+
+Indicators (v2.0 enhanced):
+- EMA crossover (fast/slow) for trend direction
+- ADX for trend strength measurement
+- Bollinger Bands width for volatility/ranging detection
+- ATR for volatility measurement
+- RSI for momentum
+- Volume ratio for regime confirmation
 """
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from decimal import Decimal
 from enum import Enum
 from typing import Any
 
@@ -65,6 +72,15 @@ class RegimeAnalysis:
     atr_pct: float  # ATR as % of price
     rsi: float  # RSI value
 
+    # Enhanced indicators (v2.0)
+    adx: float  # Average Directional Index (0-100)
+    bb_width_pct: float  # Bollinger Bands width as % of middle band
+    volume_ratio: float  # Current volume / average volume
+
+    # Regime tracking
+    regime_duration_seconds: int  # How long current regime has persisted
+    previous_regime: MarketRegime | None  # Previous different regime
+
     timestamp: datetime
     analysis_details: dict[str, Any]
 
@@ -80,6 +96,11 @@ class RegimeAnalysis:
             "ema_divergence_pct": round(self.ema_divergence_pct, 4),
             "atr_pct": round(self.atr_pct, 4),
             "rsi": round(self.rsi, 2),
+            "adx": round(self.adx, 2),
+            "bb_width_pct": round(self.bb_width_pct, 4),
+            "volume_ratio": round(self.volume_ratio, 4),
+            "regime_duration_seconds": self.regime_duration_seconds,
+            "previous_regime": self.previous_regime.value if self.previous_regime else None,
             "timestamp": self.timestamp.isoformat(),
             "analysis_details": self.analysis_details,
         }
@@ -89,8 +110,8 @@ class MarketRegimeDetector:
     """
     Detects market regime using technical indicators and recommends trading strategy.
 
-    Uses EMA crossover, ATR volatility, RSI, and volume analysis to determine
-    whether the market is trending, ranging, or highly volatile.
+    Uses EMA crossover, ADX, Bollinger Bands, ATR, RSI, and volume analysis
+    to determine whether the market is trending, ranging, or highly volatile.
     """
 
     def __init__(
@@ -99,9 +120,14 @@ class MarketRegimeDetector:
         ema_slow: int = 50,
         atr_period: int = 14,
         rsi_period: int = 14,
+        adx_period: int = 14,
+        bb_period: int = 20,
+        bb_std_dev: float = 2.0,
+        volume_lookback: int = 20,
         trend_threshold: float = 0.5,
         high_volatility_percentile: float = 90.0,
         confluence_threshold: float = 0.7,
+        regime_history_size: int = 10,
     ):
         """
         Args:
@@ -109,24 +135,40 @@ class MarketRegimeDetector:
             ema_slow: Slow EMA period.
             atr_period: ATR calculation period.
             rsi_period: RSI calculation period.
+            adx_period: ADX calculation period.
+            bb_period: Bollinger Bands period.
+            bb_std_dev: Bollinger Bands standard deviation multiplier.
+            volume_lookback: Volume average lookback period.
             trend_threshold: EMA divergence % threshold for trend detection.
             high_volatility_percentile: ATR percentile for high-volatility regime.
             confluence_threshold: Score above which Hybrid mode is recommended.
+            regime_history_size: Number of regime analyses to keep in history.
         """
         self.ema_fast = ema_fast
         self.ema_slow = ema_slow
         self.atr_period = atr_period
         self.rsi_period = rsi_period
+        self.adx_period = adx_period
+        self.bb_period = bb_period
+        self.bb_std_dev = bb_std_dev
+        self.volume_lookback = volume_lookback
         self.trend_threshold = trend_threshold
         self.high_volatility_percentile = high_volatility_percentile
         self.confluence_threshold = confluence_threshold
+        self.regime_history_size = regime_history_size
 
         self._last_analysis: RegimeAnalysis | None = None
+        self._regime_history: list[RegimeAnalysis] = []
 
     @property
     def last_analysis(self) -> RegimeAnalysis | None:
         """Return the most recent analysis result."""
         return self._last_analysis
+
+    @property
+    def regime_history(self) -> list[RegimeAnalysis]:
+        """Return regime analysis history (most recent first)."""
+        return self._regime_history.copy()
 
     def analyze(self, df: pd.DataFrame) -> RegimeAnalysis:
         """
@@ -134,12 +176,16 @@ class MarketRegimeDetector:
 
         Args:
             df: OHLCV DataFrame with columns: open, high, low, close, volume.
-                Must have at least ema_slow + atr_period rows.
+                Must have sufficient rows for all indicator calculations.
 
         Returns:
             RegimeAnalysis with regime, confidence, and strategy recommendation.
         """
-        min_rows = self.ema_slow + self.atr_period
+        min_rows = max(
+            self.ema_slow + self.atr_period,
+            self.adx_period * 2,
+            self.bb_period + self.volume_lookback,
+        )
         if len(df) < min_rows:
             logger.warning(
                 "insufficient_data",
@@ -151,18 +197,34 @@ class MarketRegimeDetector:
         close = df["close"].astype(float)
         high = df["high"].astype(float)
         low = df["low"].astype(float)
+        volume = df["volume"].astype(float)
 
         # Calculate indicators
         ema_fast_vals = close.ewm(span=self.ema_fast, adjust=False).mean()
         ema_slow_vals = close.ewm(span=self.ema_slow, adjust=False).mean()
         atr = self._calculate_atr(high, low, close, self.atr_period)
         rsi = self._calculate_rsi(close, self.rsi_period)
+        adx_vals, plus_di, minus_di = self._calculate_adx(
+            high, low, close, self.adx_period
+        )
+        bb_upper, bb_middle, bb_lower, bb_width_pct = self._calculate_bollinger_bands(
+            close, self.bb_period, self.bb_std_dev
+        )
+        avg_volume, volume_ratio = self._calculate_volume_ratio(
+            volume, self.volume_lookback
+        )
 
+        # Extract current values
         current_price = float(close.iloc[-1])
         current_ema_fast = float(ema_fast_vals.iloc[-1])
         current_ema_slow = float(ema_slow_vals.iloc[-1])
         current_atr = float(atr.iloc[-1])
         current_rsi = float(rsi.iloc[-1])
+
+        # Safe extraction for new indicators (handle NaN)
+        current_adx = float(adx_vals.iloc[-1]) if not pd.isna(adx_vals.iloc[-1]) else 20.0
+        current_bb_width = float(bb_width_pct.iloc[-1]) if not pd.isna(bb_width_pct.iloc[-1]) else 4.0
+        current_volume_ratio = float(volume_ratio.iloc[-1]) if not pd.isna(volume_ratio.iloc[-1]) else 1.0
 
         # EMA divergence as percentage
         ema_divergence_pct = (
@@ -177,18 +239,16 @@ class MarketRegimeDetector:
         # ATR percentile (how volatile relative to recent history)
         atr_values = atr.dropna().values
         if len(atr_values) > 0:
-            volatility_percentile = float(
-                np.percentile(atr_values, 50)  # median for comparison
-            )
             vol_pctile = float(
                 (np.sum(atr_values <= current_atr) / len(atr_values)) * 100
             )
         else:
-            volatility_percentile = 50.0
             vol_pctile = 50.0
 
-        # Trend strength: normalized EMA divergence [-1.0, 1.0]
-        trend_strength = max(-1.0, min(1.0, ema_divergence_pct / 2.0))
+        # Trend strength: blend EMA divergence with ADX confirmation
+        ema_trend = max(-1.0, min(1.0, ema_divergence_pct / 2.0))
+        adx_factor = min(current_adx / 50.0, 1.0)
+        trend_strength = ema_trend * (0.5 + 0.5 * adx_factor)
 
         # Detect regime
         regime = self._classify_regime(
@@ -196,6 +256,9 @@ class MarketRegimeDetector:
             volatility_percentile=vol_pctile,
             rsi=current_rsi,
             trend_strength=trend_strength,
+            adx=current_adx,
+            bb_width_pct=current_bb_width,
+            volume_ratio=current_volume_ratio,
         )
 
         # Calculate confluence score
@@ -204,10 +267,13 @@ class MarketRegimeDetector:
             rsi=current_rsi,
             volatility_percentile=vol_pctile,
             ema_divergence_pct=ema_divergence_pct,
+            adx=current_adx,
+            bb_width_pct=current_bb_width,
+            volume_ratio=current_volume_ratio,
         )
 
         # Determine recommended strategy
-        recommended = self._recommend_strategy(regime, confluence_score)
+        recommended = self._recommend_strategy(regime, confluence_score, current_adx)
 
         # Confidence based on signal clarity
         confidence = self._calculate_confidence(
@@ -215,7 +281,12 @@ class MarketRegimeDetector:
             ema_divergence_pct=abs(ema_divergence_pct),
             volatility_percentile=vol_pctile,
             trend_strength=abs(trend_strength),
+            adx=current_adx,
         )
+
+        # Regime tracking
+        regime_duration = self._get_regime_duration(regime)
+        previous_regime = self._get_previous_regime(regime)
 
         analysis = RegimeAnalysis(
             regime=regime,
@@ -227,17 +298,30 @@ class MarketRegimeDetector:
             ema_divergence_pct=ema_divergence_pct,
             atr_pct=atr_pct,
             rsi=current_rsi,
+            adx=current_adx,
+            bb_width_pct=current_bb_width,
+            volume_ratio=current_volume_ratio,
+            regime_duration_seconds=regime_duration,
+            previous_regime=previous_regime,
             timestamp=datetime.now(timezone.utc),
             analysis_details={
                 "current_price": current_price,
                 "ema_fast": current_ema_fast,
                 "ema_slow": current_ema_slow,
                 "atr": current_atr,
+                "bb_upper": float(bb_upper.iloc[-1]) if not pd.isna(bb_upper.iloc[-1]) else 0.0,
+                "bb_middle": float(bb_middle.iloc[-1]) if not pd.isna(bb_middle.iloc[-1]) else 0.0,
+                "bb_lower": float(bb_lower.iloc[-1]) if not pd.isna(bb_lower.iloc[-1]) else 0.0,
+                "avg_volume": float(avg_volume.iloc[-1]) if not pd.isna(avg_volume.iloc[-1]) else 0.0,
+                "plus_di": float(plus_di.iloc[-1]) if not pd.isna(plus_di.iloc[-1]) else 0.0,
+                "minus_di": float(minus_di.iloc[-1]) if not pd.isna(minus_di.iloc[-1]) else 0.0,
                 "data_points": len(df),
             },
         )
 
         self._last_analysis = analysis
+        self._update_regime_history(analysis)
+
         logger.info(
             "market_regime_detected",
             regime=regime.value,
@@ -245,9 +329,17 @@ class MarketRegimeDetector:
             recommended=recommended.value,
             confluence=round(confluence_score, 3),
             trend_strength=round(trend_strength, 3),
+            adx=round(current_adx, 2),
+            bb_width=round(current_bb_width, 2),
+            volume_ratio=round(current_volume_ratio, 2),
+            regime_duration=regime_duration,
         )
 
         return analysis
+
+    # =========================================================================
+    # Regime Classification
+    # =========================================================================
 
     def _classify_regime(
         self,
@@ -255,29 +347,60 @@ class MarketRegimeDetector:
         volatility_percentile: float,
         rsi: float,
         trend_strength: float,
+        adx: float,
+        bb_width_pct: float,
+        volume_ratio: float,
     ) -> MarketRegime:
-        """Classify market regime based on indicators."""
+        """
+        Classify market regime based on indicators.
 
-        # High volatility override
-        if volatility_percentile >= self.high_volatility_percentile:
+        Priority:
+        1. High volatility (wide BB or vol percentile + volume spike)
+        2. Sideways (low ADX + narrow BB)
+        3. Trending (high ADX + EMA divergence direction)
+        4. Transitioning (conflicting signals)
+        """
+        # High volatility: wide BB bands or extreme ATR with volume spike
+        if bb_width_pct > 6.0 or (
+            volatility_percentile >= self.high_volatility_percentile
+            and volume_ratio > 2.0
+        ):
             return MarketRegime.HIGH_VOLATILITY
 
         abs_divergence = abs(ema_divergence_pct)
 
-        # Sideways: low EMA divergence
-        if abs_divergence < self.trend_threshold:
-            # Check if transitioning (RSI extreme but no trend yet)
+        # Sideways: low ADX and narrow BB
+        if adx < 25.0 and bb_width_pct < 2.5:
             if rsi > 70 or rsi < 30:
                 return MarketRegime.TRANSITIONING
             return MarketRegime.SIDEWAYS
 
-        # Trending
-        if ema_divergence_pct > self.trend_threshold:
-            return MarketRegime.TRENDING_BULLISH
-        elif ema_divergence_pct < -self.trend_threshold:
-            return MarketRegime.TRENDING_BEARISH
+        # Trending: ADX confirms trend strength
+        if adx >= 25.0:
+            if ema_divergence_pct > self.trend_threshold:
+                if volume_ratio < 0.5:
+                    return MarketRegime.TRANSITIONING
+                return MarketRegime.TRENDING_BULLISH
+            elif ema_divergence_pct < -self.trend_threshold:
+                if volume_ratio < 0.5:
+                    return MarketRegime.TRANSITIONING
+                return MarketRegime.TRENDING_BEARISH
+
+        # Moderate ADX (20-25) with EMA trend — possible transition
+        if 20.0 <= adx < 25.0 and abs_divergence > self.trend_threshold:
+            return MarketRegime.TRANSITIONING
+
+        # Sideways fallback: low EMA divergence
+        if abs_divergence < self.trend_threshold:
+            if rsi > 70 or rsi < 30:
+                return MarketRegime.TRANSITIONING
+            return MarketRegime.SIDEWAYS
 
         return MarketRegime.TRANSITIONING
+
+    # =========================================================================
+    # Confluence & Confidence
+    # =========================================================================
 
     def _calculate_confluence(
         self,
@@ -285,17 +408,26 @@ class MarketRegimeDetector:
         rsi: float,
         volatility_percentile: float,
         ema_divergence_pct: float,
+        adx: float,
+        bb_width_pct: float,
+        volume_ratio: float,
     ) -> float:
         """
         Calculate confluence score (0.0 - 1.0).
 
         Higher score = multiple indicators agree on direction.
+
+        Weights: ADX 30%, Trend 25%, RSI 20%, Volume 15%, BB width 10%.
         """
         scores = []
 
-        # Trend component (0-1): strong trend = high score
+        # ADX component: strong ADX = high score (ADX 20-40 mapped to 0-1)
+        adx_score = min(max((adx - 20.0) / 20.0, 0.0), 1.0)
+        scores.append(adx_score * 0.30)
+
+        # Trend component: strong trend = high score
         trend_score = min(abs(trend_strength), 1.0)
-        scores.append(trend_score * 0.35)
+        scores.append(trend_score * 0.25)
 
         # RSI component: extreme RSI in trend direction = higher confluence
         if trend_strength > 0:
@@ -304,33 +436,41 @@ class MarketRegimeDetector:
             rsi_score = max(0.0, (50 - rsi) / 50)
         else:
             rsi_score = 0.0
-        scores.append(rsi_score * 0.25)
+        scores.append(rsi_score * 0.20)
 
-        # EMA divergence component: larger divergence = stronger signal
-        ema_score = min(abs(ema_divergence_pct) / 3.0, 1.0)
-        scores.append(ema_score * 0.25)
-
-        # Volatility component: moderate volatility is best
-        if 30 <= volatility_percentile <= 70:
-            vol_score = 1.0
-        elif volatility_percentile < 30:
-            vol_score = volatility_percentile / 30.0
+        # Volume component: above-average volume confirms the regime
+        if volume_ratio > 1.5:
+            volume_score = 1.0
+        elif volume_ratio >= 1.0:
+            volume_score = (volume_ratio - 1.0) / 0.5
+        elif volume_ratio < 0.8:
+            volume_score = volume_ratio / 0.8
         else:
-            vol_score = max(0.0, 1.0 - (volatility_percentile - 70) / 30.0)
-        scores.append(vol_score * 0.15)
+            volume_score = 1.0
+        scores.append(volume_score * 0.15)
+
+        # BB width component: moderate width is best for confluence
+        if 2.0 <= bb_width_pct <= 4.0:
+            bb_score = 1.0
+        elif bb_width_pct < 2.0:
+            bb_score = bb_width_pct / 2.0
+        else:
+            bb_score = max(0.0, 1.0 - (bb_width_pct - 4.0) / 4.0)
+        scores.append(bb_score * 0.10)
 
         return min(sum(scores), 1.0)
 
     def _recommend_strategy(
-        self, regime: MarketRegime, confluence_score: float
+        self, regime: MarketRegime, confluence_score: float, adx: float
     ) -> RecommendedStrategy:
         """
-        Recommend trading strategy based on regime and confluence.
+        Recommend trading strategy based on regime, confluence, and ADX.
 
-        Logic from v2.0 plan:
+        Logic:
         - Sideways → Grid
-        - Trend + Low Confluence (<0.7) → DCA
-        - Trend + High Confluence (≥0.7) → Hybrid
+        - Trend + Low Confluence (<threshold) → DCA
+        - Trend + High Confluence + moderate ADX (20-35) → Hybrid
+        - Trend + High Confluence + strong ADX (>35) → DCA (pure trend)
         - High Volatility → Reduce exposure
         """
         if regime == MarketRegime.HIGH_VOLATILITY:
@@ -341,7 +481,9 @@ class MarketRegimeDetector:
 
         if regime in (MarketRegime.TRENDING_BULLISH, MarketRegime.TRENDING_BEARISH):
             if confluence_score >= self.confluence_threshold:
-                return RecommendedStrategy.HYBRID
+                if 20.0 <= adx <= 35.0:
+                    return RecommendedStrategy.HYBRID
+                return RecommendedStrategy.DCA
             return RecommendedStrategy.DCA
 
         if regime == MarketRegime.TRANSITIONING:
@@ -355,24 +497,75 @@ class MarketRegimeDetector:
         ema_divergence_pct: float,
         volatility_percentile: float,
         trend_strength: float,
+        adx: float,
     ) -> float:
-        """Calculate confidence in the regime classification (0.0 - 1.0)."""
+        """
+        Calculate confidence in the regime classification (0.0 - 1.0).
 
+        ADX strengthens confidence when aligned with the detected regime.
+        """
         if regime == MarketRegime.UNKNOWN:
             return 0.0
 
         if regime == MarketRegime.SIDEWAYS:
-            # Confidence is high when divergence is close to 0
-            return max(0.3, 1.0 - ema_divergence_pct / self.trend_threshold)
+            ema_conf = max(0.3, 1.0 - ema_divergence_pct / self.trend_threshold)
+            adx_conf = max(0.0, 1.0 - adx / 25.0)
+            return min(ema_conf * 0.6 + adx_conf * 0.4, 1.0)
 
         if regime in (MarketRegime.TRENDING_BULLISH, MarketRegime.TRENDING_BEARISH):
-            # Confidence grows with trend strength
-            return min(0.5 + trend_strength * 0.5, 1.0)
+            trend_conf = min(0.5 + trend_strength * 0.5, 1.0)
+            adx_conf = min(adx / 50.0, 1.0)
+            return min(trend_conf * 0.6 + adx_conf * 0.4, 1.0)
 
         if regime == MarketRegime.HIGH_VOLATILITY:
             return min(volatility_percentile / 100.0, 1.0)
 
         return 0.5  # TRANSITIONING
+
+    # =========================================================================
+    # Regime History Tracking
+    # =========================================================================
+
+    def _update_regime_history(self, analysis: RegimeAnalysis) -> None:
+        """Add analysis to history, maintaining max size."""
+        self._regime_history.insert(0, analysis)
+        if len(self._regime_history) > self.regime_history_size:
+            self._regime_history = self._regime_history[: self.regime_history_size]
+
+    def _get_regime_duration(self, current_regime: MarketRegime) -> int:
+        """
+        Calculate how long the current regime has persisted (seconds).
+
+        Looks back through history to find when this regime started.
+        """
+        if not self._regime_history:
+            return 0
+
+        now = datetime.now(timezone.utc)
+        regime_start = now
+
+        for past_analysis in self._regime_history:
+            if past_analysis.regime == current_regime:
+                regime_start = past_analysis.timestamp
+            else:
+                break
+
+        return int((now - regime_start).total_seconds())
+
+    def _get_previous_regime(self, current_regime: MarketRegime) -> MarketRegime | None:
+        """Get the last regime that differs from the current one."""
+        if not self._regime_history:
+            return None
+
+        for past in self._regime_history:
+            if past.regime != current_regime:
+                return past.regime
+
+        return None
+
+    # =========================================================================
+    # Technical Indicator Calculations
+    # =========================================================================
 
     @staticmethod
     def _calculate_atr(
@@ -398,6 +591,89 @@ class MarketRegimeDetector:
         rsi = 100 - (100 / (1 + rs))
         return rsi
 
+    @staticmethod
+    def _calculate_adx(
+        high: pd.Series, low: pd.Series, close: pd.Series, period: int
+    ) -> tuple[pd.Series, pd.Series, pd.Series]:
+        """
+        Calculate Average Directional Index.
+
+        ADX measures trend strength (0-100): >25 = strong trend, <20 = weak/no trend.
+
+        Returns:
+            Tuple of (adx, plus_di, minus_di) as pd.Series.
+        """
+        # Directional Movement
+        high_diff = high.diff()
+        low_diff = -low.diff()
+
+        plus_dm = high_diff.where((high_diff > low_diff) & (high_diff > 0), 0.0)
+        minus_dm = low_diff.where((low_diff > high_diff) & (low_diff > 0), 0.0)
+
+        # True Range
+        prev_close = close.shift(1)
+        tr1 = high - low
+        tr2 = (high - prev_close).abs()
+        tr3 = (low - prev_close).abs()
+        true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+        # Wilder's smoothing (exponential with alpha=1/period)
+        alpha = 1.0 / period
+        atr_smooth = true_range.ewm(alpha=alpha, adjust=False).mean()
+        plus_dm_smooth = plus_dm.ewm(alpha=alpha, adjust=False).mean()
+        minus_dm_smooth = minus_dm.ewm(alpha=alpha, adjust=False).mean()
+
+        # Directional Indicators
+        plus_di = 100 * (plus_dm_smooth / atr_smooth.replace(0, np.inf))
+        minus_di = 100 * (minus_dm_smooth / atr_smooth.replace(0, np.inf))
+
+        # DX and ADX
+        di_diff = (plus_di - minus_di).abs()
+        di_sum = plus_di + minus_di
+        dx = 100 * (di_diff / di_sum.replace(0, np.inf))
+        adx = dx.ewm(alpha=alpha, adjust=False).mean()
+
+        return adx, plus_di, minus_di
+
+    @staticmethod
+    def _calculate_bollinger_bands(
+        close: pd.Series, period: int = 20, std_dev: float = 2.0
+    ) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+        """
+        Calculate Bollinger Bands and width percentage.
+
+        Returns:
+            Tuple of (bb_upper, bb_middle, bb_lower, bb_width_pct).
+        """
+        bb_middle = close.rolling(window=period).mean()
+        std = close.rolling(window=period).std()
+
+        bb_upper = bb_middle + (std * std_dev)
+        bb_lower = bb_middle - (std * std_dev)
+
+        # Width as percentage of middle band
+        bb_width_pct = ((bb_upper - bb_lower) / bb_middle.replace(0, np.inf)) * 100
+
+        return bb_upper, bb_middle, bb_lower, bb_width_pct
+
+    @staticmethod
+    def _calculate_volume_ratio(
+        volume: pd.Series, lookback: int = 20
+    ) -> tuple[pd.Series, pd.Series]:
+        """
+        Calculate volume ratio (current / average).
+
+        Returns:
+            Tuple of (avg_volume, volume_ratio).
+        """
+        avg_volume = volume.rolling(window=lookback).mean()
+        volume_ratio = volume / avg_volume.replace(0, np.inf)
+        return avg_volume, volume_ratio
+
+    # =========================================================================
+    # Error Handling
+    # =========================================================================
+
     def _unknown_analysis(self, reason: str) -> RegimeAnalysis:
         """Return unknown analysis for error cases."""
         return RegimeAnalysis(
@@ -410,6 +686,11 @@ class MarketRegimeDetector:
             ema_divergence_pct=0.0,
             atr_pct=0.0,
             rsi=50.0,
+            adx=20.0,
+            bb_width_pct=4.0,
+            volume_ratio=1.0,
+            regime_duration_seconds=0,
+            previous_regime=None,
             timestamp=datetime.now(timezone.utc),
             analysis_details={"reason": reason},
         )
