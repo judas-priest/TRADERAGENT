@@ -18,7 +18,16 @@ from bot.strategies.smc import SMCConfig, SMCStrategy
 from bot.strategies.smc_adapter import SMCStrategyAdapter
 from bot.strategies.trend_follower import TrendFollowerConfig, TrendFollowerStrategy
 from bot.strategies.trend_follower_adapter import TrendFollowerAdapter
-from bot.strategies.grid import GridCalculator, GridConfig, GridLevel, GridSpacing
+from bot.strategies.grid import (
+    GridCalculator,
+    GridConfig,
+    GridCycle,
+    GridLevel,
+    GridOrderManager,
+    GridOrderState,
+    GridSpacing,
+    OrderStatus,
+)
 
 __all__ = [
     # Base types
@@ -42,6 +51,10 @@ __all__ = [
     "GridConfig",
     "GridLevel",
     "GridSpacing",
+    "GridOrderManager",
+    "GridOrderState",
+    "GridCycle",
+    "OrderStatus",
     # Subpackages
     "smc",
     "trend_follower",
