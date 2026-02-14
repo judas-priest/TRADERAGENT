@@ -28,6 +28,13 @@ from bot.strategies.grid import (
     GridSpacing,
     OrderStatus,
 )
+from bot.strategies.dca import (
+    DCASignalGenerator,
+    DCASignalConfig,
+    MarketState,
+    SignalResult,
+    ConditionResult,
+)
 
 __all__ = [
     # Base types
@@ -55,8 +62,15 @@ __all__ = [
     "GridOrderState",
     "GridCycle",
     "OrderStatus",
+    # DCA
+    "DCASignalGenerator",
+    "DCASignalConfig",
+    "MarketState",
+    "SignalResult",
+    "ConditionResult",
     # Subpackages
     "smc",
     "trend_follower",
     "grid",
+    "dca",
 ]
