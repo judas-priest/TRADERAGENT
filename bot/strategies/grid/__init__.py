@@ -19,6 +19,11 @@ from bot.strategies.grid.grid_risk_manager import (
     RiskCheckResult,
     TrendState,
 )
+from bot.strategies.grid.grid_config import (
+    GridStrategyConfig,
+    VolatilityMode,
+    VOLATILITY_PRESETS,
+)
 
 __all__ = [
     "GridCalculator",
@@ -34,4 +39,7 @@ __all__ = [
     "GridRiskAction",
     "RiskCheckResult",
     "TrendState",
+    "GridStrategyConfig",
+    "VolatilityMode",
+    "VOLATILITY_PRESETS",
 ]
