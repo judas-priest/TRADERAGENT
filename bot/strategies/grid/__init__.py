@@ -12,6 +12,13 @@ from bot.strategies.grid.grid_order_manager import (
     GridOrderState,
     OrderStatus,
 )
+from bot.strategies.grid.grid_risk_manager import (
+    GridRiskAction,
+    GridRiskConfig,
+    GridRiskManager,
+    RiskCheckResult,
+    TrendState,
+)
 
 __all__ = [
     "GridCalculator",
@@ -22,4 +29,9 @@ __all__ = [
     "GridOrderState",
     "GridCycle",
     "OrderStatus",
+    "GridRiskManager",
+    "GridRiskConfig",
+    "GridRiskAction",
+    "RiskCheckResult",
+    "TrendState",
 ]
