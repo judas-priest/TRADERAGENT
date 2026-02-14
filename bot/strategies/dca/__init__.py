@@ -1,4 +1,4 @@
-"""DCA Strategy Package — v2.0 Signal Generator, Position Manager, Risk Manager, Trailing Stop."""
+"""DCA Strategy Package — v2.0 Signal Generator, Position Manager, Risk Manager, Trailing Stop, Engine."""
 
 from bot.strategies.dca.dca_signal_generator import (
     ConditionResult,
@@ -34,6 +34,12 @@ from bot.strategies.dca.dca_trailing_stop import (
     TrailingStopState,
     TrailingStopType,
 )
+from bot.strategies.dca.dca_engine import (
+    DCAEngine,
+    DealExitSignal,
+    EngineAction,
+    FalseSignalFilter,
+)
 
 __all__ = [
     "DCASignalGenerator",
@@ -62,4 +68,8 @@ __all__ = [
     "TrailingStopSnapshot",
     "TrailingStopState",
     "TrailingStopType",
+    "DCAEngine",
+    "EngineAction",
+    "DealExitSignal",
+    "FalseSignalFilter",
 ]
