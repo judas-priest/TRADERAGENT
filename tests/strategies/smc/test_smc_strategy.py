@@ -1,0 +1,211 @@
+"""
+Tests for SMCStrategy — main strategy orchestrator.
+"""
+
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from bot.strategies.smc.config import DEFAULT_SMC_CONFIG, SMCConfig
+from bot.strategies.smc.entry_signals import SMCSignal
+from bot.strategies.smc.market_structure import TrendDirection
+from bot.strategies.smc.smc_strategy import SMCStrategy
+
+
+def _make_df(n: int = 100, base: float = 45000.0) -> pd.DataFrame:
+    rng = np.random.default_rng(42)
+    dates = pd.date_range("2024-01-01", periods=n, freq="1h")
+    closes = base + np.cumsum(rng.normal(0, 50, n))
+    highs = closes + rng.uniform(10, 100, n)
+    lows = closes - rng.uniform(10, 100, n)
+    opens = closes + rng.normal(0, 20, n)
+    volumes = rng.uniform(100, 1000, n)
+    return pd.DataFrame(
+        {"open": opens, "high": highs, "low": lows, "close": closes, "volume": volumes},
+        index=dates,
+    )
+
+
+class TestSMCStrategyInit:
+    def test_default_config(self):
+        strategy = SMCStrategy()
+        assert strategy.config is DEFAULT_SMC_CONFIG
+        assert strategy.current_trend == TrendDirection.RANGING
+
+    def test_custom_config(self):
+        config = SMCConfig(risk_per_trade=Decimal("0.03"))
+        strategy = SMCStrategy(config=config, account_balance=Decimal("50000"))
+        assert strategy.config.risk_per_trade == Decimal("0.03")
+
+    def test_components_initialized(self):
+        strategy = SMCStrategy()
+        assert strategy.market_structure is not None
+        assert strategy.confluence_analyzer is not None
+        assert strategy.signal_generator is not None
+        assert strategy.position_manager is not None
+
+    def test_initial_state(self):
+        strategy = SMCStrategy()
+        assert strategy.current_trend == TrendDirection.RANGING
+        assert strategy.trend_strength == 0.0
+        assert strategy.active_signals == []
+
+
+class TestSMCAnalyzeMarket:
+    def test_analyze_returns_dict(self):
+        strategy = SMCStrategy()
+        df_d1 = _make_df(n=50)
+        df_h4 = _make_df(n=100)
+        df_h1 = _make_df(n=200)
+        df_m15 = _make_df(n=400)
+
+        result = strategy.analyze_market(df_d1, df_h4, df_h1, df_m15)
+        assert isinstance(result, dict)
+
+    def test_analyze_contains_keys(self):
+        strategy = SMCStrategy()
+        df_d1 = _make_df(n=50)
+        df_h4 = _make_df(n=100)
+        df_h1 = _make_df(n=200)
+        df_m15 = _make_df(n=400)
+
+        result = strategy.analyze_market(df_d1, df_h4, df_h1, df_m15)
+        assert "market_structure" in result
+        assert "trend_analysis" in result
+        assert "confluence_zones" in result
+        assert "current_trend" in result
+        assert "trend_strength" in result
+
+    def test_updates_current_trend(self):
+        strategy = SMCStrategy()
+        assert strategy.current_trend == TrendDirection.RANGING
+
+        df_d1 = _make_df(n=50)
+        df_h4 = _make_df(n=100)
+        df_h1 = _make_df(n=200)
+        df_m15 = _make_df(n=400)
+        strategy.analyze_market(df_d1, df_h4, df_h1, df_m15)
+        # Trend should be updated (may be any value)
+        assert isinstance(strategy.current_trend, TrendDirection)
+
+
+class TestSMCGenerateSignals:
+    def test_generate_signals_returns_list(self):
+        strategy = SMCStrategy()
+        df_h1 = _make_df(n=200)
+        df_m15 = _make_df(n=400)
+
+        # First analyze market
+        strategy.analyze_market(_make_df(50), _make_df(100), df_h1, df_m15)
+
+        signals = strategy.generate_signals(df_h1, df_m15)
+        assert isinstance(signals, list)
+
+    def test_max_three_signals(self):
+        strategy = SMCStrategy()
+        df_h1 = _make_df(n=200)
+        df_m15 = _make_df(n=400)
+        strategy.analyze_market(_make_df(50), _make_df(100), df_h1, df_m15)
+        signals = strategy.generate_signals(df_h1, df_m15)
+        assert len(signals) <= 3
+
+
+class TestSMCFilterSignals:
+    def test_low_confidence_filtered(self):
+        strategy = SMCStrategy()
+        signal = MagicMock(spec=SMCSignal)
+        signal.confidence = 0.3  # Below 60% threshold
+        signal.trend_aligned = False
+        signal.confluence_score = 0
+
+        filtered = strategy._filter_signals([signal])
+        assert len(filtered) == 0
+
+    def test_high_confidence_passes(self):
+        strategy = SMCStrategy()
+        signal = MagicMock(spec=SMCSignal)
+        signal.confidence = 0.7
+        signal.trend_aligned = True
+        signal.confluence_score = 30
+
+        filtered = strategy._filter_signals([signal])
+        assert len(filtered) == 1
+
+    def test_trend_aligned_boost(self):
+        strategy = SMCStrategy()
+        signal = MagicMock(spec=SMCSignal)
+        signal.confidence = 0.7
+        signal.trend_aligned = True
+        signal.confluence_score = 30
+
+        strategy._filter_signals([signal])
+        # Confidence should be boosted by 10%
+        assert signal.confidence == pytest.approx(0.77, abs=0.01)
+
+
+class TestSMCManagePositions:
+    def test_manage_empty_positions(self):
+        strategy = SMCStrategy()
+        result = strategy.manage_positions({})
+        assert result == []
+
+    def test_manage_unknown_position(self):
+        strategy = SMCStrategy()
+        result = strategy.manage_positions({"unknown_id": Decimal("45000")})
+        assert result == []
+
+
+class TestSMCGetState:
+    def test_get_strategy_state(self):
+        strategy = SMCStrategy()
+        state = strategy.get_strategy_state()
+        assert state["strategy"] == "Smart Money Concepts (SMC)"
+        assert "current_trend" in state
+        assert "swing_highs" in state
+        assert "config" in state
+
+    def test_state_config_values(self):
+        config = SMCConfig(risk_per_trade=Decimal("0.03"))
+        strategy = SMCStrategy(config=config)
+        state = strategy.get_strategy_state()
+        assert state["config"]["risk_per_trade"] == Decimal("0.03")
+
+
+class TestSMCPerformanceReport:
+    def test_performance_report_empty(self):
+        strategy = SMCStrategy()
+        report = strategy.get_performance_report()
+        assert report["total_trades"] == 0
+        assert report["win_rate"] == "0.0%"
+
+
+class TestSMCReset:
+    def test_reset_clears_state(self):
+        strategy = SMCStrategy()
+        strategy.active_signals = [MagicMock()]
+        strategy.reset()
+        assert strategy.active_signals == []
+        assert len(strategy.market_structure.swing_highs) == 0
+
+
+class TestSMCConfigDataclass:
+    def test_defaults(self):
+        cfg = SMCConfig()
+        assert cfg.trend_timeframe == "1d"
+        assert cfg.structure_timeframe == "4h"
+        assert cfg.working_timeframe == "1h"
+        assert cfg.entry_timeframe == "15m"
+        assert cfg.risk_per_trade == Decimal("0.02")
+        assert cfg.min_risk_reward == Decimal("2.5")
+
+    def test_custom(self):
+        cfg = SMCConfig(swing_length=10, trend_period=30)
+        assert cfg.swing_length == 10
+        assert cfg.trend_period == 30
+
+    def test_default_instance(self):
+        assert DEFAULT_SMC_CONFIG is not None
+        assert isinstance(DEFAULT_SMC_CONFIG, SMCConfig)
