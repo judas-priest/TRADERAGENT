@@ -82,8 +82,13 @@ class TelegramBot:
         # Monitoring commands
         self.router.message(Command("balance"))(self._cmd_balance)
         self.router.message(Command("orders"))(self._cmd_orders)
+        self.router.message(Command("positions"))(self._cmd_positions)
         self.router.message(Command("pnl"))(self._cmd_pnl)
         self.router.message(Command("list"))(self._cmd_list)
+        self.router.message(Command("report"))(self._cmd_report)
+
+        # Strategy commands
+        self.router.message(Command("switch_strategy"))(self._cmd_switch_strategy)
 
         # Register router with dispatcher
         self.dp.include_router(self.router)
@@ -125,12 +130,15 @@ class TelegramBot:
             "/start\\_bot <name> - Start a trading bot\n"
             "/stop\\_bot <name> - Stop a trading bot\n"
             "/pause <name> - Pause trading bot\n"
-            "/resume <name> - Resume trading bot\n\n"
+            "/resume <name> - Resume trading bot\n"
+            "/switch\\_strategy <name> <strategy> - Switch strategy\n\n"
             "*Monitoring:*\n"
             "/status [name] - Bot status (all bots if no name)\n"
             "/balance <name> - Current balance\n"
             "/orders <name> - Open orders\n"
+            "/positions <name> - Open positions\n"
             "/pnl <name> - Profit and Loss\n"
+            "/report [name] - Performance report\n"
             "/list - List all bots\n\n"
             "*Other:*\n"
             "/help - Show this help message\n"
@@ -431,6 +439,223 @@ class TelegramBot:
 
         await message.answer(response, parse_mode="Markdown")
 
+    async def _cmd_positions(self, message: Message) -> None:
+        """Handle /positions command — show open positions."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /positions <bot_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        response = f"📊 *Positions for {bot_name}*\n\n"
+        has_positions = False
+
+        # DCA positions
+        if orch.dca_engine and orch.dca_engine.position:
+            has_positions = True
+            pos = orch.dca_engine.position
+            response += (
+                f"*DCA Position:*\n"
+                f"Symbol: {orch.config.symbol}\n"
+                f"Entry: {pos.avg_entry_price}\n"
+                f"Amount: {pos.total_amount}\n"
+                f"Steps: {orch.dca_engine.current_step}/{orch.dca_engine.max_steps}\n"
+            )
+            if orch.current_price:
+                pnl = pos.get_pnl(orch.current_price)
+                pnl_pct = pos.get_pnl_percentage(orch.current_price)
+                response += f"P&L: {pnl} ({float(pnl_pct):.2%})\n"
+            response += "\n"
+
+        # Trend-Follower positions
+        if orch.trend_follower_strategy:
+            active = orch.trend_follower_strategy.position_manager.active_positions
+            if active:
+                has_positions = True
+                response += f"*Trend-Follower ({len(active)} active):*\n"
+                for pid, pos in list(active.items())[:5]:
+                    response += (
+                        f"ID: `{pid[:8]}`\n"
+                        f"  Type: {pos.signal_type.value}\n"
+                        f"  Entry: {pos.entry_price}\n"
+                        f"  Size: {pos.size}\n\n"
+                    )
+                if len(active) > 5:
+                    response += f"... and {len(active) - 5} more positions\n"
+
+        # Grid active orders as proxy for "positions"
+        if orch.grid_engine and orch.grid_engine.active_orders:
+            has_positions = True
+            orders = orch.grid_engine.active_orders
+            response += f"*Grid Orders ({len(orders)} active):*\n"
+            for oid, order in list(orders.items())[:5]:
+                response += (
+                    f"  {order.side.upper()} @ {order.price}\n"
+                )
+            if len(orders) > 5:
+                response += f"  ... and {len(orders) - 5} more\n"
+
+        if not has_positions:
+            response += "No open positions"
+
+        await message.answer(response, parse_mode="Markdown")
+
+    async def _cmd_report(self, message: Message) -> None:
+        """Handle /report command — performance report."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        bot_name = args[1] if len(args) > 1 else None
+
+        if bot_name and bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        targets = (
+            {bot_name: self.orchestrators[bot_name]}
+            if bot_name
+            else self.orchestrators
+        )
+
+        for name, orch in targets.items():
+            response = f"📈 *Performance Report: {name}*\n\n"
+            status = await orch.get_status()
+
+            response += (
+                f"State: {status['state']}\n"
+                f"Strategy: {status['strategy']}\n"
+            )
+
+            if status.get("current_price"):
+                response += f"Current Price: {status['current_price']}\n"
+
+            # Grid stats
+            if "grid" in status:
+                grid = status["grid"]
+                response += (
+                    f"\n*Grid:*\n"
+                    f"Total Profit: {grid.get('total_profit', 0)}\n"
+                    f"Buy Count: {grid.get('buy_count', 0)}\n"
+                    f"Sell Count: {grid.get('sell_count', 0)}\n"
+                )
+
+            # DCA stats
+            if "dca" in status:
+                dca = status["dca"]
+                response += (
+                    f"\n*DCA:*\n"
+                    f"Position: {'Yes' if dca.get('has_position') else 'No'}\n"
+                    f"Steps: {dca.get('current_step', 0)}/{dca.get('max_steps', 0)}\n"
+                )
+
+            # Trend-Follower stats
+            if "trend_follower" in status:
+                tf = status["trend_follower"]
+                response += (
+                    f"\n*Trend-Follower:*\n"
+                    f"Active Positions: {tf.get('active_positions', 0)}\n"
+                )
+                stats = tf.get("statistics", {})
+                if stats:
+                    response += (
+                        f"Total Trades: {stats.get('total_trades', 0)}\n"
+                        f"Win Rate: {stats.get('win_rate', 0):.1%}\n"
+                        f"Total P&L: {stats.get('total_pnl', 0)}\n"
+                    )
+
+            # Risk status
+            if "risk" in status:
+                risk = status["risk"]
+                response += "\n*Risk:*\n"
+                if risk.get("drawdown") is not None:
+                    response += f"Drawdown: {float(risk['drawdown']):.2%}\n"
+                if risk.get("pnl_percentage") is not None:
+                    response += f"P&L: {float(risk['pnl_percentage']):.2%}\n"
+                response += f"Halted: {'Yes' if risk.get('is_halted') else 'No'}\n"
+
+            # Market regime
+            if "market_regime" in status:
+                regime = status["market_regime"]
+                response += (
+                    f"\n*Market Regime:*\n"
+                    f"Regime: {regime.get('regime', 'unknown')}\n"
+                    f"Confidence: {regime.get('confidence', 0):.1%}\n"
+                )
+
+            # Strategy registry
+            if "strategy_registry" in status:
+                reg = status["strategy_registry"]
+                response += (
+                    f"\n*Strategies:*\n"
+                    f"Total: {reg.get('total', 0)}\n"
+                    f"Active: {reg.get('active', 0)}\n"
+                )
+
+            await message.answer(response, parse_mode="Markdown")
+
+    async def _cmd_switch_strategy(self, message: Message) -> None:
+        """Handle /switch_strategy command — switch bot strategy."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 3:
+            await message.answer(
+                "Usage: /switch\\_strategy <bot\\_name> <strategy\\_id>\n\n"
+                "Available strategies: grid, dca, trend\\_follower, smc"
+            )
+            return
+
+        bot_name = args[1]
+        strategy_id = args[2]
+
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+
+        try:
+            # Show current strategies
+            registry_status = orch.strategy_registry.get_registry_status()
+            active_strategies = registry_status.get("active", 0)
+
+            # Stop all active strategies
+            if active_strategies > 0:
+                await orch.strategy_registry.stop_all()
+
+            # Register and start new strategy
+            orch.register_strategy(
+                strategy_id=strategy_id,
+                strategy_type=strategy_id,
+            )
+            await orch.start_strategy(strategy_id)
+
+            await message.answer(
+                f"✅ Strategy switched to *{strategy_id}* for bot *{bot_name}*",
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            logger.error(
+                "switch_strategy_failed",
+                bot_name=bot_name,
+                strategy=strategy_id,
+                error=str(e),
+            )
+            await message.answer(f"❌ Failed to switch strategy: {str(e)}")
+
     async def _listen_to_events(self) -> None:
         """Listen to Redis events and send notifications."""
         logger.info("event_listener_started")
@@ -482,6 +707,12 @@ class TelegramBot:
             EventType.RISK_LIMIT_HIT,
             EventType.STOP_LOSS_TRIGGERED,
             EventType.ERROR_OCCURRED,
+            # v2.0 events
+            EventType.REGIME_CHANGED,
+            EventType.HYBRID_TRANSITION,
+            EventType.HEALTH_DEGRADED,
+            EventType.HEALTH_CRITICAL,
+            EventType.STRATEGY_ERROR,
         }
 
         if event.event_type not in important_events:
@@ -513,6 +744,12 @@ class TelegramBot:
             EventType.RISK_LIMIT_HIT: "⚠️",
             EventType.STOP_LOSS_TRIGGERED: "🛑",
             EventType.ERROR_OCCURRED: "❌",
+            # v2.0 events
+            EventType.REGIME_CHANGED: "🔄",
+            EventType.HYBRID_TRANSITION: "🔀",
+            EventType.HEALTH_DEGRADED: "⚠️",
+            EventType.HEALTH_CRITICAL: "🚨",
+            EventType.STRATEGY_ERROR: "❌",
         }
 
         emoji = emoji_map.get(event.event_type, "ℹ️")
