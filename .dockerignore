@@ -1,0 +1,46 @@
+# Version control
+.git
+.github
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Environment
+.env
+.env.local
+.venv
+venv
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation (not needed in container)
+*.md
+docs/
+screenshots/
+
+# Development files
+experiments/
+ci-logs/
+*.xlsx
+*.png
+*.jpg
+
+# Testing (dev only)
+tests/
+pytest.ini
+.coveragerc
+
+# Build artifacts
+dist/
+build/
+*.egg-info

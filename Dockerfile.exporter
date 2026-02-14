@@ -1,0 +1,22 @@
+FROM python:3.11-slim AS runtime
+
+WORKDIR /app
+
+# Install only required dependencies
+RUN pip install --no-cache-dir aiohttp>=3.9.0 structlog>=24.1.0
+
+# Copy monitoring module and utils
+COPY bot/monitoring/ bot/monitoring/
+COPY bot/utils/logger.py bot/utils/logger.py
+COPY bot/__init__.py bot/__init__.py
+COPY bot/utils/__init__.py bot/utils/__init__.py
+
+ENV PYTHONPATH=/app
+ENV METRICS_PORT=9100
+
+EXPOSE 9100
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:9100/health')" || exit 1
+
+CMD ["python", "-m", "bot.monitoring.metrics_exporter"]
