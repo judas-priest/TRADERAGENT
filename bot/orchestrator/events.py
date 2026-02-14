@@ -30,6 +30,25 @@ class EventType(str, Enum):
     DCA_TRIGGERED = "dca_triggered"
     TAKE_PROFIT_HIT = "take_profit_hit"
 
+    # Strategy lifecycle events (v2.0)
+    STRATEGY_REGISTERED = "strategy_registered"
+    STRATEGY_STARTED = "strategy_started"
+    STRATEGY_STOPPED = "strategy_stopped"
+    STRATEGY_PAUSED = "strategy_paused"
+    STRATEGY_RESUMED = "strategy_resumed"
+    STRATEGY_ERROR = "strategy_error"
+    STRATEGY_RESTARTED = "strategy_restarted"
+
+    # Market regime events (v2.0)
+    REGIME_DETECTED = "regime_detected"
+    REGIME_CHANGED = "regime_changed"
+    STRATEGY_SWITCH_RECOMMENDED = "strategy_switch_recommended"
+
+    # Health events (v2.0)
+    HEALTH_CHECK_COMPLETED = "health_check_completed"
+    HEALTH_DEGRADED = "health_degraded"
+    HEALTH_CRITICAL = "health_critical"
+
     # Risk events
     RISK_LIMIT_HIT = "risk_limit_hit"
     STOP_LOSS_TRIGGERED = "stop_loss_triggered"
