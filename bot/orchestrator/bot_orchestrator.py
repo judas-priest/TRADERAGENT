@@ -502,7 +502,7 @@ class BotOrchestrator:
                 if order_id not in [o["id"] for o in open_orders]:
                     # Order was filled
                     filled_price = grid_order.price
-                    rebalance_order = self.grid_engine.handle_order_filled(order_id, filled_price)
+                    rebalance_order = self.grid_engine.handle_order_filled(order_id, filled_price, grid_order.amount)
 
                     await self._publish_event(
                         EventType.ORDER_FILLED,
@@ -530,7 +530,7 @@ class BotOrchestrator:
             if self.risk_manager:
                 order_value = self.dca_engine.amount_per_step
                 current_position = (
-                    self.dca_engine.position.total_amount
+                    self.dca_engine.position.amount
                     if self.dca_engine.position
                     else Decimal("0")
                 )
@@ -548,8 +548,8 @@ class BotOrchestrator:
                     EventType.DCA_TRIGGERED,
                     {
                         "price": str(self.current_price),
-                        "step": self.dca_engine.current_step,
-                        "avg_entry": str(self.dca_engine.position.avg_entry_price),
+                        "step": self.dca_engine.position.step_number,
+                        "avg_entry": str(self.dca_engine.position.average_entry_price),
                     },
                 )
 
@@ -651,7 +651,7 @@ class BotOrchestrator:
         try:
             # total_amount tracks accumulated amount_per_step values (in USD)
             # Convert to base currency using current price
-            base_amount = float(self.dca_engine.position.total_amount / self.current_price)
+            base_amount = float(self.dca_engine.position.amount / self.current_price)
             result = await self.exchange.create_order(
                 symbol=self.config.symbol,
                 order_type="market",
@@ -712,7 +712,7 @@ class BotOrchestrator:
                     risk_check = self.risk_manager.check_trade(
                         position_size, current_position_value, balance
                     )
-                    if not risk_check.approved:
+                    if not risk_check.allowed:
                         logger.warning(
                             "trend_follower_signal_blocked_by_risk", reason=risk_check.reason
                         )
