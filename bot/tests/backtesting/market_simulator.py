@@ -1,6 +1,5 @@
 """Market simulator for backtesting trading strategies"""
 
-import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -119,11 +118,11 @@ class MarketSimulator:
         self.order_id_counter = 0
         self.trade_history: list[dict[str, Any]] = []
 
-    def set_price(self, price: Decimal) -> None:
+    async def set_price(self, price: Decimal) -> None:
         """Update current market price"""
         self.current_price = price
         # Check and execute limit orders
-        self._check_limit_orders()
+        await self._check_limit_orders()
 
     def get_ticker(self) -> dict[str, Any]:
         """Get current market ticker"""
@@ -208,7 +207,7 @@ class MarketSimulator:
             # Store limit order
             self.orders[order_id] = order
             # Check if it can be executed immediately
-            self._check_limit_orders()
+            await self._check_limit_orders()
 
         return self._order_to_dict(order)
 
@@ -268,7 +267,7 @@ class MarketSimulator:
             order.status = OrderStatus.CANCELED
             raise Exception(f"Order execution failed: {e}") from e
 
-    def _check_limit_orders(self) -> None:
+    async def _check_limit_orders(self) -> None:
         """Check and execute limit orders that meet price conditions"""
         orders_to_execute = []
 
@@ -289,7 +288,7 @@ class MarketSimulator:
         # Execute orders
         for order in orders_to_execute:
             try:
-                asyncio.create_task(self._execute_order(order))
+                await self._execute_order(order)
             except Exception:
                 pass  # Order execution failed, already marked as canceled
 

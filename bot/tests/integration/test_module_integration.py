@@ -62,7 +62,7 @@ class TestGridRiskIntegration:
             upper_price=Decimal("50000"),
             lower_price=Decimal("40000"),
             grid_levels=10,
-            amount_per_grid=Decimal("0.1"),  # Small amount in base currency
+            amount_per_grid=Decimal("2000"),  # Amount per grid in USDT
             profit_per_grid=Decimal("0.01"),
         )
 
@@ -219,14 +219,14 @@ class TestFullStrategyIntegration:
             upper_price=Decimal("50000"),
             lower_price=Decimal("40000"),
             grid_levels=5,
-            amount_per_grid=Decimal("0.01"),  # Small amount in base currency
+            amount_per_grid=Decimal("100"),  # Amount per grid in USDT
             profit_per_grid=Decimal("0.01"),
         )
 
         dca = DCAEngine(
             symbol="BTC/USDT",
             trigger_percentage=Decimal("0.05"),
-            amount_per_step=Decimal("0.01"),  # Small amount in base currency
+            amount_per_step=Decimal("0.01"),  # Amount in base currency (BTC)
             max_steps=3,
             take_profit_percentage=Decimal("0.1"),
         )

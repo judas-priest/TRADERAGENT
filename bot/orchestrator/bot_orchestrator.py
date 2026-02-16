@@ -32,6 +32,7 @@ from bot.orchestrator.strategy_registry import (
     StrategyRegistry,
     StrategyState,
 )
+from bot.strategies.trend_follower import TrendFollowerConfig as TrendFollowerDataclassConfig
 from bot.strategies.trend_follower import TrendFollowerStrategy
 from bot.strategies.trend_follower.entry_logic import SignalType
 from bot.utils.logger import get_logger
@@ -200,8 +201,33 @@ class BotOrchestrator:
             free_balances = balance.get("free", {})
             initial_capital = Decimal(str(free_balances.get(quote_currency, 0)))
 
+            # Convert Pydantic TrendFollowerConfig to dataclass TrendFollowerConfig
+            pydantic_tf = self.config.trend_follower
+            dataclass_config = TrendFollowerDataclassConfig(
+                ema_fast_period=pydantic_tf.ema_fast_period,
+                ema_slow_period=pydantic_tf.ema_slow_period,
+                atr_period=pydantic_tf.atr_period,
+                rsi_period=pydantic_tf.rsi_period,
+                volume_multiplier=pydantic_tf.volume_multiplier,
+                max_atr_filter_pct=pydantic_tf.atr_filter_threshold,
+                tp_multipliers=(
+                    pydantic_tf.tp_atr_multiplier_sideways,
+                    pydantic_tf.tp_atr_multiplier_weak,
+                    pydantic_tf.tp_atr_multiplier_strong,
+                ),
+                sl_multipliers=(
+                    pydantic_tf.sl_atr_multiplier_sideways,
+                    pydantic_tf.sl_atr_multiplier_trend,
+                    pydantic_tf.sl_atr_multiplier_trend,
+                ),
+                risk_per_trade_pct=pydantic_tf.risk_per_trade_pct,
+                max_position_size_usd=pydantic_tf.max_position_size_usd,
+                max_daily_loss_usd=pydantic_tf.max_daily_loss_usd,
+                max_positions=pydantic_tf.max_positions,
+                log_all_signals=pydantic_tf.log_all_signals,
+            )
             self.trend_follower_strategy = TrendFollowerStrategy(
-                config=self.config.trend_follower,
+                config=dataclass_config,
                 initial_capital=initial_capital,
                 log_trades=True,
             )

@@ -5,10 +5,17 @@ from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 
 import pytest
+from sqlalchemy import BigInteger
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.compiler import compiles
 
 from bot.database.models import Base
+
+# SQLite renders BigInteger as BIGINT which breaks autoincrement.
+# Override to render as INTEGER so SQLite autoincrement works correctly.
+@compiles(BigInteger, "sqlite")
+def _compile_big_int_sqlite(type_, compiler, **kw):
+    return "INTEGER"
 
 
 @pytest.fixture(scope="session")
@@ -19,10 +26,9 @@ def event_loop() -> Generator:
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def test_db_engine() -> AsyncGenerator[AsyncEngine, None]:
-    """Create a test database engine"""
-    # Use in-memory SQLite for tests
+    """Create a fresh in-memory database engine per test for full isolation."""
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         echo=False,
@@ -33,9 +39,6 @@ async def test_db_engine() -> AsyncGenerator[AsyncEngine, None]:
 
     yield engine
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
     await engine.dispose()
 
 
@@ -43,16 +46,12 @@ async def test_db_engine() -> AsyncGenerator[AsyncEngine, None]:
 async def db_session(
     test_db_engine: AsyncEngine,
 ) -> AsyncGenerator[AsyncSession, None]:
-    """Create a test database session"""
-    async_session = sessionmaker(
+    """Create a test database session."""
+    async with AsyncSession(
         test_db_engine,
-        class_=AsyncSession,
         expire_on_commit=False,
-    )
-
-    async with async_session() as session:
+    ) as session:
         yield session
-        await session.rollback()
 
 
 @pytest.fixture

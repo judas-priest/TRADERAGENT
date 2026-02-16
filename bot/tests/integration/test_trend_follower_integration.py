@@ -23,13 +23,10 @@ def trend_follower_config():
         rsi_period=14,
         # Entry settings
         volume_multiplier=Decimal("1.5"),
-        atr_filter_threshold=Decimal("0.05"),
+        max_atr_filter_pct=Decimal("0.05"),
         # Position management
-        tp_atr_multiplier_sideways=Decimal("1.2"),
-        tp_atr_multiplier_weak=Decimal("1.8"),
-        tp_atr_multiplier_strong=Decimal("2.5"),
-        sl_atr_multiplier_sideways=Decimal("0.7"),
-        sl_atr_multiplier_trend=Decimal("1.0"),
+        tp_multipliers=(Decimal("1.2"), Decimal("1.8"), Decimal("2.5")),
+        sl_multipliers=(Decimal("0.7"), Decimal("1.0"), Decimal("1.0")),
         # Risk management
         risk_per_trade_pct=Decimal("0.02"),
         max_position_size_usd=Decimal("5000"),
@@ -62,7 +59,7 @@ def sample_ohlcv_data():
 
     df = pd.DataFrame(
         {
-            "timestamp": pd.date_range(start="2026-01-01", periods=periods, freq="1H"),
+            "timestamp": pd.date_range(start="2026-01-01", periods=periods, freq="1h"),
             "open": open_prices,
             "high": high_prices,
             "low": low_prices,
@@ -481,12 +478,16 @@ class TestStrategyStatistics:
         if strategy.trade_logger:
             stats = strategy.get_statistics()
 
-            # Should have key metrics
-            assert "total_trades" in stats
-            assert "win_rate" in stats
-            assert "profit_factor" in stats
-            assert "total_pnl" in stats
-            assert "max_drawdown" in stats
+            # Strategy returns nested structure
+            assert "risk_metrics" in stats
+            assert "active_positions" in stats
+            assert "trade_statistics" in stats
+
+            trade_stats = stats["trade_statistics"]
+            assert "total_trades" in trade_stats
+            assert "win_rate" in trade_stats
+            assert "profit_factor" in trade_stats
+            assert "max_drawdown" in trade_stats
 
     def test_statistics_update_after_trades(
         self, trend_follower_strategy, sample_ohlcv_data
@@ -499,7 +500,7 @@ class TestStrategyStatistics:
             pytest.skip("Trade logger not enabled")
 
         initial_stats = strategy.get_statistics()
-        initial_trades = initial_stats["total_trades"]
+        initial_trades = initial_stats["trade_statistics"]["total_trades"]
 
         # Complete a trade
         strategy.analyze_market(df)
@@ -513,4 +514,4 @@ class TestStrategyStatistics:
 
             # Statistics should update
             updated_stats = strategy.get_statistics()
-            assert updated_stats["total_trades"] == initial_trades + 1
+            assert updated_stats["trade_statistics"]["total_trades"] == initial_trades + 1

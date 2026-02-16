@@ -326,7 +326,7 @@ class PositionManager:
         position.current_price = current_price
 
         # Calculate unrealized PnL
-        if position.entry_price < position.stop_loss:  # Long position
+        if position.entry_price > position.stop_loss:  # Long position
             position.unrealized_pnl = (
                 current_price - position.entry_price
             ) * position.position_size

@@ -7,6 +7,7 @@ position management, risk management, event publishing, and error handling.
 Issue #137 - Phase 1.5
 """
 
+import asyncio
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -75,7 +76,11 @@ def mock_exchange():
     exchange = AsyncMock()
 
     # Balance
-    exchange.get_balance.return_value = {"USDT": 10000, "ETH": 0}
+    exchange.fetch_balance.return_value = {
+        "free": {"USDT": 10000, "ETH": 0},
+        "total": {"USDT": 10000, "ETH": 0},
+        "used": {"USDT": 0, "ETH": 0},
+    }
 
     # Ticker
     exchange.fetch_ticker.return_value = {
@@ -193,7 +198,7 @@ class TestTrendFollowerOrchestrationInitialization:
 
         # Core components
         assert orch.exchange is not None
-        assert orch.db_manager is not None
+        assert orch.db is not None
         assert orch.risk_manager is not None
         assert orch.redis_client is not None
 
@@ -222,6 +227,9 @@ class TestTrendFollowerLifecycle:
         assert orch.current_price is not None
         assert orch.current_price > 0
 
+        # Allow background tasks to execute
+        await asyncio.sleep(0.2)
+
         # Exchange should have been queried
         mock_exchange.fetch_ticker.assert_called()
         mock_exchange.fetch_ohlcv.assert_called()
@@ -238,15 +246,13 @@ class TestTrendFollowerLifecycle:
         await orch.start()
         assert orch.state == BotState.RUNNING
 
-        # Pause
+        # Pause — main loop keeps running but skips processing
         await orch.pause()
         assert orch.state == BotState.PAUSED
-        assert not orch._running
 
         # Resume
         await orch.resume()
         assert orch.state == BotState.RUNNING
-        assert orch._running
 
         # Cleanup
         await orch.stop()
@@ -280,6 +286,9 @@ class TestSignalGenerationAndExecution:
 
         # Start bot to trigger initial analysis
         await orch.start()
+
+        # Allow background tasks to execute
+        await asyncio.sleep(0.2)
 
         # Market should have been analyzed
         mock_exchange.fetch_ohlcv.assert_called()
@@ -509,7 +518,11 @@ class TestErrorHandling:
         # Create exchange that raises errors
         error_exchange = AsyncMock()
         error_exchange.fetch_ticker.side_effect = Exception("Exchange connection failed")
-        error_exchange.get_balance.return_value = {"USDT": 10000}
+        error_exchange.fetch_balance.return_value = {
+            "free": {"USDT": 10000},
+            "total": {"USDT": 10000},
+            "used": {"USDT": 0},
+        }
 
         with patch("bot.orchestrator.bot_orchestrator.redis.from_url") as mock_redis:
             mock_redis_client = AsyncMock()
@@ -641,6 +654,9 @@ class TestFullE2EWorkflow:
         # Phase 2: Start bot
         await orch.start()
         assert orch.state == BotState.RUNNING
+
+        # Allow background tasks to execute
+        await asyncio.sleep(0.2)
 
         # Phase 3: Verify market analysis occurred
         mock_exchange.fetch_ohlcv.assert_called()

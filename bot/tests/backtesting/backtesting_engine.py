@@ -181,7 +181,7 @@ class BacktestingEngine:
             price = Decimal(str(candle["close"]))
 
             # Update market price
-            self.simulator.set_price(price)
+            await self.simulator.set_price(price)
 
             # Record portfolio value
             portfolio_value = self.simulator.get_portfolio_value()

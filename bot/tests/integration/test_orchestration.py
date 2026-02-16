@@ -57,7 +57,11 @@ def hybrid_bot_config():
 def mock_exchange():
     """Create mock exchange with realistic behavior."""
     exchange = AsyncMock()
-    exchange.get_balance.return_value = {"USDT": 10000, "BTC": 0}
+    exchange.fetch_balance.return_value = {
+        "free": {"USDT": 10000, "BTC": 0},
+        "total": {"USDT": 10000, "BTC": 0},
+        "used": {"USDT": 0, "BTC": 0},
+    }
     exchange.fetch_ticker.return_value = {"last": 45000, "bid": 44990, "ask": 45010}
     exchange.fetch_open_orders.return_value = []
     exchange.create_order.return_value = {"id": "test_order_123", "status": "open"}
@@ -115,7 +119,7 @@ class TestHybridStrategyOrchestration:
         assert len(orchestrator.grid_engine.grid_orders) > 0
 
         # DCA should be ready
-        assert orchestrator.dca_engine.current_step == 0
+        assert orchestrator.dca_engine.total_dca_steps == 0
 
         # Pause bot
         await orchestrator.pause()
@@ -223,7 +227,11 @@ class TestRiskBasedHalt:
         await orchestrator.start()
 
         # Simulate significant balance loss
-        mock_exchange.get_balance.return_value = {"USDT": 8000}  # 20% loss
+        mock_exchange.fetch_balance.return_value = {
+            "free": {"USDT": 8000},
+            "total": {"USDT": 8000},
+            "used": {"USDT": 0},
+        }  # 20% loss
 
         # Update risk manager
         orchestrator.risk_manager.update_balance(Decimal("8000"))
@@ -235,7 +243,7 @@ class TestRiskBasedHalt:
             if Decimal("8000") <= Decimal("10000") * (
                 Decimal("1") - orchestrator.risk_manager.stop_loss_percentage
             ):
-                assert risk_status["halted"]
+                assert risk_status["is_halted"]
 
         await orchestrator.stop()
 
