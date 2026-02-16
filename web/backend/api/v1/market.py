@@ -23,8 +23,8 @@ async def get_ticker(
     # Try to get from any orchestrator's exchange client
     for orch in orchestrators.values():
         try:
-            if hasattr(orch, "exchange_client") and orch.exchange_client:
-                ticker = await orch.exchange_client.fetch_ticker(symbol)
+            if hasattr(orch, "exchange") and orch.exchange:
+                ticker = await orch.exchange.fetch_ticker(symbol)
                 return TickerResponse(
                     symbol=symbol,
                     last=Decimal(str(ticker.get("last", 0))),
@@ -52,8 +52,8 @@ async def get_ohlcv(
     """Get OHLCV candles for a symbol."""
     for orch in orchestrators.values():
         try:
-            if hasattr(orch, "exchange_client") and orch.exchange_client:
-                candles = await orch.exchange_client.fetch_ohlcv(
+            if hasattr(orch, "exchange") and orch.exchange:
+                candles = await orch.exchange.fetch_ohlcv(
                     symbol, timeframe=timeframe, limit=limit
                 )
                 return [
