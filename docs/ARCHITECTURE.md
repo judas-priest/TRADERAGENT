@@ -1,6 +1,6 @@
 # TRADERAGENT v2.0 — Architecture & Implementation Status
 
-**Updated:** 2026-02-16 | **Tests:** 471 passed (100%) | **Release:** v2.0.0 | **Demo Trading:** LIVE on Bybit | **Web UI:** COMPLETE | **Load Testing:** COMPLETE
+**Updated:** 2026-02-16 | **Tests:** 510 passed (100%) | **Release:** v2.0.0 | **Demo Trading:** LIVE on Bybit | **Web UI:** COMPLETE | **Load Testing:** COMPLETE | **Grid Backtesting:** COMPLETE
 
 > Legend: `[DONE]` — implemented & tested | `[TODO]` — not started
 
@@ -76,6 +76,15 @@ graph TB
         BS["🟢 BaseStrategy<br/><i>strategies/base.py</i><br/>329 lines"]
     end
 
+    subgraph GRIDBT["<b>GRID BACKTESTING</b> — COMPLETE 🟢"]
+        direction LR
+        GBS["🟢 GridBacktestSimulator<br/><i>backtesting/grid/simulator.py</i><br/>415 lines"]
+        GBC["🟢 CoinClusterizer<br/><i>backtesting/grid/clusterizer.py</i><br/>157 lines"]
+        GBO["🟢 GridOptimizer<br/><i>backtesting/grid/optimizer.py</i><br/>393 lines"]
+        GBR["🟢 GridBacktestReporter<br/><i>backtesting/grid/reporter.py</i><br/>164 lines"]
+        GBSYS["🟢 GridBacktestSystem<br/><i>backtesting/grid/system.py</i><br/>250 lines"]
+    end
+
     subgraph CORE["<b>CORE LAYER</b>"]
         direction LR
         GE["🟢 GridEngine<br/><i>core/grid_engine.py</i><br/><b>[DONE]</b>"]
@@ -140,7 +149,7 @@ graph TB
         end
     end
 
-    subgraph TEST["<b>TESTING LAYER</b> — 471/471 🟢"]
+    subgraph TEST["<b>TESTING LAYER</b> — 510/510 🟢"]
         direction LR
 
         subgraph UNIT["Unit Tests: 175/175 🟢"]
@@ -185,6 +194,13 @@ graph TB
             LT6["Rate Limiting 4"]
             LT7["Backtesting 4"]
             LT8["Memory Profiling 5"]
+        end
+
+        subgraph GRIDTEST["Grid Backtesting: 39/39 🟢"]
+            GT1["Simulator 14"]
+            GT2["Clusterizer 12"]
+            GT3["Optimizer 6"]
+            GT4["System E2E 7"]
         end
     end
 
@@ -232,6 +248,11 @@ graph TB
     BS --> SMC
     BS --> TF
     STRAT --> CORE
+    GRIDBT --> GRID
+    GBSYS --> GBS
+    GBSYS --> GBC
+    GBSYS --> GBO
+    GBSYS --> GBR
     CORE --> INFRA
     EC --> CCXT
     EC --> BYBIT
@@ -267,6 +288,8 @@ graph TB
     class BT1,BT2,BT3,BT4,BT5 done
     class WT1,WT2,WT3,WT4,WT5 done
     class LT1,LT2,LT3,LT4,LT5,LT6,LT7,LT8 done
+    class GT1,GT2,GT3,GT4 done
+    class GBS,GBC,GBO,GBR,GBSYS done
     class WEBUI,WBA,WBR,WBS,WBW,WFP,WFC,WFS,WDB,WDF,WDN webui
     class T8,R2MA,R2REP todo
     class BYBIT,CCXT,PG,REDIS,TGAPI ext
@@ -288,6 +311,7 @@ Phase 7.3: Demo Trading (Bybit)       ██████████████
 Phase 7.4: Load/Stress Testing        ██████████████████████████████ 100%  🟢 COMPLETE!
 Phase 8: Production Launch            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%  🔴
 Web UI Dashboard                      ██████████████████████████████ 100%  🟢 COMPLETE!
+Grid Backtesting System               ██████████████████████████████ 100%  🟢 COMPLETE!
 ```
 
 ---
@@ -413,6 +437,56 @@ tests/loadtest/
 
 ---
 
+## Grid Backtesting System Details
+
+**Completed:** 2026-02-16 | **Tests:** 39/39 passed | **Commit:** `bb31467`
+
+Grid-specific backtesting system with coin clustering, two-phase parameter optimization, stress testing, and preset export.
+
+```
+bot/backtesting/grid/
+├── __init__.py          # Re-exports all public classes
+├── models.py            # GridBacktestConfig, GridBacktestResult, enums (268 lines)
+├── simulator.py         # GridBacktestSimulator — core simulation loop (415 lines)
+├── clusterizer.py       # CoinClusterizer — ATR%/volume classification (157 lines)
+├── optimizer.py         # GridOptimizer — coarse→fine search (393 lines)
+├── reporter.py          # Reports + JSON/YAML preset export (164 lines)
+└── system.py            # End-to-end pipeline orchestrator (250 lines)
+
+tests/backtesting/grid/
+├── test_simulator.py    # 14 tests — simulation, directions, risk, fees
+├── test_clusterizer.py  # 12 tests — coin classification per cluster
+├── test_optimizer.py    #  6 tests — optimization, objectives, param impact
+└── test_system.py       #  7 tests — e2e pipeline, stress testing, export
+```
+
+### Architecture
+
+**Component composition pattern** — `GridBacktestSimulator` composes existing production components:
+- `GridCalculator` — grid level calculation (arithmetic/geometric), ATR
+- `GridOrderManager` — order state, counter-orders, cycle tracking
+- `MarketSimulator` — order execution, fees, balance tracking
+- `GridRiskManager` — stop-loss, max drawdown, trend detection
+
+### Pipeline: classify → optimize → stress test → report
+
+1. **CoinClusterizer** classifies coins by ATR%, volume, max gap into clusters:
+   - `STABLE` (ATR% < 0.5%) — arithmetic only, 20-30 levels, profit 0.1-0.3%
+   - `BLUE_CHIPS` (ATR% < 2.0%) — arithmetic/geometric, 10-20 levels, profit 0.3-0.8%
+   - `MID_CAPS` (ATR% < 5.0%) — arithmetic/geometric, 8-15 levels, profit 0.5-1.5%
+   - `MEMES` (ATR% >= 5.0%) — geometric only, 5-10 levels, profit 1-3%
+
+2. **GridOptimizer** runs two-phase search:
+   - Coarse: Cartesian product over cluster preset ranges
+   - Fine: ±2 levels, ±30% profit around best result
+   - Objectives: ROI, Sharpe, Calmar, Profit Factor
+
+3. **Stress testing** auto-detects volatile periods using rolling range, runs backtests on non-overlapping sub-periods
+
+4. **Preset export** generates JSON/YAML compatible with `GridStrategyConfig.from_yaml()` for live bot deployment
+
+---
+
 ## File Statistics
 
 | Layer | Files | Total Lines | Status |
@@ -432,11 +506,12 @@ tests/loadtest/
 | Utils | 4 | ~800 | 🟢 DONE |
 | Web UI (backend) | ~20 | ~2,500 | 🟢 DONE |
 | Web UI (frontend) | ~30 | ~5,500 | 🟢 DONE |
+| Grid Backtesting | 8 | ~1,700 | 🟢 DONE |
 | Scripts (deploy) | 2 | ~490 | 🟢 DONE |
-| **Tests** | **55+** | **~17,400** | **🟢 471 passed** |
+| **Tests** | **60+** | **~18,700** | **🟢 510 passed** |
 | DevOps (Docker/Monitoring) | 10 | ~700 | 🟢 DONE |
 
-**Total: ~160+ files, ~50,000+ lines of code**
+**Total: ~170+ files, ~53,000+ lines of code**
 
 ## Component Dependency Map
 
@@ -546,5 +621,11 @@ graph LR
 │     ├── Docker: backend + frontend + nginx                  │
 │     ├── 46 API tests (auth, bots, strategies, portfolio)    │
 │     └── Frontend build: 476KB JS, 21KB CSS                  │
+│  ✅ Grid Backtesting System — 39 tests (commit bb31467)      │
+│     ├── GridBacktestSimulator (compose 4 production modules) │
+│     ├── CoinClusterizer (ATR% → 4 clusters + presets)       │
+│     ├── GridOptimizer (coarse→fine, 4 objectives)           │
+│     ├── Reporter + JSON/YAML preset export                   │
+│     └── End-to-end pipeline with stress testing              │
 └─────────────────────────────────────────────────────────────┘
 ```
