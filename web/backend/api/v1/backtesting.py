@@ -49,6 +49,14 @@ async def run_backtest(
     return BacktestJobResponse(**job)
 
 
+@router.get("/history", response_model=list[BacktestJobResponse])
+async def get_backtest_history(
+    _: User = Depends(get_current_user),
+):
+    """Get past backtest results."""
+    return [BacktestJobResponse(**j) for j in _jobs.values()]
+
+
 @router.get("/{job_id}", response_model=BacktestJobResponse)
 async def get_backtest_result(
     job_id: str,
@@ -59,14 +67,6 @@ async def get_backtest_result(
     if not job:
         raise HTTPException(status_code=404, detail="Backtest job not found")
     return BacktestJobResponse(**job)
-
-
-@router.get("/history", response_model=list[BacktestJobResponse])
-async def get_backtest_history(
-    _: User = Depends(get_current_user),
-):
-    """Get past backtest results."""
-    return [BacktestJobResponse(**j) for j in _jobs.values()]
 
 
 @router.get("/data/pairs")
