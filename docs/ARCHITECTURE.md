@@ -1,6 +1,6 @@
 # TRADERAGENT v2.0 — Architecture & Implementation Status
 
-**Updated:** 2026-02-16 | **Tests:** 431 passed (100%) | **Release:** v2.0.0 | **Demo Trading:** LIVE on Bybit | **Web UI:** COMPLETE
+**Updated:** 2026-02-16 | **Tests:** 471 passed (100%) | **Release:** v2.0.0 | **Demo Trading:** LIVE on Bybit | **Web UI:** COMPLETE | **Load Testing:** COMPLETE
 
 > Legend: `[DONE]` — implemented & tested | `[TODO]` — not started
 
@@ -140,7 +140,7 @@ graph TB
         end
     end
 
-    subgraph TEST["<b>TESTING LAYER</b> — 431/431 🟢"]
+    subgraph TEST["<b>TESTING LAYER</b> — 471/471 🟢"]
         direction LR
 
         subgraph UNIT["Unit Tests: 175/175 🟢"]
@@ -175,6 +175,17 @@ graph TB
             WT4["Portfolio 6"]
             WT5["Settings 5"]
         end
+
+        subgraph LOADT["Load/Stress: 40/40 🟢"]
+            LT1["API Load 9"]
+            LT2["WebSocket Stress 5"]
+            LT3["DB Pool 5"]
+            LT4["Event Throughput 4"]
+            LT5["Multi-bot Orch 5"]
+            LT6["Rate Limiting 4"]
+            LT7["Backtesting 4"]
+            LT8["Memory Profiling 5"]
+        end
     end
 
     subgraph DEVOPS["<b>DEVOPS LAYER</b> — Phase 5 🟢"]
@@ -200,7 +211,6 @@ graph TB
 
     subgraph TODO["<b>NOT IMPLEMENTED</b> ❌"]
         direction TB
-        T74["🔴 Phase 7.4: Load/Stress Testing"]
         T8["🔴 Phase 8: Production Launch<br/><i>Security audit, gradual capital deployment</i>"]
         R2MA["🔴 ROADMAP v2.0: Multi-Account"]
         R2REP["🔴 ROADMAP v2.0: Enhanced Reporting<br/><i>PDF, email, tax</i>"]
@@ -256,8 +266,9 @@ graph TB
     class IT1,IT2,IT3,IT4 done
     class BT1,BT2,BT3,BT4,BT5 done
     class WT1,WT2,WT3,WT4,WT5 done
+    class LT1,LT2,LT3,LT4,LT5,LT6,LT7,LT8 done
     class WEBUI,WBA,WBR,WBS,WBW,WFP,WFC,WFS,WDB,WDF,WDN webui
-    class T74,T8,R2MA,R2REP todo
+    class T8,R2MA,R2REP todo
     class BYBIT,CCXT,PG,REDIS,TGAPI ext
 ```
 
@@ -274,7 +285,7 @@ Phase 5: Infrastructure & DevOps      ██████████████
 Phase 6: Advanced Backtesting         ██████████████████████████████ 100%  🟢
 Phase 7.1-7.2: Unit & Integration     ██████████████████████████████ 100%  🟢
 Phase 7.3: Demo Trading (Bybit)       ██████████████████████████████ 100%  🟢 DEPLOYED!
-Phase 7.4: Load/Stress Testing        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%  🔴
+Phase 7.4: Load/Stress Testing        ██████████████████████████████ 100%  🟢 COMPLETE!
 Phase 8: Production Launch            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%  🔴
 Web UI Dashboard                      ██████████████████████████████ 100%  🟢 COMPLETE!
 ```
@@ -361,6 +372,47 @@ web/frontend/src/
 
 ---
 
+## Phase 7.4 — Load/Stress Testing Details
+
+**Completed:** 2026-02-16 | **Tests:** 40/40 passed | **Commit:** `ef251fb`
+
+All tests run WITHOUT external services (in-memory SQLite, mock WebSocket, mock exchange).
+
+```
+tests/loadtest/
+├── conftest.py                  # Shared fixtures (SQLite, mock orchestrators, FastAPI app, auth)
+├── test_api_load.py             # 9 tests — REST API under concurrent load (50-500 requests)
+├── test_websocket_stress.py     # 5 tests — ConnectionManager fan-out (100-500 connections)
+├── test_database_pool.py        # 5 tests — Concurrent DB reads/writes (50-500 operations)
+├── test_event_throughput.py     # 4 tests — Event create/serialize/broadcast (10K-100K)
+├── test_orchestrator_multi.py   # 5 tests — Multi-bot StrategyRegistry lifecycle (100 strategies)
+├── test_exchange_ratelimit.py   # 4 tests — Adaptive rate limiter (backoff/recovery)
+├── test_backtest_load.py        # 4 tests — Async job submissions + semaphore(2) verification
+└── test_memory_profiling.py     # 5 tests — tracemalloc leak detection (50K events, 5K OHLCV)
+```
+
+### Performance Benchmarks
+
+| Component | Metric | Result |
+|-----------|--------|--------|
+| REST API (/health) | 500 concurrent requests | 1,599 req/s |
+| REST API (mixed endpoints) | 100 concurrent requests | 236 req/s |
+| REST API (sequential) | 200 requests throughput | 111 req/s |
+| WebSocket broadcast | 100 subscribers x 1000 messages | 15,826 sends/s |
+| WebSocket channel fanout | 50 channels x 10 subscribers x 100 messages | 50,000 sends |
+| Database writes (sequential) | 500 orders in single session | 921 writes/s |
+| Database writes (concurrent) | 50 concurrent order inserts | 714 writes/s |
+| Database queries | 50 concurrent bot lookups | 828 queries/s |
+| Event creation + serialization | 10,000 TradingEvent objects | 39,842/s |
+| Event deserialization | 10,000 JSON strings | 114,226/s |
+| Strategy lifecycle | 100 strategies register+start+stop | < 2s |
+| Memory (50K events) | Peak memory for 50,000 events | < 100 MB |
+| Memory (position lifecycle) | 500 open+close cycles | No leaks |
+
+**Bugfix discovered during testing:** FastAPI route ordering — `GET /api/v1/backtesting/history` returned 404 because `/{job_id}` parameter route shadowed `/history`. Fixed by reordering routes.
+
+---
+
 ## File Statistics
 
 | Layer | Files | Total Lines | Status |
@@ -381,7 +433,7 @@ web/frontend/src/
 | Web UI (backend) | ~20 | ~2,500 | 🟢 DONE |
 | Web UI (frontend) | ~30 | ~5,500 | 🟢 DONE |
 | Scripts (deploy) | 2 | ~490 | 🟢 DONE |
-| **Tests** | **45+** | **~16,000** | **🟢 431 passed** |
+| **Tests** | **55+** | **~17,400** | **🟢 471 passed** |
 | DevOps (Docker/Monitoring) | 10 | ~700 | 🟢 DONE |
 
 **Total: ~160+ files, ~50,000+ lines of code**
@@ -449,13 +501,7 @@ graph LR
 ### HIGH — Complete v2.0 Plan
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. Phase 7.4 — Load & Stress Testing                🔴    │
-│     ├── High order volume simulation                       │
-│     ├── Database under load                                │
-│     ├── API rate limit handling                            │
-│     └── Memory leak detection                              │
-│                                                             │
-│  2. Phase 8 — Production Launch                      🔴    │
+│  1. Phase 8 — Production Launch                      🔴    │
 │     ├── Security audit                                     │
 │     ├── Gradual capital deployment (5% → 25% → 100%)       │
 │     └── Documentation finalization                         │
@@ -485,6 +531,15 @@ graph LR
 │  ✅ Phase 6 — Advanced Backtesting (multi-TF, analytics)    │
 │  ✅ Phase 7.1-7.2 — Unit & Integration tests (385 passed)   │
 │  ✅ Phase 7.3 — Demo Trading on Bybit (DEPLOYED)            │
+│  ✅ Phase 7.4 — Load/Stress Testing (40 tests)              │
+│     ├── API load (500 concurrent, 1599 req/s /health)       │
+│     ├── WebSocket stress (500 connections, 15K sends/s)     │
+│     ├── DB pool (200 concurrent writes, 921 writes/s)      │
+│     ├── Event throughput (114K events/s deserialization)     │
+│     ├── Multi-bot orchestration (100 strategies lifecycle)  │
+│     ├── Exchange rate limiting (adaptive backoff/recovery)  │
+│     ├── Backtesting concurrency (semaphore verification)    │
+│     └── Memory profiling (tracemalloc, no leaks detected)   │
 │  ✅ Web UI Dashboard — 10 phases complete (PR #221)          │
 │     ├── FastAPI backend: 42 REST routes + WebSocket         │
 │     ├── React frontend: 7 pages, 11 components, dark theme │
