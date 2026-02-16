@@ -40,10 +40,10 @@ bot/backtesting/
     └── system.py            # GridBacktestSystem — end-to-end pipeline
 
 tests/backtesting/grid/
-    ├── test_simulator.py    # ~10 tests
-    ├── test_clusterizer.py  # ~7 tests
-    ├── test_optimizer.py    # ~5 tests
-    └── test_system.py       # ~5 tests (e2e)
+    ├── test_simulator.py    # 14 tests
+    ├── test_clusterizer.py  # 12 tests
+    ├── test_optimizer.py    # 6 tests
+    └── test_system.py       # 7 tests (e2e)
 ```
 
 ### Fazy Realizatsii
@@ -172,7 +172,7 @@ Vdohnovlen Veles Finance: dark theme, strategy marketplace, copy-trading.
 
 ## Tekushchie Rezultaty Testirovaniya
 
-### Obshchiy: 471/471 PASSED (100%)
+### Obshchiy: 510/510 PASSED (100%)
 
 ### Unit Tests: 175/175 PASSED (100%)
 
@@ -231,6 +231,15 @@ Vdohnovlen Veles Finance: dark theme, strategy marketplace, copy-trading.
 | Backtesting Concurrency | 4 | 100% |
 | Memory Profiling (tracemalloc) | 5 | 100% |
 
+### Grid Backtesting Tests: 39/39 PASSED (100%)
+
+| Modul | Testov | Status |
+|-------|--------|--------|
+| Simulator (simulation, directions, risk, fees) | 14 | 100% |
+| Clusterizer (coin classification per cluster) | 12 | 100% |
+| Optimizer (objectives, param impact) | 6 | 100% |
+| System E2E (pipeline, stress, export) | 7 | 100% |
+
 ---
 
 ## Web UI Architecture
@@ -283,6 +292,7 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 - Eksport presetov v formate GridStrategyConfig (YAML/JSON)
 - **Issues:** #222 (Models+Simulator), #223 (Clusterizer), #224 (Optimizer), #225 (Reporter+System)
 - **Tests:** 39 (14 simulator + 12 clusterizer + 6 optimizer + 7 system e2e)
+- **Commit:** `bb31467`
 - **Status:** COMPLETE
 
 ### Sessiya 6 (2026-02-16): Phase 7.4 Load/Stress Testing
@@ -367,8 +377,8 @@ Phase 10: Tests                       [##########] 100%
 # Pereyti v proekt
 cd /home/hive/TRADERAGENT
 
-# Zapustit VSE testy (471 testov)
-python -m pytest bot/tests/ --ignore=bot/tests/testnet tests/web/ tests/loadtest/ -q
+# Zapustit VSE testy (510 testov)
+python -m pytest bot/tests/ --ignore=bot/tests/testnet tests/web/ tests/loadtest/ tests/backtesting/ -q
 
 # Tolko bot testy (385)
 python -m pytest bot/tests/ --ignore=bot/tests/testnet -q
@@ -378,6 +388,9 @@ python -m pytest tests/web/ -q
 
 # Tolko nagruzochnye testy (40)
 python -m pytest tests/loadtest/ -v
+
+# Tolko grid backtesting testy (39)
+python -m pytest tests/backtesting/grid/ -v
 
 # Frontend build
 cd web/frontend && npm run build
