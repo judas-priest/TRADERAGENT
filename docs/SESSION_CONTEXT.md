@@ -3,16 +3,48 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 16 fevralya 2026
-**Status:** v2.0.0 Release + Phase 5 Infrastructure Complete
-**Pass Rate:** 100% (385/385 tests)
+**Status:** v2.0.0 Release + Phase 7.3 Bybit Demo Trading DEPLOYED
+**Pass Rate:** 100% (1206/1206 tests passing, 26 web tests skipped)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-16) - Phase 5 Integration
+## Poslednyaya Sessiya (2026-02-16) - Phase 7.3 Bybit Demo Deployment
 
 ### Osnovnye Dostizheniya
 
-**1. Phase 5: Infrastructure & Monitoring — COMPLETE**
+**1. Phase 7.3: Bybit Demo Trading — DEPLOYED & RUNNING**
+
+Bot razvernut na production servere (185.233.200.13) v rezhime demo-torgovli:
+- **Endpoint:** api-demo.bybit.com (demo trading s production API keys)
+- **Instrument type:** Linear futures (demo NE podderzhivaet spot)
+- **Balance:** 100,000 USDT (virtualnyy)
+- **Container:** traderagent-bot (Docker, healthy)
+
+**Arhitekturnoe reshenie:** Vmesto CCXT `set_sandbox_mode(True)` (kotoryy vedet na `testnet.bybit.com`) ispolzuetsya `ByBitDirectClient` napryamuyu, kotoryy podderzhivaet `api-demo.bybit.com`.
+
+4 bota nastroeny:
+| Bot | Symbol | Strategy | Max Position | Auto-start |
+|-----|--------|----------|-------------|------------|
+| demo_btc_hybrid | BTC/USDT | Hybrid (Grid+DCA) | $500 | da |
+| demo_eth_grid | ETH/USDT | Grid | $400 | net |
+| demo_sol_dca | SOL/USDT | DCA | $300 | net |
+| demo_btc_trend | BTC/USDT | Trend Follower | $1000 | net |
+
+**Novye/izmenyonnye fayly Phase 7.3:**
+- `bot/api/bybit_direct_client.py` — +300 strok: health_check, fetch_ohlcv, fetch_order_book, cancel_order, set_leverage, i dr.
+- `bot/main.py` — auto-select ByBitDirectClient dlya bybit+sandbox
+- `bot/orchestrator/bot_orchestrator.py` — fix KeyError 'take_profit_hit' → 'tp_triggered', duck typing
+- `bot/telegram/bot.py` — fallback dlya Telegram Markdown parse errors
+- `configs/phase7_demo.yaml` — konfig s 4 botami na demo exchange
+- `scripts/validate_demo.py` — pre-deployment validatsiya (DB, API, credentials, market data)
+- `scripts/start_demo.sh` — launch script s validatsiey
+- `tests/integration/test_demo_smoke.py` — smoke testy (DEMO_SMOKE_TEST=1)
+
+**Ispravlennye bagi:**
+- `KeyError: 'take_profit_hit'` — DCA engine vozvrashchaet `tp_triggered`, ne `take_profit_hit`
+- Telegram notification parse error — dobavlen fallback bez Markdown
+
+**2. Phase 5: Infrastructure & Monitoring — COMPLETE (predydushchaya sessiya)**
 
 Integrirovan polnyy monitoring stack v `bot/main.py`:
 - MetricsExporter (Prometheus `/metrics` na portu 9100)
@@ -126,6 +158,15 @@ Total: 347 passed                Total: 385 passed, 0 failed (100%)
 
 ## Istoriya Sessiy
 
+### Sessiya 4 (2026-02-16): Phase 7.3 Bybit Demo Deployment
+- ByBitDirectClient rasshiren dlya polnoy sovmestimosti s BotOrchestrator
+- Config phase7_demo.yaml s 4 strategiyami na api-demo.bybit.com
+- Validation script, start script, smoke testy
+- Fix KeyError 'take_profit_hit' → 'tp_triggered' v DCA logic
+- Fix Telegram notification Markdown parse error
+- Bot razvernut i rabotaet na 185.233.200.13 (Docker)
+- Balance: 100,000 USDT, BTC/USDT ~$69,400
+
 ### Sessiya 3 (2026-02-16): Phase 5 Infrastructure
 - Integratsiya MetricsExporter, MetricsCollector, AlertHandler v bot/main.py
 - 38 novyh testov monitoringa
@@ -154,7 +195,7 @@ Phase 4: Hybrid Strategy              [##########] 100%
 Phase 5: Infrastructure & DevOps      [##########] 100%  <- DONE!
 Phase 6: Advanced Backtesting         [##########] 100%
 Phase 7.1-7.2: Testing                [##########] 100%
-Phase 7.3: Testnet Deployment         [#.........]  10%
+Phase 7.3: Demo Trading Deployment    [##########] 100%  <- DEPLOYED!
 Phase 7.4: Load/Stress Testing        [..........]   0%
 Phase 8: Production Launch            [..........]   0%
 ```
@@ -243,7 +284,8 @@ Phase 5 zavershena. Ostayutsya:
 ## Last Updated
 
 - **Date:** February 16, 2026
-- **Status:** 385/385 tests passing (100%)
-- **Phase 5:** Infrastructure & Monitoring — COMPLETE
-- **Next Action:** Phase 7.3 (Testnet) ili ROADMAP v2.0 features
+- **Status:** 1206/1206 tests passing (100%), 26 web tests skipped
+- **Phase 7.3:** Bybit Demo Trading — DEPLOYED & RUNNING
+- **Server:** 185.233.200.13 (ai-agent user, Docker)
+- **Next Action:** Monitoring demo bota, Phase 7.4 (Load Testing), Phase 8 (Production)
 - **Co-Authored:** Claude Opus 4.6

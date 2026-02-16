@@ -729,8 +729,15 @@ class TelegramBot:
                     text=notification,
                     parse_mode="Markdown",
                 )
-            except Exception as e:
-                logger.error("notification_send_failed", chat_id=chat_id, error=str(e))
+            except Exception:
+                # Fallback: send without Markdown if parsing fails
+                try:
+                    await self.bot.send_message(
+                        chat_id=chat_id,
+                        text=notification,
+                    )
+                except Exception as e:
+                    logger.error("notification_send_failed", chat_id=chat_id, error=str(e))
 
     def _format_event_notification(self, event: TradingEvent) -> str:
         """Format event as notification message."""

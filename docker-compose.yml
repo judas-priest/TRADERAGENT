@@ -88,6 +88,44 @@ services:
     networks:
       - traderagent-network
 
+  # Web UI Backend (FastAPI)
+  webui-backend:
+    build:
+      context: .
+      dockerfile: web/backend/Dockerfile
+    container_name: traderagent-webui-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-traderagent}:${DB_PASSWORD:-changeme}@postgres:5432/${DB_NAME:-traderagent}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      WEB_PORT: 8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:80}
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - traderagent-network
+
+  # Web UI Frontend (React + Nginx)
+  webui-frontend:
+    build:
+      context: .
+      dockerfile: web/frontend/Dockerfile
+    container_name: traderagent-webui-frontend
+    ports:
+      - "${WEB_FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - webui-backend
+    restart: unless-stopped
+    networks:
+      - traderagent-network
+
   # Database migrations (run once)
   migrations:
     build:
