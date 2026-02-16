@@ -1,0 +1,182 @@
+# Phase 7.3: Bybit Production Demo Trading Configuration
+# Uses production API keys with api-demo.bybit.com (demo/paper trading)
+# ALL instruments must be linear (futures) - demo does NOT support spot
+#
+# Market prices as of Feb 16, 2026:
+#   BTC/USDT ~ $68,600
+#   ETH/USDT ~ $2,013
+#   SOL/USDT ~ $88
+#
+# Date: February 2026
+
+# Database Configuration
+database_url: ${DATABASE_URL}
+database_pool_size: 5
+
+# Logging Configuration
+log_level: INFO
+log_to_file: true
+log_to_console: true
+json_logs: true  # Structured logs for production monitoring
+
+# Encryption Key
+encryption_key: ${ENCRYPTION_KEY}
+
+# Bot Configurations
+bots:
+  # =========================================================================
+  # 1. BTC/USDT Hybrid Strategy (Grid + DCA)
+  # Primary bot — auto-starts
+  # =========================================================================
+  - version: 1
+    name: demo_btc_hybrid
+    symbol: BTC/USDT
+    strategy: hybrid
+
+    exchange:
+      exchange_id: bybit
+      credentials_name: bybit_demo
+      sandbox: true   # Demo Trading (api-demo.bybit.com)
+      rate_limit: true
+
+    grid:
+      enabled: true
+      upper_price: "72000"    # +5% from ~$68,600
+      lower_price: "65000"    # -5% from ~$68,600
+      grid_levels: 6
+      amount_per_grid: "150"  # $150 per grid (~0.002 BTC, min 0.001 BTC = ~$69)
+      profit_per_grid: "0.012" # 1.2% profit per grid
+
+    dca:
+      enabled: true
+      trigger_percentage: "0.04"      # DCA when price drops 4% below grid
+      amount_per_step: "150"          # $150 per DCA step (~0.002 BTC)
+      max_steps: 4                    # Max 4 DCA steps
+      take_profit_percentage: "0.08"  # Take profit at 8% gain
+
+    risk_management:
+      max_position_size: "3000"       # Max $3000 total position
+      stop_loss_percentage: "0.12"    # 12% stop loss
+      max_daily_loss: "600"           # Max $600 daily loss
+      min_order_size: "70"            # Min $70 per order (> 0.001 BTC)
+
+    notifications:
+      enabled: false
+
+    dry_run: false     # LIVE orders on demo exchange
+    auto_start: true   # Auto-start primary bot
+
+  # =========================================================================
+  # 2. ETH/USDT Grid Strategy
+  # Manual start via Telegram or config change
+  # =========================================================================
+  - version: 1
+    name: demo_eth_grid
+    symbol: ETH/USDT
+    strategy: grid
+
+    exchange:
+      exchange_id: bybit
+      credentials_name: bybit_demo
+      sandbox: true
+      rate_limit: true
+
+    grid:
+      enabled: true
+      upper_price: "2150"     # +7% from ~$2,013
+      lower_price: "1870"     # -7% from ~$2,013
+      grid_levels: 8
+      amount_per_grid: "15"   # $15 per grid level
+      profit_per_grid: "0.015" # 1.5% profit per grid
+
+    risk_management:
+      max_position_size: "400"
+      stop_loss_percentage: "0.15"
+      max_daily_loss: "80"
+      min_order_size: "5"
+
+    notifications:
+      enabled: false
+
+    dry_run: false
+    auto_start: false  # Manual start
+
+  # =========================================================================
+  # 3. SOL/USDT DCA Strategy
+  # Manual start
+  # =========================================================================
+  - version: 1
+    name: demo_sol_dca
+    symbol: SOL/USDT
+    strategy: dca
+
+    exchange:
+      exchange_id: bybit
+      credentials_name: bybit_demo
+      sandbox: true
+      rate_limit: true
+
+    dca:
+      enabled: true
+      trigger_percentage: "0.05"      # Buy when price drops 5%
+      amount_per_step: "20"           # $20 per step
+      max_steps: 5                    # Max 5 steps
+      take_profit_percentage: "0.10"  # Take profit at 10%
+
+    risk_management:
+      max_position_size: "300"
+      stop_loss_percentage: "0.18"
+      max_daily_loss: "60"
+      min_order_size: "5"
+
+    notifications:
+      enabled: false
+
+    dry_run: false
+    auto_start: false
+
+  # =========================================================================
+  # 4. BTC/USDT Trend Follower Strategy
+  # Manual start
+  # =========================================================================
+  - version: 1
+    name: demo_btc_trend
+    symbol: BTC/USDT
+    strategy: trend_follower
+
+    exchange:
+      exchange_id: bybit
+      credentials_name: bybit_demo
+      sandbox: true
+      rate_limit: true
+
+    trend_follower:
+      enabled: true
+      ema_fast_period: 20
+      ema_slow_period: 50
+      atr_period: 14
+      rsi_period: 14
+      volume_multiplier: "1.5"
+      atr_filter_threshold: "0.05"
+      tp_atr_multiplier_sideways: "1.2"
+      tp_atr_multiplier_weak: "1.8"
+      tp_atr_multiplier_strong: "2.5"
+      sl_atr_multiplier_sideways: "0.7"
+      sl_atr_multiplier_trend: "1.0"
+      risk_per_trade_pct: "0.01"        # 1% risk (conservative)
+      max_position_size_usd: "1000"
+      max_daily_loss_usd: "200"
+      max_positions: 2
+      log_all_signals: true             # Log all signals for analysis
+
+    risk_management:
+      max_position_size: "1000"
+      stop_loss_percentage: null  # ATR-based via trend_follower strategy
+      max_daily_loss: "200"
+      min_order_size: "5"
+
+    notifications:
+      enabled: false
+
+    dry_run: false
+    auto_start: false

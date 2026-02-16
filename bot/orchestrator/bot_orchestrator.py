@@ -69,7 +69,7 @@ class BotOrchestrator:
     def __init__(
         self,
         bot_config: BotConfig,
-        exchange_client: ExchangeAPIClient,
+        exchange_client: Any,
         db_manager: DatabaseManager,
         redis_url: str = "redis://localhost:6379",
     ):
@@ -558,7 +558,7 @@ class BotOrchestrator:
                     await self._place_dca_order()
 
         # Handle take profit
-        if dca_actions["take_profit_hit"] and self.state == BotState.RUNNING:
+        if dca_actions["tp_triggered"] and self.state == BotState.RUNNING:
             pnl = self.dca_engine.close_position(self.current_price)
             await self._publish_event(
                 EventType.TAKE_PROFIT_HIT,
@@ -631,13 +631,15 @@ class BotOrchestrator:
             return
 
         try:
+            # amount_per_step is in quote currency (USD), convert to base currency
+            base_amount = float(self.dca_engine.amount_per_step / self.current_price)
             result = await self.exchange.create_order(
                 symbol=self.config.symbol,
                 order_type="market",
                 side="buy",
-                amount=float(self.dca_engine.amount_per_step),
+                amount=base_amount,
             )
-            logger.info("dca_order_placed", order_id=result["id"])
+            logger.info("dca_order_placed", order_id=result["id"], base_amount=base_amount)
         except Exception as e:
             logger.error("dca_order_failed", error=str(e))
 
@@ -647,13 +649,16 @@ class BotOrchestrator:
             return
 
         try:
+            # total_amount tracks accumulated amount_per_step values (in USD)
+            # Convert to base currency using current price
+            base_amount = float(self.dca_engine.position.total_amount / self.current_price)
             result = await self.exchange.create_order(
                 symbol=self.config.symbol,
                 order_type="market",
                 side="sell",
-                amount=float(self.dca_engine.position.total_amount),
+                amount=base_amount,
             )
-            logger.info("dca_position_closed", order_id=result["id"])
+            logger.info("dca_position_closed", order_id=result["id"], base_amount=base_amount)
         except Exception as e:
             logger.error("dca_close_failed", error=str(e))
 

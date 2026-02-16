@@ -11,6 +11,7 @@ from pathlib import Path
 
 from aiohttp import web
 
+from bot.api.bybit_direct_client import ByBitDirectClient
 from bot.api.exchange_client import ExchangeAPIClient
 from bot.config.manager import ConfigManager
 from bot.database.manager import DatabaseManager
@@ -93,13 +94,33 @@ class BotApplication:
                 password = fernet.decrypt(credentials.password_encrypted.encode()).decode()
 
             # Create exchange client
-            exchange_client = ExchangeAPIClient(
-                exchange_id=bot_config.exchange.exchange_id,
-                api_key=api_key,
-                api_secret=api_secret,
-                password=password,
-                sandbox=bot_config.exchange.sandbox,
-            )
+            # For Bybit Demo Trading (sandbox=true), use ByBitDirectClient
+            # because CCXT sandbox mode routes to testnet.bybit.com, NOT
+            # api-demo.bybit.com which is needed for demo trading
+            if (
+                bot_config.exchange.exchange_id == "bybit"
+                and bot_config.exchange.sandbox
+            ):
+                logger.info(
+                    "using_bybit_direct_client",
+                    bot_name=bot_config.name,
+                    mode="demo_trading",
+                    url="api-demo.bybit.com",
+                )
+                exchange_client = ByBitDirectClient(
+                    api_key=api_key,
+                    api_secret=api_secret,
+                    testnet=True,
+                    market_type="linear",
+                )
+            else:
+                exchange_client = ExchangeAPIClient(
+                    exchange_id=bot_config.exchange.exchange_id,
+                    api_key=api_key,
+                    api_secret=api_secret,
+                    password=password,
+                    sandbox=bot_config.exchange.sandbox,
+                )
             await exchange_client.initialize()
 
             # Create orchestrator

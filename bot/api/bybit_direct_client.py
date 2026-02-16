@@ -12,6 +12,7 @@ Key features:
 
 import hashlib
 import hmac
+import json
 import time
 from decimal import Decimal
 from typing import Any, Literal
@@ -44,7 +45,16 @@ class ByBitDirectClient:
     Direct ByBit V5 API Client with proper Demo Trading support.
 
     Based on working implementation from unidel2035/btc repository.
+    Provides full compatibility with ExchangeAPIClient interface for use
+    as a drop-in replacement in BotOrchestrator (Phase 7.3).
     """
+
+    # Bybit V5 kline interval mapping from CCXT-style timeframes
+    TIMEFRAME_MAP: dict[str, str] = {
+        "1m": "1", "3m": "3", "5m": "5", "15m": "15", "30m": "30",
+        "1h": "60", "2h": "120", "4h": "240", "6h": "360", "12h": "720",
+        "1d": "D", "1w": "W", "1M": "M",
+    }
 
     def __init__(
         self,
@@ -93,9 +103,13 @@ class ByBitDirectClient:
         # Session for connection pooling
         self._session: aiohttp.ClientSession | None = None
 
+        # Markets cache (populated on initialize)
+        self._markets: dict[str, Any] = {}
+
         # Statistics
         self._request_count = 0
         self._error_count = 0
+        self._initialized = False
 
         logger.info(
             "Initializing ByBit Direct Client",
@@ -105,11 +119,26 @@ class ByBitDirectClient:
             base_url=self.base_url,
         )
 
+    @property
+    def is_initialized(self) -> bool:
+        return self._initialized
+
+    @property
+    def markets(self) -> dict[str, Any]:
+        return self._markets
+
     async def initialize(self) -> None:
-        """Initialize HTTP session"""
+        """Initialize HTTP session and load markets."""
         if not self._session:
             self._session = aiohttp.ClientSession()
-            logger.info("ByBit Direct Client initialized")
+
+        # Load markets into cache
+        self._markets = await self.fetch_markets()
+        self._initialized = True
+        logger.info(
+            "ByBit Direct Client initialized",
+            markets_count=len(self._markets),
+        )
 
     async def close(self) -> None:
         """Close HTTP session"""
@@ -196,8 +225,6 @@ class ByBitDirectClient:
 
             if method == "POST":
                 # For POST: params as JSON body for signature
-                import json
-
                 params_str = json.dumps(params) if params else ""
 
             signature = self._create_signature(timestamp, params_str)
@@ -410,7 +437,9 @@ class ByBitDirectClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    async def fetch_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
+    async def fetch_open_orders(
+        self, symbol: str | None = None, params: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Fetch open orders.
 
@@ -453,6 +482,14 @@ class ByBitDirectClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
+    def _round_to_precision(self, symbol: str, amount: Decimal | float, field: str = "amount") -> str:
+        """Round amount/price to exchange precision for the symbol."""
+        market = self._markets.get(symbol, {})
+        precision = market.get("precision", {}).get(field, 3)
+        quantizer = Decimal(10) ** -precision
+        rounded = Decimal(str(amount)).quantize(quantizer, rounding="ROUND_DOWN")
+        return str(rounded)
+
     async def create_limit_order(
         self,
         symbol: str,
@@ -477,13 +514,16 @@ class ByBitDirectClient:
         normalized_symbol = symbol.replace("/", "")
         params = params or {}
 
+        qty_str = self._round_to_precision(symbol, amount, "amount")
+        price_str = self._round_to_precision(symbol, price, "price")
+
         order_params = {
             "category": self.category,
             "symbol": normalized_symbol,
             "side": "Buy" if side.lower() == "buy" else "Sell",
             "orderType": "Limit",
-            "qty": str(amount),
-            "price": str(price),
+            "qty": qty_str,
+            "price": price_str,
             "timeInForce": "GTC",  # Good Till Cancel
             "positionIdx": 0,  # One-way mode for futures
             **params,
@@ -537,12 +577,14 @@ class ByBitDirectClient:
         normalized_symbol = symbol.replace("/", "")
         params = params or {}
 
+        qty_str = self._round_to_precision(symbol, amount, "amount")
+
         order_params = {
             "category": self.category,
             "symbol": normalized_symbol,
             "side": "Buy" if side.lower() == "buy" else "Sell",
             "orderType": "Market",
-            "qty": str(amount),
+            "qty": qty_str,
             **params,
         }
 
@@ -552,7 +594,7 @@ class ByBitDirectClient:
             "Created market order",
             symbol=symbol,
             side=side,
-            amount=amount,
+            amount=qty_str,
             order_id=data.get("orderId"),
         )
 
@@ -588,6 +630,7 @@ class ByBitDirectClient:
         """Get client statistics"""
         return {
             "exchange": "bybit",
+            "initialized": self._initialized,
             "testnet": self.testnet,
             "total_requests": self._request_count,
             "total_errors": self._error_count,
@@ -595,3 +638,386 @@ class ByBitDirectClient:
                 self._error_count / self._request_count if self._request_count > 0 else 0
             ),
         }
+
+    # =========================================================================
+    # Methods added for BotOrchestrator compatibility (Phase 7.3)
+    # =========================================================================
+
+    async def health_check(self) -> bool:
+        """Check if exchange connection is healthy."""
+        if not self._session:
+            return False
+        try:
+            await self._request(
+                "GET", "/v5/market/time", authenticated=False,
+            )
+            return True
+        except Exception as e:
+            logger.warning("Health check failed", error=str(e))
+            return False
+
+    @retry(
+        retry=retry_if_exception_type((NetworkError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
+    async def fetch_ohlcv(
+        self,
+        symbol: str,
+        timeframe: str = "1h",
+        since: int | None = None,
+        limit: int | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> list[list]:
+        """
+        Fetch OHLCV candlestick data.
+
+        Args:
+            symbol: Trading pair (e.g., 'BTC/USDT')
+            timeframe: Candle timeframe (e.g., '1m', '5m', '1h', '1d')
+            since: Timestamp in ms to start from
+            limit: Maximum number of candles to return (max 1000)
+            params: Additional parameters
+
+        Returns:
+            List of [timestamp, open, high, low, close, volume] lists.
+        """
+        normalized_symbol = symbol.replace("/", "")
+        interval = self.TIMEFRAME_MAP.get(timeframe, "60")
+
+        request_params: dict[str, Any] = {
+            "category": self.category,
+            "symbol": normalized_symbol,
+            "interval": interval,
+        }
+        if limit:
+            request_params["limit"] = min(limit, 1000)
+        if since:
+            request_params["start"] = since
+
+        data = await self._request(
+            "GET", "/v5/market/kline", request_params, authenticated=False,
+        )
+
+        # Bybit returns newest first, CCXT expects oldest first
+        candles = []
+        for kline in reversed(data.get("list", [])):
+            candles.append([
+                int(kline[0]),       # timestamp
+                float(kline[1]),     # open
+                float(kline[2]),     # high
+                float(kline[3]),     # low
+                float(kline[4]),     # close
+                float(kline[5]),     # volume
+            ])
+
+        logger.debug(
+            "Fetched OHLCV", symbol=symbol, timeframe=timeframe, count=len(candles),
+        )
+        return candles
+
+    @retry(
+        retry=retry_if_exception_type((NetworkError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
+    async def fetch_order_book(
+        self,
+        symbol: str,
+        limit: int | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Fetch order book for a symbol.
+
+        Args:
+            symbol: Trading pair
+            limit: Number of order book entries (max 200)
+            params: Additional parameters
+
+        Returns:
+            Dictionary with 'bids', 'asks', 'timestamp'.
+        """
+        normalized_symbol = symbol.replace("/", "")
+        request_params: dict[str, Any] = {
+            "category": self.category,
+            "symbol": normalized_symbol,
+        }
+        if limit:
+            request_params["limit"] = min(limit, 200)
+
+        data = await self._request(
+            "GET", "/v5/market/orderbook", request_params, authenticated=False,
+        )
+
+        bids = [[float(p), float(q)] for p, q in data.get("b", [])]
+        asks = [[float(p), float(q)] for p, q in data.get("a", [])]
+
+        return {
+            "symbol": symbol,
+            "bids": bids,
+            "asks": asks,
+            "timestamp": int(data.get("ts", 0)),
+        }
+
+    @retry(
+        retry=retry_if_exception_type((NetworkError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
+    async def fetch_trades(
+        self,
+        symbol: str,
+        since: int | None = None,
+        limit: int | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch recent trades for a symbol."""
+        normalized_symbol = symbol.replace("/", "")
+        request_params: dict[str, Any] = {
+            "category": self.category,
+            "symbol": normalized_symbol,
+        }
+        if limit:
+            request_params["limit"] = min(limit, 1000)
+
+        data = await self._request(
+            "GET", "/v5/market/recent-trade", request_params, authenticated=False,
+        )
+
+        trades = []
+        for trade_data in data.get("list", []):
+            trades.append({
+                "id": trade_data.get("execId", ""),
+                "symbol": symbol,
+                "side": trade_data.get("side", "").lower(),
+                "price": float(trade_data.get("price", "0")),
+                "amount": float(trade_data.get("size", "0")),
+                "timestamp": int(trade_data.get("time", "0")),
+            })
+
+        logger.debug("Fetched trades", symbol=symbol, count=len(trades))
+        return trades
+
+    @retry(
+        retry=retry_if_exception_type((NetworkError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
+    async def cancel_order(
+        self,
+        order_id: str,
+        symbol: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Cancel an order.
+
+        Args:
+            order_id: Order ID to cancel
+            symbol: Trading pair
+            params: Additional parameters
+
+        Returns:
+            Cancelled order info
+        """
+        normalized_symbol = symbol.replace("/", "")
+
+        order_params = {
+            "category": self.category,
+            "symbol": normalized_symbol,
+            "orderId": order_id,
+        }
+
+        data = await self._request(
+            "POST", "/v5/order/cancel", order_params, authenticated=True,
+        )
+
+        logger.info("Cancelled order", order_id=order_id, symbol=symbol)
+        return {
+            "id": data.get("orderId", order_id),
+            "symbol": symbol,
+            "status": "cancelled",
+        }
+
+    @retry(
+        retry=retry_if_exception_type((NetworkError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
+    async def cancel_all_orders(self, symbol: str) -> list[dict[str, Any]]:
+        """
+        Cancel all open orders for a symbol.
+
+        Args:
+            symbol: Trading pair
+
+        Returns:
+            List of cancelled order results
+        """
+        normalized_symbol = symbol.replace("/", "")
+
+        order_params = {
+            "category": self.category,
+            "symbol": normalized_symbol,
+        }
+
+        data = await self._request(
+            "POST", "/v5/order/cancel-all", order_params, authenticated=True,
+        )
+
+        results = []
+        for item in data.get("list", []):
+            results.append({
+                "id": item.get("orderId", ""),
+                "symbol": symbol,
+                "status": "cancelled",
+            })
+
+        logger.info("All orders cancelled", symbol=symbol, count=len(results))
+        return results
+
+    @retry(
+        retry=retry_if_exception_type((NetworkError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
+    async def fetch_order(
+        self,
+        order_id: str,
+        symbol: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Fetch order details by ID.
+
+        Args:
+            order_id: Order ID
+            symbol: Trading pair
+            params: Additional parameters
+
+        Returns:
+            Order details in CCXT-compatible format
+        """
+        normalized_symbol = symbol.replace("/", "")
+
+        request_params: dict[str, Any] = {
+            "category": self.category,
+            "symbol": normalized_symbol,
+            "orderId": order_id,
+        }
+
+        data = await self._request(
+            "GET", "/v5/order/realtime", request_params, authenticated=True,
+        )
+
+        order_list = data.get("list", [])
+        if not order_list:
+            raise OrderError(f"Order {order_id} not found")
+
+        order_data = order_list[0]
+        return {
+            "id": order_data.get("orderId", ""),
+            "clientOrderId": order_data.get("orderLinkId", ""),
+            "symbol": symbol,
+            "type": order_data.get("orderType", "").lower(),
+            "side": order_data.get("side", "").lower(),
+            "price": float(order_data.get("price", "0")),
+            "amount": float(order_data.get("qty", "0")),
+            "filled": float(order_data.get("cumExecQty", "0")),
+            "remaining": float(order_data.get("leavesQty", "0")),
+            "status": order_data.get("orderStatus", "").lower(),
+            "timestamp": int(order_data.get("createdTime", "0")),
+        }
+
+    @retry(
+        retry=retry_if_exception_type((NetworkError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
+    async def fetch_closed_orders(
+        self,
+        symbol: str | None = None,
+        since: int | None = None,
+        limit: int | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch closed/completed orders."""
+        request_params: dict[str, Any] = {"category": self.category}
+
+        if symbol:
+            request_params["symbol"] = symbol.replace("/", "")
+        if limit:
+            request_params["limit"] = min(limit, 50)
+
+        data = await self._request(
+            "GET", "/v5/order/history", request_params, authenticated=True,
+        )
+
+        orders = []
+        for order_data in data.get("list", []):
+            orders.append({
+                "id": order_data.get("orderId", ""),
+                "clientOrderId": order_data.get("orderLinkId", ""),
+                "symbol": order_data.get("symbol", ""),
+                "type": order_data.get("orderType", "").lower(),
+                "side": order_data.get("side", "").lower(),
+                "price": float(order_data.get("price", "0")),
+                "amount": float(order_data.get("qty", "0")),
+                "filled": float(order_data.get("cumExecQty", "0")),
+                "remaining": float(order_data.get("leavesQty", "0")),
+                "status": order_data.get("orderStatus", "").lower(),
+                "timestamp": int(order_data.get("createdTime", "0")),
+            })
+
+        logger.debug("Fetched closed orders", count=len(orders))
+        return orders
+
+    @retry(
+        retry=retry_if_exception_type((NetworkError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
+    async def set_leverage(
+        self,
+        leverage: int,
+        symbol: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Set leverage for a symbol (futures only).
+
+        Args:
+            leverage: Leverage multiplier (1-100)
+            symbol: Trading pair
+            params: Additional parameters
+
+        Returns:
+            Result dict
+        """
+        normalized_symbol = symbol.replace("/", "")
+
+        lever_params = {
+            "category": self.category,
+            "symbol": normalized_symbol,
+            "buyLeverage": str(leverage),
+            "sellLeverage": str(leverage),
+        }
+
+        try:
+            data = await self._request(
+                "POST", "/v5/position/set-leverage", lever_params, authenticated=True,
+            )
+        except ExchangeAPIError as e:
+            # Error 110043 = leverage not modified (already set to this value)
+            if "110043" in str(e):
+                logger.debug(
+                    "Leverage already set", symbol=symbol, leverage=leverage,
+                )
+                return {"symbol": symbol, "leverage": leverage}
+            raise
+
+        logger.info(
+            "Set leverage", symbol=symbol, leverage=leverage,
+        )
+        return {"symbol": symbol, "leverage": leverage}
