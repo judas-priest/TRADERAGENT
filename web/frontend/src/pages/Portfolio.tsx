@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../components/common/Card';
-import { Spinner } from '../components/common/Spinner';
+import { PageTransition } from '../components/common/PageTransition';
+import { SkeletonCard, SkeletonTable } from '../components/common/Skeleton';
 import client from '../api/client';
 
 interface PortfolioData {
@@ -22,13 +23,25 @@ export function Portfolio() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>;
+  if (loading) {
+    return (
+      <div>
+        <div className="h-7 w-32 animate-pulse bg-border/50 rounded mb-6" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <SkeletonTable rows={4} />
+        </div>
+      </div>
+    );
+  }
 
   const realized = parseFloat(data?.total_realized_pnl || '0');
   const unrealized = parseFloat(data?.total_unrealized_pnl || '0');
 
   return (
-    <div>
+    <PageTransition>
       <h2 className="text-2xl font-bold text-text font-[Manrope] mb-6">Portfolio</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -72,6 +85,6 @@ export function Portfolio() {
           <p className="text-sm text-text-muted">No allocation data</p>
         )}
       </Card>
-    </div>
+    </PageTransition>
   );
 }

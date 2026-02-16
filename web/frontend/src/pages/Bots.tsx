@@ -1,32 +1,59 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BotCard } from '../components/bots/BotCard';
-import { Spinner } from '../components/common/Spinner';
+import { PageTransition } from '../components/common/PageTransition';
+import { SkeletonBotCard } from '../components/common/Skeleton';
+import { useToastStore } from '../components/common/Toast';
 import { useBotStore } from '../stores/botStore';
 import { botsApi } from '../api/bots';
 
 export function Bots() {
   const { bots, isLoading, fetchBots } = useBotStore();
   const navigate = useNavigate();
+  const toast = useToastStore((s) => s.add);
 
   useEffect(() => {
     fetchBots();
   }, [fetchBots]);
 
   const handleStart = async (name: string) => {
-    await botsApi.start(name);
-    fetchBots();
+    try {
+      await botsApi.start(name);
+      toast(`Bot "${name}" started`, 'success');
+      fetchBots();
+    } catch {
+      toast(`Failed to start "${name}"`, 'error');
+    }
   };
 
   const handleStop = async (name: string) => {
-    await botsApi.stop(name);
-    fetchBots();
+    try {
+      await botsApi.stop(name);
+      toast(`Bot "${name}" stopped`, 'info');
+      fetchBots();
+    } catch {
+      toast(`Failed to stop "${name}"`, 'error');
+    }
   };
 
-  if (isLoading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>;
+  if (isLoading) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div className="h-7 w-20 animate-pulse bg-border/50 rounded" />
+          <div className="h-4 w-16 animate-pulse bg-border/50 rounded" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonBotCard key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
+    <PageTransition>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-text font-[Manrope]">Bots</h2>
         <span className="text-sm text-text-muted">{bots.length} bot(s)</span>
@@ -49,6 +76,6 @@ export function Bots() {
           ))}
         </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
+import { PageTransition } from '../components/common/PageTransition';
+import { Spinner } from '../components/common/Spinner';
+import { useToastStore } from '../components/common/Toast';
 import client from '../api/client';
 
 export function Backtesting() {
@@ -8,11 +11,16 @@ export function Backtesting() {
   const [timeframe, setTimeframe] = useState('1h');
   const [strategyType, setStrategyType] = useState('grid');
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const toast = useToastStore((s) => s.add);
+
+  const inputClass = 'w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary transition-colors';
 
   const runBacktest = async () => {
     setRunning(true);
     setResult(null);
+    setProgress(0);
     try {
       const { data } = await client.post('/api/v1/backtesting/run', {
         strategy_type: strategyType,
@@ -23,31 +31,35 @@ export function Backtesting() {
         initial_balance: '10000',
       });
 
-      // Poll for result
       const jobId = data.job_id;
       let attempts = 0;
       while (attempts < 30) {
         await new Promise((r) => setTimeout(r, 2000));
+        setProgress(Math.min(90, (attempts / 30) * 100));
         const { data: job } = await client.get(`/api/v1/backtesting/${jobId}`);
         if (job.status === 'completed') {
           setResult(job.result);
+          setProgress(100);
+          toast('Backtest completed', 'success');
           break;
         }
         if (job.status === 'failed') {
           setResult({ error: job.error_message });
+          toast('Backtest failed', 'error');
           break;
         }
         attempts++;
       }
     } catch {
       setResult({ error: 'Failed to run backtest' });
+      toast('Backtest error', 'error');
     } finally {
       setRunning(false);
     }
   };
 
   return (
-    <div>
+    <PageTransition>
       <h2 className="text-2xl font-bold text-text font-[Manrope] mb-6">Backtesting</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -55,11 +67,7 @@ export function Backtesting() {
           <div className="space-y-4">
             <div>
               <label className="block text-xs text-text-muted mb-1">Strategy</label>
-              <select
-                value={strategyType}
-                onChange={(e) => setStrategyType(e.target.value)}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text"
-              >
+              <select value={strategyType} onChange={(e) => setStrategyType(e.target.value)} className={inputClass}>
                 <option value="grid">Grid</option>
                 <option value="dca">DCA</option>
                 <option value="trend_follower">Trend Follower</option>
@@ -67,11 +75,7 @@ export function Backtesting() {
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">Symbol</label>
-              <select
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text"
-              >
+              <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className={inputClass}>
                 {['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'ADAUSDT'].map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
@@ -79,18 +83,35 @@ export function Backtesting() {
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">Timeframe</label>
-              <select
-                value={timeframe}
-                onChange={(e) => setTimeframe(e.target.value)}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text"
-              >
+              <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)} className={inputClass}>
                 {['5m', '15m', '30m', '1h', '4h', '1d'].map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
+
+            {running && (
+              <div>
+                <div className="flex items-center justify-between text-xs text-text-muted mb-1">
+                  <span>Progress</span>
+                  <span>{Math.round(progress)}%</span>
+                </div>
+                <div className="w-full bg-border rounded-full h-1.5">
+                  <div
+                    className="bg-primary h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             <Button onClick={runBacktest} disabled={running} className="w-full">
-              {running ? 'Running...' : 'Run Backtest'}
+              {running ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner size="sm" />
+                  Running...
+                </span>
+              ) : 'Run Backtest'}
             </Button>
           </div>
         </Card>
@@ -100,38 +121,31 @@ export function Backtesting() {
             'error' in result ? (
               <p className="text-sm text-loss">{String(result.error)}</p>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-xs text-text-muted">Return</p>
-                  <p className="text-lg font-bold text-profit">+{String(result.total_return_pct)}%</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted">Max Drawdown</p>
-                  <p className="text-lg font-bold text-loss">{String(result.max_drawdown_pct)}%</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted">Sharpe Ratio</p>
-                  <p className="text-lg font-bold text-text">{String(result.sharpe_ratio)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted">Win Rate</p>
-                  <p className="text-lg font-bold text-text">{String(Number(result.win_rate) * 100)}%</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted">Total Trades</p>
-                  <p className="text-lg font-bold text-text">{String(result.total_trades)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted">Profit Factor</p>
-                  <p className="text-lg font-bold text-text">{String(result.profit_factor)}</p>
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                <ResultItem label="Return" value={`+${result.total_return_pct}%`} color="text-profit" />
+                <ResultItem label="Max Drawdown" value={`${result.max_drawdown_pct}%`} color="text-loss" />
+                <ResultItem label="Sharpe Ratio" value={String(result.sharpe_ratio)} />
+                <ResultItem label="Win Rate" value={`${(Number(result.win_rate) * 100).toFixed(1)}%`} />
+                <ResultItem label="Total Trades" value={String(result.total_trades)} />
+                <ResultItem label="Profit Factor" value={String(result.profit_factor)} />
               </div>
             )
           ) : (
-            <p className="text-sm text-text-muted">Configure parameters and click "Run Backtest"</p>
+            <div className="flex flex-col items-center justify-center py-8 text-text-muted">
+              <p className="text-sm">Configure parameters and click "Run Backtest"</p>
+            </div>
           )}
         </Card>
       </div>
+    </PageTransition>
+  );
+}
+
+function ResultItem({ label, value, color = 'text-text' }: { label: string; value: string; color?: string }) {
+  return (
+    <div>
+      <p className="text-xs text-text-muted mb-1">{label}</p>
+      <p className={`text-xl font-bold ${color}`}>{value}</p>
     </div>
   );
 }

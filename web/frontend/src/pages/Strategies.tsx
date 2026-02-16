@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
-import { Spinner } from '../components/common/Spinner';
+import { PageTransition } from '../components/common/PageTransition';
+import { SkeletonCard } from '../components/common/Skeleton';
+import { useToastStore } from '../components/common/Toast';
 import client from '../api/client';
 
 interface StrategyTemplate {
@@ -26,6 +28,7 @@ export function Strategies() {
   const [templates, setTemplates] = useState<StrategyTemplate[]>([]);
   const [types, setTypes] = useState<StrategyType[]>([]);
   const [loading, setLoading] = useState(true);
+  const toast = useToastStore((s) => s.add);
 
   useEffect(() => {
     Promise.all([
@@ -37,8 +40,6 @@ export function Strategies() {
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>;
-
   const riskVariant = (r: string) => {
     switch (r) {
       case 'low': return 'success' as const;
@@ -48,8 +49,32 @@ export function Strategies() {
     }
   };
 
+  const handleCopy = async (templateId: number, name: string) => {
+    try {
+      await client.post('/api/v1/strategies/copy', {
+        template_id: templateId,
+        bot_name: `${name}-copy`,
+        symbol: 'BTCUSDT',
+      });
+      toast(`Strategy "${name}" copied successfully`, 'success');
+    } catch {
+      toast('Failed to copy strategy', 'error');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <div className="h-7 w-48 animate-pulse bg-border/50 rounded mb-6" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <PageTransition>
       <h2 className="text-2xl font-bold text-text font-[Manrope] mb-6">Strategy Marketplace</h2>
 
       <Card title="Available Strategy Types" className="mb-6">
@@ -91,12 +116,12 @@ export function Strategies() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-text-muted">{t.copy_count} copies</span>
-                <Button size="sm">Copy Strategy</Button>
+                <Button size="sm" onClick={() => handleCopy(t.id, t.name)}>Copy Strategy</Button>
               </div>
             </Card>
           ))}
         </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

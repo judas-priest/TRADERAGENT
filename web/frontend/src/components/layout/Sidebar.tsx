@@ -1,4 +1,7 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useUIStore } from '../../stores/uiStore';
+import { useEffect } from 'react';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '◉' },
@@ -10,8 +13,16 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  return (
-    <aside className="fixed left-0 top-0 h-full w-60 bg-surface border-r border-border flex flex-col z-10">
+  const { sidebarOpen, closeSidebar } = useUIStore();
+  const location = useLocation();
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    closeSidebar();
+  }, [location.pathname, closeSidebar]);
+
+  const sidebarContent = (
+    <>
       <div className="p-5 border-b border-border">
         <h1 className="text-xl font-bold text-text font-[Manrope]">
           <span className="text-primary">TRADER</span>AGENT
@@ -44,6 +55,39 @@ export function Sidebar() {
           <span className="text-xs text-text-muted">System Online</span>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-full w-60 bg-surface border-r border-border flex-col z-10">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-40 md:hidden"
+              onClick={closeSidebar}
+            />
+            <motion.aside
+              initial={{ x: -240 }}
+              animate={{ x: 0 }}
+              exit={{ x: -240 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="fixed left-0 top-0 h-full w-60 bg-surface border-r border-border flex flex-col z-50 md:hidden"
+            >
+              {sidebarContent}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

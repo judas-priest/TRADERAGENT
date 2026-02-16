@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../components/common/Card';
-import { Spinner } from '../components/common/Spinner';
+import { PageTransition } from '../components/common/PageTransition';
+import { SkeletonDashboard } from '../components/common/Skeleton';
 import client from '../api/client';
 
 interface DashboardData {
@@ -22,15 +23,15 @@ export function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>;
+  if (loading) return <SkeletonDashboard />;
 
   const profit = parseFloat(data?.total_profit || '0');
 
   return (
-    <div>
+    <PageTransition>
       <h2 className="text-2xl font-bold text-text font-[Manrope] mb-6">Dashboard</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <p className="text-xs text-text-muted uppercase">Active Bots</p>
           <p className="text-3xl font-bold text-blue mt-1">{data?.active_bots || 0}</p>
@@ -80,6 +81,6 @@ export function Dashboard() {
           <p className="text-sm text-text-muted">No active bots</p>
         )}
       </Card>
-    </div>
+    </PageTransition>
   );
 }
