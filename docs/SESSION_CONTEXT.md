@@ -3,12 +3,61 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 16 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE
-**Pass Rate:** 100% (471/471 tests passing)
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE
+**Pass Rate:** 100% (510/510 tests passing: 471 existing + 39 grid backtesting)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-16) - Phase 7.4 Load/Stress Testing
+## Poslednyaya Sessiya (2026-02-16) - Grid Backtesting System
+
+### Zadacha
+
+Novaya sistema bektestinga spetsialno dlya setochnyh strategiy.
+Sushchestvuyushchiy bektest (generic, cherez BaseStrategy) — ostavlen.
+Novaya sistema: grid-spetsifichnye metriki, klasterizatsiya monet, optimizatsiya parametrov, eksport presetov.
+
+### Arhitektura
+
+**Princip:** delegatsiya, a ne reimplementatsiya — pereipolzuem sushchestvuyushchiy kod:
+- `GridCalculator` → raschet urovney (arithmetic/geometric), ATR
+- `GridOrderManager` → sostoyanie orderov, counter-orders, tsikly
+- `GridRiskManager` → stop-loss, drawdown, trend
+- `MarketSimulator` → ispolnenie orderov, komissii, balans
+- `GridStrategyConfig` → format eksporta presetov (Pydantic + YAML)
+
+### Struktura Faylov
+
+```
+bot/backtesting/
+├── __init__.py
+└── grid/
+    ├── __init__.py          # re-exports
+    ├── models.py            # GridBacktestConfig, GridBacktestResult, enums
+    ├── simulator.py         # GridBacktestSimulator — core simulation loop
+    ├── clusterizer.py       # CoinClusterizer — classify by ATR%/volume
+    ├── optimizer.py         # GridOptimizer — coarse→fine parallel search
+    ├── reporter.py          # GridBacktestReporter — reports + preset export
+    └── system.py            # GridBacktestSystem — end-to-end pipeline
+
+tests/backtesting/grid/
+    ├── test_simulator.py    # ~10 tests
+    ├── test_clusterizer.py  # ~7 tests
+    ├── test_optimizer.py    # ~5 tests
+    └── test_system.py       # ~5 tests (e2e)
+```
+
+### Fazy Realizatsii
+
+| Faza | Chto sozdayotsya | Status |
+|------|------------------|--------|
+| Phase 1: Models + Simulator | `models.py`, `simulator.py`, `test_simulator.py` (14 tests) | COMPLETE |
+| Phase 2: Clusterizer | `clusterizer.py`, `test_clusterizer.py` (12 tests) | COMPLETE |
+| Phase 3: Optimizer | `optimizer.py`, `test_optimizer.py` (6 tests) | COMPLETE |
+| Phase 4: Reporter + System | `reporter.py`, `system.py`, `test_system.py` (7 tests) | COMPLETE |
+
+---
+
+## Predydushchaya Sessiya (2026-02-16) - Phase 7.4 Load/Stress Testing
 
 ### Osnovnye Dostizheniya
 
@@ -226,6 +275,16 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 7 (2026-02-16): Grid Backtesting System
+- Novaya sistema bektestinga dlya setochnyh strategiy (4 fazy)
+- Delegatsiya: GridCalculator, GridOrderManager, GridRiskManager, MarketSimulator
+- Klasterizatsiya monet po volatilnosti → avtomaticheskie presety
+- Dvuhfaznaya optimizatsiya parametrov (coarse → fine)
+- Eksport presetov v formate GridStrategyConfig (YAML/JSON)
+- **Issues:** #222 (Models+Simulator), #223 (Clusterizer), #224 (Optimizer), #225 (Reporter+System)
+- **Tests:** 39 (14 simulator + 12 clusterizer + 6 optimizer + 7 system e2e)
+- **Status:** COMPLETE
+
 ### Sessiya 6 (2026-02-16): Phase 7.4 Load/Stress Testing
 - 40 nagruzochnyh testov v `tests/loadtest/` (8 faylov)
 - API load, WebSocket stress, DB pool, event throughput, multi-bot, rate limiting, backtesting, memory profiling
@@ -276,6 +335,14 @@ Phase 7.1-7.2: Testing                [##########] 100%
 Phase 7.3: Demo Trading Deployment    [##########] 100%  <- DEPLOYED!
 Phase 7.4: Load/Stress Testing        [##########] 100%  <- COMPLETE!
 Phase 8: Production Launch            [..........]   0%
+```
+
+**Grid Backtesting System (39 testov):**
+```
+Phase 1: Models + Simulator           [##########] 100%  (14 tests)
+Phase 2: Clusterizer                  [##########] 100%  (12 tests)
+Phase 3: Optimizer                    [##########] 100%  (6 tests)
+Phase 4: Reporter + System            [##########] 100%  (7 tests)
 ```
 
 **Web UI Dashboard:**
@@ -339,9 +406,9 @@ docker compose up webui-backend webui-frontend
 
 ## Sleduyushchie Shagi
 
-1. **Phase 8:** Production launch (security audit, gradual capital 5% → 25% → 100%)
-2. **Web UI:** Lightweight-charts integration (equity curves, price charts)
-3. **Web UI:** Alembic migrations dlya novyh tablo (users, sessions, strategy_templates, backtest_jobs)
+1. **Grid Backtesting Integration:** Podklyuchit k Web UI (backtest API), integrirovat s istoricheskimi dannymi
+2. **Phase 8:** Production launch (security audit, gradual capital 5% → 25% → 100%)
+3. **Web UI:** Lightweight-charts integration (equity curves, price charts)
 4. **Historical Data:** Integratsiya 450 CSV (5.4 GB) s backtesting framework
 
 ---
@@ -349,11 +416,11 @@ docker compose up webui-backend webui-frontend
 ## Last Updated
 
 - **Date:** February 16, 2026
-- **Status:** 471/471 tests passing (100%)
+- **Status:** 510/510 tests passing (100%)
+- **Grid Backtesting:** COMPLETE (39 tests, 4 phases)
 - **Phase 7.4:** Load/Stress Testing — COMPLETE (40 tests)
 - **Web UI Dashboard:** COMPLETE (PR #221 merged)
 - **Phase 7.3:** Bybit Demo Trading — DEPLOYED
 - **Server:** 185.233.200.13 (Docker)
-- **Frontend Build:** 476KB JS, 21KB CSS
-- **Next Action:** Phase 8 (Production Launch), charts integration, Alembic migrations
+- **Next Action:** Web UI integration, Phase 8 (Production Launch)
 - **Co-Authored:** Claude Opus 4.6
