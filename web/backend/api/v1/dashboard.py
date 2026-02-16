@@ -20,7 +20,7 @@ async def get_overview(
 ):
     """Get aggregated dashboard overview."""
     service = BotService(orchestrators)
-    bots = service.list_bots()
+    bots = await service.list_bots()
 
     total_profit = sum(b.total_profit for b in bots)
     active_bots = sum(1 for b in bots if b.status == "running")

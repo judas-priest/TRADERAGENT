@@ -44,29 +44,33 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 
 @pytest.fixture
 def mock_orchestrator():
-    """Create a mock BotOrchestrator."""
+    """Create a mock BotOrchestrator with real orchestrator field names."""
     orch = MagicMock()
-    orch.get_status.return_value = {
+    orch.get_status = AsyncMock(return_value={
         "bot_name": "test_bot",
-        "strategy_type": "grid",
+        "strategy": "grid",
         "symbol": "BTC/USDT",
-        "status": "running",
+        "state": "running",
+        "current_price": "50000",
         "dry_run": False,
-        "positions": [],
-        "metrics": {
-            "total_trades": 42,
-            "total_pnl": 1234.56,
-            "unrealized_pnl": 100.0,
+        "grid": {
+            "buy_count": 21,
+            "sell_count": 21,
+            "total_profit": 1234.56,
+            "active_orders": 5,
+        },
+        "trend_follower": {
             "active_positions": 2,
-            "open_orders": 5,
-            "total_fees": 12.34,
-            "win_rate": 0.65,
-            "winning_trades": 27,
-            "losing_trades": 15,
-            "uptime_seconds": 3600,
+            "statistics": {
+                "risk_metrics": {
+                    "total_trades": 0,
+                    "win_rate": 0.65,
+                    "total_pnl": 0,
+                }
+            },
         },
         "config": {"name": "test_bot"},
-    }
+    })
     orch.start = AsyncMock()
     orch.stop = AsyncMock()
     orch.pause = AsyncMock()

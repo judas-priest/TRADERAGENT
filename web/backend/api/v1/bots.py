@@ -31,7 +31,7 @@ async def list_bots(
     service: BotService = Depends(_get_bot_service),
 ):
     """List all bots with optional filters."""
-    return service.list_bots(strategy=strategy, status_filter=status_filter, symbol=symbol)
+    return await service.list_bots(strategy=strategy, status_filter=status_filter, symbol=symbol)
 
 
 @router.get("/{bot_name}", response_model=BotStatusResponse)
@@ -41,7 +41,7 @@ async def get_bot(
     service: BotService = Depends(_get_bot_service),
 ):
     """Get detailed bot status."""
-    result = service.get_bot_status(bot_name)
+    result = await service.get_bot_status(bot_name)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
     return result

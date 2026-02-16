@@ -21,7 +21,7 @@ async def get_summary(
 ):
     """Get portfolio summary across all bots."""
     service = BotService(orchestrators)
-    bots = service.list_bots()
+    bots = await service.list_bots()
 
     total_realized = Decimal("0")
     total_unrealized = Decimal("0")
@@ -68,7 +68,7 @@ async def get_allocation(
 ):
     """Get asset allocation by bot/strategy."""
     service = BotService(orchestrators)
-    bots = service.list_bots()
+    bots = await service.list_bots()
 
     by_strategy = {}
     for bot in bots:
