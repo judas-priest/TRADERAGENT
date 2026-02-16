@@ -66,8 +66,15 @@ services:
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
+      # Monitoring
+      METRICS_PORT: ${METRICS_PORT:-9100}
+      ALERTS_PORT: ${ALERTS_PORT:-8080}
+
       # Python
       PYTHONUNBUFFERED: 1
+    ports:
+      - "${METRICS_PORT:-9100}:9100"
+      - "${ALERTS_PORT:-8080}:8080"
     volumes:
       - ./configs:/app/configs:ro
       - ./logs:/app/logs
@@ -80,9 +87,6 @@ services:
     restart: unless-stopped
     networks:
       - traderagent-network
-    # Uncomment for debugging
-    # ports:
-    #   - "8000:8000"
 
   # Database migrations (run once)
   migrations:

@@ -27,10 +27,10 @@ scrape_configs:
         labels:
           service: 'prometheus'
 
-  # Trading Bot Metrics
+  # Trading Bot Metrics (from main bot or standalone exporter)
   - job_name: 'traderagent-bot'
     static_configs:
-      - targets: ['bot-exporter:9100']
+      - targets: ['bot:9100', 'bot-exporter:9100']
         labels:
           service: 'trading-bot'
           component: 'bot'
