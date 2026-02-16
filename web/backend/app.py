@@ -75,9 +75,11 @@ def create_app(bot_app=None) -> FastAPI:
     # Include routers
     from web.backend.api.v1.router import v1_router
     from web.backend.auth.router import router as auth_router
+    from web.backend.ws.router import router as ws_router
 
     app.include_router(auth_router)
     app.include_router(v1_router)
+    app.include_router(ws_router)
 
     # Health check
     @app.get("/health")
