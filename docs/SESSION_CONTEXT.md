@@ -3,12 +3,52 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 16 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED
-**Pass Rate:** 100% (431/431 tests passing)
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE
+**Pass Rate:** 100% (471/471 tests passing)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-16) - Web UI Dashboard (Phases 1-10)
+## Poslednyaya Sessiya (2026-02-16) - Phase 7.4 Load/Stress Testing
+
+### Osnovnye Dostizheniya
+
+**Phase 7.4: Load/Stress Testing — COMPLETE (40 testov)**
+
+Kompleksnyy nabor nagruzochnyh testov dlya vseh komponentov sistemy.
+Bez vneshnih zavisimostey — in-memory SQLite, mock WebSocket, mock exchange.
+
+**Commit:** `ef251fb`
+
+### Nagruzochnye Testy (8 faylov, 40 testov)
+
+| Fayl | Testov | Chto proveryaet |
+|------|--------|-----------------|
+| `test_api_load.py` | 9 | REST API: 50-500 konkurentnyh zaprosov, mixed endpoints, throughput |
+| `test_websocket_stress.py` | 5 | WebSocket: broadcast 100/500 soedineniy, channel fanout, stale cleanup |
+| `test_database_pool.py` | 5 | BD: 50 konkurentnyh zapisey, 500 sequential, mixed read/write |
+| `test_event_throughput.py` | 4 | Event pipeline: 10K event create/serialize, 100sub x 1000msg broadcast |
+| `test_orchestrator_multi.py` | 5 | Multi-bot: 100 strategiy lifecycle, state transitions, metrics |
+| `test_exchange_ratelimit.py` | 4 | Rate limiting: adaptive backoff, recovery, concurrent serialization |
+| `test_backtest_load.py` | 4 | Backtesting: 10 concurrent jobs, semaphore(2), 100 polls |
+| `test_memory_profiling.py` | 5 | Memory: tracemalloc, leak detection, 50K events, 5K row DataFrame |
+
+### Klyuchevye Metriki Proizvoditelnosti
+
+- **REST API:** 1599 req/s (/health), 236 req/s (mixed endpoints), 111 req/s (sequential)
+- **WebSocket broadcast:** 15,826 sends/s (100 sub x 1000 msg)
+- **Database writes:** 921 writes/s (sequential), 714 writes/s (concurrent)
+- **Event throughput:** 39,842 events/s (create+serialize), 114,226 events/s (deserialize)
+- **Bot queries:** 828 queries/s (concurrent)
+- **Memory:** 50K events < 100MB peak, no leaks detected in position lifecycle
+
+### Bugfix: FastAPI Route Ordering
+
+- `GET /api/v1/backtesting/history` vozvrashchal 404 — route `/{job_id}` perehvatyval `/history`
+- Fix: perenesen `/history` pered `/{job_id}` v `backtesting.py`
+
+---
+
+## Predydushchaya Sessiya (2026-02-16) - Web UI Dashboard (Phases 1-10)
 
 ### Osnovnye Dostizheniya
 
@@ -83,7 +123,7 @@ Vdohnovlen Veles Finance: dark theme, strategy marketplace, copy-trading.
 
 ## Tekushchie Rezultaty Testirovaniya
 
-### Obshchiy: 431/431 PASSED (100%)
+### Obshchiy: 471/471 PASSED (100%)
 
 ### Unit Tests: 175/175 PASSED (100%)
 
@@ -129,6 +169,19 @@ Vdohnovlen Veles Finance: dark theme, strategy marketplace, copy-trading.
 | Portfolio API | 6 | 100% |
 | Settings API | 5 | 100% |
 
+### Load/Stress Tests: 40/40 PASSED (100%)
+
+| Modul | Testov | Status |
+|-------|--------|--------|
+| API Load (concurrent HTTP) | 9 | 100% |
+| WebSocket Stress (fan-out) | 5 | 100% |
+| Database Pool (concurrent R/W) | 5 | 100% |
+| Event Throughput (pipeline) | 4 | 100% |
+| Orchestrator Multi-bot | 5 | 100% |
+| Exchange Rate Limiting | 4 | 100% |
+| Backtesting Concurrency | 4 | 100% |
+| Memory Profiling (tracemalloc) | 5 | 100% |
+
 ---
 
 ## Web UI Architecture
@@ -173,6 +226,13 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 6 (2026-02-16): Phase 7.4 Load/Stress Testing
+- 40 nagruzochnyh testov v `tests/loadtest/` (8 faylov)
+- API load, WebSocket stress, DB pool, event throughput, multi-bot, rate limiting, backtesting, memory profiling
+- Bugfix: FastAPI route ordering (`/history` pered `/{job_id}`)
+- Fix: Trade model fields v test fixtures, realistichnye porogi dlya memory i time
+- **Commit:** `ef251fb`
+
 ### Sessiya 5 (2026-02-16): Web UI Dashboard
 - Web UI Dashboard (Phases 1-10) — polnaya realizatsiya
 - FastAPI backend: 42 REST API routes + WebSocket
@@ -214,7 +274,7 @@ Phase 5: Infrastructure & DevOps      [##########] 100%
 Phase 6: Advanced Backtesting         [##########] 100%
 Phase 7.1-7.2: Testing                [##########] 100%
 Phase 7.3: Demo Trading Deployment    [##########] 100%  <- DEPLOYED!
-Phase 7.4: Load/Stress Testing        [..........]   0%
+Phase 7.4: Load/Stress Testing        [##########] 100%  <- COMPLETE!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -240,14 +300,17 @@ Phase 10: Tests                       [##########] 100%
 # Pereyti v proekt
 cd /home/hive/TRADERAGENT
 
-# Zapustit VSE testy (431 testov)
-python -m pytest bot/tests/ --ignore=bot/tests/testnet tests/web/ -q
+# Zapustit VSE testy (471 testov)
+python -m pytest bot/tests/ --ignore=bot/tests/testnet tests/web/ tests/loadtest/ -q
 
 # Tolko bot testy (385)
 python -m pytest bot/tests/ --ignore=bot/tests/testnet -q
 
 # Tolko web API testy (46)
 python -m pytest tests/web/ -q
+
+# Tolko nagruzochnye testy (40)
+python -m pytest tests/loadtest/ -v
 
 # Frontend build
 cd web/frontend && npm run build
@@ -276,21 +339,21 @@ docker compose up webui-backend webui-frontend
 
 ## Sleduyushchie Shagi
 
-1. **Phase 7.4:** Load/stress testing
-2. **Phase 8:** Production launch (security audit, gradual capital 5%→25%→100%)
-3. **Web UI:** Lightweight-charts integration (equity curves, price charts)
-4. **Web UI:** Alembic migrations dlya novyh tablo (users, sessions, strategy_templates, backtest_jobs)
-5. **Historical Data:** Integratsiya 450 CSV (5.4 GB) s backtesting framework
+1. **Phase 8:** Production launch (security audit, gradual capital 5% → 25% → 100%)
+2. **Web UI:** Lightweight-charts integration (equity curves, price charts)
+3. **Web UI:** Alembic migrations dlya novyh tablo (users, sessions, strategy_templates, backtest_jobs)
+4. **Historical Data:** Integratsiya 450 CSV (5.4 GB) s backtesting framework
 
 ---
 
 ## Last Updated
 
 - **Date:** February 16, 2026
-- **Status:** 431/431 tests passing (100%)
+- **Status:** 471/471 tests passing (100%)
+- **Phase 7.4:** Load/Stress Testing — COMPLETE (40 tests)
 - **Web UI Dashboard:** COMPLETE (PR #221 merged)
 - **Phase 7.3:** Bybit Demo Trading — DEPLOYED
 - **Server:** 185.233.200.13 (Docker)
 - **Frontend Build:** 476KB JS, 21KB CSS
-- **Next Action:** Phase 7.4 (Load Testing), charts integration, Alembic migrations
+- **Next Action:** Phase 8 (Production Launch), charts integration, Alembic migrations
 - **Co-Authored:** Claude Opus 4.6
