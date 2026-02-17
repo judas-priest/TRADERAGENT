@@ -8,6 +8,8 @@ Uses ProcessPoolExecutor for parallel simulation.
 """
 
 import itertools
+import logging
+import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -115,6 +117,9 @@ class GridOptimizationResult:
 # =============================================================================
 
 
+logger = logging.getLogger(__name__)
+
+
 def _run_single_trial(config_dict: dict, candles_data: dict) -> dict:
     """Run a single backtest trial (picklable for ProcessPoolExecutor)."""
     # Reconstruct config from dict
@@ -153,6 +158,57 @@ def _run_single_trial(config_dict: dict, candles_data: dict) -> dict:
         "completed_cycles": result.completed_cycles,
         "max_drawdown_pct": result.max_drawdown_pct,
     }
+
+
+def _config_to_dict(config: GridBacktestConfig) -> dict:
+    """Serialize GridBacktestConfig to picklable dict for ProcessPoolExecutor."""
+    return {
+        "symbol": config.symbol,
+        "timeframe": config.timeframe,
+        "upper_price": str(config.upper_price),
+        "lower_price": str(config.lower_price),
+        "num_levels": config.num_levels,
+        "spacing": config.spacing.value,
+        "profit_per_grid": str(config.profit_per_grid),
+        "amount_per_grid": str(config.amount_per_grid),
+        "direction": config.direction.value,
+        "atr_period": config.atr_period,
+        "atr_multiplier": str(config.atr_multiplier),
+        "maker_fee": str(config.maker_fee),
+        "taker_fee": str(config.taker_fee),
+        "initial_balance": str(config.initial_balance),
+        "stop_loss_pct": str(config.stop_loss_pct),
+        "max_drawdown_pct": str(config.max_drawdown_pct),
+    }
+
+
+def _reconstruct_result(raw: dict, config: GridBacktestConfig) -> GridBacktestResult:
+    """Reconstruct GridBacktestResult from _run_single_trial output."""
+    rd = raw["result"]
+    return GridBacktestResult(
+        config=config,
+        total_return_pct=rd.get("total_return_pct", 0),
+        total_pnl=rd.get("total_pnl", 0),
+        final_equity=rd.get("final_equity", 0),
+        max_drawdown_pct=rd.get("max_drawdown_pct", 0),
+        total_trades=rd.get("total_trades", 0),
+        win_rate=rd.get("win_rate", 0),
+        completed_cycles=rd.get("completed_cycles", 0),
+        grid_fill_rate=rd.get("grid_fill_rate", 0),
+        avg_profit_per_cycle=rd.get("avg_profit_per_cycle", 0),
+        price_left_grid_count=rd.get("price_left_grid_count", 0),
+        max_one_sided_exposure=rd.get("max_one_sided_exposure", 0),
+        total_fees_paid=rd.get("total_fees_paid", 0),
+        sharpe_ratio=rd.get("sharpe_ratio", 0),
+        sortino_ratio=rd.get("sortino_ratio", 0),
+        calmar_ratio=rd.get("calmar_ratio", 0),
+        profit_factor=rd.get("profit_factor", 0),
+        candles_processed=rd.get("candles_processed", 0),
+        stopped_by_risk=rd.get("stopped_by_risk", False),
+        stop_reason=rd.get("stop_reason", ""),
+        duration_seconds=rd.get("duration_seconds", 0),
+        # equity_curve and trade_history omitted — not needed for optimization
+    )
 
 
 class GridOptimizer:
@@ -336,21 +392,79 @@ class GridOptimizer:
         max_workers: int | None,
         trial_id_start: int = 0,
     ) -> list[OptimizationTrial]:
-        """Run trials sequentially (ProcessPoolExecutor for large batches)."""
-        trials = []
+        """Run trials with parallel execution via ProcessPoolExecutor.
 
+        Falls back to sequential when max_workers <= 1 or batch is tiny.
+        """
+        effective_workers = max_workers or min(os.cpu_count() or 1, 4)
+
+        if effective_workers >= 2 and len(configs) >= 3:
+            return self._run_trials_parallel(
+                configs, candles, objective, effective_workers, trial_id_start,
+            )
+        return self._run_trials_sequential(
+            configs, candles, objective, trial_id_start,
+        )
+
+    def _run_trials_sequential(
+        self,
+        configs: list[GridBacktestConfig],
+        candles: pd.DataFrame,
+        objective: OptimizationObjective,
+        trial_id_start: int = 0,
+    ) -> list[OptimizationTrial]:
+        """Run trials sequentially (low overhead, single-threaded)."""
+        trials = []
         for i, config in enumerate(configs):
             sim = GridBacktestSimulator(config)
             result = sim.run(candles)
-
             obj_value = self._get_objective_value(result, objective)
-            trial = OptimizationTrial(
+            trials.append(OptimizationTrial(
                 trial_id=trial_id_start + i,
                 config=config,
                 result=result,
                 objective_value=obj_value,
-            )
-            trials.append(trial)
+            ))
+        return trials
+
+    def _run_trials_parallel(
+        self,
+        configs: list[GridBacktestConfig],
+        candles: pd.DataFrame,
+        objective: OptimizationObjective,
+        max_workers: int,
+        trial_id_start: int = 0,
+    ) -> list[OptimizationTrial]:
+        """Run trials in parallel using ProcessPoolExecutor."""
+        candles_data = candles.to_dict(orient="list")
+        config_dicts = [_config_to_dict(c) for c in configs]
+
+        logger.info(
+            "Running %d trials in parallel (workers=%d)", len(configs), max_workers,
+        )
+
+        trials = []
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            future_to_idx = {
+                executor.submit(_run_single_trial, cd, candles_data): i
+                for i, cd in enumerate(config_dicts)
+            }
+            for future in as_completed(future_to_idx):
+                i = future_to_idx[future]
+                try:
+                    raw = future.result()
+                    result = _reconstruct_result(raw, configs[i])
+                    obj_value = self._get_objective_value(result, objective)
+                    trials.append(OptimizationTrial(
+                        trial_id=trial_id_start + i,
+                        config=configs[i],
+                        result=result,
+                        objective_value=obj_value,
+                    ))
+                except Exception as exc:
+                    logger.warning(
+                        "Trial %d failed: %s", trial_id_start + i, exc,
+                    )
 
         return trials
 
