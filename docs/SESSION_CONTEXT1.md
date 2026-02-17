@@ -1,25 +1,33 @@
-# TRADERAGENT v2.0 — Session Context (Updated 2026-02-16)
+# TRADERAGENT v2.0 — Session Context (Updated 2026-02-17)
 
 ## Current Status
 
-**Date:** February 16, 2026
-**Session:** 9 (Audit Bug Fixes)
+**Date:** February 17, 2026
+**Session:** 10 (Audit Bug Fixes — continued)
 **Tests:** 431 passing (385 bot + 46 web)
 **Codebase:** 247 Python files (63,455 LOC) + 51 TypeScript files (6,536 LOC)
-**Commits:** 373 total
-**Open Issues:** 12 (created from audit, tracked in GitHub)
+**Commits:** 380 total
+**Open Issues:** 1 remaining (#237)
 
 ---
 
 ## Session 9: Bug Fixes from Audit
 
-### Bugs Fixed (3 of 12 issues closed)
+### Bugs Fixed (11 of 12 issues closed)
 
 | Issue | Title | Commit | Status |
 |-------|-------|--------|--------|
 | [#226](https://github.com/alekseymavai/TRADERAGENT/issues/226) | Fix 6 AttributeError crashes in BotOrchestrator | `5cf8f71` | **FIXED** |
 | [#227](https://github.com/alekseymavai/TRADERAGENT/issues/227) | Fix BotService async/sync mismatch and field name mismatches | `bdb0551` | **FIXED** |
 | [#228](https://github.com/alekseymavai/TRADERAGENT/issues/228) | Fix Market API attribute name (exchange_client → exchange) | `842072f` | **FIXED** |
+| [#229](https://github.com/alekseymavai/TRADERAGENT/issues/229) | Activate WebSocket RedisBridge in app.py lifespan | `93facee` | **FIXED** |
+| [#230](https://github.com/alekseymavai/TRADERAGENT/issues/230) | Grid fill detection treats cancelled orders as filled | `7dab5d8` | **FIXED** |
+| [#231](https://github.com/alekseymavai/TRADERAGENT/issues/231) | DCA engine state advances before exchange order confirmation | `7dab5d8` | **FIXED** |
+| [#232](https://github.com/alekseymavai/TRADERAGENT/issues/232) | Add daily_loss automatic reset mechanism | `7dab5d8` | **FIXED** |
+| [#233](https://github.com/alekseymavai/TRADERAGENT/issues/233) | Cache balance to avoid 3+ API calls per loop iteration | `7dab5d8` | **FIXED** |
+| [#234](https://github.com/alekseymavai/TRADERAGENT/issues/234) | Replace backtesting API placeholder with real BacktestingEngine | `2524fdf` | **FIXED** |
+| [#235](https://github.com/alekseymavai/TRADERAGENT/issues/235) | Replace Settings API hardcoded values with real config | `2524fdf` | **FIXED** |
+| [#236](https://github.com/alekseymavai/TRADERAGENT/issues/236) | Persist strategy templates to database | `2524fdf` | **FIXED** |
 
 ### Details of Fixes
 
@@ -43,18 +51,34 @@
 - Changed `exchange_client` → `exchange` in 4 places in `market.py`
 - Market ticker and OHLCV endpoints now correctly find the exchange client
 
-### Remaining Open Issues (9)
+**#229 — WebSocket RedisBridge not activated:**
+- Added `RedisBridge` creation and startup in `app.py` lifespan
+- Graceful fallback if Redis unavailable (logs warning, continues without WebSocket events)
+
+**#230-#233 — 4 medium-priority trading logic bugs (single commit):**
+- #230: Grid fill detection now verifies order status via `fetch_order()` before treating as filled
+- #231: DCA order placed on exchange BEFORE engine state advancement
+- #232: Daily loss automatically resets at UTC day change (checked at start of each loop iteration)
+- #233: Balance fetched once per iteration, cached value used in 3 consumer locations
+
+**#234 — Backtesting API placeholder replaced:**
+- Real `GridBacktestSimulator` runs with exchange OHLCV data (online) or synthetic data (offline fallback)
+- Returns real metrics: total_return, max_drawdown, sharpe_ratio, win_rate, equity_curve
+
+**#235 — Settings API reads real config:**
+- GET /config reads from `config_manager.get_config()` (logging, database, bots_count)
+- GET /notifications checks bot telegram config
+- Falls back to hardcoded defaults when config_manager unavailable
+
+**#236 — Strategy templates persisted to database:**
+- New `StrategyTemplate` SQLAlchemy model in `bot/database/models.py`
+- All CRUD endpoints use async DB sessions instead of in-memory dict
+- Templates survive server restarts
+
+### Remaining Open Issues (1)
 
 | Issue | Priority | Title |
 |-------|----------|-------|
-| [#229](https://github.com/alekseymavai/TRADERAGENT/issues/229) | P2 HIGH | Activate WebSocket RedisBridge in app.py lifespan |
-| [#230](https://github.com/alekseymavai/TRADERAGENT/issues/230) | P3 MEDIUM | Grid fill detection treats cancelled orders as filled |
-| [#231](https://github.com/alekseymavai/TRADERAGENT/issues/231) | P3 MEDIUM | DCA engine state advances before exchange order confirmation |
-| [#232](https://github.com/alekseymavai/TRADERAGENT/issues/232) | P3 MEDIUM | Add daily_loss automatic reset mechanism |
-| [#233](https://github.com/alekseymavai/TRADERAGENT/issues/233) | P3 MEDIUM | Cache balance to avoid 3+ API calls per loop iteration |
-| [#234](https://github.com/alekseymavai/TRADERAGENT/issues/234) | P4 LOW | Replace backtesting API placeholder with real BacktestingEngine |
-| [#235](https://github.com/alekseymavai/TRADERAGENT/issues/235) | P4 LOW | Replace Settings API hardcoded values with real config |
-| [#236](https://github.com/alekseymavai/TRADERAGENT/issues/236) | P4 LOW | Persist strategy templates to database |
 | [#237](https://github.com/alekseymavai/TRADERAGENT/issues/237) | P5 IMPROVE | Add state persistence for positions/orders and startup reconciliation |
 
 ---
@@ -97,7 +121,7 @@
 | Trend Follower (5 modules) | 2,400 | Best module — ATR TP/SL, trailing, partial close |
 | SMC Strategy (5 modules) | 2,650 | Full implementation |
 | Hybrid (Grid+DCA) | 1,100 | Implemented |
-| Risk Manager | ~300 | Basic — no daily reset, no peak-based SL |
+| Risk Manager | ~300 | Basic — ~~no daily reset~~ **FIXED**, no peak-based SL |
 | Bot Orchestrator | 1,196 | Good architecture, ~~6 crash bugs~~ **FIXED** |
 | Telegram Bot | 854 | Working |
 | Monitoring (Prometheus) | ~500 | Implemented |
@@ -112,10 +136,10 @@
 | Market API | **FIXED** | ~~Wrong attribute~~ Now uses `orch.exchange` correctly |
 | Portfolio summary | **FIXED** | ~~broken by BotService~~ Now connected properly |
 | Portfolio history/drawdown/trades | **STUB** | Returns empty arrays |
-| Strategies | **MOCK** | In-memory dict, lost on restart |
-| Backtesting | **MOCK** | `sleep(0.1)` + hardcoded `{return: 15.5%}` |
-| Settings | **MOCK** | Hardcoded JSON, PUT is no-op |
-| WebSocket | **NOT ACTIVATED** | Infrastructure exists, `RedisBridge.start()` never called (#229) |
+| Strategies | **FIXED** | ~~In-memory dict~~ Now persisted to DB via `StrategyTemplate` model |
+| Backtesting | **FIXED** | ~~sleep(0.1) + hardcoded~~ Now uses real `GridBacktestSimulator` |
+| Settings | **FIXED** | ~~Hardcoded JSON~~ Now reads from `config_manager` with fallback |
+| WebSocket | **FIXED** | ~~RedisBridge never called~~ Now started in lifespan with graceful fallback |
 | Frontend | **REAL** | All pages call real API, no client-side mocks |
 
 ### Web UI Frontend — REAL
@@ -127,18 +151,18 @@ All 7 pages make real API calls. Axios client with JWT interceptor + auto-refres
 
 ### Trading Logic
 
-- **Grid fill detection** (#230): cancelled orders treated as filled (checks presence, not status)
-- **DCA state advance** (#231): engine state updated BEFORE exchange order confirmation
-- **`daily_loss` never resets** (#232): accumulates across days, permanently halts bot
-- **Balance over-fetching** (#233): 3+ API calls per loop iteration, exhausts rate limits
+- ~~**Grid fill detection** (#230)~~ **FIXED**: now verifies order status via `fetch_order()`
+- ~~**DCA state advance** (#231)~~ **FIXED**: order placed before state advancement
+- ~~**`daily_loss` never resets** (#232)~~ **FIXED**: auto-resets at UTC day change
+- ~~**Balance over-fetching** (#233)~~ **FIXED**: cached once per loop iteration
 - **No persistence** (#237): all trading state in-memory, restart = clean slate + no reconciliation
 
 ### Web UI
 
-- **WebSocket not activated** (#229): `RedisBridge.start()` never called in lifespan
-- **Backtesting placeholder** (#234): hardcoded results, real engine exists
-- **Settings hardcoded** (#235): GET returns defaults, PUT is no-op
-- **Strategies in-memory** (#236): templates lost on restart
+- ~~**WebSocket not activated** (#229)~~ **FIXED**: RedisBridge started in lifespan
+- ~~**Backtesting placeholder** (#234)~~ **FIXED**: real GridBacktestSimulator
+- ~~**Settings hardcoded** (#235)~~ **FIXED**: reads from config_manager
+- ~~**Strategies in-memory** (#236)~~ **FIXED**: persisted to database
 
 ---
 
@@ -167,14 +191,14 @@ Phase 6: Advanced Backtesting         [##########] 100%
 Phase 7.1-7.2: Testing                [##########] 100%
 Phase 7.3: Demo Trading Deployment    [##########] 100%  ← DEPLOYED (stopped)
 Phase 7.4: Load/Stress Testing        [##########] 100%
-Phase 8: Production Launch            [###.......]  30%  ← 3/12 BUGS FIXED
+Phase 8: Production Launch            [#########.]  90%  ← 11/12 BUGS FIXED
 ```
 
 **Web UI Dashboard:**
 ```
-Backend Foundation    [##########] 100%  (Auth=REAL, rest=MIXED)
-WebSocket + Events    [######....]  60%  (infrastructure only, bridge not activated)
-Full REST API         [######....]  60%  (auth+bots+market+portfolio=FIXED, rest=MOCK/STUB)
+Backend Foundation    [##########] 100%  (Auth=REAL)
+WebSocket + Events    [##########] 100%  (RedisBridge activated in lifespan)
+Full REST API         [#########.]  90%  (all endpoints REAL except portfolio history stubs)
 Frontend              [##########] 100%  (all pages real API integration)
 Docker                [##########] 100%
 Tests                 [##########] 100%  (46 tests, mocks now match real orchestrator)
@@ -241,10 +265,10 @@ docker compose up webui-backend webui-frontend
 
 ## Last Updated
 
-- **Date:** February 16, 2026
-- **Session:** 9 (Audit Bug Fixes)
+- **Date:** February 17, 2026
+- **Session:** 10 (Audit Bug Fixes — continued)
 - **Tests:** 431/431 passing (100%)
-- **Bugs Fixed:** #226 (6 AttributeError crashes), #227 (BotService async/sync), #228 (Market API attr)
-- **Remaining Issues:** 9 open (#229-#237)
-- **Next Action:** Fix #229 (WebSocket) → remaining medium bugs → re-deploy demo → production
+- **Bugs Fixed:** 11/12 — #226-#236 all resolved
+- **Remaining Issues:** 1 open (#237 — state persistence + startup reconciliation)
+- **Next Action:** Implement #237 (state persistence) → re-deploy demo → production
 - **Co-Authored:** Claude Opus 4.6
