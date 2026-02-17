@@ -150,6 +150,7 @@ def _make_mock_orchestrator(name: str) -> MagicMock:
         },
         "config": {"name": name},
     }
+    orch.exchange = None  # No real exchange — force offline backtest mode
     orch.start = AsyncMock()
     orch.stop = AsyncMock()
     orch.pause = AsyncMock()

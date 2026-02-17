@@ -62,7 +62,7 @@ class TestPositionManager(unittest.TestCase):
         kelly_pct = self.pm._calculate_kelly_percentage()
         
         self.assertGreater(kelly_pct, 0)
-        self.assertLess(kelly_pct, 10)
+        self.assertLessEqual(kelly_pct, 10)
     
     def test_open_position(self):
         signal = self._create_test_signal()

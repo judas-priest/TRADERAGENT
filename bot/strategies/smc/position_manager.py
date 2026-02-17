@@ -359,7 +359,7 @@ class PositionManager:
         """
         Move stop loss to breakeven after 1:1 RR achieved
         """
-        is_long = position.entry_price < position.stop_loss
+        is_long = position.entry_price > position.stop_loss
         risk = abs(position.entry_price - position.stop_loss)
 
         if is_long:
@@ -462,7 +462,7 @@ class PositionManager:
         position = self.open_positions.pop(position_id)
 
         # Calculate realized PnL
-        is_long = position.entry_price < position.stop_loss
+        is_long = position.entry_price > position.stop_loss
         if is_long:
             position.realized_pnl = (exit_price - position.entry_price) * position.position_size
         else:

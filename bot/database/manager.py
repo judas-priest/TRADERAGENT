@@ -25,6 +25,7 @@ from bot.database.models import (
     Order,
     Trade,
 )
+from bot.database.models_state import BotStateSnapshot
 from bot.utils.logger import LoggerMixin
 
 T = TypeVar("T", bound=Base)
@@ -377,6 +378,54 @@ class DatabaseManager(LoggerMixin):
                 query = query.limit(limit)
             result = await session.execute(query)
             return list(result.scalars().all())
+
+    # State Snapshot Operations
+
+    async def save_state_snapshot(self, snapshot: BotStateSnapshot) -> BotStateSnapshot:
+        """Upsert a bot state snapshot (insert or update by bot_name)."""
+        async with self.session() as session:
+            result = await session.execute(
+                select(BotStateSnapshot).where(
+                    BotStateSnapshot.bot_name == snapshot.bot_name
+                )
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                existing.bot_state = snapshot.bot_state
+                existing.grid_state = snapshot.grid_state
+                existing.dca_state = snapshot.dca_state
+                existing.risk_state = snapshot.risk_state
+                existing.trend_state = snapshot.trend_state
+                existing.hybrid_state = snapshot.hybrid_state
+                existing.saved_at = snapshot.saved_at
+                await session.flush()
+                await session.refresh(existing)
+                return existing
+            else:
+                session.add(snapshot)
+                await session.flush()
+                await session.refresh(snapshot)
+                return snapshot
+
+    async def load_state_snapshot(self, bot_name: str) -> BotStateSnapshot | None:
+        """Load a bot state snapshot by bot_name."""
+        async with self.session() as session:
+            result = await session.execute(
+                select(BotStateSnapshot).where(BotStateSnapshot.bot_name == bot_name)
+            )
+            return result.scalar_one_or_none()
+
+    async def delete_state_snapshot(self, bot_name: str) -> bool:
+        """Delete a bot state snapshot by bot_name. Returns True if deleted."""
+        async with self.session() as session:
+            result = await session.execute(
+                select(BotStateSnapshot).where(BotStateSnapshot.bot_name == bot_name)
+            )
+            snapshot = result.scalar_one_or_none()
+            if snapshot:
+                await session.delete(snapshot)
+                return True
+            return False
 
     # Statistics and Analytics
 

@@ -13,6 +13,7 @@ from bot.database.models import (
     Order,
     Trade,
 )
+from bot.database.models_state import BotStateSnapshot
 from bot.database.models_v2 import (
     DCADeal,
     DCAOrder,
@@ -33,6 +34,8 @@ __all__ = [
     "GridLevel",
     "DCAHistory",
     "BotLog",
+    # State persistence
+    "BotStateSnapshot",
     # v2.0 models
     "Strategy",
     "Position",

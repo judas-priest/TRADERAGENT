@@ -79,7 +79,7 @@ class TestBacktestingUnderLoad:
                 concurrent_count -= 1
             return {"total_return_pct": 10.0, "sharpe_ratio": 1.0}
 
-        with patch("web.backend.api.v1.backtesting._run_backtest_sync", side_effect=tracked_run):
+        with patch("web.backend.api.v1.backtesting._run_grid_backtest_offline", side_effect=tracked_run):
             responses = await asyncio.gather(
                 *[auth_client.post("/api/v1/backtesting/run", json=_backtest_payload(i)) for i in range(5)]
             )

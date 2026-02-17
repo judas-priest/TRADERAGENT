@@ -6,6 +6,7 @@ Manages Grid, DCA, SMC, and Trend-Follower engines with dynamic strategy selecti
 """
 
 import asyncio
+import time
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
@@ -20,8 +21,10 @@ from bot.core.dca_engine import DCAEngine
 from bot.core.grid_engine import GridEngine, GridType
 from bot.core.risk_manager import RiskManager
 from bot.database.manager import DatabaseManager
+from bot.database.models_state import BotStateSnapshot
 from bot.orchestrator.events import EventType, TradingEvent
 from bot.orchestrator.health_monitor import HealthMonitor, HealthCheckResult, HealthThresholds
+from bot.orchestrator import state_persistence as sp
 from bot.orchestrator.market_regime import (
     MarketRegimeDetector,
     MarketRegime,
@@ -110,6 +113,11 @@ class BotOrchestrator:
         self.current_price: Decimal | None = None
         self._cached_balance: Decimal | None = None
         self._last_daily_reset: object | None = None  # date object
+
+        # State persistence
+        self._state_loaded = False
+        self._last_state_save: float = 0.0
+        self._state_save_interval: float = 30.0  # seconds
 
         # v2.0: Multi-strategy components
         self.strategy_registry = StrategyRegistry(max_strategies=10)
@@ -241,6 +249,9 @@ class BotOrchestrator:
                 ema_slow=self.config.trend_follower.ema_slow_period,
             )
 
+        # Try to load persisted state
+        await self.load_state()
+
         logger.info("orchestrator_initialized", bot_name=self.config.name)
 
     async def start(self) -> None:
@@ -262,30 +273,35 @@ class BotOrchestrator:
                 self.current_price = Decimal(str(ticker["last"]))
                 logger.info("current_price_fetched", price=str(self.current_price))
 
-                # Initialize grid if enabled
-                if self.grid_engine:
-                    grid_orders = self.grid_engine.initialize_grid(self.current_price)
-                    logger.info(
-                        "grid_initialized",
-                        order_count=len(grid_orders),
-                    )
+                if self._state_loaded:
+                    # State was loaded from DB — reconcile with exchange
+                    await self.reconcile_with_exchange()
+                    logger.info("state_reconciled_with_exchange")
+                else:
+                    # Fresh start — initialize grid if enabled
+                    if self.grid_engine:
+                        grid_orders = self.grid_engine.initialize_grid(self.current_price)
+                        logger.info(
+                            "grid_initialized",
+                            order_count=len(grid_orders),
+                        )
 
-                    # Place grid orders on exchange (if not dry run)
-                    if not self.config.dry_run:
-                        await self._place_grid_orders(grid_orders)
+                        # Place grid orders on exchange (if not dry run)
+                        if not self.config.dry_run:
+                            await self._place_grid_orders(grid_orders)
 
-                    await self._publish_event(
-                        EventType.GRID_INITIALIZED,
-                        {
-                            "order_count": len(grid_orders),
-                            "current_price": str(self.current_price),
-                        },
-                    )
+                        await self._publish_event(
+                            EventType.GRID_INITIALIZED,
+                            {
+                                "order_count": len(grid_orders),
+                                "current_price": str(self.current_price),
+                            },
+                        )
 
-                # Initialize DCA if enabled
-                if self.dca_engine:
-                    self.dca_engine.reset()
-                    logger.info("dca_engine_ready")
+                    # Initialize DCA if enabled
+                    if self.dca_engine:
+                        self.dca_engine.reset()
+                        logger.info("dca_engine_ready")
 
                 # Start main loop
                 self._running = True
@@ -325,6 +341,12 @@ class BotOrchestrator:
             logger.info("stopping_bot", bot_name=self.config.name)
             self.state = BotState.STOPPING
             self._running = False
+
+            # Save state before stopping
+            try:
+                await self.save_state()
+            except Exception as e:
+                logger.error("save_state_on_stop_failed", error=str(e))
 
             # Cancel running tasks
             if self._main_task and not self._main_task.done():
@@ -398,6 +420,12 @@ class BotOrchestrator:
             self.state = BotState.EMERGENCY
             self._running = False
 
+            # Best-effort state save
+            try:
+                await self.save_state()
+            except Exception as e:
+                logger.error("save_state_on_emergency_failed", error=str(e))
+
             # Cancel all tasks immediately
             if self._main_task:
                 self._main_task.cancel()
@@ -455,6 +483,15 @@ class BotOrchestrator:
                 # Update risk manager
                 if self.risk_manager:
                     await self._update_risk_manager()
+
+                # Periodic state save
+                now = time.monotonic()
+                if now - self._last_state_save >= self._state_save_interval:
+                    try:
+                        await self.save_state()
+                        self._last_state_save = now
+                    except Exception as e:
+                        logger.error("periodic_state_save_failed", error=str(e))
 
                 # Sleep between iterations
                 await asyncio.sleep(1)
@@ -906,6 +943,113 @@ class BotOrchestrator:
             logger.debug("event_published", event_type=event_type.value)
         except Exception as e:
             logger.error("event_publish_failed", error=str(e))
+
+    # =========================================================================
+    # State Persistence
+    # =========================================================================
+
+    async def save_state(self) -> None:
+        """Serialize all engine state and upsert into DB."""
+        hybrid = getattr(self, "hybrid_strategy", None)
+        snapshot = BotStateSnapshot(
+            bot_name=self.config.name,
+            bot_state=self.state.value,
+            grid_state=sp.serialize_grid_state(self.grid_engine),
+            dca_state=sp.serialize_dca_state(self.dca_engine),
+            risk_state=sp.serialize_risk_state(self.risk_manager),
+            trend_state=sp.serialize_trend_state(self.trend_follower_strategy),
+            hybrid_state=sp.serialize_hybrid_state(hybrid),
+            saved_at=datetime.now(timezone.utc),
+        )
+        await self.db.save_state_snapshot(snapshot)
+        logger.debug("state_saved", bot_name=self.config.name)
+
+    async def load_state(self) -> None:
+        """Load persisted state from DB into engines."""
+        snapshot = await self.db.load_state_snapshot(self.config.name)
+        if snapshot is None:
+            logger.info("no_persisted_state_found", bot_name=self.config.name)
+            return
+
+        restored_any = False
+        if sp.deserialize_grid_state(self.grid_engine, snapshot.grid_state):
+            restored_any = True
+        if sp.deserialize_dca_state(self.dca_engine, snapshot.dca_state):
+            restored_any = True
+        if sp.deserialize_risk_state(self.risk_manager, snapshot.risk_state):
+            restored_any = True
+        if sp.deserialize_trend_state(self.trend_follower_strategy, snapshot.trend_state):
+            restored_any = True
+
+        hybrid = getattr(self, "hybrid_strategy", None)
+        hybrid_json = getattr(snapshot, "hybrid_state", None)
+        if sp.deserialize_hybrid_state(hybrid, hybrid_json):
+            restored_any = True
+
+        if restored_any:
+            self._state_loaded = True
+            logger.info(
+                "state_loaded_from_db",
+                bot_name=self.config.name,
+                saved_at=str(snapshot.saved_at),
+            )
+
+    async def reset_state(self) -> None:
+        """Delete persisted state so next start is a fresh start."""
+        deleted = await self.db.delete_state_snapshot(self.config.name)
+        self._state_loaded = False
+        logger.info("state_reset", bot_name=self.config.name, deleted=deleted)
+
+    async def reconcile_with_exchange(self) -> None:
+        """Reconcile loaded state with live exchange data."""
+        logger.info("reconcile_start", bot_name=self.config.name)
+
+        # Grid: check which saved orders are still open on exchange
+        if self.grid_engine and self.grid_engine.active_orders:
+            try:
+                exchange_orders = await self.exchange.fetch_open_orders(self.config.symbol)
+                exchange_ids = {o["id"] for o in exchange_orders}
+
+                orphaned = []
+                for order_id in list(self.grid_engine.active_orders.keys()):
+                    if order_id not in exchange_ids:
+                        # Order no longer open — check if filled
+                        try:
+                            info = await self.exchange.fetch_order(order_id, self.config.symbol)
+                            status = info.get("status", "")
+                        except Exception:
+                            status = "unknown"
+
+                        if status == "closed":
+                            # Was filled while offline — handle it
+                            grid_order = self.grid_engine.active_orders[order_id]
+                            self.grid_engine.handle_order_filled(
+                                order_id, grid_order.price, grid_order.amount
+                            )
+                            logger.info("reconcile_order_filled", order_id=order_id)
+                        else:
+                            orphaned.append(order_id)
+
+                for oid in orphaned:
+                    self.grid_engine.active_orders.pop(oid, None)
+                    logger.info("reconcile_removed_orphan", order_id=oid)
+
+                logger.info(
+                    "grid_reconcile_done",
+                    kept=len(self.grid_engine.active_orders),
+                    orphaned=len(orphaned),
+                )
+            except Exception as e:
+                logger.error("grid_reconcile_failed", error=str(e))
+
+        # Risk: refresh balance from exchange (source of truth)
+        if self.risk_manager:
+            try:
+                balance = await self._get_available_balance()
+                self.risk_manager.update_balance(balance)
+                logger.info("risk_balance_reconciled", balance=str(balance))
+            except Exception as e:
+                logger.error("risk_reconcile_failed", error=str(e))
 
     async def get_status(self) -> dict[str, Any]:
         """
