@@ -486,6 +486,13 @@ class GridBacktestSimulator:
                 atr = GridCalculator.calculate_atr(highs, lows, closes, self.config.atr_period)
 
             current_price = closes[-1]
+
+            # Fallback: if ATR rounds to zero, use 1% of current price
+            if atr <= 0:
+                atr = (current_price * Decimal("0.01")).quantize(Decimal("0.01"))
+                if atr <= 0:
+                    atr = Decimal("0.01")
+
             upper, lower = GridCalculator.adjust_bounds_by_atr(
                 current_price, atr, self.config.atr_multiplier,
             )
