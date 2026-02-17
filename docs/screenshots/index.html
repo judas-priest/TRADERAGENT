@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADERAGENT — Web UI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #0d1117;
+            color: #e6edf3;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.6;
+        }
+
+        header {
+            background: linear-gradient(135deg, #161b22 0%, #1a1028 100%);
+            border-bottom: 1px solid #30363d;
+            padding: 2rem 0;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        header h1 span.trader { color: #a855f7; }
+        header h1 span.agent  { color: #e6edf3; }
+
+        header p {
+            color: #8b949e;
+            font-size: 1.1rem;
+        }
+
+        .badges {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.6rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge.react   { background: #1a3a4a; color: #61dafb; }
+        .badge.fastapi  { background: #1a2e1a; color: #009688; }
+        .badge.ts       { background: #1a2a3a; color: #3178c6; }
+        .badge.jwt      { background: #2a1a2a; color: #d63aff; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: #a855f7;
+        }
+
+        .card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .card-body {
+            padding: 1rem 1.25rem;
+        }
+
+        .card-body h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.3rem;
+            color: #e6edf3;
+        }
+
+        .card-body p {
+            font-size: 0.9rem;
+            color: #8b949e;
+        }
+
+        .card-body .tag {
+            display: inline-block;
+            margin-top: 0.5rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #1a2e1a;
+            color: #3fb950;
+        }
+
+        .card-body .tag.stub {
+            background: #2e1a1a;
+            color: #f85149;
+        }
+
+        /* Lightbox */
+        .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            cursor: zoom-out;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 95vw;
+            max-height: 95vh;
+            border-radius: 8px;
+            box-shadow: 0 0 60px rgba(168, 85, 247, 0.3);
+        }
+
+        .lightbox .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            color: #8b949e;
+            font-size: 2rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            line-height: 1;
+        }
+
+        .lightbox .close-btn:hover { color: #e6edf3; }
+
+        .lightbox .caption {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #8b949e;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: #484f58;
+            font-size: 0.85rem;
+            border-top: 1px solid #21262d;
+            margin-top: 2rem;
+        }
+
+        footer a { color: #a855f7; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            .gallery { grid-template-columns: 1fr; }
+            header h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1><span class="trader">TRADER</span><span class="agent">AGENT</span></h1>
+    <p>v2.0 Web Dashboard — 7 страниц, полная интеграция с ботом</p>
+    <div class="badges">
+        <span class="badge react">React + Vite</span>
+        <span class="badge ts">TypeScript</span>
+        <span class="badge fastapi">FastAPI</span>
+        <span class="badge jwt">JWT Auth</span>
+    </div>
+</header>
+
+<div class="container">
+    <div class="gallery">
+
+        <div class="card" onclick="openLightbox('01-login.png', 'Login — JWT-авторизация')">
+            <img src="01-login.png" alt="Login" loading="lazy">
+            <div class="card-body">
+                <h3>Login</h3>
+                <p>JWT-авторизация: bcrypt + refresh token rotation + DB sessions</p>
+                <span class="tag">REAL</span>
+            </div>
+        </div>
+
+        <div class="card" onclick="openLightbox('02-dashboard.png', 'Dashboard — панель управления')">
+            <img src="02-dashboard.png" alt="Dashboard" loading="lazy">
+            <div class="card-body">
+                <h3>Dashboard</h3>
+                <p>Active Bots, Total PNL, Total Trades, System Status, список ботов</p>
+                <span class="tag">REAL</span>
+            </div>
+        </div>
+
+        <div class="card" onclick="openLightbox('03-bots.png', 'Bots — управление ботами')">
+            <img src="03-bots.png" alt="Bots" loading="lazy">
+            <div class="card-body">
+                <h3>Bots</h3>
+                <p>Управление торговыми ботами: создание, запуск, остановка, конфигурация</p>
+                <span class="tag">REAL</span>
+            </div>
+        </div>
+
+        <div class="card" onclick="openLightbox('04-strategies.png', 'Strategies — маркетплейс стратегий')">
+            <img src="04-strategies.png" alt="Strategies" loading="lazy">
+            <div class="card-body">
+                <h3>Strategy Marketplace</h3>
+                <p>Grid, DCA, Trend Follower — выбор стратегии и шаблоны конфигурации</p>
+                <span class="tag">REAL</span>
+            </div>
+        </div>
+
+        <div class="card" onclick="openLightbox('05-portfolio.png', 'Portfolio — портфель')">
+            <img src="05-portfolio.png" alt="Portfolio" loading="lazy">
+            <div class="card-body">
+                <h3>Portfolio</h3>
+                <p>Total Balance, Realized / Unrealized PNL, Asset Allocation</p>
+                <span class="tag">REAL</span>
+            </div>
+        </div>
+
+        <div class="card" onclick="openLightbox('06-backtesting.png', 'Backtesting — бэктестинг')">
+            <img src="06-backtesting.png" alt="Backtesting" loading="lazy">
+            <div class="card-body">
+                <h3>Backtesting</h3>
+                <p>Запуск бэктеста: выбор стратегии, символа (BTCUSDT), таймфрейма</p>
+                <span class="tag">REAL</span>
+            </div>
+        </div>
+
+        <div class="card" onclick="openLightbox('07-settings.png', 'Settings — настройки')">
+            <img src="07-settings.png" alt="Settings" loading="lazy">
+            <div class="card-body">
+                <h3>Settings</h3>
+                <p>Профиль, уведомления (trade execution, errors, price alerts)</p>
+                <span class="tag">REAL</span>
+            </div>
+        </div>
+
+        <div class="card" onclick="openLightbox('08-settings-full.png', 'Settings — полная страница')">
+            <img src="08-settings-full.png" alt="Settings Full" loading="lazy">
+            <div class="card-body">
+                <h3>Settings (full)</h3>
+                <p>Exchange API Keys, System Configuration (ports, monitoring)</p>
+                <span class="tag">REAL</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="close-btn" onclick="closeLightbox()">&times;</button>
+    <img id="lightbox-img" src="" alt="">
+    <div class="caption" id="lightbox-caption"></div>
+</div>
+
+<footer>
+    <a href="https://github.com/alekseymavai/TRADERAGENT">github.com/alekseymavai/TRADERAGENT</a>
+    &nbsp;&middot;&nbsp; 390 commits &nbsp;&middot;&nbsp; 311 Python files &nbsp;&middot;&nbsp; 73,869 LOC
+    &nbsp;&middot;&nbsp; 532 tests passing
+</footer>
+
+<script>
+    function openLightbox(src, caption) {
+        const lb = document.getElementById('lightbox');
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox-caption').textContent = caption;
+        lb.classList.add('active');
+    }
+
+    function closeLightbox() {
+        document.getElementById('lightbox').classList.remove('active');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeLightbox();
+    });
+</script>
+
+</body>
+</html>
