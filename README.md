@@ -13,6 +13,7 @@ Autonomous trading bot for cryptocurrency exchanges supporting Grid Trading, DCA
 ## 📋 Table of Contents / Содержание
 
 - [Features / Возможности](#-features--возможности)
+- [Web UI / Веб-интерфейс](#web-ui--веб-интерфейс)
 - [Architecture / Архитектура](#️-architecture--архитектура)
 - [Quick Start / Быстрый старт](#-quick-start--быстрый-старт)
 - [Installation / Установка](#-installation--установка)
@@ -81,6 +82,41 @@ Autonomous trading bot for cryptocurrency exchanges supporting Grid Trading, DCA
 - Integration tests
 - Backtesting framework с реалистичной симуляцией
 - Testnet testing suite
+
+---
+
+## Web UI / Веб-интерфейс
+
+TRADERAGENT включает полноценный веб-интерфейс для управления ботами, стратегиями, портфелем и бэктестингом.
+
+**Stack:** React + TypeScript + Vite (Frontend) | FastAPI + JWT Auth (Backend)
+
+### Screenshots / Скриншоты
+
+| Login | Dashboard |
+|:-----:|:---------:|
+| ![Login](docs/screenshots/01-login.png) | ![Dashboard](docs/screenshots/02-dashboard.png) |
+
+| Bots | Strategies |
+|:----:|:----------:|
+| ![Bots](docs/screenshots/03-bots.png) | ![Strategies](docs/screenshots/04-strategies.png) |
+
+| Portfolio | Backtesting |
+|:---------:|:-----------:|
+| ![Portfolio](docs/screenshots/05-portfolio.png) | ![Backtesting](docs/screenshots/06-backtesting.png) |
+
+| Settings | Settings (full) |
+|:--------:|:---------------:|
+| ![Settings](docs/screenshots/07-settings.png) | ![Settings Full](docs/screenshots/08-settings-full.png) |
+
+**Pages / Страницы:**
+- **Login** — JWT-авторизация (bcrypt + refresh token rotation)
+- **Dashboard** — Active Bots, Total PNL, Total Trades, System Status
+- **Bots** — управление торговыми ботами
+- **Strategies** — маркетплейс стратегий (Grid, DCA, Trend Follower) + шаблоны
+- **Portfolio** — баланс, Realized/Unrealized PNL, Asset Allocation
+- **Backtesting** — запуск бэктестов (Grid) с выбором символа и таймфрейма
+- **Settings** — профиль, уведомления, Exchange API Keys, System Configuration
 
 ---
 
