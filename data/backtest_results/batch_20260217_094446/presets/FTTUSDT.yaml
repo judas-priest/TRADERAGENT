@@ -1,0 +1,17 @@
+symbol: FTTUSDT
+volatility_mode: custom
+grid_spacing: arithmetic
+num_levels: 20
+amount_per_grid: '100'
+profit_per_grid: '0.0055'
+atr_multiplier: '3.0'
+atr_period: 14
+risk:
+  grid_stop_loss_pct: '0.15'
+  max_drawdown_pct: '0.25'
+_backtest_metrics:
+  total_return_pct: -0.5392
+  sharpe_ratio: -2.8841
+  max_drawdown_pct: 0.01
+  completed_cycles: 22
+  profit_factor: .inf

@@ -1,0 +1,17 @@
+symbol: LINKUSDT
+volatility_mode: custom
+grid_spacing: geometric
+num_levels: 17
+amount_per_grid: '100'
+profit_per_grid: '0.008'
+atr_multiplier: '3.0'
+atr_period: 14
+risk:
+  grid_stop_loss_pct: '0.15'
+  max_drawdown_pct: '0.25'
+_backtest_metrics:
+  total_return_pct: 0.1767
+  sharpe_ratio: 13.8993
+  max_drawdown_pct: 0.0007
+  completed_cycles: 1
+  profit_factor: .inf

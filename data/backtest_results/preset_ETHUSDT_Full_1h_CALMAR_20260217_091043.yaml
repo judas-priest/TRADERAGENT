@@ -1,0 +1,17 @@
+symbol: ETHUSDT
+volatility_mode: custom
+grid_spacing: geometric
+num_levels: 20
+amount_per_grid: '100'
+profit_per_grid: '0.003'
+atr_multiplier: '3.0'
+atr_period: 14
+risk:
+  grid_stop_loss_pct: '0.20'
+  max_drawdown_pct: '0.25'
+_backtest_metrics:
+  total_return_pct: -2.0647
+  sharpe_ratio: -1.4765
+  max_drawdown_pct: 0.0287
+  completed_cycles: 28
+  profit_factor: .inf
