@@ -27,9 +27,15 @@ def create_app(bot_app=None) -> FastAPI:
             from bot.main import BotApplication
 
             _bot_app = BotApplication()
-            await _bot_app.initialize()
+            try:
+                await _bot_app.initialize()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "BotApplication init failed (web-only mode): %s", e
+                )
             app.state.db_manager = _bot_app.db_manager
-            app.state.orchestrators = _bot_app.orchestrators
+            app.state.orchestrators = getattr(_bot_app, "orchestrators", {})
             app.state.config_manager = _bot_app.config_manager
             app.state._bot_app = _bot_app
 
@@ -42,7 +48,28 @@ def create_app(bot_app=None) -> FastAPI:
             async with app.state.db_manager._engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
 
+        # Start Redis → WebSocket bridge
+        redis_bridge = None
+        try:
+            from web.backend.ws.events import RedisBridge
+            from web.backend.ws.router import manager as ws_manager
+
+            redis_bridge = RedisBridge(
+                redis_url=web_config.redis_url,
+                manager=ws_manager,
+            )
+            await redis_bridge.start()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                "RedisBridge start failed (WebSocket events disabled): %s", e
+            )
+
         yield
+
+        # Stop Redis bridge
+        if redis_bridge:
+            await redis_bridge.stop()
 
         # Cleanup standalone bot_app
         if not bot_app and hasattr(app.state, "_bot_app"):
