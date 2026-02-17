@@ -1,0 +1,887 @@
+# TRADERAGENT v2.0 — Architecture & Implementation Status
+
+**Updated:** 2026-02-17 | **Tests:** 1,884 collected, 1,859 passed (100%), 25 skipped | **Release:** v2.0.0 | **Demo Trading:** LIVE on Bybit | **Web UI:** COMPLETE | **State Persistence:** COMPLETE | **All Audit Bugs:** FIXED (12/12) | **Historical Data:** 45 pairs deployed to server
+
+> Legend: `[DONE]` — implemented & tested | `[IN PROGRESS]` — active work | `[TODO]` — not started
+
+---
+
+## System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph UI["<b>USER INTERFACE LAYER</b>"]
+        direction LR
+        TG["Telegram Bot<br/><i>bot/telegram/bot.py</i><br/>860 lines<br/><b>[DONE]</b>"]
+        WEBUI["Web UI Dashboard<br/><i>React + FastAPI + WebSocket</i><br/>42 API routes, 7 pages<br/><b>[DONE]</b>"]
+    end
+
+    subgraph ORCH["<b>ORCHESTRATION LAYER</b> — Phase 1"]
+        direction LR
+        BO["BotOrchestrator<br/><i>orchestrator/bot_orchestrator.py</i><br/>1,377 lines<br/><b>[DONE]</b>"]
+        SS["StrategySelector<br/><i>orchestrator/strategy_selector.py</i><br/>475 lines<br/><b>[DONE]</b>"]
+        MR["MarketRegime<br/><i>orchestrator/market_regime.py</i><br/><b>[DONE]</b>"]
+        SR["StrategyRegistry<br/><i>orchestrator/strategy_registry.py</i><br/><b>[DONE]</b>"]
+        EV["Events<br/><i>orchestrator/events.py</i><br/><b>[DONE]</b>"]
+        HM["HealthMonitor<br/><i>orchestrator/health_monitor.py</i><br/><b>[DONE]</b>"]
+        SP["StatePersistence<br/><i>orchestrator/state_persistence.py</i><br/>356 lines<br/><b>[DONE]</b>"]
+    end
+
+    subgraph STRAT["<b>STRATEGIES LAYER</b> — Phases 1-4"]
+        direction TB
+
+        subgraph GRID["Phase 2: Grid Trading"]
+            direction LR
+            GC["GridCalculator<br/>577 lines"]
+            GOM["GridOrderManager<br/>557 lines"]
+            GRM["GridRiskManager<br/>520 lines"]
+            GA["GridAdapter"]
+        end
+
+        subgraph DCA["Phase 3: DCA Engine"]
+            direction LR
+            DSG["DCASignalGenerator<br/>638 lines"]
+            DPM["DCAPositionManager<br/>678 lines"]
+            DRM["DCARiskManager<br/>610 lines"]
+            DE["DCAEngine<br/>440 lines"]
+            DTS["DCATrailingStop"]
+            DA["DCAAdapter"]
+        end
+
+        subgraph HYBRID["Phase 4: Hybrid"]
+            direction LR
+            HS["HybridStrategy<br/>456 lines"]
+            MRD["MarketRegimeDetector<br/>650 lines"]
+        end
+
+        subgraph SMC["SMC Strategy"]
+            direction LR
+            SMS["SMCStrategy<br/>323 lines"]
+            CZ["ConfluenceZones<br/>604 lines"]
+            ES["EntrySignals<br/>676 lines"]
+            MS["MarketStructure<br/>436 lines"]
+            SPM["PositionManager<br/>557 lines"]
+            SA["SMCAdapter"]
+        end
+
+        subgraph TF["Trend Follower"]
+            direction LR
+            TFS["TFStrategy<br/>468 lines"]
+            MA["MarketAnalyzer<br/>316 lines"]
+            EL["EntryLogic<br/>447 lines"]
+            TPM["PositionManager<br/>436 lines"]
+            TRM["RiskManager<br/>409 lines"]
+            TFA["TFAdapter"]
+        end
+
+        BS["BaseStrategy<br/><i>strategies/base.py</i><br/>329 lines"]
+    end
+
+    subgraph GRIDBT["<b>GRID BACKTESTING</b> — COMPLETE"]
+        direction LR
+        GBS["GridBacktestSimulator<br/><i>backtesting/grid/simulator.py</i><br/>415 lines"]
+        GBC["CoinClusterizer<br/><i>backtesting/grid/clusterizer.py</i><br/>157 lines"]
+        GBO["GridOptimizer<br/><i>backtesting/grid/optimizer.py</i><br/>393 lines"]
+        GBR["GridBacktestReporter<br/><i>backtesting/grid/reporter.py</i><br/>164 lines"]
+        GBSYS["GridBacktestSystem<br/><i>backtesting/grid/system.py</i><br/>250 lines"]
+    end
+
+    subgraph BATCHBT["<b>BATCH BACKTESTING PIPELINE</b> — IN PROGRESS"]
+        direction LR
+        BBSCRIPT["run_grid_backtest_all.py<br/><i>scripts/</i><br/>45 pairs × 10 TF<br/><b>[IN PROGRESS]</b>"]
+        BBDATA["Historical Data<br/><i>450 CSV, 5.4 GB</i><br/>Deployed to server<br/><b>[DONE]</b>"]
+    end
+
+    subgraph CORE["<b>CORE LAYER</b>"]
+        direction LR
+        GE["GridEngine<br/><i>core/grid_engine.py</i><br/><b>[DONE]</b>"]
+        DCE["DCAEngine<br/><i>core/dca_engine.py</i><br/><b>[DONE]</b>"]
+        RM["RiskManager<br/><i>core/risk_manager.py</i><br/><b>[DONE]</b>"]
+    end
+
+    subgraph INFRA["<b>INFRASTRUCTURE LAYER</b> — Phase 5"]
+        direction LR
+
+        subgraph EXCHANGE["Exchange API"]
+            EC["ExchangeClient<br/><i>api/exchange_client.py</i><br/>671 lines — CCXT"]
+            BD["BybitDirectClient<br/><i>api/bybit_direct_client.py</i><br/>~900 lines — Demo Trading"]
+        end
+
+        subgraph DB["Database"]
+            DBM["DatabaseManager<br/><i>database/manager.py</i><br/>450 lines"]
+            MOD["Models<br/><i>database/models.py</i>"]
+            MST["BotStateSnapshot<br/><i>database/models_state.py</i>"]
+            MIG["Migrations<br/><i>database/migrations.py</i>"]
+            BKP["Backup<br/><i>database/backup.py</i>"]
+        end
+
+        subgraph MON["Monitoring"]
+            ME["MetricsExporter<br/><i>monitoring/metrics_exporter.py</i><br/>252 lines"]
+            MC["MetricsCollector<br/><i>monitoring/metrics_collector.py</i>"]
+            AH["AlertHandler<br/><i>monitoring/alert_handler.py</i><br/>174 lines"]
+        end
+
+        subgraph CFG["Config"]
+            CM["ConfigManager<br/><i>config/manager.py</i>"]
+            CS["ConfigSchemas<br/><i>config/schemas.py</i>"]
+            CV["ConfigValidator<br/><i>utils/config_validator.py</i>"]
+        end
+
+        subgraph UTIL["Utils"]
+            LOG["Logger<br/><i>utils/logger.py</i>"]
+            CAP["CapitalManager<br/><i>utils/capital_manager.py</i>"]
+            SEC["SecurityAudit<br/><i>utils/security_audit.py</i>"]
+        end
+    end
+
+    subgraph WEBSTACK["<b>WEB UI LAYER</b> — COMPLETE"]
+        direction LR
+
+        subgraph WEBBACK["Backend (FastAPI)"]
+            WBA["Auth (JWT+bcrypt)<br/><i>web/backend/auth/</i>"]
+            WBR["REST API (42 routes)<br/><i>web/backend/api/v1/</i>"]
+            WBS["Services Layer<br/><i>web/backend/services/</i>"]
+            WBW["WebSocket<br/><i>web/backend/ws/</i>"]
+        end
+
+        subgraph WEBFRONT["Frontend (React)"]
+            WFP["7 Pages<br/><i>Dashboard, Bots, Strategies,<br/>Portfolio, Backtesting, Settings, Login</i>"]
+            WFC["11 Components<br/><i>Card, Button, Badge, Modal,<br/>Toast, Toggle, Skeleton, Spinner,<br/>ErrorBoundary, PageTransition</i>"]
+            WFS["Zustand Stores<br/><i>auth, bots, UI</i>"]
+        end
+
+        subgraph WEBDOCK["Docker"]
+            WDB["Backend Dockerfile<br/><i>FastAPI + uvicorn</i>"]
+            WDF["Frontend Dockerfile<br/><i>Node build → nginx</i>"]
+            WDN["nginx.conf<br/><i>SPA + API/WS proxy</i>"]
+        end
+    end
+
+    subgraph TEST["<b>TESTING LAYER</b> — 1,859/1,884 (100%)"]
+        direction LR
+
+        subgraph BTEST["Bot Tests: 385"]
+            UT1["Unit 175"]
+            UT2["Integration 76"]
+            UT3["Backtesting 134"]
+        end
+
+        subgraph STEST["Strategy Tests: 743"]
+            ST1["Grid+DCA+TF ~320"]
+            ST2["Hybrid+MRD 170"]
+            ST3["SMC 153"]
+        end
+
+        subgraph ITEST["Integration+Orch: 251"]
+            IT1["Integration 108"]
+            IT2["Orchestrator 143"]
+        end
+
+        subgraph DBTEST["Database: 84"]
+            DT1["Manager 78"]
+            DT2["State Model 6"]
+        end
+
+        subgraph APITEST["API+Telegram: 130"]
+            AT1["API 75"]
+            AT2["Telegram 55"]
+        end
+
+        subgraph WEBT["Web API: 46"]
+            WT1["Bots 15"]
+            WT2["Auth 12"]
+            WT3["Strat+Port+Settings 19"]
+        end
+
+        subgraph LOADT["Load/Stress: 40"]
+            LT1["API Load 9"]
+            LT2["WS+DB+Events 14"]
+            LT3["Multi-bot+Rate 9"]
+            LT4["Backtest+Mem 9"]
+        end
+
+        subgraph GBTESTS["Grid Backtesting: 39"]
+            GBT1["Simulator 14"]
+            GBT2["Clusterizer 12"]
+            GBT3["Optimizer+System 13"]
+        end
+    end
+
+    subgraph DEVOPS["<b>DEVOPS LAYER</b> — Phase 5"]
+        direction LR
+        DOC["Dockerfile<br/><b>[DONE]</b>"]
+        DC["docker-compose.yml<br/><i>bot + webui-backend + webui-frontend</i><br/><b>[DONE]</b>"]
+        DCM["docker-compose.monitoring.yml"]
+        PROM["Prometheus<br/><i>monitoring/prometheus/</i>"]
+        GRAF["Grafana<br/><i>monitoring/grafana/</i><br/>dashboard: traderagent.json"]
+        ALRT["AlertManager<br/><i>monitoring/alertmanager/</i>"]
+        VALD["validate_demo.py<br/><i>scripts/</i>"]
+        STRT["start_demo.sh<br/><i>scripts/</i>"]
+    end
+
+    subgraph SERVER["<b>PRODUCTION SERVER</b> — 185.233.200.13"]
+        direction LR
+        SBOT["Bot Container<br/><i>traderagent-bot</i><br/>Python 3.11, pandas, numpy"]
+        SPG["PostgreSQL 15<br/><i>traderagent-postgres</i>"]
+        SRD["Redis 7<br/><i>traderagent-redis</i>"]
+        SDATA["Historical Data<br/><i>450 CSV, 5.4 GB</i><br/>45 pairs × 10 TF"]
+    end
+
+    subgraph EXT["<b>EXTERNAL SERVICES</b>"]
+        direction LR
+        BYBIT["Bybit Exchange<br/><i>api-demo.bybit.com</i>"]
+        CCXTEX["CCXT (150+ exchanges)"]
+        PG["PostgreSQL"]
+        REDIS["Redis Pub/Sub"]
+        TGAPI["Telegram API"]
+    end
+
+    %% Connections
+    UI --> ORCH
+    TG --> TGAPI
+    WEBUI --> WEBSTACK
+    BO --> SS
+    BO --> SR
+    BO --> EV
+    BO --> HM
+    BO --> SP
+    SP --> DBM
+    SS --> MR
+    ORCH --> STRAT
+    BS --> GRID
+    BS --> DCA
+    BS --> HYBRID
+    BS --> SMC
+    BS --> TF
+    STRAT --> CORE
+    GRIDBT --> GRID
+    GBSYS --> GBS
+    GBSYS --> GBC
+    GBSYS --> GBO
+    GBSYS --> GBR
+    BATCHBT --> GBSYS
+    BBSCRIPT --> BBDATA
+    CORE --> INFRA
+    EC --> CCXTEX
+    EC --> BYBIT
+    BD --> BYBIT
+    DBM --> PG
+    EV --> REDIS
+    WBW --> REDIS
+    WBS --> BO
+    MON --> PROM
+    DEVOPS --> INFRA
+    TEST --> STRAT
+    TEST --> CORE
+    SBOT --> SDATA
+    SBOT --> SPG
+    SBOT --> SRD
+
+    %% Styling
+    classDef done fill:#27ae60,stroke:#1e8449,color:white
+    classDef todo fill:#e74c3c,stroke:#c0392b,color:white
+    classDef inprog fill:#f39c12,stroke:#e67e22,color:white
+    classDef ext fill:#3498db,stroke:#2980b9,color:white
+    classDef webui fill:#8e44ad,stroke:#6c3483,color:white
+    classDef server fill:#2c3e50,stroke:#1a252f,color:white
+
+    class TG,BO,SS,MR,SR,EV,HM,SP done
+    class GC,GOM,GRM,GA done
+    class DSG,DPM,DRM,DE,DTS,DA done
+    class HS,MRD done
+    class SMS,CZ,ES,MS,SPM,SA done
+    class TFS,MA,EL,TPM,TRM,TFA done
+    class BS,GE,DCE,RM done
+    class EC,BD,DBM,MOD,MST,MIG,BKP done
+    class CM,CS,CV,LOG,CAP,SEC done
+    class ME,MC,AH done
+    class DOC,DC,DCM,PROM,GRAF,ALRT,VALD,STRT done
+    class UT1,UT2,UT3 done
+    class ST1,ST2,ST3 done
+    class IT1,IT2 done
+    class DT1,DT2 done
+    class AT1,AT2 done
+    class WT1,WT2,WT3 done
+    class LT1,LT2,LT3,LT4 done
+    class GBT1,GBT2,GBT3 done
+    class GBS,GBC,GBO,GBR,GBSYS done
+    class BBDATA done
+    class BBSCRIPT inprog
+    class WEBUI,WBA,WBR,WBS,WBW,WFP,WFC,WFS,WDB,WDF,WDN webui
+    class BYBIT,CCXTEX,PG,REDIS,TGAPI ext
+    class SBOT,SPG,SRD,SDATA server
+```
+
+---
+
+## Implementation Status by Phase
+
+```
+Phase 1: Architecture Foundation      ██████████████████████████████ 100%
+Phase 2: Grid Trading Engine          ██████████████████████████████ 100%
+Phase 3: DCA Engine                   ██████████████████████████████ 100%
+Phase 4: Hybrid Strategy              ██████████████████████████████ 100%
+Phase 5: Infrastructure & DevOps      ██████████████████████████████ 100%
+Phase 6: Advanced Backtesting         ██████████████████████████████ 100%
+Phase 7.1-7.2: Unit & Integration     ██████████████████████████████ 100%
+Phase 7.3: Demo Trading (Bybit)       ██████████████████████████████ 100%  DEPLOYED
+Phase 7.4: Load/Stress Testing        ██████████████████████████████ 100%  COMPLETE
+Phase 8: Production Readiness         ██████████████████████████████ 100%  12/12 BUGS FIXED
+Web UI Dashboard                      ██████████████████████████████ 100%  COMPLETE
+Grid Backtesting System               ██████████████████████████████ 100%  COMPLETE
+State Persistence                     ██████████████████████████████ 100%  COMPLETE
+Full Test Audit                       ██████████████████████████████ 100%  1,884 tests
+Historical Data Deployment            ██████████████████████████████ 100%  450 CSV → server
+Batch Grid Backtesting (45 pairs)     ████████████████░░░░░░░░░░░░░░  50%  IN PROGRESS
+```
+
+---
+
+## Historical Data & Batch Backtesting Infrastructure
+
+### Data Overview
+
+**Source:** Downloaded from Bybit API, stored at `/home/hive/btc/data/historical/`
+**Deployed to:** `185.233.200.13:/home/ai-agent/TRADERAGENT/data/historical/`
+
+| Parameter | Value |
+|-----------|-------|
+| Pairs | 45 USDT perpetual futures |
+| Timeframes | 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d |
+| Files | 450 CSV |
+| Total size | 5.4 GB |
+| BTC/ETH depth | ~74,000 candles (1h) ≈ 8.5 years |
+| Min depth (HNT) | ~18,000 candles (1h) ≈ 2 years |
+
+### 45 Trading Pairs
+
+| Cluster | Pairs |
+|---------|-------|
+| Blue Chips | BTC, ETH, BNB, SOL |
+| Mid Caps | ADA, AVAX, DOT, LINK, LTC, UNI, AAVE, ALGO, ATOM, ETC, FIL, ICP, MATIC, XRP, XLM |
+| High Vol | 1INCH, BAT, BCH, CHZ, COMP, CRV, DOGE, EOS, FTM, FTT, HBAR, HNT, KSM, LDO, LUNA, MANA, RUNE, SAND, SHIB, SNX, SUSHI, TRX, WAVES, XEM, YFI, ZIL, ZRX |
+
+### Size Breakdown by Timeframe
+
+| Timeframe | Files | Size | Candles per file (avg) |
+|-----------|-------|------|----------------------|
+| 5m | 45 | 3.2 GB | ~530K |
+| 15m | 45 | 1.1 GB | ~180K |
+| 30m | 45 | 557 MB | ~90K |
+| 1h | 45 | 282 MB | ~53K |
+| 2h | 45 | 143 MB | ~27K |
+| 4h | 45 | 73 MB | ~13K |
+| 6h | 45 | 49 MB | ~9K |
+| 8h | 45 | 37 MB | ~7K |
+| 12h | 45 | 25 MB | ~4.5K |
+| 1d | 45 | 12 MB | ~2.5K |
+
+### CSV Format
+
+```csv
+Open time,open,high,low,close,volume,Close time,Quote asset volume,Number of trades,Taker buy base asset volume,Taker buy quote asset volume,Ignore
+2017-08-17 04:00:00,4261.48,4313.62,4261.32,4308.83,47.181009,2017-08-17 04:59:59.999,202366.13839304,171,35.160503,150952.47794304,0
+```
+
+Compatible with Grid Backtesting System — uses columns: `open, high, low, close, volume`.
+
+### Batch Backtesting Pipeline
+
+**Script:** `scripts/run_grid_backtest_all.py`
+
+```
+Input: 45 CSV files (1h timeframe, last 4320 candles = 6 months)
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│  For each symbol (sequential):          │
+│                                         │
+│  1. Load CSV → pandas DataFrame         │
+│  2. CoinClusterizer → classify          │
+│     (STABLE / BLUE_CHIPS / MID_CAPS /   │
+│      MEMES)                             │
+│  3. GridOptimizer → coarse→fine search  │
+│     (objectives: SHARPE/ROI/CALMAR)     │
+│  4. Stress test → volatile sub-periods  │
+│  5. Export preset (YAML)                │
+│  6. gc.collect() → free memory          │
+│                                         │
+└─────────────────────────────────────────┘
+         │
+         ▼
+Output:  data/backtest_results/batch_<timestamp>/
+         ├── summary.csv           (all 45 pairs ranked)
+         ├── <SYMBOL>_report.json  (per-symbol details)
+         └── presets/
+             └── <SYMBOL>.yaml     (bot-ready presets)
+```
+
+**CLI Arguments:**
+```bash
+python scripts/run_grid_backtest_all.py \
+  --data-dir /app/data/historical \
+  --output-dir /app/data/backtest_results \
+  --symbols BTC,ETH,SOL \
+  --last-candles 4320 \
+  --objective sharpe \
+  --coarse-steps 3 \
+  --fine-steps 3
+```
+
+**Docker Execution (on server):**
+```bash
+docker run --rm \
+  -v ~/TRADERAGENT/bot:/app/bot:ro \
+  -v ~/TRADERAGENT/data:/app/data \
+  -v ~/TRADERAGENT/scripts:/app/scripts:ro \
+  traderagent-bot \
+  python /app/scripts/run_grid_backtest_all.py \
+    --data-dir /app/data/historical \
+    --output-dir /app/data/backtest_results
+```
+
+### Preliminary Results (3 pairs, local)
+
+| Pair | Cluster | Opt Trials | ROI | Sharpe | Max DD | Cycles | Risk Stop |
+|------|---------|-----------|-----|--------|--------|--------|-----------|
+| ETH/USDT | blue_chips | 52 | -0.12% | -0.39 | 0.59% | 42 | Yes |
+| BTC/USDT | stable | 32 | -2.93% | -1.50 | 5.51% | 21 | Yes |
+| **SOL/USDT** | blue_chips | 56 | **+0.73%** | **+15.73** | 0.17% | 17 | No |
+
+Time: 59.2s for 3 pairs. Estimated for 45 pairs on server: ~30-45 min.
+
+### Server Resource Assessment
+
+| Resource | Value | Assessment |
+|----------|-------|------------|
+| Disk | 40 GB free (17/56 used) | OK |
+| RAM | 1.9 GB total, 1.4 GB available | LIMITED — sequential processing only |
+| Swap | None | Risk of OOM — fallback: reduce --last-candles |
+| CPU | 4× Xeon E5-2670 v3 @ 2.3 GHz | Slow but sufficient |
+| Docker | traderagent-bot image (pandas 3.0, numpy 2.4) | OK |
+| PostgreSQL | Running, healthy | OK |
+| Redis | Running, healthy | OK |
+
+---
+
+## State Persistence Architecture
+
+### Overview
+
+Trading state (positions, orders, grid levels, DCA steps, risk counters) is persisted to PostgreSQL every 30 seconds and on shutdown. On restart, the bot loads its last state and reconciles with the exchange.
+
+### Components
+
+```
+bot/orchestrator/state_persistence.py  — Serialize/deserialize all engines (356 lines)
+bot/database/models_state.py           — BotStateSnapshot SQLAlchemy model
+bot/database/manager.py                — save/load/delete_state_snapshot methods
+```
+
+### Lifecycle
+
+```
+initialize() ──→ load_state() ──→ DB: SELECT bot_state_snapshots WHERE bot_name=?
+                                     │
+start() ──→ if state loaded ──→ reconcile_with_exchange()
+             else ──→ fresh grid init                │
+                                                     ├── Grid: fetch_open_orders(), check filled vs orphaned
+                                                     └── Risk: fetch_balance(), update_balance()
+                                                         │
+_main_loop() ──→ every 30s ──→ save_state() ──→ DB: UPSERT bot_state_snapshots
+                                                         │
+stop() / emergency_stop() ──→ save_state() ──→ DB: UPSERT (final state)
+                                                         │
+reset_state() ──→ DB: DELETE bot_state_snapshots WHERE bot_name=?
+```
+
+### Serialized State per Engine
+
+| Engine | Fields Persisted |
+|--------|-----------------|
+| Grid | active_orders (level, price, amount, side, filled), total_profit, buy_count, sell_count |
+| DCA | position (symbol, entry, amount, step, cost, avg_price), last_buy_price, highest_price, total_steps, invested, realized_profit |
+| Risk | initial/current/peak balance, daily_loss, is_halted, halt_reason, trade counters |
+| Trend | current_capital, consecutive_losses, daily_pnl, daily_trades |
+| Hybrid | mode, mode_since, last_transition, transition counters, regime detector state |
+
+---
+
+## Web UI Dashboard Architecture
+
+### Backend (FastAPI) — 42 REST API Routes + WebSocket
+
+```
+web/backend/
+├── app.py              # Factory + lifespan (shared process with BotApplication)
+├── main.py             # uvicorn web.backend.main:app
+├── config.py           # pydantic-settings (JWT_SECRET, CORS, ports)
+├── dependencies.py     # get_db, get_current_user, get_orchestrators
+├── auth/
+│   ├── models.py       # User, UserSession (SQLAlchemy, extends Base)
+│   ├── schemas.py      # LoginRequest, TokenResponse, UserResponse
+│   ├── service.py      # JWT (python-jose), bcrypt, refresh tokens
+│   └── router.py       # /api/v1/auth/* (register, login, refresh, logout, me)
+├── api/v1/
+│   ├── router.py       # Aggregate v1 router
+│   ├── bots.py         # CRUD + start/stop/pause/resume/emergency-stop
+│   ├── strategies.py   # Templates marketplace + copy-trading (DB-persisted)
+│   ├── portfolio.py    # Summary, allocation, drawdown, trades
+│   ├── backtesting.py  # Real GridBacktestSimulator (online OHLCV + offline fallback)
+│   ├── market.py       # Ticker, OHLCV (wraps ExchangeAPIClient)
+│   ├── dashboard.py    # Aggregated overview
+│   └── settings.py     # Reads from config_manager with fallback
+├── ws/
+│   ├── manager.py      # ConnectionManager (per-channel fan-out, heartbeat)
+│   ├── events.py       # RedisBridge (Pub/Sub → WebSocket)
+│   └── router.py       # /ws/events, /ws/bots/{name}
+├── schemas/            # Pydantic request/response models
+└── services/
+    └── bot_service.py  # BotOrchestrator bridge layer (async)
+```
+
+### Frontend (React 19 + TypeScript + Tailwind CSS v4)
+
+```
+web/frontend/src/
+├── api/                # Axios client (JWT interceptor + auto-refresh), auth, bots, websocket
+├── stores/             # Zustand: authStore, botStore, uiStore
+├── components/
+│   ├── layout/         # AppLayout, Sidebar (responsive), Header (hamburger)
+│   ├── common/         # Card, Button, Badge, Modal, Toast, Toggle, Skeleton,
+│   │                   # Spinner, ErrorBoundary, PageTransition
+│   └── bots/           # BotCard (Framer Motion animated)
+├── pages/              # Dashboard, Bots, Strategies, Portfolio, Backtesting, Settings, Login
+├── router/             # ProtectedRoute, createBrowserRouter
+└── styles/             # globals.css (Tailwind + Veles theme tokens), theme.ts
+```
+
+**Design tokens (Veles-inspired):** `#0d1117` bg, `#161b22` surface, `#640075` primary, `#3fb950` profit, `#f85149` loss, `#007aff` blue, `#ed800d` orange
+
+**Docker:** `webui-backend` (:8000, FastAPI/uvicorn) + `webui-frontend` (:3000, nginx serving React build with API/WS proxy)
+
+**PR:** https://github.com/alekseymavai/TRADERAGENT/pull/221 (merged)
+
+---
+
+## Phase 7.3 — Demo Trading Details
+
+**Deployed:** 2026-02-16 on `185.233.200.13` (Docker)
+**Exchange:** `api-demo.bybit.com` (Bybit Demo Trading, production API keys)
+**Balance:** 100,000 USDT (virtual)
+
+| Bot | Symbol | Strategy | Amount/Order | Status |
+|-----|--------|----------|-------------|--------|
+| demo_btc_hybrid | BTC/USDT | Hybrid (Grid+DCA) | $150 (~0.002 BTC) | auto_start, orders placed & filled |
+| demo_eth_grid | ETH/USDT | Grid | $30/grid | manual start |
+| demo_sol_dca | SOL/USDT | DCA | $20/step | manual start |
+| demo_btc_trend | BTC/USDT | Trend Follower | ATR-based | manual start |
+
+**Key architectural decision:** CCXT `set_sandbox_mode(True)` routes to `testnet.bybit.com` (wrong endpoint, separate keys). `ByBitDirectClient` connects directly to `api-demo.bybit.com` using production API keys.
+
+**Bugs fixed during deployment:**
+- `KeyError: 'take_profit_hit'` → `tp_triggered` (DCA engine key mismatch)
+- Grid qty=0 (USD→BTC conversion rounding to 0.000 with `Decimal("0.001")`)
+- Bybit "Qty invalid" (qty precision must match instrument's `basePrecision`)
+- Telegram Markdown parse errors (added plain-text fallback)
+
+---
+
+## Phase 7.4 — Load/Stress Testing Details
+
+**Completed:** 2026-02-16 | **Tests:** 40/40 passed | **Commit:** `ef251fb`
+
+All tests run WITHOUT external services (in-memory SQLite, mock WebSocket, mock exchange).
+
+```
+tests/loadtest/
+├── conftest.py                  # Shared fixtures (SQLite, mock orchestrators, FastAPI app, auth)
+├── test_api_load.py             # 9 tests — REST API under concurrent load (50-500 requests)
+├── test_websocket_stress.py     # 5 tests — ConnectionManager fan-out (100-500 connections)
+├── test_database_pool.py        # 5 tests — Concurrent DB reads/writes (50-500 operations)
+├── test_event_throughput.py     # 4 tests — Event create/serialize/broadcast (10K-100K)
+├── test_orchestrator_multi.py   # 5 tests — Multi-bot StrategyRegistry lifecycle (100 strategies)
+├── test_exchange_ratelimit.py   # 4 tests — Adaptive rate limiter (backoff/recovery)
+├── test_backtest_load.py        # 4 tests — Async job submissions + semaphore(2) verification
+└── test_memory_profiling.py     # 5 tests — tracemalloc leak detection (50K events, 5K OHLCV)
+```
+
+### Performance Benchmarks
+
+| Component | Metric | Result |
+|-----------|--------|--------|
+| REST API (/health) | 500 concurrent requests | 1,599 req/s |
+| REST API (mixed endpoints) | 100 concurrent requests | 236 req/s |
+| REST API (sequential) | 200 requests throughput | 111 req/s |
+| WebSocket broadcast | 100 subscribers x 1000 messages | 15,826 sends/s |
+| WebSocket channel fanout | 50 channels x 10 subscribers x 100 messages | 50,000 sends |
+| Database writes (sequential) | 500 orders in single session | 921 writes/s |
+| Database writes (concurrent) | 50 concurrent order inserts | 714 writes/s |
+| Database queries | 50 concurrent bot lookups | 828 queries/s |
+| Event creation + serialization | 10,000 TradingEvent objects | 39,842/s |
+| Event deserialization | 10,000 JSON strings | 114,226/s |
+| Strategy lifecycle | 100 strategies register+start+stop | < 2s |
+| Memory (50K events) | Peak memory for 50,000 events | < 100 MB |
+| Memory (position lifecycle) | 500 open+close cycles | No leaks |
+
+---
+
+## Grid Backtesting System Details
+
+**Completed:** 2026-02-16 | **Tests:** 39/39 passed | **Commit:** `bb31467`
+
+Grid-specific backtesting system with coin clustering, two-phase parameter optimization, stress testing, and preset export.
+
+```
+bot/backtesting/grid/
+├── __init__.py          # Re-exports all public classes
+├── models.py            # GridBacktestConfig, GridBacktestResult, enums (268 lines)
+├── simulator.py         # GridBacktestSimulator — core simulation loop (415 lines)
+├── clusterizer.py       # CoinClusterizer — ATR%/volume classification (157 lines)
+├── optimizer.py         # GridOptimizer — coarse→fine search (393 lines)
+├── reporter.py          # Reports + JSON/YAML preset export (164 lines)
+└── system.py            # End-to-end pipeline orchestrator (250 lines)
+
+tests/backtesting/grid/
+├── test_simulator.py    # 14 tests — simulation, directions, risk, fees
+├── test_clusterizer.py  # 12 tests — coin classification per cluster
+├── test_optimizer.py    #  6 tests — optimization, objectives, param impact
+└── test_system.py       #  7 tests — e2e pipeline, stress testing, export
+```
+
+### Architecture
+
+**Component composition pattern** — `GridBacktestSimulator` composes existing production components:
+- `GridCalculator` — grid level calculation (arithmetic/geometric), ATR
+- `GridOrderManager` — order state, counter-orders, cycle tracking
+- `MarketSimulator` — order execution, fees, balance tracking
+- `GridRiskManager` — stop-loss, max drawdown, trend detection
+
+### Pipeline: classify → optimize → stress test → report
+
+1. **CoinClusterizer** classifies coins by ATR%, volume, max gap into clusters:
+   - `STABLE` (ATR% < 0.5%) — arithmetic only, 20-30 levels, profit 0.1-0.3%
+   - `BLUE_CHIPS` (ATR% < 2.0%) — arithmetic/geometric, 10-20 levels, profit 0.3-0.8%
+   - `MID_CAPS` (ATR% < 5.0%) — arithmetic/geometric, 8-15 levels, profit 0.5-1.5%
+   - `MEMES` (ATR% >= 5.0%) — geometric only, 5-10 levels, profit 1-3%
+
+2. **GridOptimizer** runs two-phase search:
+   - Coarse: Cartesian product over cluster preset ranges
+   - Fine: ±2 levels, ±30% profit around best result
+   - Objectives: ROI, Sharpe, Calmar, Profit Factor
+
+3. **Stress testing** auto-detects volatile periods using rolling range, runs backtests on non-overlapping sub-periods
+
+4. **Preset export** generates JSON/YAML compatible with `GridStrategyConfig.from_yaml()` for live bot deployment
+
+---
+
+## Phase 8 — Audit Bug Fixes (12/12 FIXED)
+
+All 12 issues from the Session 8 codebase audit have been resolved:
+
+| Issue | Title | Commit |
+|-------|-------|--------|
+| #226 | Fix 6 AttributeError crashes in BotOrchestrator | `5cf8f71` |
+| #227 | Fix BotService async/sync mismatch and field name mismatches | `bdb0551` |
+| #228 | Fix Market API attribute name (exchange_client → exchange) | `842072f` |
+| #229 | Activate WebSocket RedisBridge in app.py lifespan | `93facee` |
+| #230 | Grid fill detection treats cancelled orders as filled | `7dab5d8` |
+| #231 | DCA engine state advances before exchange order confirmation | `7dab5d8` |
+| #232 | Add daily_loss automatic reset mechanism | `7dab5d8` |
+| #233 | Cache balance to avoid 3+ API calls per loop iteration | `7dab5d8` |
+| #234 | Replace backtesting API placeholder with real BacktestingEngine | `2524fdf` |
+| #235 | Replace Settings API hardcoded values with real config | `2524fdf` |
+| #236 | Persist strategy templates to database | `2524fdf` |
+| #237 | Add state persistence for positions/orders and startup reconciliation | `a0f97ce` |
+
+---
+
+## Test Results Summary
+
+### Total: 1,884 collected, 1,859 passed (100%), 25 skipped
+
+Real test count confirmed by full audit (Session 8). Previously documented as 510.
+
+| Directory | Tests | What it tests |
+|-----------|-------|--------------|
+| tests/strategies/ | 743 | Grid, DCA, Hybrid, Trend Follower, SMC strategies |
+| bot/tests/ | 385 | Unit tests core (monitoring, risk, orchestrator, config, events) |
+| tests/orchestrator/ | 143 | BotOrchestrator lifecycle, state persistence |
+| tests/ (root) | 139 | AlertHandler, MetricsExporter, additional unit tests |
+| tests/integration/ | 108 | Trend Follower integration, E2E, orchestration |
+| tests/database/ | 84 | DatabaseManager, models, state snapshots |
+| tests/api/ | 75 | REST API endpoints, ExchangeAPIClient |
+| tests/telegram/ | 55 | Telegram bot, notifications, commands |
+| tests/web/ | 46 | Web UI Dashboard API (auth, bots, strategies, portfolio, settings) |
+| tests/loadtest/ | 40 | Load tests (API, WS, DB, events, memory) |
+| tests/backtesting/ | 39 | Grid Backtesting (simulator, clusterizer, optimizer, system) |
+| tests/testnet/ | 27 | Testnet tests (excluded from CI) |
+| **Total** | **1,884** | |
+
+---
+
+## File Statistics
+
+| Layer | Files | Total Lines | Status |
+|-------|-------|-------------|--------|
+| Orchestrator | 7 | ~3,900 | DONE |
+| Strategies (Grid) | 4 | ~1,750 | DONE |
+| Strategies (DCA) | 7 | ~3,200 | DONE |
+| Strategies (Hybrid) | 4 | ~1,200 | DONE |
+| Strategies (SMC) | 6 | ~2,650 | DONE |
+| Strategies (TF) | 7 | ~2,500 | DONE |
+| Core (engines) | 3 | ~1,500 | DONE |
+| API (exchange) | 3 | ~1,600 | DONE |
+| Database | 6 | ~1,600 | DONE |
+| Config | 3 | ~1,000 | DONE |
+| Telegram | 1 | ~860 | DONE |
+| Monitoring | 3 | ~600 | DONE |
+| Utils | 4 | ~800 | DONE |
+| Web UI (backend) | ~20 | ~2,500 | DONE |
+| Web UI (frontend) | ~33 | ~1,500 | DONE |
+| Grid Backtesting | 8 | ~1,700 | DONE |
+| Batch Scripts | 3 | ~650 | DONE |
+| **Tests** | **100+** | **~25,000** | **1,884 collected** |
+| DevOps (Docker/Monitoring) | 10 | ~700 | DONE |
+
+**Total: 261+ Python files (~68,000 LOC) + 33 TypeScript files (1,506 LOC)**
+
+## Component Dependency Map
+
+```mermaid
+graph LR
+    subgraph "Strategy Selection Flow"
+        MARKET[/"Market Data"/] --> MRD["MarketRegimeDetector"]
+        MRD -->|"sideways"| GRID["GridStrategy"]
+        MRD -->|"downtrend"| DCA["DCAStrategy"]
+        MRD -->|"uptrend"| TF["TrendFollower"]
+        MRD -->|"high volatility"| SMC["SMCStrategy"]
+        MRD -->|"mixed"| HYB["HybridStrategy"]
+    end
+
+    subgraph "Order Execution Flow"
+        GRID --> RM["RiskManager"]
+        DCA --> RM
+        TF --> RM
+        SMC --> RM
+        HYB --> RM
+        RM -->|"approved"| EC["ExchangeClient"]
+        RM -->|"rejected"| HALT["Trading Halted"]
+        EC --> BYBIT["Bybit / Exchange"]
+    end
+
+    subgraph "Data Flow"
+        BYBIT -->|"OHLCV, Orders, Balance"| EC
+        EC --> BO["BotOrchestrator"]
+        BO -->|"events"| REDIS["Redis Pub/Sub"]
+        BO -->|"state snapshots"| DB["PostgreSQL"]
+        BO -->|"notify"| TG["Telegram"]
+        BO -->|"metrics"| PROM["Prometheus"]
+    end
+
+    subgraph "State Persistence Flow"
+        BO -->|"every 30s + on stop"| SP["StatePersistence"]
+        SP -->|"serialize engines"| DB
+        DB -->|"load on startup"| SP
+        SP -->|"restore engines"| BO
+        BO -->|"reconcile"| EC
+    end
+
+    subgraph "Web UI Flow"
+        BROWSER["Browser"] -->|"HTTP/WS"| NGINX["nginx :3000"]
+        NGINX -->|"/api/*"| FAPI["FastAPI :8000"]
+        NGINX -->|"/ws/*"| FAPI
+        FAPI -->|"JWT auth"| FAPI
+        FAPI -->|"service layer"| BO
+        REDIS -->|"Pub/Sub"| WSM["WS Manager"]
+        WSM -->|"fan-out"| BROWSER
+    end
+
+    subgraph "Backtesting Flow"
+        HIST[/"Historical Data<br/>450 CSV, 5.4 GB"/] --> BATCH["Batch Pipeline"]
+        BATCH --> CLUST["CoinClusterizer"]
+        CLUST --> OPT["GridOptimizer"]
+        OPT --> STRESS["Stress Tests"]
+        STRESS --> PRESET[/"YAML Presets"/]
+        PRESET --> BO
+    end
+
+    subgraph "Demo Trading (Phase 7.3)"
+        BD["ByBitDirectClient"] -->|"api-demo.bybit.com"| BYDEMO["Bybit Demo"]
+        BO -->|"sandbox=true"| BD
+    end
+
+    classDef done fill:#27ae60,stroke:#1e8449,color:white
+    classDef ext fill:#3498db,stroke:#2980b9,color:white
+    classDef demo fill:#8e44ad,stroke:#6c3483,color:white
+    classDef web fill:#8e44ad,stroke:#6c3483,color:white
+    classDef data fill:#f39c12,stroke:#e67e22,color:white
+    class GRID,DCA,TF,SMC,HYB,RM,EC,BO,MRD,SP done
+    class BYBIT,REDIS,DB,TG,PROM ext
+    class BD,BYDEMO demo
+    class BROWSER,NGINX,FAPI,WSM web
+    class HIST,BATCH,CLUST,OPT,STRESS,PRESET data
+```
+
+## Remaining Work (Priority Order)
+
+### HIGH — ACTIVE
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. Batch Grid Backtesting (45 pairs)               🟡    │
+│     ├── Run on server via Docker                           │
+│     ├── Analyze results by cluster (STABLE/BLUE/MID/MEME) │
+│     ├── Select best presets per pair                       │
+│     └── Deploy presets to main bot                         │
+│                                                             │
+│  2. Grid Backtesting → Web UI Integration           🟡    │
+│     ├── Replace _run_backtest_sync() stub                  │
+│     ├── Connect to HistoricalDataProvider                  │
+│     └── Strategy dispatcher (Grid/DCA/TF routing)          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### MEDIUM — ROADMAP v2.0
+```
+┌─────────────────────────────────────────────────────────────┐
+│  3. Backtest Results Visualization (#144)             🟡    │
+│     └── Equity curves, trade markers, drawdown charts       │
+│                                                             │
+│  4. Web UI Enhancements                              🟡    │
+│     ├── Lightweight-charts (equity curves, price charts)    │
+│     ├── Alembic migrations (users, sessions, templates)     │
+│     ├── Full bot creation/edit forms                        │
+│     └── Portfolio history endpoints (replace stubs)         │
+│                                                             │
+│  5. Phase 8: Production Launch                       🟡    │
+│     ├── Security audit                                      │
+│     └── Gradual capital 5% → 25% → 100%                   │
+│                                                             │
+│  6. TradingView Integration (#97)                    🟡    │
+│     └── Automated chart data collection                     │
+│                                                             │
+│  7. Multi-Account Support                            🔴    │
+│  8. Enhanced Reporting (PDF, email, tax)             🔴    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### COMPLETED
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Phase 1-4 — All strategies (Grid, DCA, Hybrid, TF, SMC)   │
+│  Phase 5 — Monitoring (Prometheus, Grafana, Alerts)         │
+│  Phase 6 — Advanced Backtesting (multi-TF, analytics)       │
+│  Phase 7.1-7.2 — Unit & Integration tests                   │
+│  Phase 7.3 — Demo Trading on Bybit (DEPLOYED)               │
+│  Phase 7.4 — Load/Stress Testing (40 tests)                 │
+│  Phase 8 — Production Readiness (12/12 audit bugs fixed)    │
+│  State Persistence — PostgreSQL snapshots + reconciliation   │
+│  Web UI Dashboard — 42 routes, 7 pages, JWT auth            │
+│  Grid Backtesting System — 39 tests                          │
+│  Full Test Audit — 1,884 tests (corrected from 510)         │
+│  Historical Data — 450 CSVs (5.4 GB) deployed to server     │
+│                                                              │
+│  Total: 1,884 tests, 261+ Python files, ~68K LOC            │
+└─────────────────────────────────────────────────────────────┘
+```
