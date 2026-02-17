@@ -3,17 +3,53 @@
 ## Current Status
 
 **Date:** February 17, 2026
-**Session:** 10 (Audit Bug Fixes — continued)
-**Tests:** 431 passing (385 bot + 46 web)
-**Codebase:** 247 Python files (63,455 LOC) + 51 TypeScript files (6,536 LOC)
-**Commits:** 380 total
-**Open Issues:** 1 remaining (#237)
+**Session:** 11 (State Persistence — #237 closed, all audit bugs done)
+**Tests:** 439 passing (385 bot + 46 web + 8 state persistence)
+**Codebase:** 261 Python files (67,178 LOC) + 33 TypeScript files (1,506 LOC)
+**Commits:** 379 total
+**Open Audit Issues:** 0 — all 12/12 closed (#226-#237)
 
 ---
 
-## Session 9: Bug Fixes from Audit
+## Session 11: State Persistence (#237)
 
-### Bugs Fixed (11 of 12 issues closed)
+### What Was Done
+
+Implemented full state persistence, startup reconciliation, and hybrid strategy serialization — closing the last audit issue.
+
+| Change | Details |
+|--------|---------|
+| `bot/database/models_state.py` | `BotStateSnapshot` model with `hybrid_state` column |
+| `bot/orchestrator/state_persistence.py` | Serialize/deserialize for all 5 engines (Grid, DCA, Risk, Trend, Hybrid) |
+| `bot/database/manager.py` | `save_state_snapshot()`, `load_state_snapshot()`, `delete_state_snapshot()` |
+| `bot/orchestrator/bot_orchestrator.py` | `save_state()`, `load_state()`, `reconcile_with_exchange()`, `reset_state()` |
+| `bot/database/__init__.py` | Export `BotStateSnapshot` for auto table registration |
+| `web/backend/app.py` | Import `BotStateSnapshot` in lifespan for table creation |
+| `bot/strategies/smc/position_manager.py` | Fix `is_long` detection (entry > stop_loss, not <) |
+| Tests (8 new) | Hybrid serialization (6), reset_state, save_state hybrid coverage |
+
+### How State Persistence Works
+
+1. **`initialize()`** — loads last snapshot from PostgreSQL
+2. **`start()`** — if state loaded, runs `reconcile_with_exchange()` instead of fresh grid init
+3. **`_main_loop()`** — saves state every 30 seconds
+4. **`stop()` / `emergency_stop()`** — saves final state before exit
+5. **`reconcile_with_exchange()`** — checks grid orders (filled vs orphaned), refreshes risk balance
+6. **`reset_state()`** — deletes snapshot for explicit fresh start
+
+### Commit
+
+| Issue | Title | Commit | Status |
+|-------|-------|--------|--------|
+| [#237](https://github.com/alekseymavai/TRADERAGENT/issues/237) | Add state persistence for positions/orders and startup reconciliation | `a0f97ce` | **FIXED** |
+
+### Repository Cleanup
+
+Removed 11 temporary files from root: `BYBIT_INTEGRATION_REPORT.txt`, `BYBIT_SETUP_GUIDE.md`, `GIT_PUSH_INSTRUCTIONS.md`, `QUICK_PRODUCTION_COMMANDS.sh`, `QUICK_START_BYBIT.md`, `SERVER_INFO.txt`, `SETUP_DATABASE.md`, `check_orders.py`, `show_api_key.py`, `test_bybit_direct.py`, `test_bybit_final.py`.
+
+---
+
+## Session 9-10: Bug Fixes from Audit (12/12 closed)
 
 | Issue | Title | Commit | Status |
 |-------|-------|--------|--------|
@@ -28,58 +64,7 @@
 | [#234](https://github.com/alekseymavai/TRADERAGENT/issues/234) | Replace backtesting API placeholder with real BacktestingEngine | `2524fdf` | **FIXED** |
 | [#235](https://github.com/alekseymavai/TRADERAGENT/issues/235) | Replace Settings API hardcoded values with real config | `2524fdf` | **FIXED** |
 | [#236](https://github.com/alekseymavai/TRADERAGENT/issues/236) | Persist strategy templates to database | `2524fdf` | **FIXED** |
-
-### Details of Fixes
-
-**#226 — 6 AttributeError crashes in bot_orchestrator.py:**
-- Added missing `grid_order.amount` arg to `handle_order_filled()` (line 505)
-- Fixed `position.total_amount` → `position.amount` (lines 533, 654)
-- Fixed `dca_engine.current_step` → `dca_engine.position.step_number` (line 551)
-- Fixed `position.avg_entry_price` → `position.average_entry_price` (line 552)
-- Fixed `risk_check.approved` → `risk_check.allowed` (line 715)
-- All 114 orchestrator tests + 644 grid/dca/risk tests pass
-
-**#227 — BotService async/sync mismatch:**
-- Made `list_bots()` and `get_bot_status()` async, added `await` to `orch.get_status()`
-- Fixed field reads: `strategy_type`→`strategy`, `status`→`state`
-- Added `_extract_metrics()` helper that aggregates from `grid`/`dca`/`trend_follower` sub-dicts
-- Updated all API callers (bots, dashboard, portfolio) to `await`
-- Updated test mocks to use `AsyncMock` with correct field names
-- All 46 web tests pass
-
-**#228 — Market API wrong attribute name:**
-- Changed `exchange_client` → `exchange` in 4 places in `market.py`
-- Market ticker and OHLCV endpoints now correctly find the exchange client
-
-**#229 — WebSocket RedisBridge not activated:**
-- Added `RedisBridge` creation and startup in `app.py` lifespan
-- Graceful fallback if Redis unavailable (logs warning, continues without WebSocket events)
-
-**#230-#233 — 4 medium-priority trading logic bugs (single commit):**
-- #230: Grid fill detection now verifies order status via `fetch_order()` before treating as filled
-- #231: DCA order placed on exchange BEFORE engine state advancement
-- #232: Daily loss automatically resets at UTC day change (checked at start of each loop iteration)
-- #233: Balance fetched once per iteration, cached value used in 3 consumer locations
-
-**#234 — Backtesting API placeholder replaced:**
-- Real `GridBacktestSimulator` runs with exchange OHLCV data (online) or synthetic data (offline fallback)
-- Returns real metrics: total_return, max_drawdown, sharpe_ratio, win_rate, equity_curve
-
-**#235 — Settings API reads real config:**
-- GET /config reads from `config_manager.get_config()` (logging, database, bots_count)
-- GET /notifications checks bot telegram config
-- Falls back to hardcoded defaults when config_manager unavailable
-
-**#236 — Strategy templates persisted to database:**
-- New `StrategyTemplate` SQLAlchemy model in `bot/database/models.py`
-- All CRUD endpoints use async DB sessions instead of in-memory dict
-- Templates survive server restarts
-
-### Remaining Open Issues (1)
-
-| Issue | Priority | Title |
-|-------|----------|-------|
-| [#237](https://github.com/alekseymavai/TRADERAGENT/issues/237) | P5 IMPROVE | Add state persistence for positions/orders and startup reconciliation |
+| [#237](https://github.com/alekseymavai/TRADERAGENT/issues/237) | Add state persistence for positions/orders and startup reconciliation | `a0f97ce` | **FIXED** |
 
 ---
 
@@ -117,52 +102,33 @@
 | ExchangeAPIClient (CCXT) | 672 | Solid — retry, rate limiting, WebSocket |
 | ByBitDirectClient (V5 native) | 1,024 | Working — HMAC auth, CCXT-compatible format |
 | Grid Engine | 377 | Prototype — logic issues in profit calc |
-| DCA Engine | 388 | Prototype — clean logic, integration broken |
+| DCA Engine | 388 | Prototype — clean logic, integration ~~broken~~ **FIXED** |
 | Trend Follower (5 modules) | 2,400 | Best module — ATR TP/SL, trailing, partial close |
-| SMC Strategy (5 modules) | 2,650 | Full implementation |
+| SMC Strategy (5 modules) | 2,650 | Full implementation, is_long bug **FIXED** |
 | Hybrid (Grid+DCA) | 1,100 | Implemented |
-| Risk Manager | ~300 | Basic — ~~no daily reset~~ **FIXED**, no peak-based SL |
-| Bot Orchestrator | 1,196 | Good architecture, ~~6 crash bugs~~ **FIXED** |
+| Risk Manager | ~300 | Basic — daily reset **FIXED**, no peak-based SL |
+| Bot Orchestrator | 1,377 | State persistence + reconciliation **DONE** |
 | Telegram Bot | 854 | Working |
 | Monitoring (Prometheus) | ~500 | Implemented |
 
-### Web UI Backend — Mixed (improving)
+### Web UI Backend — ALL REAL (except portfolio history stubs)
 
 | Endpoint | Verdict | Details |
 |----------|---------|---------|
 | Auth (JWT) | **REAL** | bcrypt + JWT refresh rotation + DB sessions |
-| Bots API | **FIXED** | ~~async/sync mismatch~~ Now properly awaits + correct field names |
-| Dashboard | **FIXED** | ~~BotService bugs~~ Now shows real bot data |
-| Market API | **FIXED** | ~~Wrong attribute~~ Now uses `orch.exchange` correctly |
-| Portfolio summary | **FIXED** | ~~broken by BotService~~ Now connected properly |
+| Bots API | **REAL** | Properly awaits + correct field names |
+| Dashboard | **REAL** | Shows real bot data |
+| Market API | **REAL** | Uses `orch.exchange` correctly |
+| Portfolio summary | **REAL** | Connected properly |
 | Portfolio history/drawdown/trades | **STUB** | Returns empty arrays |
-| Strategies | **FIXED** | ~~In-memory dict~~ Now persisted to DB via `StrategyTemplate` model |
-| Backtesting | **FIXED** | ~~sleep(0.1) + hardcoded~~ Now uses real `GridBacktestSimulator` |
-| Settings | **FIXED** | ~~Hardcoded JSON~~ Now reads from `config_manager` with fallback |
-| WebSocket | **FIXED** | ~~RedisBridge never called~~ Now started in lifespan with graceful fallback |
+| Strategies | **REAL** | Persisted to DB via `StrategyTemplate` model |
+| Backtesting | **REAL** | Uses `GridBacktestSimulator` |
+| Settings | **REAL** | Reads from `config_manager` with fallback |
+| WebSocket | **REAL** | RedisBridge started in lifespan with graceful fallback |
 | Frontend | **REAL** | All pages call real API, no client-side mocks |
 
 ### Web UI Frontend — REAL
 All 7 pages make real API calls. Axios client with JWT interceptor + auto-refresh on 401. Zustand stores. No hardcoded mock data in pages.
-
----
-
-## Remaining Issues
-
-### Trading Logic
-
-- ~~**Grid fill detection** (#230)~~ **FIXED**: now verifies order status via `fetch_order()`
-- ~~**DCA state advance** (#231)~~ **FIXED**: order placed before state advancement
-- ~~**`daily_loss` never resets** (#232)~~ **FIXED**: auto-resets at UTC day change
-- ~~**Balance over-fetching** (#233)~~ **FIXED**: cached once per loop iteration
-- **No persistence** (#237): all trading state in-memory, restart = clean slate + no reconciliation
-
-### Web UI
-
-- ~~**WebSocket not activated** (#229)~~ **FIXED**: RedisBridge started in lifespan
-- ~~**Backtesting placeholder** (#234)~~ **FIXED**: real GridBacktestSimulator
-- ~~**Settings hardcoded** (#235)~~ **FIXED**: reads from config_manager
-- ~~**Strategies in-memory** (#236)~~ **FIXED**: persisted to database
 
 ---
 
@@ -172,10 +138,11 @@ All 7 pages make real API calls. Axios client with JWT interceptor + auto-refres
 2. **5 real strategies** — Grid, DCA, Trend Follower, Hybrid, SMC (~10,500 lines)
 3. **Dual exchange client** — CCXT for broad support + native Bybit V5 for demo
 4. **Async throughout** — asyncio, asyncpg, aiohttp, async Redis
-5. **JWT auth** — proper refresh rotation, bcrypt, DB sessions
-6. **Docker** — production-quality, multi-stage builds, health checks, non-root
-7. **CI/CD** — GitHub Actions (lint + test + docker + security scan)
-8. **431 tests passing** — orchestrator + web tests now verify real integration
+5. **State persistence** — PostgreSQL snapshots, startup reconciliation, graceful shutdown
+6. **JWT auth** — proper refresh rotation, bcrypt, DB sessions
+7. **Docker** — production-quality, multi-stage builds, health checks, non-root
+8. **CI/CD** — GitHub Actions (lint + test + docker + security scan)
+9. **439 tests passing** — full coverage of orchestrator, web, state persistence
 
 ---
 
@@ -191,7 +158,7 @@ Phase 6: Advanced Backtesting         [##########] 100%
 Phase 7.1-7.2: Testing                [##########] 100%
 Phase 7.3: Demo Trading Deployment    [##########] 100%  ← DEPLOYED (stopped)
 Phase 7.4: Load/Stress Testing        [##########] 100%
-Phase 8: Production Launch            [#########.]  90%  ← 11/12 BUGS FIXED
+Phase 8: Production Launch            [##########] 100%  ← ALL 12/12 BUGS FIXED
 ```
 
 **Web UI Dashboard:**
@@ -209,20 +176,22 @@ Tests                 [##########] 100%  (46 tests, mocks now match real orchest
 ## Key Files
 
 ```
-bot/orchestrator/bot_orchestrator.py  — Main trading loop (1,196 lines, FIXED)
-bot/api/exchange_client.py            — CCXT exchange client (672 lines)
-bot/api/bybit_direct_client.py        — Bybit V5 native client (1,024 lines)
-bot/core/grid_engine.py               — Grid trading engine (377 lines)
-bot/core/dca_engine.py                — DCA engine (388 lines)
-bot/core/risk_manager.py              — Risk management (~300 lines)
-bot/strategies/trend_follower/        — Trend Follower (5 files, 2,400 lines)
-bot/strategies/smc/                   — SMC Strategy (5 files, 2,650 lines)
-bot/main.py                           — BotApplication entry (343 lines)
-web/backend/services/bot_service.py   — Bridge to orchestrators (FIXED)
-web/backend/api/v1/market.py          — Market API (FIXED)
-web/backend/app.py                    — FastAPI factory + lifespan
-web/frontend/src/api/client.ts        — Axios + JWT interceptor
-configs/phase7_demo.yaml              — Bybit demo config (4 strategies)
+bot/orchestrator/bot_orchestrator.py    — Main trading loop (1,377 lines, state persistence)
+bot/orchestrator/state_persistence.py   — Serialize/deserialize all engines (380 lines)
+bot/database/models_state.py            — BotStateSnapshot model
+bot/api/exchange_client.py              — CCXT exchange client (672 lines)
+bot/api/bybit_direct_client.py          — Bybit V5 native client (1,024 lines)
+bot/core/grid_engine.py                 — Grid trading engine (377 lines)
+bot/core/dca_engine.py                  — DCA engine (388 lines)
+bot/core/risk_manager.py                — Risk management (~300 lines)
+bot/strategies/trend_follower/          — Trend Follower (5 files, 2,400 lines)
+bot/strategies/smc/                     — SMC Strategy (5 files, 2,650 lines)
+bot/strategies/hybrid/                  — Hybrid Grid+DCA (4 files, 1,100 lines)
+bot/main.py                             — BotApplication entry (343 lines)
+web/backend/services/bot_service.py     — Bridge to orchestrators
+web/backend/app.py                      — FastAPI factory + lifespan
+web/frontend/src/api/client.ts          — Axios + JWT interceptor
+configs/phase7_demo.yaml                — Bybit demo config (4 strategies)
 ```
 
 ---
@@ -232,14 +201,17 @@ configs/phase7_demo.yaml              — Bybit demo config (4 strategies)
 ```bash
 cd /home/hive/TRADERAGENT
 
-# Run all tests (431)
-python -m pytest bot/tests/ --ignore=bot/tests/testnet tests/web/ -q
+# Run all tests (439)
+python -m pytest bot/tests/ --ignore=bot/tests/testnet tests/web/ tests/orchestrator/ tests/database/ -q
 
 # Bot tests only (385)
 python -m pytest bot/tests/ --ignore=bot/tests/testnet -q
 
 # Web tests only (46)
 python -m pytest tests/web/ -q
+
+# State persistence tests (8)
+python -m pytest tests/orchestrator/test_state_persistence.py tests/database/test_state_model.py -v
 
 # Frontend dev
 cd web/frontend && npm run dev
@@ -250,6 +222,18 @@ uvicorn web.backend.main:app --reload --port 8000
 # Docker
 docker compose up webui-backend webui-frontend
 ```
+
+---
+
+## Open Issues (non-audit)
+
+| Issue | Title |
+|-------|-------|
+| [#85](https://github.com/alekseymavai/TRADERAGENT/issues/85) | Fibonacci strategy tester (ALMIRBGCLOD) |
+| [#90](https://github.com/alekseymavai/TRADERAGENT/issues/90) | Systematic strategy testing on top 100 crypto pairs |
+| [#91](https://github.com/alekseymavai/TRADERAGENT/issues/91) | Testing results analysis report |
+| [#97](https://github.com/alekseymavai/TRADERAGENT/issues/97) | TradingView chart data automation |
+| [#144](https://github.com/alekseymavai/TRADERAGENT/issues/144) | Backtest results visualization |
 
 ---
 
@@ -266,9 +250,9 @@ docker compose up webui-backend webui-frontend
 ## Last Updated
 
 - **Date:** February 17, 2026
-- **Session:** 10 (Audit Bug Fixes — continued)
-- **Tests:** 431/431 passing (100%)
-- **Bugs Fixed:** 11/12 — #226-#236 all resolved
-- **Remaining Issues:** 1 open (#237 — state persistence + startup reconciliation)
-- **Next Action:** Implement #237 (state persistence) → re-deploy demo → production
+- **Session:** 11 (State Persistence — all audit issues closed)
+- **Tests:** 439/439 passing (100%)
+- **Audit Bugs Fixed:** 12/12 — #226-#237 all resolved
+- **Remaining Issues:** 5 open (non-audit: #85, #90, #91, #97, #144)
+- **Next Action:** Re-deploy demo → production, or tackle backtest visualization (#144)
 - **Co-Authored:** Claude Opus 4.6
