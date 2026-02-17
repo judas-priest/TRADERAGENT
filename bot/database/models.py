@@ -251,6 +251,36 @@ class DCAHistory(Base):
         )
 
 
+class StrategyTemplate(Base):
+    """Store strategy templates for the marketplace."""
+
+    __tablename__ = "strategy_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    strategy_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    config_json: Mapped[str] = mapped_column(Text, nullable=False)
+    risk_level: Mapped[str] = mapped_column(String(10), default="medium", nullable=False)
+    min_deposit: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), default=Decimal("100"), nullable=False)
+    expected_pnl_pct: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 4), nullable=True)
+    recommended_pairs: Mapped[str] = mapped_column(Text, default="[]", nullable=False)  # JSON array
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    copy_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_template_strategy_type", "strategy_type"),
+        Index("idx_template_active", "is_active"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<StrategyTemplate(id={self.id}, name={self.name}, type={self.strategy_type})>"
+
+
 class BotLog(Base):
     """Store bot activity logs"""
 

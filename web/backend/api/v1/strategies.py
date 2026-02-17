@@ -14,6 +14,7 @@ from bot.config.schemas import (
     StrategyType,
     TrendFollowerConfig,
 )
+from bot.database.models import StrategyTemplate
 from web.backend.auth.models import User
 from web.backend.dependencies import get_current_admin, get_current_user, get_db
 from web.backend.schemas.strategy import (
@@ -26,22 +27,43 @@ from web.backend.schemas.strategy import (
 router = APIRouter(prefix="/api/v1/strategies", tags=["strategies"])
 
 
-# Use a simple in-memory store until DB model is migrated
-# In production, this would be the strategy_templates table
-_templates: dict[int, dict] = {}
-_next_id = 1
+def _template_to_response(t: StrategyTemplate) -> StrategyTemplateResponse:
+    """Convert DB model to response schema."""
+    pairs = []
+    if t.recommended_pairs:
+        try:
+            pairs = json.loads(t.recommended_pairs)
+        except (json.JSONDecodeError, TypeError):
+            pairs = []
+
+    return StrategyTemplateResponse(
+        id=t.id,
+        name=t.name,
+        description=t.description,
+        strategy_type=t.strategy_type,
+        config_json=t.config_json,
+        risk_level=t.risk_level,
+        min_deposit=t.min_deposit,
+        expected_pnl_pct=t.expected_pnl_pct,
+        recommended_pairs=pairs,
+        is_active=t.is_active,
+        copy_count=t.copy_count,
+        created_at=t.created_at,
+        updated_at=t.updated_at,
+    )
 
 
 @router.get("/templates", response_model=list[StrategyTemplateResponse])
 async def list_templates(
     _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """List strategy templates (marketplace)."""
-    return [
-        StrategyTemplateResponse(**t)
-        for t in _templates.values()
-        if t.get("is_active", True)
-    ]
+    result = await db.execute(
+        select(StrategyTemplate).where(StrategyTemplate.is_active == True)  # noqa: E712
+    )
+    templates = result.scalars().all()
+    return [_template_to_response(t) for t in templates]
 
 
 @router.post(
@@ -52,59 +74,61 @@ async def list_templates(
 async def create_template(
     data: StrategyTemplateCreate,
     _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Create a strategy template (admin only)."""
-    global _next_id
-    from datetime import datetime, timezone
-
-    now = datetime.now(timezone.utc)
-    template = {
-        "id": _next_id,
-        "name": data.name,
-        "description": data.description,
-        "strategy_type": data.strategy_type,
-        "config_json": data.config_json,
-        "risk_level": data.risk_level,
-        "min_deposit": data.min_deposit,
-        "expected_pnl_pct": data.expected_pnl_pct,
-        "recommended_pairs": data.recommended_pairs,
-        "is_active": True,
-        "copy_count": 0,
-        "created_at": now,
-        "updated_at": now,
-    }
-    _templates[_next_id] = template
-    _next_id += 1
-    return StrategyTemplateResponse(**template)
+    template = StrategyTemplate(
+        name=data.name,
+        description=data.description,
+        strategy_type=data.strategy_type,
+        config_json=data.config_json,
+        risk_level=data.risk_level,
+        min_deposit=data.min_deposit,
+        expected_pnl_pct=data.expected_pnl_pct,
+        recommended_pairs=json.dumps(data.recommended_pairs),
+    )
+    db.add(template)
+    await db.commit()
+    await db.refresh(template)
+    return _template_to_response(template)
 
 
 @router.get("/templates/{template_id}", response_model=StrategyTemplateResponse)
 async def get_template(
     template_id: int,
     _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get strategy template details."""
-    template = _templates.get(template_id)
+    result = await db.execute(
+        select(StrategyTemplate).where(StrategyTemplate.id == template_id)
+    )
+    template = result.scalar_one_or_none()
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
-    return StrategyTemplateResponse(**template)
+    return _template_to_response(template)
 
 
 @router.post("/copy")
 async def copy_strategy(
     data: CopyStrategyRequest,
     _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Copy a strategy template to create a new bot."""
-    template = _templates.get(data.template_id)
+    result = await db.execute(
+        select(StrategyTemplate).where(StrategyTemplate.id == data.template_id)
+    )
+    template = result.scalar_one_or_none()
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
 
     # Increment copy count
-    template["copy_count"] = template.get("copy_count", 0) + 1
+    template.copy_count = (template.copy_count or 0) + 1
+    await db.commit()
 
     return {
-        "message": f"Strategy '{template['name']}' copied as bot '{data.bot_name}'",
+        "message": f"Strategy '{template.name}' copied as bot '{data.bot_name}'",
         "bot_name": data.bot_name,
         "symbol": data.symbol,
         "template_id": data.template_id,

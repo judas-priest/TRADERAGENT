@@ -1,15 +1,17 @@
 """
-Backtesting API endpoints — async job execution.
+Backtesting API endpoints — async job execution with real GridBacktestSimulator.
 """
 
 import asyncio
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 
 from web.backend.auth.models import User
-from web.backend.dependencies import get_current_user
+from web.backend.dependencies import get_current_user, get_orchestrators
 from web.backend.schemas.backtest import BacktestJobResponse, BacktestRunRequest
 
 router = APIRouter(prefix="/api/v1/backtesting", tags=["backtesting"])
@@ -23,6 +25,7 @@ _semaphore = asyncio.Semaphore(2)  # Max 2 concurrent backtests
 async def run_backtest(
     data: BacktestRunRequest,
     _: User = Depends(get_current_user),
+    orchestrators: dict = Depends(get_orchestrators),
 ):
     """Start a backtest (async). Returns job_id to poll for results."""
     job_id = str(uuid.uuid4())
@@ -43,8 +46,15 @@ async def run_backtest(
     }
     _jobs[job_id] = job
 
+    # Get exchange client for fetching OHLCV data
+    exchange = None
+    for orch in orchestrators.values():
+        if hasattr(orch, "exchange") and orch.exchange:
+            exchange = orch.exchange
+            break
+
     # Start backtest in background
-    asyncio.create_task(_execute_backtest(job_id, data))
+    asyncio.create_task(_execute_backtest(job_id, data, exchange))
 
     return BacktestJobResponse(**job)
 
@@ -74,7 +84,6 @@ async def get_available_pairs(
     _: User = Depends(get_current_user),
 ):
     """Get available trading pairs for backtesting."""
-    # From historical data in /home/hive/btc/data/historical/
     pairs = [
         "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "ADAUSDT",
         "DOGEUSDT", "XRPUSDT", "DOTUSDT", "LINKUSDT", "AVAXUSDT",
@@ -93,15 +102,23 @@ async def get_available_timeframes(
     }
 
 
-async def _execute_backtest(job_id: str, data: BacktestRunRequest):
+async def _execute_backtest(job_id: str, data: BacktestRunRequest, exchange=None):
     """Execute backtest in background with semaphore."""
     async with _semaphore:
         job = _jobs[job_id]
         job["status"] = "running"
 
         try:
-            # Run backtest in thread to avoid blocking
-            result = await asyncio.to_thread(_run_backtest_sync, data)
+            if data.strategy_type == "grid" and exchange:
+                result = await _run_grid_backtest(data, exchange)
+            elif data.strategy_type == "grid":
+                result = await asyncio.to_thread(_run_grid_backtest_offline, data)
+            else:
+                raise ValueError(
+                    f"Backtesting for strategy '{data.strategy_type}' is not yet implemented. "
+                    f"Available: grid"
+                )
+
             job["status"] = "completed"
             job["result"] = result
             job["completed_at"] = datetime.now(timezone.utc)
@@ -111,19 +128,107 @@ async def _execute_backtest(job_id: str, data: BacktestRunRequest):
             job["completed_at"] = datetime.now(timezone.utc)
 
 
-def _run_backtest_sync(data: BacktestRunRequest) -> dict:
-    """Synchronous backtest execution (placeholder)."""
-    # TODO: Integrate with BacktestingEngine from bot/backtesting/
-    import time
+async def _run_grid_backtest(data: BacktestRunRequest, exchange) -> dict:
+    """Run grid backtest with real OHLCV data from exchange."""
+    from bot.backtesting.grid.models import GridBacktestConfig
+    from bot.backtesting.grid.simulator import GridBacktestSimulator
 
-    time.sleep(0.1)  # Simulate work
+    # Fetch OHLCV data
+    ohlcv = await exchange.fetch_ohlcv(
+        symbol=data.symbol,
+        timeframe=data.timeframe,
+        limit=1000,
+    )
+
+    if not ohlcv or len(ohlcv) < 50:
+        raise ValueError(f"Insufficient OHLCV data for {data.symbol}: got {len(ohlcv or [])} candles")
+
+    df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+
+    # Build config from request
+    user_config = data.config or {}
+    config = GridBacktestConfig(
+        symbol=data.symbol,
+        timeframe=data.timeframe,
+        num_levels=user_config.get("num_levels", 15),
+        profit_per_grid=Decimal(str(user_config.get("profit_per_grid", 0.005))),
+        amount_per_grid=Decimal(str(user_config.get("amount_per_grid", 100))),
+        initial_balance=Decimal(str(data.initial_balance)),
+    )
+
+    # Run real simulator
+    sim = GridBacktestSimulator(config)
+    result = await asyncio.to_thread(sim.run, df)
 
     return {
-        "total_return_pct": 15.5,
-        "max_drawdown_pct": 8.2,
-        "sharpe_ratio": 1.45,
-        "win_rate": 0.62,
-        "total_trades": 150,
-        "profit_factor": 1.8,
-        "equity_curve": [],
+        "total_return_pct": result.total_return_pct,
+        "max_drawdown_pct": result.max_drawdown_pct,
+        "sharpe_ratio": result.sharpe_ratio,
+        "win_rate": result.win_rate,
+        "total_trades": result.total_trades,
+        "profit_factor": getattr(result, "profit_factor", 0),
+        "total_pnl": result.total_pnl,
+        "final_equity": result.final_equity,
+        "completed_cycles": result.completed_cycles,
+        "total_fees_paid": result.total_fees_paid,
+        "equity_curve": [
+            {"timestamp": str(ep.timestamp), "equity": ep.equity, "price": ep.price}
+            for ep in (result.equity_curve or [])[:200]  # limit to 200 points
+        ],
+    }
+
+
+def _run_grid_backtest_offline(data: BacktestRunRequest) -> dict:
+    """Run grid backtest without exchange (generates synthetic data)."""
+    from bot.backtesting.grid.models import GridBacktestConfig
+    from bot.backtesting.grid.simulator import GridBacktestSimulator
+    import numpy as np
+
+    # Generate synthetic OHLCV data
+    np.random.seed(42)
+    n_candles = 500
+    prices = [float(data.config.get("base_price", 50000))]
+    for _ in range(n_candles - 1):
+        change = np.random.normal(0, 0.005)
+        prices.append(prices[-1] * (1 + change))
+
+    df = pd.DataFrame({
+        "timestamp": pd.date_range(start=data.start_date, periods=n_candles, freq="1h"),
+        "open": prices,
+        "high": [p * (1 + abs(np.random.normal(0, 0.002))) for p in prices],
+        "low": [p * (1 - abs(np.random.normal(0, 0.002))) for p in prices],
+        "close": [p * (1 + np.random.normal(0, 0.001)) for p in prices],
+        "volume": [np.random.uniform(100, 1000) for _ in prices],
+    })
+
+    user_config = data.config or {}
+    config = GridBacktestConfig(
+        symbol=data.symbol,
+        timeframe=data.timeframe,
+        num_levels=user_config.get("num_levels", 15),
+        profit_per_grid=Decimal(str(user_config.get("profit_per_grid", 0.005))),
+        amount_per_grid=Decimal(str(user_config.get("amount_per_grid", 100))),
+        initial_balance=Decimal(str(data.initial_balance)),
+    )
+
+    sim = GridBacktestSimulator(config)
+    result = sim.run(df)
+
+    return {
+        "total_return_pct": result.total_return_pct,
+        "max_drawdown_pct": result.max_drawdown_pct,
+        "sharpe_ratio": result.sharpe_ratio,
+        "win_rate": result.win_rate,
+        "total_trades": result.total_trades,
+        "profit_factor": getattr(result, "profit_factor", 0),
+        "total_pnl": result.total_pnl,
+        "final_equity": result.final_equity,
+        "completed_cycles": result.completed_cycles,
+        "total_fees_paid": result.total_fees_paid,
+        "equity_curve": [
+            {"timestamp": str(ep.timestamp), "equity": ep.equity, "price": ep.price}
+            for ep in (result.equity_curve or [])[:200]
+        ],
+        "_note": "Results based on synthetic data (no exchange connection available)",
     }
