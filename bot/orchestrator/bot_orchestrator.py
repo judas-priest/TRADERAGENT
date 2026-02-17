@@ -6,6 +6,7 @@ Manages Grid, DCA, SMC, and Trend-Follower engines with dynamic strategy selecti
 """
 
 import asyncio
+from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -107,6 +108,8 @@ class BotOrchestrator:
         self._price_monitor_task: asyncio.Task | None = None
         self._regime_monitor_task: asyncio.Task | None = None
         self.current_price: Decimal | None = None
+        self._cached_balance: Decimal | None = None
+        self._last_daily_reset: object | None = None  # date object
 
         # v2.0: Multi-strategy components
         self.strategy_registry = StrategyRegistry(max_strategies=10)
@@ -426,6 +429,17 @@ class BotOrchestrator:
                     await asyncio.sleep(1)
                     continue
 
+                # Reset daily loss counter on UTC day change (#232)
+                if self.risk_manager:
+                    today = datetime.now(timezone.utc).date()
+                    if self._last_daily_reset != today:
+                        self.risk_manager.reset_daily_loss()
+                        self._last_daily_reset = today
+                        logger.info("daily_loss_reset", date=str(today))
+
+                # Cache balance once per iteration (#233)
+                self._cached_balance = await self._get_available_balance()
+
                 # Process grid orders
                 if self.grid_engine:
                     await self._process_grid_orders()
@@ -498,9 +512,28 @@ class BotOrchestrator:
             # Fetch actual orders from exchange
             open_orders = await self.exchange.fetch_open_orders(self.config.symbol)
             # Process filled orders
+            open_order_ids = {o["id"] for o in open_orders}
             for order_id, grid_order in list(self.grid_engine.active_orders.items()):
-                if order_id not in [o["id"] for o in open_orders]:
-                    # Order was filled
+                if order_id not in open_order_ids:
+                    # Order disappeared — verify it was actually filled (#230)
+                    try:
+                        order_info = await self.exchange.fetch_order(order_id, self.config.symbol)
+                        order_status = order_info.get("status", "")
+                    except Exception:
+                        logger.warning("fetch_order_failed", order_id=order_id)
+                        continue
+
+                    if order_status != "closed":
+                        logger.warning(
+                            "grid_order_not_filled",
+                            order_id=order_id,
+                            status=order_status,
+                        )
+                        # Remove stale tracking for cancelled/expired orders
+                        if order_status in ("canceled", "cancelled", "expired", "rejected"):
+                            self.grid_engine.active_orders.pop(order_id, None)
+                        continue
+
                     filled_price = grid_order.price
                     rebalance_order = self.grid_engine.handle_order_filled(order_id, filled_price, grid_order.amount)
 
@@ -534,14 +567,22 @@ class BotOrchestrator:
                     if self.dca_engine.position
                     else Decimal("0")
                 )
-                balance = await self._get_available_balance()
+                balance = self._cached_balance or await self._get_available_balance()
 
                 risk_check = self.risk_manager.check_trade(order_value, current_position, balance)
                 if not risk_check:
                     logger.warning("dca_blocked_by_risk", reason=risk_check.reason)
                     return
 
-            # Execute DCA step
+            # Place order on exchange first, then advance state (#231)
+            if not self.config.dry_run:
+                try:
+                    await self._place_dca_order()
+                except Exception as e:
+                    logger.error("dca_order_failed_skipping_state", error=str(e))
+                    return
+
+            # Only advance DCA state after order confirmed
             success = self.dca_engine.execute_dca_step(self.current_price)
             if success:
                 await self._publish_event(
@@ -552,10 +593,6 @@ class BotOrchestrator:
                         "avg_entry": str(self.dca_engine.position.average_entry_price),
                     },
                 )
-
-                # Place buy order on exchange
-                if not self.config.dry_run:
-                    await self._place_dca_order()
 
         # Handle take profit
         if dca_actions["tp_triggered"] and self.state == BotState.RUNNING:
@@ -577,8 +614,8 @@ class BotOrchestrator:
         if not self.risk_manager:
             return
 
-        # Fetch current balance
-        balance = await self._get_available_balance()
+        # Use cached balance from current iteration
+        balance = self._cached_balance or await self._get_available_balance()
         self.risk_manager.update_balance(balance)
 
         # Check if risk limits triggered emergency stop
@@ -697,7 +734,7 @@ class BotOrchestrator:
             )
 
             # 2. Check for entry signals
-            balance = await self._get_available_balance()
+            balance = self._cached_balance or await self._get_available_balance()
             entry_data = self.trend_follower_strategy.check_entry_signal(df, balance)
 
             if entry_data and self.state == BotState.RUNNING:
