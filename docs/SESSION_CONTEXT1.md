@@ -3,11 +3,61 @@
 ## Current Status
 
 **Date:** February 17, 2026
-**Session:** 12 (Grid Backtesting Standalone Service — audited)
+**Session:** 13 (Server Deployment — synced to d4b3df0)
 **Tests:** 532 passing (385 bot + 46 web + 8 state persistence + 93 backtester service)
-**Codebase:** 306 Python files (74,196 LOC) + 51 TypeScript files (6,536 LOC)
-**Commits:** 385 total
+**Codebase:** 311 Python files (73,869 LOC) + 51 TypeScript files (6,536 LOC)
+**Commits:** 390 total
 **Open Audit Issues:** 0 — all 12/12 closed (#226-#237)
+**Server:** 185.233.200.13 — synced to `d4b3df0`, 16 DB tables, bot image rebuilt, bot NOT running
+
+---
+
+## Session 13: Server Deployment (2026-02-17)
+
+### What Was Done
+
+Обновление сервера (185.233.200.13) до актуального состояния кодовой базы. Сервер отставал на ~120 коммитов (HEAD: `8b4945c` → `d4b3df0`). Бот был остановлен 29+ часов.
+
+### Steps Completed
+
+| Шаг | Описание | Результат |
+|-----|----------|-----------|
+| 1 | Коммит локальных изменений | `d4b3df0` — удалён `bot/backtesting/grid/` (перенесён в `services/backtesting/`) |
+| 2 | Бэкап .env + БД | `.env.backup.20260217` + `~/db_backup_20260217.sql.gz` (3.2K) |
+| 3 | Очистка git working tree | `git stash` (91 dirty файл) + `git clean -fd` (untracked от tar-деплоя) |
+| 4 | Pull кода | Fast-forward `8b4945c` → `d4b3df0` (~120 коммитов) |
+| 5 | Пересборка Docker-образа | Установлены pandas, numpy, cryptography, fastapi, uvicorn, bcrypt и др. |
+| 6 | Миграция БД | 8 → 16 таблиц, alembic stamped `v2_multi_strategy` |
+| 7 | Проверка | postgres/redis healthy, git clean, все таблицы на месте |
+
+### New Database Tables (8 added)
+
+| Table | Source |
+|-------|--------|
+| `strategies` | v2_multi_strategy migration |
+| `signals` | v2_multi_strategy migration |
+| `positions` | v2_multi_strategy migration |
+| `dca_deals` | v2_multi_strategy migration |
+| `dca_orders` | v2_multi_strategy migration |
+| `dca_signals` | v2_multi_strategy migration |
+| `strategy_templates` | v2_multi_strategy migration |
+| `bot_state_snapshots` | `Base.metadata.create_all()` (no alembic migration) |
+
+### Server State After Deployment
+
+```
+Git HEAD:     d4b3df0 (matches local)
+Docker image: traderagent-bot rebuilt (2026-02-17)
+PostgreSQL:   16 tables, alembic at v2_multi_strategy
+Redis:        Up 7 days (healthy)
+Bot:          NOT RUNNING (intentional — manual start later)
+```
+
+### Commit
+
+| Commit | Title |
+|--------|-------|
+| `d4b3df0` | refactor: remove bot/backtesting/grid/ (moved to services/backtesting/) |
 
 ---
 
@@ -304,6 +354,7 @@ All 7 pages make real API calls. Axios client with JWT interceptor + auto-refres
 8. **CI/CD** — GitHub Actions (lint + test + docker + security scan)
 9. **532 tests passing** — bot, web, state persistence, backtester service
 10. **Standalone backtesting service** — core simulation, optimization, preset management working
+11. **Server deployment** — git-based (no more tar sync), DB fully migrated (16 tables)
 
 ---
 
@@ -317,10 +368,11 @@ Phase 4: Hybrid Strategy              [##########] 100%
 Phase 5: Infrastructure & DevOps      [##########] 100%
 Phase 6: Advanced Backtesting         [##########] 100%
 Phase 7.1-7.2: Testing                [##########] 100%
-Phase 7.3: Demo Trading Deployment    [##########] 100%  ← DEPLOYED (stopped)
+Phase 7.3: Demo Trading Deployment    [##########] 100%  ← DEPLOYED (stopped, server synced to d4b3df0)
 Phase 7.4: Load/Stress Testing        [##########] 100%
 Phase 8: Production Launch            [##########] 100%  ← ALL 12/12 BUGS FIXED
 Phase 9: Backtesting Standalone Svc   [#######...]  75%  ← 8/13 done, 5 need fixes
+Phase 10: Server Sync                 [##########] 100%  ← 120 commits synced, DB migrated, image rebuilt
 ```
 
 **Web UI Dashboard:**
@@ -486,11 +538,12 @@ cd services/backtesting && docker compose up -d  # backtester on :8100
 ## Last Updated
 
 - **Date:** February 17, 2026
-- **Session:** 12 (Grid Backtesting Standalone Service — post-audit)
+- **Session:** 13 (Server Deployment)
 - **Tests:** 532/532 passing (100%)
+- **Server:** 185.233.200.13 synced to `d4b3df0`, 16 DB tables, Docker image rebuilt
 - **Audit Bugs Fixed:** 12/12 — #226-#237 all resolved
 - **Backtester Service:** 8/13 fully done, 2 partial, 2 dead code, 1 defect; 93 tests (60% coverage)
 - **Remaining Backtester Fixes:** ~14-16 hours (4 bugs + 4 stubs + missing tests)
 - **Remaining Issues:** 5 open (non-audit: #85, #90, #91, #97, #144)
-- **Next Action:** Fix BUG-1..4, wire dead code, add missing tests, then deploy
+- **Next Action:** Запустить бота (`docker compose up -d bot`), затем fix BUG-1..4
 - **Co-Authored:** Claude Opus 4.6
