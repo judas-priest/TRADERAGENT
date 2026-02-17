@@ -3,13 +3,96 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 17 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + **Historical Data Deployed to Server (45 pairs × 10 TF)**
 **Pass Rate:** 100% (1859/1859 tests passing, 25 skipped)
 **Realnyy obem testov:** 1884 collected (1857 bez testnet)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-17) - Full Test Audit + State Persistence
+## Poslednyaya Sessiya (2026-02-17) - Grid Batch Backtesting + Data Deployment
+
+### Zadacha
+
+Podgotovka infrastruktury dlya massovogo grid-bektestinga vseh 45 par. Naydeny istoricheskie dannye (5.4 GB), skopirovany na prodakshn server, sozdan batch-skript dlya generatsii presetov.
+
+### Istoricheskie Dannye
+
+**Istochnik:** `/home/hive/btc/data/historical/` (ranee zagruzheny cherez Bybit API)
+
+| Parametr | Znachenie |
+|----------|-----------|
+| Par | 45 USDT pairs |
+| Taymfreymy | 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d |
+| Faylov | 450 CSV |
+| Obem | 5.4 GB |
+| BTC/ETH | ~74K svechey 1h (~8.5 let) |
+| Min (HNT) | ~18K svechey 1h (~2 goda) |
+
+**45 par:** 1INCH, AAVE, ADA, ALGO, AVAX, BAT, BCH, BNB, BTC, CHZ, COMP, CRV, DOGE, DOT, EOS, ETC, ETH, FIL, FTM, FTT, HBAR, HNT, ICP, KSM, LDO, LINK, LTC, LUNA, MANA, MATIC, RUNE, SAND, SHIB, SNX, SOL, SUSHI, TRX, UNI, WAVES, XEM, XLM, XRP, YFI, ZIL, ZRX
+
+### Deployment na Server
+
+**Server:** 185.233.200.13, user: ai-agent
+
+| Chto | Status |
+|------|--------|
+| Istoricheskie dannye (450 CSV, 5.4 GB) | SKOPIROVANY → `~/TRADERAGENT/data/historical/` |
+| Grid Backtesting kod (`bot/backtesting/`) | SYNCED (volume mount `./bot:/app/bot:ro`) |
+| Batch-skript `scripts/run_grid_backtest_all.py` | SYNCED |
+| Disk | 40 GB svobodno (17/56 GB ispolzovano) |
+| RAM | 1.9 GB total, 1.4 GB available (NO SWAP) |
+| CPU | 4 cores Xeon E5-2670 v3 @ 2.3 GHz |
+| Docker image | `traderagent-bot` — pandas 3.0, numpy 2.4, PyYAML 6.0 |
+
+### Batch Backtest Script
+
+**Fayl:** `scripts/run_grid_backtest_all.py`
+
+```bash
+# Zapusk lokalno
+python scripts/run_grid_backtest_all.py --data-dir /home/hive/btc/data/historical
+
+# Zapusk v Docker na servere
+docker run --rm \
+  -v ~/TRADERAGENT/bot:/app/bot:ro \
+  -v ~/TRADERAGENT/data:/app/data \
+  -v ~/TRADERAGENT/scripts:/app/scripts:ro \
+  traderagent-bot \
+  python /app/scripts/run_grid_backtest_all.py \
+    --data-dir /app/data/historical \
+    --output-dir /app/data/backtest_results \
+    --last-candles 4320
+
+# Filtratsiya po simvolam
+python scripts/run_grid_backtest_all.py --symbols BTC,ETH,SOL
+```
+
+**Vozmozhnosti:**
+- Classify → Optimize → Stress Test → Export Presets (polnyy pipeline)
+- Posledovatelnaya obrabotka po 1 simvolu (ekonomiya RAM)
+- `gc.collect()` mezhdu simvolami
+- CSV/JSON/YAML export rezultatov
+- Podderzhka `--data-dir`, `--output-dir`, `--symbols`, `--last-candles`, `--objective`, `--coarse-steps`, `--fine-steps`
+
+### Predvaritelnye Rezultaty (3 para, lokalno)
+
+| Para | Cluster | Trials | ROI | Sharpe | Stress Avg |
+|------|---------|--------|-----|--------|------------|
+| ETH/USDT | blue_chips | 52 | -0.12% | -0.39 | -0.36% |
+| BTC/USDT | stable | 32 | -2.93% | -1.50 | -0.85% |
+| **SOL/USDT** | blue_chips | 56 | **+0.73%** | **+15.73** | -0.40% |
+
+Vremia vypolneniya: 59.2s na 3 para (lokalno). Otsenka dlya 45 par na servere: ~30-45 min.
+
+### Resursnye Ogranicheniya Servera
+
+- **RAM 1.9 GB** — rabotaem posledovatelno po 1 simvolu, `--last-candles 4320` (6 mes)
+- **Net swap** — pri OOM umenshit do `--last-candles 2160` (3 mes)
+- **CPU medlennyy** — Xeon E5-2670 @ 2.3 GHz, no 4 yadra
+
+---
+
+## Predydushchaya Sessiya (2026-02-17) - Full Test Audit + State Persistence
 
 ### Zadacha
 
@@ -257,6 +340,15 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 9 (2026-02-17): Grid Batch Backtesting + Data Deployment
+- Naydeny istoricheskie dannye: 450 CSV (45 par × 10 TF), 5.4 GB v `/home/hive/btc/data/historical/`
+- Vse 450 faylov skopirovany na server 185.233.200.13 → `~/TRADERAGENT/data/historical/`
+- Grid Backtesting kod synced na server (`bot/backtesting/`, `scripts/`)
+- Sozdan `scripts/run_grid_backtest_all.py` — batch pipeline dlya vseh 45 par
+- Predvaritelnyy test: ETH (-0.12%), BTC (-2.93%), SOL (+0.73% ROI, Sharpe +15.73)
+- Otsenka resursov servera: 1.9 GB RAM (ogranicheno), 40 GB disk (OK), 4 cores
+- **Status:** Data deployed, skript gotov, ozhidaet zapuska
+
 ### Sessiya 8 (2026-02-17): Full Test Audit + State Persistence + Bug Fixes
 - Polnyy audit proekta: obnaruzheno 1884 testov (ne 510)
 - Audit Grid Backtesting — polnaya sovmestimost s prodakshn kodom
@@ -408,11 +500,12 @@ docker compose up webui-backend webui-frontend
 
 ## Sleduyushchie Shagi
 
-1. **Grid Backtesting Integration:** Podklyuchit k Web UI (zamenit zaglushku _run_backtest_sync()), integrirovat s HistoricalDataProvider
-2. **Strategy Dispatcher:** Dobavit marshrutizatsiyu po strategy_type v backtesting.py (Grid/DCA/TF)
-3. **Phase 8:** Production launch (security audit, gradual capital 5% → 25% → 100%)
-4. **Web UI:** Lightweight-charts integration (equity curves, price charts)
-5. **Historical Data:** Integratsiya 450 CSV (5.4 GB) s backtesting framework
+1. **Zapusk batch bektesta:** 45 par na servere cherez Docker (`run_grid_backtest_all.py`)
+2. **Analiz rezultatov:** Vybor luchshih presetov po ROI/Sharpe/klasteram
+3. **Grid Backtesting Integration:** Podklyuchit k Web UI (zamenit zaglushku _run_backtest_sync()), integrirovat s HistoricalDataProvider
+4. **Strategy Dispatcher:** Dobavit marshrutizatsiyu po strategy_type v backtesting.py (Grid/DCA/TF)
+5. **Phase 8:** Production launch (security audit, gradual capital 5% → 25% → 100%)
+6. **Web UI:** Lightweight-charts integration (equity curves, price charts)
 
 ---
 
@@ -428,5 +521,7 @@ docker compose up webui-backend webui-frontend
 - **Phase 7.3:** Bybit Demo Trading — DEPLOYED
 - **Server:** 185.233.200.13 (Docker)
 - **Bug fixed:** SMC position_manager is_long inversion
-- **Next Action:** Grid Backtesting → Web UI integration, Phase 8 (Production Launch)
+- **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed to server
+- **Batch Script:** `scripts/run_grid_backtest_all.py` — gotov k zapusku
+- **Next Action:** Zapusk batch bektesta na servere → analiz → presety → Production
 - **Co-Authored:** Claude Opus 4.6
