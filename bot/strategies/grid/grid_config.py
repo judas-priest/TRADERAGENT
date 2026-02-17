@@ -15,8 +15,8 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
-from bot.strategies.grid.grid_calculator import GridConfig, GridSpacing
-from bot.strategies.grid.grid_risk_manager import GridRiskConfig
+from .grid_calculator import GridConfig, GridSpacing
+from .grid_risk_manager import GridRiskConfig
 
 
 # =============================================================================

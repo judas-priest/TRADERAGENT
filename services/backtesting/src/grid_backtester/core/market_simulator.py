@@ -238,7 +238,7 @@ class MarketSimulator:
             except Exception as e:
                 _logger.debug("Limit order execution failed: %s", e)
 
-    async def cancel_order(self, order_id: str) -> dict[str, Any]:
+    async def cancel_order(self, order_id: str, symbol: str | None = None) -> dict[str, Any]:
         if order_id not in self.orders:
             raise ValueError(f"Order not found: {order_id}")
 
@@ -275,6 +275,14 @@ class MarketSimulator:
             "status": order.status.value,
             "timestamp": order.timestamp.isoformat(),
         }
+
+    async def fetch_ticker(self, symbol: str) -> dict[str, Any]:
+        """IGridExchange-compatible alias for get_ticker."""
+        return self.get_ticker()
+
+    async def fetch_balance(self) -> dict[str, Any]:
+        """IGridExchange-compatible alias for get_balance."""
+        return self.get_balance()
 
     def get_portfolio_value(self) -> Decimal:
         base_value = self.balance.base * self.current_price

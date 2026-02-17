@@ -365,52 +365,22 @@ def on_order_filled(self, exchange_order_id, filled_price, filled_amount):
 
 ---
 
-## 7. Архитектурная оценка: текущее состояние
+## 7. Текущая архитектура: Shared Core + Pluggable Adapters (РЕАЛИЗОВАНО)
+
+Grid-логика теперь живёт в **одном каноническом источнике** — `bot/strategies/grid/`. Backtesting импортирует всё оттуда через re-export shims.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                  ТЕКУЩАЯ АРХИТЕКТУРА (AS-IS)                         │
-│                                                                     │
-│  ┌─────────────────────┐          ┌─────────────────────┐          │
-│  │     LIVE BOT        │          │   BACKTESTING       │          │
-│  │                     │          │                     │          │
-│  │  GridEngine         │◄─COPY──►│  GridOrderManager   │          │
-│  │  GridCalculator     │◄─COPY──►│  GridCalculator     │          │
-│  │  GridOrderManager   │◄─COPY──►│  GridOrderManager   │          │
-│  │  ExchangeAPIClient  │  ≠≠≠≠   │  MarketSimulator    │          │
-│  │  RiskManager        │  ≠≠≠≠   │  GridRiskManager    │          │
-│  │  BotOrchestrator    │  ≠≠≠≠   │  BacktestSimulator  │          │
-│  │                     │          │                     │          │
-│  │  DCA, Trend, Hybrid │          │  Optimizer,         │          │
-│  │  Telegram, Redis    │          │  Clusterizer,       │          │
-│  │  PostgreSQL         │          │  Reporter, Charts   │          │
-│  └─────────────────────┘          └─────────────────────┘          │
-│                                                                     │
-│  Проблемы:                                                          │
-│  • Дублирование кода (GridCalculator, GridOrderManager)             │
-│  • Разные модели риска                                              │
-│  • Нет гарантии что backtest точно имитирует бота                   │
-│  • Изменения в боте не отражаются автоматически в бэктестинге       │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 8. Рекомендуемая целевая архитектура (TO-BE)
-
-### Принцип: Shared Core + Pluggable Adapters
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                 ЦЕЛЕВАЯ АРХИТЕКТУРА (TO-BE)                          │
+│                 ТЕКУЩАЯ АРХИТЕКТУРА (IMPLEMENTED)                     │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────┐        │
 │  │              SHARED CORE (bot/strategies/grid/)         │        │
 │  │                                                         │        │
 │  │  GridCalculator    — расчёт уровней, ATR, bounds        │        │
 │  │  GridOrderManager  — lifecycle ордеров, counter-orders   │        │
-│  │  GridRiskRules     — общие правила риска                 │        │
+│  │  GridRiskManager   — правила риска                      │        │
 │  │  GridConfig        — конфигурация стратегии              │        │
+│  │  IGridExchange     — Protocol для exchange adapters      │        │
 │  └────────────────────┬────────────────────────────────────┘        │
 │                       │                                             │
 │           ┌───────────┴───────────┐                                 │
@@ -422,10 +392,7 @@ def on_order_filled(self, exchange_order_id, filled_price, filled_amount):
 │  │ Client (Bybit)  │    │ (in-memory)       │                       │
 │  │                 │    │                   │                       │
 │  │ implements:     │    │ implements:       │                       │
-│  │ • fetch_price() │    │ • fetch_price()   │                       │
-│  │ • place_order() │    │ • place_order()   │                       │
-│  │ • get_fills()   │    │ • get_fills()     │                       │
-│  │ • get_balance() │    │ • get_balance()   │                       │
+│  │ IGridExchange   │    │ IGridExchange     │                       │
 │  └─────────────────┘    └───────────────────┘                       │
 │                                                                     │
 │  ┌─────────────────┐    ┌───────────────────┐                       │
@@ -439,75 +406,59 @@ def on_order_filled(self, exchange_order_id, filled_price, filled_amount):
 │  └─────────────────┘    └───────────────────┘                       │
 │                                                                     │
 │  Преимущества:                                                      │
-│  • ОДИН GridCalculator, ОДИН GridOrderManager                       │
+│  • ОДИН GridCalculator, ОДИН GridOrderManager, ОДИН GridRiskManager │
 │  • Бэктестинг гарантированно тестирует ту же логику                 │
 │  • Баг-фикс в core автоматически в обоих системах                  │
-│  • Adapter pattern изолирует различия (real API vs simulation)      │
+│  • IGridExchange Protocol изолирует различия (real API vs sim)      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Интерфейс адаптера (Protocol):
+### Как это работает:
+
+- `services/backtesting/src/grid_backtester/core/calculator.py` — thin re-export shim:
+  ```python
+  from bot.strategies.grid.grid_calculator import GridCalculator, GridConfig, ...
+  ```
+- Аналогично для `order_manager.py`, `risk_manager.py`, `config.py`
+- `MarketSimulator` реализует `IGridExchange` Protocol (runtime-checkable)
+
+### IGridExchange Protocol (`bot/strategies/grid/exchange_protocol.py`):
 
 ```python
+@runtime_checkable
 class IGridExchange(Protocol):
-    """Абстракция биржи для grid-стратегии."""
-
-    async def fetch_price(self, symbol: str) -> Decimal:
-        """Получить текущую цену."""
-        ...
-
-    async def place_order(
-        self, symbol: str, side: str, amount: Decimal, price: Decimal
-    ) -> str:
-        """Разместить лимитный ордер → вернуть order_id."""
-        ...
-
-    async def cancel_order(self, order_id: str) -> None:
-        """Отменить ордер."""
-        ...
-
-    async def get_open_orders(self, symbol: str) -> list[dict]:
-        """Получить открытые ордера."""
-        ...
-
-    async def get_order_status(self, order_id: str) -> dict:
-        """Получить статус ордера (filled/open/cancelled)."""
-        ...
-
-    async def get_balance(self) -> dict[str, Decimal]:
-        """Получить баланс {quote: ..., base: ...}."""
-        ...
+    async def create_order(self, symbol, order_type, side, amount, price=None) -> dict: ...
+    async def cancel_order(self, order_id, symbol=None) -> dict: ...
+    async def fetch_ticker(self, symbol) -> dict: ...
+    async def fetch_balance(self) -> dict: ...
 ```
 
 ---
 
-## 9. Сводная таблица различий
+## 8. Сводная таблица различий
 
-| Характеристика | Live Bot | Backtesting | Идеал (TO-BE) |
-|----------------|----------|-------------|---------------|
-| **GridCalculator** | `bot/strategies/grid/` | `services/.../core/` (копия) | Один в `bot/strategies/grid/` |
-| **GridOrderManager** | `bot/strategies/grid/` | `services/.../core/` (копия) | Один в `bot/strategies/grid/` |
+| Характеристика | Live Bot | Backtesting | Статус |
+|----------------|----------|-------------|--------|
+| **GridCalculator** | `bot/strategies/grid/` | re-export shim | Единый source |
+| **GridOrderManager** | `bot/strategies/grid/` | re-export shim | Единый source |
+| **GridRiskManager** | `bot/strategies/grid/` | re-export shim | Единый source |
 | **Exchange** | Real Bybit API | MarketSimulator | IGridExchange Protocol |
-| **Fill detection** | Polling (задержка) | Instant (оптимистично) | Adapter скрывает разницу |
-| **Risk rules** | daily_loss + position_size | stop_loss + drawdown + TP | Объединённый набор |
-| **Price data** | Real-time ticker | OHLCV candles | Adapter: `fetch_price()` |
+| **Fill detection** | Polling (задержка) | Instant (оптимистично) | Adapter-specific |
+| **Risk rules** | daily_loss + position_size | stop_loss + drawdown + TP | Shared core + runner-specific |
+| **Price data** | Real-time ticker | OHLCV candles | Adapter: `fetch_ticker()` |
 | **State** | PostgreSQL + reconcile | In-memory | Runner-specific |
-| **Partial fills** | Да | Нет | MarketSimulator должен поддерживать |
-| **Trailing grid** | Нет | Да | Shared Core |
-| **Fees** | Реальные (биржа) | Симулированные (0.1%) | Adapter |
+| **Partial fills** | Да | Нет | MarketSimulator TODO |
+| **Trailing grid** | Нет | Да | Backtesting-specific |
+| **Fees** | Реальные (биржа) | Симулированные (0.1%) | Adapter-specific |
 
 ---
 
-## 10. Выводы
+## 9. Выводы
 
-1. **Бэктестинг ДОЛЖЕН имитировать бота** — это его основное назначение. Чем ближе симуляция к реальному поведению, тем достовернее результаты.
+1. **Дублирование кода устранено** — GridCalculator, GridOrderManager, GridRiskManager и GridConfig живут в одном месте (`bot/strategies/grid/`). Backtesting импортирует через re-export shims.
 
-2. **Текущая реализация частично имитирует**, но с существенными расхождениями:
-   - Дублированный код создаёт риск divergence
-   - Разные модели исполнения (instant vs polling)
-   - Разные правила риска
-   - MarketSimulator не поддерживает partial fills
+2. **IGridExchange Protocol** определяет контракт между grid-стратегией и exchange-адаптерами. MarketSimulator уже соответствует этому Protocol.
 
-3. **Главная архитектурная проблема** — отсутствие общего интерфейса. Бот и бэктестинг развиваются независимо, что ведёт к расхождению логики.
+3. **Оставшиеся различия** между live и backtest — это фундаментальные различия в моделях исполнения (real-time polling vs instant fill), которые корректно изолированы в адаптерах.
 
-4. **Рекомендация**: перейти к архитектуре Shared Core + Pluggable Adapters, где grid-логика живёт в одном месте, а различия между real-time и historical изолированы в адаптерах.
+4. **Баг-фикс в grid-логике** теперь автоматически применяется к обеим системам.

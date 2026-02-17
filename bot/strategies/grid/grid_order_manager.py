@@ -9,7 +9,6 @@ Responsibilities:
 - Track profit/loss per grid cycle
 """
 
-import asyncio
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -17,15 +16,16 @@ from decimal import Decimal, ROUND_HALF_UP
 from enum import Enum
 from typing import Any
 
-from bot.strategies.grid.grid_calculator import (
+import structlog
+
+from .grid_calculator import (
     GridCalculator,
     GridConfig,
     GridLevel,
     GridSpacing,
 )
-from bot.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # =============================================================================

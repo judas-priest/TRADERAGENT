@@ -10,13 +10,13 @@ Responsibilities:
 """
 
 from dataclasses import dataclass, field
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from bot.utils.logger import get_logger
+import structlog
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # =============================================================================

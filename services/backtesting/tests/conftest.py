@@ -1,5 +1,13 @@
 """Shared test fixtures and helpers for grid backtester tests."""
 
+import sys
+from pathlib import Path
+
+# Add project root so grid_backtester shims can import from bot.strategies.grid
+_project_root = str(Path(__file__).resolve().parents[3])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 import numpy as np
 import pandas as pd
 import pytest

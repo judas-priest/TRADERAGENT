@@ -25,6 +25,15 @@ from grid_backtester.core.config import (
     VOLATILITY_PRESETS,
 )
 
+import sys
+from pathlib import Path
+
+_root = str(Path(__file__).resolve().parents[5])
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+
+from bot.strategies.grid.exchange_protocol import IGridExchange  # noqa: F401,E402
+
 __all__ = [
     "GridCalculator",
     "GridConfig",
@@ -42,4 +51,5 @@ __all__ = [
     "GridStrategyConfig",
     "VolatilityMode",
     "VOLATILITY_PRESETS",
+    "IGridExchange",
 ]
