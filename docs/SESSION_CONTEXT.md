@@ -3,13 +3,80 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 17 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + **Historical Data Deployed to Server (45 pairs × 10 TF)**
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + **Shared Core Refactoring COMPLETE** + **XRP/USDT Backtest COMPLETE (1st preset saved)**
 **Pass Rate:** 100% (1859/1859 tests passing, 25 skipped)
 **Realnyy obem testov:** 1884 collected (1857 bez testnet)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-17) - Grid Batch Backtesting + Data Deployment
+## Poslednyaya Sessiya (2026-02-17) - Shared Core Refactoring + XRP/USDT Backtest
+
+### Zadacha 1: Shared Core + Pluggable Adapters
+
+Eliminatsiya dublikatov grid-logiki mezhdu `bot/strategies/grid/` (prodakshn) i `services/backtesting/src/grid_backtester/core/` (bektesting). Ranee 4 fayla byli polnymi kopiyami (~1540 strok duplikatov).
+
+**Reshenie:** Canonical source v `bot/strategies/grid/`, bektesting importiruet cherez re-export shims.
+
+| Faza | Opisanie | Status |
+|------|----------|--------|
+| Phase 1 | Logger: `bot.utils.logger` → `structlog` napryamuyu, relative imports | DONE |
+| Phase 2 | 4 fayla v `grid_backtester/core/` zamenyeny na thin re-export shims | DONE |
+| Phase 3 | `IGridExchange` Protocol + `MarketSimulator` conformance | DONE |
+| Phase 4 | Dokumentatsiya `GRID_BACKTESTING_ARCHITECTURE.md` obnovlena | DONE |
+
+**Izmenennye fayly (14):**
+- `bot/strategies/grid/grid_calculator.py` — structlog direct
+- `bot/strategies/grid/grid_order_manager.py` — structlog, remove unused asyncio
+- `bot/strategies/grid/grid_risk_manager.py` — structlog, remove unused ROUND_HALF_UP
+- `bot/strategies/grid/grid_config.py` — relative imports
+- `bot/strategies/grid/__init__.py` — relative imports + IGridExchange
+- `bot/strategies/grid/exchange_protocol.py` — **NOVYY** (IGridExchange Protocol)
+- `services/backtesting/src/grid_backtester/core/calculator.py` → shim
+- `services/backtesting/src/grid_backtester/core/order_manager.py` → shim
+- `services/backtesting/src/grid_backtester/core/risk_manager.py` → shim
+- `services/backtesting/src/grid_backtester/core/config.py` → shim
+- `services/backtesting/src/grid_backtester/core/__init__.py` — IGridExchange re-export
+- `services/backtesting/src/grid_backtester/core/market_simulator.py` — Protocol conformance
+- `services/backtesting/tests/conftest.py` — project root v sys.path
+- `tests/backtesting/conftest.py` — project root v sys.path
+
+**Testy:** 393/393 passed (185 grid + 169 backtesting + 39 backtesting/grid)
+**Commit:** `663c2d6`
+
+### Zadacha 2: XRP/USDT Grid Backtest (1-y preset v biblioteke)
+
+Pervyy polnyy grid-bektesting na realnyh dannyh. Zapusk na servere 185.233.200.13 cherez Docker.
+
+**Dannye:** 67 922 1h svechey (04.05.2018 → 14.02.2026, 7.8 let)
+**Diapazon tsen:** $0.1194 — $3.6535 (3000%+ dvizhenie)
+**Depozit:** $100 000 USDT | **Komissii:** 0.1% maker/taker
+
+**Rezultaty skana napravleniy:**
+
+| Napravlenie | ROI | Sharpe | Tsikly | Status |
+|-------------|-----|--------|--------|--------|
+| Neutral | +1.18% | +0.680 | 0 | RISK-STOP |
+| Long | +1.20% | +0.695 | 0 | RISK-STOP |
+| Short | +2.29% | +0.654 | 2 | RISK-STOP |
+
+**Optimizatsiya (332s, 52 trial):**
+- Klassifikatsiya: blue_chips (ATR% 1.98, Volatility 43.88)
+- Luchshiy: ROI +0.12%, Sharpe +0.701
+- Optimalnye parametry: 20 urovney, geometric spacing, profit/grid 0.63%
+
+**Sohranennye artefakty:**
+- Otchet: `/data/backtest_results/XRPUSDT_backtest_20260217_202316.json`
+- Preset: `/data/backtest_results/XRPUSDT_preset_20260217_202316.yaml`
+- SQLite: `/data/presets.db` (preset_id=`f191113c-b34`, **pervaya zapis v biblioteke**)
+
+**Bug fix:** ATR=0 v stress-teste — fallback na 1% ot tekushchey tseny
+**Commits:** `663c2d6` (shared core), `6d72e6f` (ATR fix), `50b3d4e` (backtest script + preset)
+
+**Vyvod:** Grid-strategiya s staticheskimi granitsami ne podhodit dlya 7.8 let dannyh s 3000%+ dvizheniem tseny. Rekomenduetsya optimizirovat na korotkih oknah (3-6 mes).
+
+---
+
+## Predydushchaya Sessiya (2026-02-17) - Grid Batch Backtesting + Data Deployment
 
 ### Zadacha
 
@@ -340,6 +407,16 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 10 (2026-02-17): Shared Core Refactoring + XRP/USDT Backtest
+- Eliminatsiya dublikatov grid-logiki: 4 fayla → re-export shims (-1540 strok)
+- IGridExchange Protocol + MarketSimulator conformance
+- Logger: bot.utils.logger → structlog napryamuyu
+- XRP/USDT bektesting na servere (67K svechey, $100K, 7.8 let)
+- Pervyy preset sohranen v biblioteku (`presets.db`, preset_id f191113c-b34)
+- Bug fix: ATR=0 edge case v simulator.py
+- **Commits:** `663c2d6`, `6d72e6f`, `50b3d4e`
+- **Status:** COMPLETE
+
 ### Sessiya 9 (2026-02-17): Grid Batch Backtesting + Data Deployment
 - Naydeny istoricheskie dannye: 450 CSV (45 par × 10 TF), 5.4 GB v `/home/hive/btc/data/historical/`
 - Vse 450 faylov skopirovany na server 185.233.200.13 → `~/TRADERAGENT/data/historical/`
@@ -418,7 +495,9 @@ Phase 6: Advanced Backtesting         [##########] 100%
 Phase 7.1-7.2: Testing                [##########] 100%
 Phase 7.3: Demo Trading Deployment    [##########] 100%  <- DEPLOYED!
 Phase 7.4: Load/Stress Testing        [##########] 100%  <- COMPLETE!
-Phase 7.5: State Persistence          [##########] 100%  <- NEW!
+Phase 7.5: State Persistence          [##########] 100%
+Phase 7.6: Shared Core Refactoring    [##########] 100%  <- NEW!
+Phase 7.7: XRP/USDT Backtest (1st)    [##########] 100%  <- NEW!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -500,7 +579,7 @@ docker compose up webui-backend webui-frontend
 
 ## Sleduyushchie Shagi
 
-1. **Zapusk batch bektesta:** 45 par na servere cherez Docker (`run_grid_backtest_all.py`)
+1. **Batch bektesting:** 45 par na servere cherez Docker (`run_grid_backtest_all.py`) — ispolzovat korotkie okna (3-6 mes) vmesto polnogo perioda
 2. **Analiz rezultatov:** Vybor luchshih presetov po ROI/Sharpe/klasteram
 3. **Grid Backtesting Integration:** Podklyuchit k Web UI (zamenit zaglushku _run_backtest_sync()), integrirovat s HistoricalDataProvider
 4. **Strategy Dispatcher:** Dobavit marshrutizatsiyu po strategy_type v backtesting.py (Grid/DCA/TF)
@@ -514,14 +593,16 @@ docker compose up webui-backend webui-frontend
 - **Date:** February 17, 2026
 - **Status:** 1859/1884 tests passing (100%), 25 skipped
 - **Total tests:** 1884 collected (dokumentatsiya obnovlena s realnym chislom)
+- **Shared Core Refactoring:** COMPLETE — eliminatsiya dublikatov, re-export shims, IGridExchange Protocol
+- **XRP/USDT Backtest:** COMPLETE — pervyy preset v biblioteke (preset_id f191113c-b34)
 - **Grid Backtesting:** COMPLETE (39 tests, 4 phases) — polnaya sovmestimost s prodakshn
 - **State Persistence:** COMPLETE (#237) — save/load/reconcile
 - **Phase 7.4:** Load/Stress Testing — COMPLETE (40 tests)
 - **Web UI Dashboard:** COMPLETE (PR #221 merged)
 - **Phase 7.3:** Bybit Demo Trading — DEPLOYED
 - **Server:** 185.233.200.13 (Docker)
-- **Bug fixed:** SMC position_manager is_long inversion
+- **Bug fixed:** ATR=0 edge case v simulator.py, SMC position_manager is_long inversion
 - **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed to server
-- **Batch Script:** `scripts/run_grid_backtest_all.py` — gotov k zapusku
-- **Next Action:** Zapusk batch bektesta na servere → analiz → presety → Production
+- **Presets Library:** 1 preset (XRPUSDT) v `/data/presets.db`
+- **Next Action:** Batch bektesting 45 par → analiz → best presets → Production
 - **Co-Authored:** Claude Opus 4.6
