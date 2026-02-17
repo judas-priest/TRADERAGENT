@@ -13,14 +13,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bot.backtesting.grid.clusterizer import CoinClusterizer
-from bot.backtesting.grid.models import (
+from grid_backtester.engine import (
+    CoinClusterizer,
     CLUSTER_PRESETS,
     CoinCluster,
     CoinProfile,
     ClusterPreset,
 )
-from bot.strategies.grid.grid_calculator import GridSpacing
+from grid_backtester.core import GridSpacing
 
 
 # =============================================================================

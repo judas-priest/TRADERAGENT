@@ -15,19 +15,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bot.backtesting.grid.models import (
+from grid_backtester.engine import (
     CLUSTER_PRESETS,
     CoinCluster,
     ClusterPreset,
     GridBacktestConfig,
     OptimizationObjective,
-)
-from bot.backtesting.grid.optimizer import (
     GridOptimizationResult,
     GridOptimizer,
     OptimizationTrial,
 )
-from bot.strategies.grid.grid_calculator import GridSpacing
+from grid_backtester.core import GridSpacing
 
 
 # =============================================================================

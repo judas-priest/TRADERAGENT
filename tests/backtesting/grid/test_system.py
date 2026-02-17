@@ -15,9 +15,12 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from bot.backtesting.grid.models import GridBacktestConfig, GridBacktestResult
-from bot.backtesting.grid.system import GridBacktestSystem
-from bot.strategies.grid.grid_calculator import GridSpacing
+from grid_backtester.engine import (
+    GridBacktestConfig,
+    GridBacktestResult,
+    GridBacktestSystem,
+)
+from grid_backtester.core import GridSpacing
 
 
 # =============================================================================

@@ -28,12 +28,13 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "services" / "backtesting" / "src"))
 
-from bot.backtesting.grid.models import (
+from grid_backtester.engine import (
     GridBacktestConfig,
     OptimizationObjective,
+    GridBacktestSystem,
 )
-from bot.backtesting.grid.system import GridBacktestSystem
 
 # ─── Paths ─────────────────────────────────────────────────────────────────
 # Default data dir — overridden by --data-dir

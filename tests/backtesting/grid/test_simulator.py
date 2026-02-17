@@ -19,13 +19,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bot.backtesting.grid.models import (
+from grid_backtester.engine import (
     GridBacktestConfig,
     GridBacktestResult,
     GridDirection,
+    GridBacktestSimulator,
 )
-from bot.backtesting.grid.simulator import GridBacktestSimulator
-from bot.strategies.grid.grid_calculator import GridSpacing
+from grid_backtester.core import GridSpacing
 
 
 # =============================================================================

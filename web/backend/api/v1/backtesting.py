@@ -3,12 +3,20 @@ Backtesting API endpoints — async job execution with real GridBacktestSimulato
 """
 
 import asyncio
+import sys
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
+
+_backtester_src = str(Path(__file__).resolve().parent.parent.parent.parent.parent / "services" / "backtesting" / "src")
+if _backtester_src not in sys.path:
+    sys.path.insert(0, _backtester_src)
+
+from grid_backtester.engine import GridBacktestConfig, GridBacktestSimulator
 
 from web.backend.auth.models import User
 from web.backend.dependencies import get_current_user, get_orchestrators
@@ -130,9 +138,6 @@ async def _execute_backtest(job_id: str, data: BacktestRunRequest, exchange=None
 
 async def _run_grid_backtest(data: BacktestRunRequest, exchange) -> dict:
     """Run grid backtest with real OHLCV data from exchange."""
-    from bot.backtesting.grid.models import GridBacktestConfig
-    from bot.backtesting.grid.simulator import GridBacktestSimulator
-
     # Fetch OHLCV data
     ohlcv = await exchange.fetch_ohlcv(
         symbol=data.symbol,
@@ -181,8 +186,6 @@ async def _run_grid_backtest(data: BacktestRunRequest, exchange) -> dict:
 
 def _run_grid_backtest_offline(data: BacktestRunRequest) -> dict:
     """Run grid backtest without exchange (generates synthetic data)."""
-    from bot.backtesting.grid.models import GridBacktestConfig
-    from bot.backtesting.grid.simulator import GridBacktestSimulator
     import numpy as np
 
     # Generate synthetic OHLCV data
