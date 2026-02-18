@@ -1,14 +1,93 @@
-# TRADERAGENT v2.0 — Session Context (Updated 2026-02-17)
+# TRADERAGENT v2.0 — Session Context (Updated 2026-02-18)
 
 ## Current Status
 
-**Date:** February 17, 2026
-**Session:** 13 (Server Deployment — synced to d4b3df0)
+**Date:** February 18, 2026
+**Session:** 15 (Strategy Algorithm Documentation)
 **Tests:** 532 passing (385 bot + 46 web + 8 state persistence + 93 backtester service)
 **Codebase:** 311 Python files (73,869 LOC) + 51 TypeScript files (6,536 LOC)
-**Commits:** 390 total
+**Commits:** 400 total
 **Open Audit Issues:** 0 — all 12/12 closed (#226-#237)
-**Server:** 185.233.200.13 — synced to `d4b3df0`, 16 DB tables, bot image rebuilt, bot NOT running
+**Server:** 185.233.200.13 — synced to `3405cf3`, 16 DB tables, bot image rebuilt, bot NOT running
+**Docs:** ARCHITECTURE2.md (580 lines), STRATEGY_ALGORITHMS.md (287 lines), HTML screenshot gallery, README with Web UI section
+
+---
+
+## Session 15: Strategy Algorithm Documentation (2026-02-18)
+
+### What Was Done
+
+Создан документ `docs/STRATEGY_ALGORITHMS.md` (287 строк) — детальное описание алгоритма работы каждой из 5 стратегий после запуска: какие параметры мониторит, с чем сравнивает, какие сигналы и кому выдаёт. Включает табличное представление, формулы расчёта, data flow диаграмму и сводную таблицу сравнения.
+
+### Changes
+
+| Коммит | Описание |
+|--------|----------|
+| `5d68347` | `docs/STRATEGY_ALGORITHMS.md` — алгоритмы всех 5 стратегий (Grid, DCA, Trend Follower, Hybrid, SMC) |
+
+### STRATEGY_ALGORITHMS.md (новый)
+
+Содержит для каждой стратегии:
+
+| Стратегия | Мониторит | Ключевой сигнал | Тип ордеров |
+|-----------|-----------|-----------------|-------------|
+| **Grid** | ATR(14), цена, ордера на бирже | Fill → Counter-order (наценка profit_per_grid) | Limit |
+| **DCA** | EMA(12/26), RSI, BB, Volume, ADX | Confluence score >= 0.6 → Base order + Safety Orders | Market + Limit |
+| **Trend Follower** | EMA(20/50), ATR(14), RSI(14) | Pullback к EMA / Breakout + volume → Entry с ATR-based TP/SL | Limit (вход), Market (выход) |
+| **Hybrid** | ADX, BB width, Volume | ADX >= 25 → Grid→DCA, ADX < 20 → DCA→Grid | Делегирует Grid/DCA |
+| **SMC** | Swing Points (H4), OB/FVG (H1), Паттерны (M15) | Паттерн в зоне OB/FVG + R:R >= 2.5 + confidence >= 0.6 | Limit/Market |
+
+Также включены:
+- Формулы: Grid levels (arithmetic/geometric), ATR bounds, Safety Orders, Confluence scoring, Kelly Criterion
+- Volatility/Market presets для каждой стратегии
+- TP/SL множители по фазам рынка (Trend Follower)
+- Режимы Market Regime Detector (Hybrid)
+- Общая data flow диаграмма: Биржа → Orchestrator → Стратегия → Биржа/Redis/PostgreSQL/Telegram
+
+---
+
+## Session 14: Documentation, Architecture & Server Re-audit (2026-02-17)
+
+### What Was Done
+
+Документация проекта: HTML-галерея скриншотов, секция Web UI в README, создание ARCHITECTURE2.md (580 строк), повторный аудит и синхронизация сервера (+4 коммита), рефакторинг grid backtesting (shared core).
+
+### Changes
+
+| Коммит | Описание |
+|--------|----------|
+| `5b15196` | README.md — добавлена секция Web UI с таблицей 2×4 скриншотов |
+| `1c54c27` | `docs/screenshots/index.html` — HTML-галерея с lightbox, dark theme |
+| `663c2d6` | Рефакторинг: `services/backtesting/` импортирует из `bot.strategies.grid` (shared core) |
+| `3405cf3` | `docs/ARCHITECTURE2.md` — полная архитектура системы (580 строк) |
+
+### ARCHITECTURE2.md (новый)
+
+Комплексный документ архитектуры:
+- Системная диаграмма и распределение кода
+- 5 стратегий: Grid, DCA, Hybrid, Trend Follower, SMC
+- Оркестратор (state machine): INITIALIZING → RUNNING → STOPPING
+- Exchange integration: CCXT + ByBitDirectClient (api-demo.bybit.com)
+- Database schema: 16 таблиц PostgreSQL + Redis cache
+- Web UI: FastAPI (42 routes) + React (7 pages) + WebSocket
+- Backtesting service: standalone на port 8100
+- Docker deployment: 6 контейнеров
+- Data flow диаграммы
+
+### Server Re-audit
+
+Сервер отставал на 4 коммита после Session 13. Выполнено:
+- `git pull origin main` → fast-forward `d4b3df0` → `3405cf3`
+- `git stash drop` (pre-deploy stash удалён)
+- `docker image prune` — освобождено 487 MB (dangling images)
+- Статус: postgres/redis healthy, git clean, код актуален
+
+### HTML Gallery (`docs/screenshots/index.html`)
+
+Dark-themed галерея с 8 скриншотами Web UI:
+- Login, Dashboard, Bots, Strategy Marketplace, Portfolio, Backtesting, Settings, Settings (full)
+- Lightbox при клике, responsive grid, badges (React, TypeScript, FastAPI, JWT)
+- Для просмотра: нужен GitHub Pages или raw.githack.com
 
 ---
 
@@ -529,7 +608,10 @@ cd services/backtesting && docker compose up -d  # backtester on :8100
 
 - **Repository:** https://github.com/alekseymavai/TRADERAGENT
 - **Screenshots:** https://github.com/alekseymavai/TRADERAGENT/tree/main/docs/screenshots
-- **Architecture:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/ARCHITECTURE.md
+- **HTML Gallery:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/screenshots/index.html
+- **Architecture v1:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/ARCHITECTURE.md
+- **Architecture v2:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/ARCHITECTURE2.md
+- **Strategy Algorithms:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/STRATEGY_ALGORITHMS.md
 - **Web UI PR:** https://github.com/alekseymavai/TRADERAGENT/pull/221
 - **Issues Board:** https://github.com/alekseymavai/TRADERAGENT/issues
 
@@ -537,10 +619,13 @@ cd services/backtesting && docker compose up -d  # backtester on :8100
 
 ## Last Updated
 
-- **Date:** February 17, 2026
-- **Session:** 13 (Server Deployment)
+- **Date:** February 18, 2026
+- **Session:** 15 (Strategy Algorithm Documentation)
 - **Tests:** 532/532 passing (100%)
-- **Server:** 185.233.200.13 synced to `d4b3df0`, 16 DB tables, Docker image rebuilt
+- **Commits:** 400 total
+- **Server:** 185.233.200.13 synced to `3405cf3`, 16 DB tables, Docker image rebuilt
+- **New Docs:** STRATEGY_ALGORITHMS.md (287 lines) — алгоритмы всех 5 стратегий
+- **Previous Docs:** ARCHITECTURE2.md (580 lines), HTML gallery, README Web UI section
 - **Audit Bugs Fixed:** 12/12 — #226-#237 all resolved
 - **Backtester Service:** 8/13 fully done, 2 partial, 2 dead code, 1 defect; 93 tests (60% coverage)
 - **Remaining Backtester Fixes:** ~14-16 hours (4 bugs + 4 stubs + missing tests)
