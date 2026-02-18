@@ -1,15 +1,81 @@
-# TRADERAGENT v2.0 - Session Context (Updated 2026-02-17)
+# TRADERAGENT v2.0 - Session Context (Updated 2026-02-18)
 
 ## Tekushchiy Status Proekta
 
-**Data:** 17 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + **Shared Core Refactoring COMPLETE** + **XRP/USDT Backtest COMPLETE (1st preset saved)**
+**Data:** 18 fevralya 2026
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + **Backtesting Service 5 Bug Fixes COMPLETE**
 **Pass Rate:** 100% (1859/1859 tests passing, 25 skipped)
 **Realnyy obem testov:** 1884 collected (1857 bez testnet)
+**Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-17) - Shared Core Refactoring + XRP/USDT Backtest
+## Poslednyaya Sessiya (2026-02-18) - Backtesting Service: 5 Bug Fixes
+
+### Zadacha
+
+5 bagfiksov bektesting-servisa dlya prodakshn-gotovnosti. 3 realnye oshibki (1, 2, 5) i 2 uluchsheniya (3, 4).
+
+### Issue 1: Parallelnyy optimizer ignoriruet indicator cache (CRITICAL)
+
+**Problema:** `_run_single_trial()` sozdaval `GridBacktestSimulator(config)` bez `indicator_cache`. Kazhdyy parallelnyy worker pereschityval ATR/EMA s nulya.
+
+**Fix:**
+- `indicator_cache.py`: dobavleny `to_dict()` i `from_dict()` — serializatsiya cache (Decimal → string)
+- `optimizer.py`: `_run_single_trial()` prinimaet `cache_data`, `_run_trials_parallel()` pre-warm cache cherez `_calculate_bounds()` i peredaet vsem workeram
+
+### Issue 2: Checkpoint ne sohranyaetsya vo vremya parallelnogo vypolneniya
+
+**Problema:** Checkpoint sohranyalsya tolko POSLE zaversheniya vseh workerov. Pri preryvanii zavershennaya rabota teryalas.
+
+**Fix:** Peremeshchen `checkpoint.save_trial()` v `as_completed` handler — kazhdyy trial sohranyaetsya srazu po zavershenii.
+
+### Issue 3: Trailing grid ATR — tihiy fallback
+
+**Problema:** Kogda `recenter_mode="atr"` no net dannyh o tsenah, tiho pereklyuchalsya na fixed. Istoriya smeshcheniy zapisyvala `"atr"` hotya ispolzovalsya fixed.
+
+**Fix:**
+- `manager.py`: dobavlen `logger.warning()` pri fallback, v istorii zapisyvaetsya `"fixed_fallback"` vmesto `"atr"`
+- `optimizer.py`: `_config_to_dict()` teper serializuet trailing polya (`trailing_enabled`, `trailing_shift_threshold_pct`, `trailing_recenter_mode`, `trailing_cooldown_candles`)
+
+### Issue 4: Soobshcheniya fallback dlya grafikov
+
+**Problema:** Odinakovoe soobshchenie dlya "plotly ne ustanovlen" i "net dannyh".
+
+**Fix:** Razdeleny na dva otdelnyh soobshcheniya. Dobavlena proverka plotly pri starte app.
+
+### Issue 5: `datetime.utcnow()` deprecated + tihie isklyucheniya
+
+**Fix 5A (simulator.py):** `except Exception:` → `except Exception as e:` + `logger.warning()`
+**Fix 5B (7 faylov):** Zamena `datetime.utcnow` → `datetime.now(timezone.utc)` vo vseh model i test faylah
+
+### Izmenennye Fayly (16)
+
+| # | Fayl | Issue |
+|---|------|-------|
+| 1 | `services/backtesting/src/grid_backtester/engine/simulator.py` | 5A |
+| 2 | `services/backtesting/src/grid_backtester/caching/indicator_cache.py` | 1 |
+| 3 | `services/backtesting/src/grid_backtester/engine/optimizer.py` | 1, 2, 3 |
+| 4 | `services/backtesting/src/grid_backtester/trailing/manager.py` | 3 |
+| 5 | `services/backtesting/src/grid_backtester/visualization/charts.py` | 4 |
+| 6 | `services/backtesting/src/grid_backtester/api/app.py` | 4 |
+| 7 | `bot/database/models.py` | 5B |
+| 8 | `bot/database/models_v2.py` | 5B |
+| 9 | `bot/database/models_state.py` | 5B |
+| 10 | `web/backend/auth/models.py` | 5B |
+| 11 | `bot/tests/backtesting/market_simulator.py` | 5B |
+| 12 | `tests/database/test_models_v2.py` | 5B |
+| 13 | `tests/integration/test_database_persistence.py` | 5B |
+| 14 | `services/backtesting/tests/caching/test_indicator_cache.py` | 1 (novye testy) |
+| 15 | `services/backtesting/tests/engine/test_optimizer.py` | 2 (novyy test) |
+| 16 | `services/backtesting/tests/trailing/test_trailing_manager.py` | 3 (obnovlen assert) |
+
+**Testy:** 219 passed (174 backtesting + 22 model + 23 integration)
+**Commit:** `5488d39`
+
+---
+
+## Predydushchaya Sessiya (2026-02-17) - Shared Core Refactoring + XRP/USDT Backtest
 
 ### Zadacha 1: Shared Core + Pluggable Adapters
 
@@ -407,6 +473,18 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 11 (2026-02-18): Backtesting Service — 5 Bug Fixes
+- Parallelnyy optimizer teper razdelyaet indicator cache s workerami (to_dict/from_dict)
+- Checkpoint sohranyaetsya srazu pri zavershenii kazhdogo trial (ne posle vseh)
+- Trailing grid ATR fallback logiruet warning i zapisyvaet "fixed_fallback" v istoriyu
+- Chart fallback soobshcheniya razdeleny: "plotly ne ustanovlen" vs "net dannyh"
+- `datetime.utcnow()` zamenen na `datetime.now(timezone.utc)` v 7 faylah
+- Tihie isklyucheniya v simulator.py teper logiruyutsya
+- _config_to_dict() teper serializuet trailing polya dlya parallelnogo optimizatora
+- +5 novyh testov (4 cache serialization + 1 parallel checkpoint)
+- **Commit:** `5488d39`
+- **Status:** COMPLETE
+
 ### Sessiya 10 (2026-02-17): Shared Core Refactoring + XRP/USDT Backtest
 - Eliminatsiya dublikatov grid-logiki: 4 fayla → re-export shims (-1540 strok)
 - IGridExchange Protocol + MarketSimulator conformance
@@ -497,7 +575,8 @@ Phase 7.3: Demo Trading Deployment    [##########] 100%  <- DEPLOYED!
 Phase 7.4: Load/Stress Testing        [##########] 100%  <- COMPLETE!
 Phase 7.5: State Persistence          [##########] 100%
 Phase 7.6: Shared Core Refactoring    [##########] 100%  <- NEW!
-Phase 7.7: XRP/USDT Backtest (1st)    [##########] 100%  <- NEW!
+Phase 7.7: XRP/USDT Backtest (1st)    [##########] 100%
+Phase 7.8: Backtesting 5 Bug Fixes   [##########] 100%  <- NEW!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -590,9 +669,10 @@ docker compose up webui-backend webui-frontend
 
 ## Last Updated
 
-- **Date:** February 17, 2026
+- **Date:** February 18, 2026
 - **Status:** 1859/1884 tests passing (100%), 25 skipped
 - **Total tests:** 1884 collected (dokumentatsiya obnovlena s realnym chislom)
+- **Backtesting Service:** 174 tests (bylo 169, +5 novyh), 5 bug fixes applied
 - **Shared Core Refactoring:** COMPLETE — eliminatsiya dublikatov, re-export shims, IGridExchange Protocol
 - **XRP/USDT Backtest:** COMPLETE — pervyy preset v biblioteke (preset_id f191113c-b34)
 - **Grid Backtesting:** COMPLETE (39 tests, 4 phases) — polnaya sovmestimost s prodakshn
@@ -601,7 +681,7 @@ docker compose up webui-backend webui-frontend
 - **Web UI Dashboard:** COMPLETE (PR #221 merged)
 - **Phase 7.3:** Bybit Demo Trading — DEPLOYED
 - **Server:** 185.233.200.13 (Docker)
-- **Bug fixed:** ATR=0 edge case v simulator.py, SMC position_manager is_long inversion
+- **Bug fixed:** parallel cache, checkpoint timing, ATR fallback, datetime.utcnow, silent exceptions
 - **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed to server
 - **Presets Library:** 1 preset (XRPUSDT) v `/data/presets.db`
 - **Next Action:** Batch bektesting 45 par → analiz → best presets → Production
