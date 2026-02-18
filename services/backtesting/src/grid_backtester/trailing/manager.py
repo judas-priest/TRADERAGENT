@@ -112,11 +112,18 @@ class TrailingGridManager:
             return None
 
         # Calculate new bounds
+        actual_mode = self.recenter_mode
         if self.recenter_mode == "atr" and highs and lows and closes:
             new_upper, new_lower = self._recenter_atr(
                 current_price, highs, lows, closes,
             )
         else:
+            if self.recenter_mode == "atr":
+                logger.warning(
+                    "ATR recenter mode requested but no price data provided, falling back to fixed",
+                    price=float(current_price),
+                )
+                actual_mode = "fixed_fallback"
             new_upper, new_lower = self._recenter_fixed(
                 current_price, spread,
             )
@@ -142,7 +149,7 @@ class TrailingGridManager:
             "old_lower": float(current_lower),
             "new_upper": float(new_upper),
             "new_lower": float(new_lower),
-            "mode": self.recenter_mode,
+            "mode": actual_mode,
         })
 
         logger.info(

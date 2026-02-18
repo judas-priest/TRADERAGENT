@@ -3,7 +3,7 @@ SQLAlchemy models for the trading bot database.
 Defines tables for bots, credentials, orders, trades, and logs.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import (
@@ -40,9 +40,9 @@ class ExchangeCredential(Base):
     password_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_sandbox: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     # Relationships
@@ -82,9 +82,9 @@ class Bot(Base):
     total_trades: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     stopped_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     # Relationships
@@ -130,9 +130,9 @@ class Order(Base):
     )
     grid_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_dca: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
     )
     filled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -170,7 +170,7 @@ class Trade(Base):
     fee_currency: Mapped[str] = mapped_column(String(10), nullable=False)
     profit: Mapped[Decimal | None] = mapped_column(DECIMAL(20, 8), nullable=True)
     executed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     bot: Mapped["Bot"] = relationship("Bot", back_populates="trades")
@@ -201,9 +201,9 @@ class GridLevel(Base):
     buy_order_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     sell_order_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     # Relationships
@@ -233,7 +233,7 @@ class DCAHistory(Base):
     average_price: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
     dca_step: Mapped[int] = mapped_column(Integer, nullable=False)
     executed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     bot: Mapped["Bot"] = relationship("Bot", back_populates="dca_history")
@@ -267,9 +267,9 @@ class StrategyTemplate(Base):
     recommended_pairs: Mapped[str] = mapped_column(Text, default="[]", nullable=False)  # JSON array
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     copy_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     __table_args__ = (
@@ -294,7 +294,7 @@ class BotLog(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     context: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False, index=True
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True
     )
 
     # Relationships

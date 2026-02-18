@@ -1,7 +1,7 @@
 """Market simulator for backtesting trading strategies"""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -41,7 +41,7 @@ class SimulatedOrder:
     amount: Decimal
     filled: Decimal = Decimal("0")
     status: OrderStatus = OrderStatus.OPEN
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def is_filled(self) -> bool:
@@ -131,7 +131,7 @@ class MarketSimulator:
             "last": float(self.current_price),
             "bid": float(self.current_price * (Decimal("1") - self.slippage)),
             "ask": float(self.current_price * (Decimal("1") + self.slippage)),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     def get_balance(self) -> dict[str, dict[str, float]]:
@@ -259,7 +259,7 @@ class MarketSimulator:
                     "price": float(order.price),
                     "amount": float(order.amount),
                     "fee": float(fee) if order.side == OrderSide.BUY else float(fee),
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
 

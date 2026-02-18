@@ -183,7 +183,7 @@ class TestTrailingGridManager:
         )
         assert result is not None
         # Falls back to fixed mode
-        assert mgr.shift_history[0]["mode"] == "atr"  # still reports atr as mode
+        assert mgr.shift_history[0]["mode"] == "fixed_fallback"
 
     def test_reset_clears_state(self):
         mgr = TrailingGridManager(

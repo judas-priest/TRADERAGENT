@@ -79,6 +79,27 @@ class IndicatorCache:
             "hit_rate": round(self._hits / total, 4) if total > 0 else 0.0,
         }
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize cache to a picklable dict (Decimals converted to strings)."""
+        serialized: dict[str, Any] = {}
+        for key, value in self._cache.items():
+            if isinstance(value, Decimal):
+                serialized[key] = {"__decimal__": str(value)}
+            else:
+                serialized[key] = value
+        return serialized
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any], max_size: int = 1000) -> "IndicatorCache":
+        """Reconstruct IndicatorCache from a serialized dict."""
+        cache = cls(max_size=max_size)
+        for key, value in data.items():
+            if isinstance(value, dict) and "__decimal__" in value:
+                cache._cache[key] = Decimal(value["__decimal__"])
+            else:
+                cache._cache[key] = value
+        return cache
+
     @staticmethod
     def make_key(indicator: str, data_hash: str, **params: Any) -> str:
         """Build a cache key from indicator name, data hash, and parameters."""

@@ -3,7 +3,7 @@ SQLAlchemy model for bot state snapshots.
 Enables state persistence across restarts.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,7 +25,7 @@ class BotStateSnapshot(Base):
     trend_state: Mapped[str | None] = mapped_column(Text, nullable=True)
     hybrid_state: Mapped[str | None] = mapped_column(Text, nullable=True)
     saved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     def __repr__(self) -> str:

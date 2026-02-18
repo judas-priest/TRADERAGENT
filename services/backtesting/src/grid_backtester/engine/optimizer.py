@@ -119,7 +119,7 @@ class GridOptimizationResult:
 # =============================================================================
 
 
-def _run_single_trial(config_dict: dict, candles_data: dict) -> dict:
+def _run_single_trial(config_dict: dict, candles_data: dict, cache_data: dict | None = None) -> dict:
     """Run a single backtest trial (picklable for ProcessPoolExecutor)."""
     config = GridBacktestConfig(
         symbol=config_dict["symbol"],
@@ -139,11 +139,18 @@ def _run_single_trial(config_dict: dict, candles_data: dict) -> dict:
         stop_loss_pct=Decimal(str(config_dict.get("stop_loss_pct", "0.50"))),
         max_drawdown_pct=Decimal(str(config_dict.get("max_drawdown_pct", "0.50"))),
         take_profit_pct=Decimal(str(config_dict.get("take_profit_pct", "0"))),
+        trailing_enabled=config_dict.get("trailing_enabled", False),
+        trailing_shift_threshold_pct=Decimal(str(config_dict.get("trailing_shift_threshold_pct", "0.02"))),
+        trailing_recenter_mode=config_dict.get("trailing_recenter_mode", "fixed"),
+        trailing_cooldown_candles=config_dict.get("trailing_cooldown_candles", 5),
     )
 
     candles = pd.DataFrame(candles_data)
 
-    sim = GridBacktestSimulator(config)
+    # Reconstruct indicator cache from serialized data if provided
+    indicator_cache = IndicatorCache.from_dict(cache_data) if cache_data else None
+
+    sim = GridBacktestSimulator(config, indicator_cache=indicator_cache)
     result = sim.run(candles)
 
     return {
@@ -179,6 +186,10 @@ def _config_to_dict(config: GridBacktestConfig) -> dict:
         "stop_loss_pct": str(config.stop_loss_pct),
         "max_drawdown_pct": str(config.max_drawdown_pct),
         "take_profit_pct": str(config.take_profit_pct),
+        "trailing_enabled": config.trailing_enabled,
+        "trailing_shift_threshold_pct": str(config.trailing_shift_threshold_pct),
+        "trailing_recenter_mode": config.trailing_recenter_mode,
+        "trailing_cooldown_candles": config.trailing_cooldown_candles,
     }
 
 
@@ -488,6 +499,16 @@ class GridOptimizer:
                     continue
             new_indices.append(i)
 
+        # Pre-warm indicator cache and serialize for workers
+        cache_data = None
+        if self.indicator_cache and new_indices:
+            # Run a single bounds calculation to populate cache entries
+            first_config = configs[new_indices[0]]
+            warm_sim = GridBacktestSimulator(first_config, indicator_cache=self.indicator_cache)
+            warm_sim._calculate_bounds(candles)
+            cache_data = self.indicator_cache.to_dict()
+            logger.debug("Indicator cache pre-warmed for parallel workers", cache_size=len(cache_data))
+
         logger.info(
             "Running parallel trials",
             total=len(configs),
@@ -501,14 +522,21 @@ class GridOptimizer:
         if new_indices:
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 future_to_idx = {
-                    executor.submit(_run_single_trial, config_dicts[idx], candles_data): idx
+                    executor.submit(_run_single_trial, config_dicts[idx], candles_data, cache_data): idx
                     for idx in new_indices
                 }
 
                 for future in as_completed(future_to_idx):
                     idx = future_to_idx[future]
                     try:
-                        results_map[idx] = future.result()
+                        trial_data = future.result()
+                        results_map[idx] = trial_data
+                        # Save to checkpoint immediately so progress survives interruption
+                        if self.checkpoint and run_id:
+                            config = configs[idx]
+                            result = GridBacktestResult.from_dict(trial_data["result"], config=config)
+                            ch = OptimizationCheckpoint.config_hash(config_dicts[idx])
+                            self.checkpoint.save_trial(run_id, trial_id_start + idx, ch, result.to_dict())
                     except Exception as e:
                         logger.error("Trial failed", trial_idx=idx, error=str(e))
 
@@ -530,11 +558,6 @@ class GridOptimizer:
                 objective_value=obj_value,
             )
             new_trials.append(trial)
-
-            # Save to checkpoint
-            if self.checkpoint and run_id:
-                ch = OptimizationCheckpoint.config_hash(config_dicts[i])
-                self.checkpoint.save_trial(run_id, trial_id_start + i, ch, result.to_dict())
 
         all_trials = cached_trials + new_trials
         logger.info("Parallel trials complete", successful=len(all_trials))

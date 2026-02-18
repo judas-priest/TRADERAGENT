@@ -6,7 +6,7 @@ integrity, and model relationships in the context of trading activity.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -175,7 +175,7 @@ class TestBotCRUD:
         cred = await _create_credential(session)
         bot = await _create_bot(session, cred)
         bot.status = "running"
-        bot.started_at = datetime.utcnow()
+        bot.started_at = datetime.now(timezone.utc)
         await session.flush()
 
         result = await session.execute(select(Bot).where(Bot.id == bot.id))
@@ -234,7 +234,7 @@ class TestOrderCRUD:
         # Fill the order
         order.filled = order.amount
         order.status = "closed"
-        order.filled_at = datetime.utcnow()
+        order.filled_at = datetime.now(timezone.utc)
         await session.flush()
 
         result = await session.execute(select(Order).where(Order.id == order.id))
@@ -307,7 +307,7 @@ class TestTradeCRUD:
             fee=Decimal("0.00001"),
             fee_currency="BTC",
             profit=Decimal("5.50"),
-            executed_at=datetime.utcnow(),
+            executed_at=datetime.now(timezone.utc),
         )
         session.add(trade)
         await session.flush()
@@ -331,7 +331,7 @@ class TestTradeCRUD:
             fee=Decimal("0.00001"),
             fee_currency="BTC",
             profit=Decimal("10.00"),
-            executed_at=datetime.utcnow(),
+            executed_at=datetime.now(timezone.utc),
         )
         # Losing trade
         trade2 = Trade(
@@ -345,7 +345,7 @@ class TestTradeCRUD:
             fee=Decimal("0.00001"),
             fee_currency="BTC",
             profit=Decimal("-5.00"),
-            executed_at=datetime.utcnow(),
+            executed_at=datetime.now(timezone.utc),
         )
         session.add_all([trade1, trade2])
         await session.flush()
@@ -452,7 +452,7 @@ class TestTradingWorkflow:
         filled_order = result.scalar_one()
         filled_order.status = "closed"
         filled_order.filled = filled_order.amount
-        filled_order.filled_at = datetime.utcnow()
+        filled_order.filled_at = datetime.now(timezone.utc)
 
         # 5. Record trade
         trade = Trade(
@@ -465,7 +465,7 @@ class TestTradingWorkflow:
             amount=Decimal("0.001"),
             fee=Decimal("0.00000045"),
             fee_currency="BTC",
-            executed_at=datetime.utcnow(),
+            executed_at=datetime.now(timezone.utc),
         )
         session.add(trade)
         bot.total_trades += 1
@@ -499,7 +499,7 @@ class TestTradingWorkflow:
                 fee=Decimal("0.00001"),
                 fee_currency="BTC",
                 profit=profit,
-                executed_at=datetime.utcnow(),
+                executed_at=datetime.now(timezone.utc),
             )
             session.add(trade)
             bot.current_profit += profit
@@ -540,7 +540,7 @@ class TestTradingWorkflow:
             order.status = "canceled"
 
         bot.status = "stopped"
-        bot.stopped_at = datetime.utcnow()
+        bot.stopped_at = datetime.now(timezone.utc)
         await session.flush()
 
         # Verify all orders cancelled
@@ -568,7 +568,7 @@ class TestTradingWorkflow:
             amount=Decimal("0.001"),
             fee=Decimal("0"),
             fee_currency="USDT",
-            executed_at=datetime.utcnow(),
+            executed_at=datetime.now(timezone.utc),
         )
         session.add(trade1)
         bot1.total_trades = 1

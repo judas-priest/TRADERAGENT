@@ -115,3 +115,40 @@ class TestIndicatorCache:
         for i in range(10):
             cache.put(f"k{i}", i)
         assert cache.stats["size"] <= 5
+
+    def test_to_dict_and_from_dict_float(self):
+        """to_dict/from_dict roundtrip preserves float values."""
+        cache = IndicatorCache()
+        cache.put("atr:abc:14", 123.456)
+        cache.put("ema:def:21", 789.0)
+
+        data = cache.to_dict()
+        restored = IndicatorCache.from_dict(data)
+
+        assert restored.get("atr:abc:14") == 123.456
+        assert restored.get("ema:def:21") == 789.0
+
+    def test_to_dict_and_from_dict_decimal(self):
+        """to_dict/from_dict roundtrip preserves Decimal values."""
+        cache = IndicatorCache()
+        cache.put("key1", Decimal("45123.456"))
+
+        data = cache.to_dict()
+        assert data["key1"] == {"__decimal__": "45123.456"}
+
+        restored = IndicatorCache.from_dict(data)
+        assert restored.get("key1") == Decimal("45123.456")
+
+    def test_from_dict_empty(self):
+        """from_dict with empty dict gives empty cache."""
+        restored = IndicatorCache.from_dict({})
+        assert restored.stats["size"] == 0
+
+    def test_to_dict_preserves_all_entries(self):
+        """to_dict includes all cache entries."""
+        cache = IndicatorCache()
+        for i in range(5):
+            cache.put(f"k{i}", float(i))
+
+        data = cache.to_dict()
+        assert len(data) == 5

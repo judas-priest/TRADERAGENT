@@ -60,6 +60,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.indicator_cache = indicator_cache
     app.state.checkpoint = checkpoint
 
+    # Check plotly availability for chart generation
+    try:
+        import plotly  # noqa: F401
+        logger.info("plotly is available — chart generation enabled")
+    except ImportError:
+        logger.warning("plotly is not installed — chart endpoints will return placeholder HTML")
+
     logger.info(
         "Backtesting service started",
         jobs_db=jobs_db,

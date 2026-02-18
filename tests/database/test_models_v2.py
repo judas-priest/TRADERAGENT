@@ -45,8 +45,8 @@ def sample_bot(session: Session) -> Bot:
         api_secret_encrypted="enc_secret",
         is_sandbox=True,
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     session.add(cred)
     session.flush()
@@ -62,8 +62,8 @@ def sample_bot(session: Session) -> Bot:
         total_invested=Decimal("0"),
         current_profit=Decimal("0"),
         total_trades=0,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     session.add(bot)
     session.flush()
@@ -84,8 +84,8 @@ def sample_strategy(session: Session, sample_bot: Bot) -> Strategy:
         profitable_trades=0,
         total_pnl=Decimal("0"),
         error_count=0,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     session.add(strategy)
     session.flush()
@@ -104,8 +104,8 @@ class TestStrategy:
             strategy_type="trend_follower",
             bot_id=sample_bot.id,
             state="idle",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(strategy)
         session.commit()
@@ -123,8 +123,8 @@ class TestStrategy:
             strategy_id=sample_strategy.strategy_id,
             strategy_type="grid",
             state="idle",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(dup)
         with pytest.raises(Exception):
@@ -137,8 +137,8 @@ class TestStrategy:
                 strategy_id=f"test-{stype}",
                 strategy_type=stype,
                 state="idle",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             )
             session.add(s)
         session.commit()
@@ -191,8 +191,8 @@ class TestSignal:
             risk_reward_ratio=2.0,
             signal_reason="bullish_ob",
             was_executed=False,
-            generated_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(signal)
         session.commit()
@@ -213,8 +213,8 @@ class TestSignal:
             take_profit=Decimal("2800"),
             confidence=0.7,
             metadata_json='{"confluence_score": 0.9}',
-            generated_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(signal)
         session.commit()
@@ -232,8 +232,8 @@ class TestSignal:
             stop_loss=Decimal("44000"),
             take_profit=Decimal("47000"),
             confidence=0.8,
-            generated_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(signal)
         session.commit()
@@ -260,8 +260,8 @@ class TestPosition:
             stop_loss=Decimal("44000"),
             take_profit=Decimal("47000"),
             size=Decimal("0.1"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(pos)
         session.commit()
@@ -283,8 +283,8 @@ class TestPosition:
             stop_loss=Decimal("44000"),
             take_profit=Decimal("47000"),
             size=Decimal("0.1"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(pos)
         session.flush()
@@ -293,7 +293,7 @@ class TestPosition:
         pos.exit_price = Decimal("46500")
         pos.exit_reason = "take_profit"
         pos.realized_pnl = Decimal("150")
-        pos.closed_at = datetime.utcnow()
+        pos.closed_at = datetime.now(timezone.utc)
         session.commit()
 
         loaded = session.get(Position, pos.id)
@@ -311,8 +311,8 @@ class TestPosition:
             stop_loss=Decimal("44000"),
             take_profit=Decimal("47000"),
             size=Decimal("0.1"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(pos1)
         session.flush()
@@ -326,8 +326,8 @@ class TestPosition:
             stop_loss=Decimal("3100"),
             take_profit=Decimal("2800"),
             size=Decimal("1"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(pos2)
         with pytest.raises(Exception):
@@ -344,8 +344,8 @@ class TestPosition:
             take_profit=Decimal("47000"),
             confidence=0.85,
             was_executed=True,
-            generated_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(signal)
         session.flush()
@@ -360,8 +360,8 @@ class TestPosition:
             take_profit=Decimal("47000"),
             size=Decimal("0.1"),
             signal_db_id=signal.id,
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(pos)
         session.commit()
@@ -381,8 +381,8 @@ class TestPosition:
                 stop_loss=Decimal("44000"),
                 take_profit=Decimal("47000"),
                 size=Decimal("0.1"),
-                opened_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                opened_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             )
             session.add(pos)
         session.commit()
@@ -410,8 +410,8 @@ class TestDCADeal:
             average_entry_price=Decimal("45000"),
             total_invested=Decimal("100"),
             total_quantity=Decimal("0.00222"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(deal)
         session.commit()
@@ -434,15 +434,15 @@ class TestDCADeal:
             average_entry_price=Decimal("44000"),
             total_invested=Decimal("200"),
             total_quantity=Decimal("0.00454"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(deal)
         session.flush()
 
         deal.status = "completed"
         deal.realized_pnl = Decimal("25.50")
-        deal.closed_at = datetime.utcnow()
+        deal.closed_at = datetime.now(timezone.utc)
         session.commit()
 
         loaded = session.get(DCADeal, deal.id)
@@ -465,8 +465,8 @@ class TestDCAOrder:
             safety_order_size=Decimal("50"),
             max_safety_orders=3,
             average_entry_price=Decimal("45000"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(deal)
         session.flush()
@@ -482,8 +482,8 @@ class TestDCAOrder:
             filled_amount=Decimal("0.00222"),
             exchange_order_id="bybit-12345",
             deviation_pct=0.0,
-            created_at=datetime.utcnow(),
-            filled_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            filled_at=datetime.now(timezone.utc),
         )
         session.add(order)
         session.commit()
@@ -502,8 +502,8 @@ class TestDCAOrder:
             safety_order_size=Decimal("50"),
             max_safety_orders=3,
             average_entry_price=Decimal("45000"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(deal)
         session.flush()
@@ -518,7 +518,7 @@ class TestDCAOrder:
                 amount=Decimal("0.001"),
                 status="pending",
                 deviation_pct=float((i + 1) * 1.5),
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
             )
             session.add(order)
         session.commit()
@@ -545,8 +545,8 @@ class TestDCASignal:
             source_strategy="smc-btc-1",
             reason="Bullish OB detected",
             was_executed=True,
-            generated_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(sig)
         session.commit()
@@ -565,8 +565,8 @@ class TestDCASignal:
             safety_order_size=Decimal("50"),
             max_safety_orders=3,
             average_entry_price=Decimal("45000"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(deal)
         session.flush()
@@ -578,8 +578,8 @@ class TestDCASignal:
             trigger_price=Decimal("44000"),
             confidence=0.6,
             reason="Price dropped 2.2%",
-            generated_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(sig)
         session.commit()
@@ -605,8 +605,8 @@ class TestRelationships:
             stop_loss=Decimal("44000"),
             take_profit=Decimal("47000"),
             confidence=0.85,
-            generated_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(signal)
         session.flush()
@@ -621,8 +621,8 @@ class TestRelationships:
             take_profit=Decimal("47000"),
             size=Decimal("0.1"),
             signal_db_id=signal.id,
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(pos)
 
@@ -634,8 +634,8 @@ class TestRelationships:
             safety_order_size=Decimal("50"),
             max_safety_orders=3,
             average_entry_price=Decimal("45000"),
-            opened_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         session.add(deal)
         session.commit()

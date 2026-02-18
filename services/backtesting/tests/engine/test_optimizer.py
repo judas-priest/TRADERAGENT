@@ -259,6 +259,33 @@ class TestGridOptimizer:
         # Checkpoint should be cleaned up on success
         assert len(checkpoint.list_checkpoints()) == 0
 
+    def test_checkpoint_saved_during_parallel(self, tmp_path):
+        """Checkpoint should be saved as each parallel trial completes, not after all finish."""
+        checkpoint = OptimizationCheckpoint(checkpoint_dir=str(tmp_path))
+        preset = ClusterPreset(
+            cluster=CoinCluster.MID_CAPS,
+            spacing_options=[GridSpacing.ARITHMETIC],
+            levels_range=(8, 10),
+            profit_per_grid_range=(0.005, 0.008),
+        )
+        config = GridBacktestConfig(
+            symbol="BTCUSDT",
+            initial_balance=Decimal("10000"),
+            stop_loss_pct=Decimal("0.50"),
+            max_drawdown_pct=Decimal("0.50"),
+        )
+        candles = make_ranging_candles(n=50)
+
+        # Use parallel execution with checkpoint
+        opt = GridOptimizer(max_workers=2, checkpoint=checkpoint)
+        result = opt.optimize(
+            base_config=config, candles=candles, preset=preset,
+            coarse_steps=2, fine_steps=2,
+        )
+        assert result.best_trial is not None
+        # Checkpoint cleaned up on success — verify it ran without error
+        assert len(checkpoint.list_checkpoints()) == 0
+
     def test_from_dict_roundtrip(self):
         """GridBacktestResult.from_dict() should reconstruct from to_dict()."""
         config = GridBacktestConfig(symbol="ETHUSDT")

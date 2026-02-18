@@ -152,7 +152,8 @@ class GridBacktestSimulator:
                     price=gl.price,
                 )
                 order_mgr.register_exchange_order(order_state.id, result["id"])
-            except Exception:
+            except Exception as e:
+                logger.warning("Initial order placement failed", order_id=order_state.id, error=str(e))
                 order_mgr.mark_order_failed(order_state.id, "placement_failed")
 
         logger.info(
@@ -255,7 +256,8 @@ class GridBacktestSimulator:
                             price=counter.grid_level.price,
                         )
                         order_mgr.register_exchange_order(counter.id, result["id"])
-                    except Exception:
+                    except Exception as e:
+                        logger.warning("Counter-order placement failed", order_id=counter.id, error=str(e))
                         order_mgr.mark_order_failed(counter.id, "counter_placement_failed")
 
             # Track exposure

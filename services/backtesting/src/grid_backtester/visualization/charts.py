@@ -32,8 +32,10 @@ class GridChartGenerator:
 
     def equity_curve_chart(self, result: GridBacktestResult) -> str:
         """Generate equity curve with price overlay as HTML."""
-        if not PLOTLY_AVAILABLE or not result.equity_curve:
-            return "<p>No equity curve data or plotly not available.</p>"
+        if not PLOTLY_AVAILABLE:
+            return "<p>Chart unavailable: plotly is not installed.</p>"
+        if not result.equity_curve:
+            return "<p>No equity curve data to display.</p>"
 
         timestamps = [ep.timestamp for ep in result.equity_curve]
         equities = [ep.equity for ep in result.equity_curve]
@@ -73,8 +75,10 @@ class GridChartGenerator:
 
     def drawdown_chart(self, result: GridBacktestResult) -> str:
         """Generate drawdown area chart as HTML."""
-        if not PLOTLY_AVAILABLE or not result.equity_curve:
-            return "<p>No equity curve data or plotly not available.</p>"
+        if not PLOTLY_AVAILABLE:
+            return "<p>Chart unavailable: plotly is not installed.</p>"
+        if not result.equity_curve:
+            return "<p>No equity curve data to display.</p>"
 
         timestamps = [ep.timestamp for ep in result.equity_curve]
         equities = [ep.equity for ep in result.equity_curve]
@@ -109,8 +113,10 @@ class GridChartGenerator:
 
     def grid_heatmap(self, result: GridBacktestResult) -> str:
         """Generate grid level fill frequency heatmap as HTML."""
-        if not PLOTLY_AVAILABLE or not result.trade_history:
-            return "<p>No trade data or plotly not available.</p>"
+        if not PLOTLY_AVAILABLE:
+            return "<p>Chart unavailable: plotly is not installed.</p>"
+        if not result.trade_history:
+            return "<p>No trade data to display.</p>"
 
         # Aggregate trade prices into bins
         buy_prices = [t.price for t in result.trade_history if t.side == "buy"]
