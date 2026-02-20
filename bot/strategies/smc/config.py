@@ -19,11 +19,15 @@ class SMCConfig:
 
     # Market Structure parameters
     trend_period: int = 20  # Lookback period for trend detection
-    swing_length: int = 5  # Candles for swing high/low identification
+    swing_length: int = 50  # Candles for swing high/low identification
+    close_break: bool = True  # BOS/CHoCH: require candle close beyond level (vs wick)
 
     # Confluence Zone parameters
     order_block_lookback: int = 50  # Candles to search for Order Blocks
     fvg_min_size: Decimal = Decimal("0.001")  # Minimum FVG size (% of price)
+    close_mitigation: bool = False  # OB: require close through OB for mitigation (vs wick)
+    join_consecutive_fvg: bool = False  # FVG: merge adjacent same-direction FVGs
+    liquidity_range_percent: float = 0.01  # Liquidity: % range for grouping swing clusters
 
     # Risk Management
     risk_per_trade: Decimal = Decimal("0.02")  # 2% risk per trade

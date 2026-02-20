@@ -19,6 +19,7 @@ import time
 
 from bot.strategies.smc.confluence_zones import (
     ConfluenceZoneAnalyzer,
+    LiquidityZone,
     OrderBlock,
     FairValueGap,
     ZoneType,
@@ -249,15 +250,20 @@ class TestConfluenceZoneAnalyzer(unittest.TestCase):
     def test_get_zones_summary(self):
         """Test get_zones_summary method"""
         df = self._create_sample_data("uptrend", length=50)
-        
+
         self.market_structure.analyze(df)
         result = self.analyzer.analyze(df)
-        
+
         # Verify summary structure
         self.assertIn("order_blocks", result)
         self.assertIn("fair_value_gaps", result)
+        self.assertIn("liquidity_zones", result)
         self.assertIn("total", result["order_blocks"])
         self.assertIn("active", result["order_blocks"])
+        self.assertIn("total", result["liquidity_zones"])
+        self.assertIn("active", result["liquidity_zones"])
+        self.assertIn("buy_side", result["liquidity_zones"])
+        self.assertIn("sell_side", result["liquidity_zones"])
     
     def test_find_confluence_at_price(self):
         """Test finding confluence zones near a price"""
@@ -432,6 +438,54 @@ class TestFairValueGap(unittest.TestCase):
         self.assertTrue(fvg.contains_price(Decimal("110")))
         self.assertFalse(fvg.contains_price(Decimal("95")))
         self.assertFalse(fvg.contains_price(Decimal("115")))
+
+
+class TestLiquidityZone(unittest.TestCase):
+    """Test cases for LiquidityZone dataclass"""
+
+    def test_liquidity_zone_creation(self):
+        """Test LiquidityZone object creation"""
+        lz = LiquidityZone(
+            is_bullish=True,
+            level=Decimal("105.00"),
+            end_index=50,
+            swept=False,
+            index=10,
+            timeframe="1h",
+        )
+        self.assertTrue(lz.is_bullish)
+        self.assertEqual(lz.level, Decimal("105.00"))
+        self.assertFalse(lz.swept)
+
+    def test_get_active_liquidity_zones(self):
+        """Test get_active_liquidity_zones filtering"""
+        ms = MarketStructureAnalyzer(swing_length=5)
+        analyzer = ConfluenceZoneAnalyzer(market_structure=ms, timeframe="1h")
+
+        # Add zones
+        analyzer.liquidity_zones.append(LiquidityZone(
+            is_bullish=True, level=Decimal("110"), swept=False, index=0,
+        ))
+        analyzer.liquidity_zones.append(LiquidityZone(
+            is_bullish=False, level=Decimal("90"), swept=True, index=1,
+        ))
+        analyzer.liquidity_zones.append(LiquidityZone(
+            is_bullish=False, level=Decimal("85"), swept=False, index=2,
+        ))
+
+        # All active (un-swept)
+        active = analyzer.get_active_liquidity_zones()
+        self.assertEqual(len(active), 2)
+
+        # Filter buy-side
+        buy_side = analyzer.get_active_liquidity_zones(is_bullish=True)
+        self.assertEqual(len(buy_side), 1)
+        self.assertTrue(buy_side[0].is_bullish)
+
+        # Filter sell-side
+        sell_side = analyzer.get_active_liquidity_zones(is_bullish=False)
+        self.assertEqual(len(sell_side), 1)
+        self.assertFalse(sell_side[0].is_bullish)
 
 
 if __name__ == "__main__":

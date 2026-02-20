@@ -16,6 +16,7 @@ from bot.strategies.smc.config import DEFAULT_SMC_CONFIG, SMCConfig
 from bot.strategies.smc.confluence_zones import (
     ConfluenceZoneAnalyzer,
     FairValueGap,
+    LiquidityZone,
     OrderBlock,
     ZoneStatus,
     ZoneType,
@@ -57,6 +58,7 @@ __all__ = [
     "ConfluenceZoneAnalyzer",
     "OrderBlock",
     "FairValueGap",
+    "LiquidityZone",
     "ZoneType",
     "ZoneStatus",
     # Entry Signals

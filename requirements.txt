@@ -39,6 +39,7 @@ aiogram>=3.3.0
 # Data Analysis & Technical Indicators
 pandas>=2.0.0
 numpy>=1.24.0
+smartmoneyconcepts>=0.0.21
 
 # Encryption
 cryptography>=41.0.0

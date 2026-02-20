@@ -538,11 +538,46 @@ class EntrySignalGenerator:
 
         return signal
 
+    def _find_liquidity_tp(self, entry_price: Decimal, is_long: bool) -> Optional[Decimal]:
+        """
+        Find nearest un-swept liquidity level for TP targeting.
+
+        For longs: find buy-side liquidity above entry.
+        For shorts: find sell-side liquidity below entry.
+
+        Returns:
+            Liquidity level price or None
+        """
+        if not hasattr(self.confluence_analyzer, 'get_active_liquidity_zones'):
+            return None
+
+        if is_long:
+            # Buy-side liquidity above entry
+            zones = self.confluence_analyzer.get_active_liquidity_zones(is_bullish=True)
+            candidates = [lz for lz in zones if lz.level > entry_price]
+            if candidates:
+                # Nearest one above
+                candidates.sort(key=lambda lz: lz.level)
+                return candidates[0].level
+        else:
+            # Sell-side liquidity below entry
+            zones = self.confluence_analyzer.get_active_liquidity_zones(is_bullish=False)
+            candidates = [lz for lz in zones if lz.level < entry_price]
+            if candidates:
+                # Nearest one below
+                candidates.sort(key=lambda lz: lz.level, reverse=True)
+                return candidates[0].level
+
+        return None
+
     def _calculate_entry_sl_tp(
         self, pattern: PriceActionPattern
     ) -> tuple[Optional[Decimal], Optional[Decimal], Optional[Decimal]]:
         """
-        Calculate entry, stop loss, and take profit levels
+        Calculate entry, stop loss, and take profit levels.
+
+        After calculating standard RR-based TP, checks for nearby liquidity
+        zones and uses them as TP if they provide >= min_risk_reward RR.
 
         Returns:
             Tuple of (entry, sl, tp) or (None, None, None)
@@ -564,6 +599,14 @@ class EntrySignalGenerator:
 
             risk = sl - entry
             tp = entry - (risk * Decimal(str(self.min_risk_reward)))
+
+        # Check for liquidity-based TP
+        liq_tp = self._find_liquidity_tp(entry, is_long=pattern.is_bullish)
+        if liq_tp is not None and risk > 0:
+            liq_reward = abs(liq_tp - entry)
+            liq_rr = float(liq_reward / risk)
+            if liq_rr >= self.min_risk_reward:
+                tp = liq_tp
 
         return entry, sl, tp
 
@@ -593,6 +636,16 @@ class EntrySignalGenerator:
             if fvg.is_bullish == pattern.is_bullish:  # Aligned direction
                 confluence_score += fvg.strength_score * 0.5
                 zones.append(f"FVG_{fvg.timeframe}")
+
+        # Check Liquidity proximity (within 1% of price)
+        if hasattr(self.confluence_analyzer, 'get_active_liquidity_zones'):
+            price_float = float(pattern.close)
+            tolerance = price_float * 0.01
+            for lz in self.confluence_analyzer.get_active_liquidity_zones():
+                lz_level = float(lz.level)
+                if abs(lz_level - price_float) <= tolerance:
+                    confluence_score += 15
+                    zones.append(f"LIQ_{lz.timeframe}")
 
         # Normalize score to 0-100
         confluence_score = min(100.0, confluence_score)

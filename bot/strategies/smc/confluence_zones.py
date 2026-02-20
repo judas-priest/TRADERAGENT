@@ -4,8 +4,11 @@ Confluence Zones Module
 Detects and manages institutional order zones:
 - Order Blocks (OB): Last opposite candle before structure break
 - Fair Value Gaps (FVG): 3-candle imbalance patterns
+- Liquidity Zones: Clusters of swing highs/lows where stop orders accumulate
 - Zone strength scoring
 - Zone invalidation tracking
+
+Uses the smartmoneyconcepts library for OB/FVG/Liquidity detection.
 """
 
 from dataclasses import dataclass, field
@@ -15,6 +18,7 @@ from enum import Enum
 from typing import Optional
 
 import pandas as pd
+import smartmoneyconcepts.smc as smc
 
 from bot.strategies.smc.market_structure import (
     MarketStructureAnalyzer,
@@ -134,9 +138,30 @@ class FairValueGap:
         return self.gap_low <= price <= self.gap_high
 
 
+@dataclass
+class LiquidityZone:
+    """
+    Represents a liquidity zone (cluster of swing highs/lows).
+
+    Buy-side liquidity sits above swing highs (stop-losses for shorts).
+    Sell-side liquidity sits below swing lows (stop-losses for longs).
+    """
+
+    is_bullish: bool = False  # True = buy-side (above highs), False = sell-side (below lows)
+    level: Decimal = Decimal("0")
+    end_index: int = 0
+    swept: bool = False
+    index: int = 0
+    timestamp: pd.Timestamp = None
+    timeframe: str = ""
+    strength_score: float = 0.0
+
+
 class ConfluenceZoneAnalyzer:
     """
-    Analyzes and manages confluence zones (Order Blocks and Fair Value Gaps)
+    Analyzes and manages confluence zones (Order Blocks, Fair Value Gaps, Liquidity)
+
+    Uses smartmoneyconcepts library for detection.
     """
 
     def __init__(
@@ -144,6 +169,9 @@ class ConfluenceZoneAnalyzer:
         market_structure: MarketStructureAnalyzer,
         timeframe: str = "1h",
         max_active_zones: int = 20,
+        close_mitigation: bool = False,
+        join_consecutive_fvg: bool = False,
+        liquidity_range_percent: float = 0.01,
     ):
         """
         Initialize Confluence Zone Analyzer
@@ -152,17 +180,37 @@ class ConfluenceZoneAnalyzer:
             market_structure: MarketStructureAnalyzer instance for structure breaks
             timeframe: Timeframe for zone detection
             max_active_zones: Maximum number of active zones to track
+            close_mitigation: If True, require close through OB for mitigation
+            join_consecutive_fvg: If True, merge adjacent same-direction FVGs
+            liquidity_range_percent: Percentage range for grouping swing clusters
         """
         self.market_structure = market_structure
         self.timeframe = timeframe
         self.max_active_zones = max_active_zones
+        self.close_mitigation = close_mitigation
+        self.join_consecutive_fvg = join_consecutive_fvg
+        self.liquidity_range_percent = liquidity_range_percent
 
         self.order_blocks: list[OrderBlock] = []
         self.fair_value_gaps: list[FairValueGap] = []
+        self.liquidity_zones: list[LiquidityZone] = []
 
         logger.info(
-            "ConfluenceZoneAnalyzer initialized", timeframe=timeframe, max_zones=max_active_zones
+            "ConfluenceZoneAnalyzer initialized",
+            timeframe=timeframe,
+            max_zones=max_active_zones,
+            close_mitigation=close_mitigation,
         )
+
+    @staticmethod
+    def _prepare_ohlc_df(df: pd.DataFrame) -> pd.DataFrame:
+        """Cast DataFrame columns to float for the library."""
+        ohlc = df[["open", "high", "low", "close"]].copy()
+        for col in ohlc.columns:
+            ohlc[col] = ohlc[col].astype(float)
+        if "volume" in df.columns:
+            ohlc["volume"] = df["volume"].astype(float)
+        return ohlc
 
     def analyze(self, df: pd.DataFrame) -> dict:
         """
@@ -184,6 +232,9 @@ class ConfluenceZoneAnalyzer:
         # Detect Fair Value Gaps
         self._detect_fair_value_gaps(df)
 
+        # Detect Liquidity Zones
+        self._detect_liquidity_zones(df)
+
         # Update zone status (check invalidations)
         self._update_zone_status(df)
 
@@ -197,170 +248,176 @@ class ConfluenceZoneAnalyzer:
             "Confluence zones analyzed",
             order_blocks=len([ob for ob in self.order_blocks if ob.status == ZoneStatus.ACTIVE]),
             fvgs=len([fvg for fvg in self.fair_value_gaps if fvg.status == ZoneStatus.ACTIVE]),
+            liquidity_zones=len([lz for lz in self.liquidity_zones if not lz.swept]),
         )
 
         return self.get_zones_summary()
 
     def _detect_order_blocks(self, df: pd.DataFrame) -> None:
         """
-        Detect Order Blocks from structure breaks
-
-        Order Block: The last opposite-direction candle before a structure break
+        Detect Order Blocks using smartmoneyconcepts library.
         """
-        structure_events = self.market_structure.structure_events
+        swings_df = self.market_structure.get_swings_df()
+        if swings_df is None:
+            return
 
-        for event in structure_events:
-            # Check if we already have an OB for this event
-            existing = any(ob.structure_break == event for ob in self.order_blocks)
+        ohlc = self._prepare_ohlc_df(df)
+
+        try:
+            ob_df = smc.ob(ohlc, swings_df, close_mitigation=self.close_mitigation)
+        except Exception as e:
+            logger.warning("OB detection failed", error=str(e))
+            return
+
+        for i in range(len(ob_df)):
+            row = ob_df.iloc[i]
+            if pd.isna(row["OB"]):
+                continue
+
+            # Check if we already have an OB at this index
+            existing = any(ob.index == i for ob in self.order_blocks)
             if existing:
                 continue
 
-            # Get the candle at the structure break
-            break_index = event.index
-            if break_index < 1 or break_index >= len(df):
-                continue
+            is_bullish = row["OB"] == 1.0
+            top = Decimal(str(row["Top"]))
+            bottom = Decimal(str(row["Bottom"]))
+            ob_volume = float(row["OBVolume"]) if pd.notna(row["OBVolume"]) else 0.0
+            mitigated_idx = row["MitigatedIndex"] if pd.notna(row["MitigatedIndex"]) else None
 
-            # Look back to find the last opposite candle
-            ob_index = self._find_order_block_candle(df, break_index, event)
+            # Determine status: if mitigated at a valid future index, mark as invalidated
+            status = ZoneStatus.ACTIVE
+            if mitigated_idx is not None and int(mitigated_idx) > i:
+                status = ZoneStatus.INVALIDATED
 
-            if ob_index is not None:
-                candle = df.iloc[ob_index]
-
-                # Determine if bullish or bearish OB
-                is_bullish = event.current_trend == TrendDirection.BULLISH
-
-                order_block = OrderBlock(
-                    is_bullish=is_bullish,
-                    high=Decimal(str(candle["high"])),
-                    low=Decimal(str(candle["low"])),
-                    open=Decimal(str(candle["open"])),
-                    close=Decimal(str(candle["close"])),
-                    index=ob_index,
-                    timestamp=candle.name,
-                    timeframe=self.timeframe,
-                    volume=float(candle["volume"]) if "volume" in candle else 0.0,
-                    structure_break=event,
-                    status=ZoneStatus.ACTIVE,
-                )
-
-                self.order_blocks.append(order_block)
-
-                logger.debug(
-                    "Order Block detected",
-                    is_bullish=is_bullish,
-                    price_range=f"{float(order_block.low)}-{float(order_block.high)}",
-                )
-
-    def _find_order_block_candle(
-        self, df: pd.DataFrame, break_index: int, event: StructureEvent
-    ) -> Optional[int]:
-        """
-        Find the Order Block candle (last opposite candle before break)
-
-        Args:
-            df: DataFrame with OHLCV data
-            break_index: Index where structure break occurred
-            event: StructureEvent object
-
-        Returns:
-            Index of Order Block candle, or None
-        """
-        # Look back up to 20 candles
-        lookback = min(20, break_index)
-
-        is_bullish_break = event.current_trend == TrendDirection.BULLISH
-
-        # Search backwards for last opposite candle
-        for i in range(break_index - 1, break_index - lookback - 1, -1):
-            if i < 0:
-                break
+            timestamp = df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
 
             candle = df.iloc[i]
+            order_block = OrderBlock(
+                is_bullish=is_bullish,
+                high=top,
+                low=bottom,
+                open=Decimal(str(candle["open"])),
+                close=Decimal(str(candle["close"])),
+                index=i,
+                timestamp=timestamp,
+                timeframe=self.timeframe,
+                volume=ob_volume,
+                status=status,
+            )
 
-            if is_bullish_break:
-                # For bullish break, find last bearish (red) candle
-                if candle["close"] < candle["open"]:
-                    return i
-            else:
-                # For bearish break, find last bullish (green) candle
-                if candle["close"] > candle["open"]:
-                    return i
+            self.order_blocks.append(order_block)
 
-        return None
+            logger.debug(
+                "Order Block detected",
+                is_bullish=is_bullish,
+                price_range=f"{float(bottom)}-{float(top)}",
+            )
 
     def _detect_fair_value_gaps(self, df: pd.DataFrame) -> None:
         """
-        Detect Fair Value Gaps (3-candle imbalance patterns)
-
-        Bullish FVG: candle[0].high < candle[2].low (gap up)
-        Bearish FVG: candle[0].low > candle[2].high (gap down)
+        Detect Fair Value Gaps using smartmoneyconcepts library.
         """
-        # Need at least 3 candles
-        for i in range(len(df) - 2):
-            candle0 = df.iloc[i]
-            candle1 = df.iloc[i + 1]
-            candle2 = df.iloc[i + 2]
+        ohlc = self._prepare_ohlc_df(df)
 
-            # Check for bullish FVG
-            if candle0["high"] < candle2["low"]:
-                gap_low = Decimal(str(candle0["high"]))
-                gap_high = Decimal(str(candle2["low"]))
+        try:
+            fvg_df = smc.fvg(ohlc, join_consecutive=self.join_consecutive_fvg)
+        except Exception as e:
+            logger.warning("FVG detection failed", error=str(e))
+            return
 
-                # Check if we already have this FVG
-                existing = any(
-                    fvg.candle1_index == i and fvg.is_bullish for fvg in self.fair_value_gaps
-                )
+        for i in range(len(fvg_df)):
+            row = fvg_df.iloc[i]
+            if pd.isna(row["FVG"]):
+                continue
 
-                if not existing and gap_high > gap_low:
-                    fvg = FairValueGap(
-                        is_bullish=True,
-                        gap_high=gap_high,
-                        gap_low=gap_low,
-                        candle1_index=i,
-                        candle2_index=i + 1,
-                        candle3_index=i + 2,
-                        timestamp=candle2.name,
-                        timeframe=self.timeframe,
-                        status=ZoneStatus.ACTIVE,
-                    )
+            # Check if we already have this FVG
+            existing = any(
+                fvg.candle2_index == i for fvg in self.fair_value_gaps
+            )
+            if existing:
+                continue
 
-                    self.fair_value_gaps.append(fvg)
+            is_bullish = row["FVG"] == 1.0
+            gap_high = Decimal(str(row["Top"]))
+            gap_low = Decimal(str(row["Bottom"]))
+            mitigated_idx = row["MitigatedIndex"] if pd.notna(row["MitigatedIndex"]) else None
 
-                    logger.debug(
-                        "Bullish FVG detected",
-                        gap_size=float(gap_high - gap_low),
-                        range=f"{float(gap_low)}-{float(gap_high)}",
-                    )
+            # Determine status
+            status = ZoneStatus.ACTIVE
+            if mitigated_idx is not None and int(mitigated_idx) > i:
+                status = ZoneStatus.FILLED
 
-            # Check for bearish FVG
-            elif candle0["low"] > candle2["high"]:
-                gap_high = Decimal(str(candle0["low"]))
-                gap_low = Decimal(str(candle2["high"]))
+            timestamp = df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
 
-                existing = any(
-                    fvg.candle1_index == i and not fvg.is_bullish for fvg in self.fair_value_gaps
-                )
+            fvg_obj = FairValueGap(
+                is_bullish=is_bullish,
+                gap_high=gap_high,
+                gap_low=gap_low,
+                candle1_index=max(0, i - 1),
+                candle2_index=i,
+                candle3_index=min(len(df) - 1, i + 1),
+                timestamp=timestamp,
+                timeframe=self.timeframe,
+                status=status,
+            )
 
-                if not existing and gap_high > gap_low:
-                    fvg = FairValueGap(
-                        is_bullish=False,
-                        gap_high=gap_high,
-                        gap_low=gap_low,
-                        candle1_index=i,
-                        candle2_index=i + 1,
-                        candle3_index=i + 2,
-                        timestamp=candle2.name,
-                        timeframe=self.timeframe,
-                        status=ZoneStatus.ACTIVE,
-                    )
+            self.fair_value_gaps.append(fvg_obj)
 
-                    self.fair_value_gaps.append(fvg)
+            direction = "Bullish" if is_bullish else "Bearish"
+            logger.debug(
+                f"{direction} FVG detected",
+                gap_size=float(gap_high - gap_low),
+                range=f"{float(gap_low)}-{float(gap_high)}",
+            )
 
-                    logger.debug(
-                        "Bearish FVG detected",
-                        gap_size=float(gap_high - gap_low),
-                        range=f"{float(gap_low)}-{float(gap_high)}",
-                    )
+    def _detect_liquidity_zones(self, df: pd.DataFrame) -> None:
+        """
+        Detect Liquidity Zones using smartmoneyconcepts library.
+        """
+        swings_df = self.market_structure.get_swings_df()
+        if swings_df is None:
+            return
+
+        ohlc = self._prepare_ohlc_df(df)
+
+        try:
+            liq_df = smc.liquidity(ohlc, swings_df, range_percent=self.liquidity_range_percent)
+        except Exception as e:
+            logger.warning("Liquidity detection failed", error=str(e))
+            return
+
+        self.liquidity_zones.clear()
+
+        for i in range(len(liq_df)):
+            row = liq_df.iloc[i]
+            if pd.isna(row["Liquidity"]):
+                continue
+
+            is_bullish = row["Liquidity"] == 1.0  # 1.0 = buy-side, -1.0 = sell-side
+            level = Decimal(str(row["Level"])) if pd.notna(row["Level"]) else Decimal("0")
+            end_index = int(row["End"]) if pd.notna(row["End"]) else i
+            swept = pd.notna(row["Swept"])
+
+            timestamp = df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+
+            liq_zone = LiquidityZone(
+                is_bullish=is_bullish,
+                level=level,
+                end_index=end_index,
+                swept=swept,
+                index=i,
+                timestamp=timestamp,
+                timeframe=self.timeframe,
+            )
+
+            self.liquidity_zones.append(liq_zone)
+
+        logger.debug(
+            "Liquidity zones detected",
+            total=len(self.liquidity_zones),
+            active=len([lz for lz in self.liquidity_zones if not lz.swept]),
+        )
 
     def _update_zone_status(self, df: pd.DataFrame) -> None:
         """
@@ -514,6 +571,7 @@ class ConfluenceZoneAnalyzer:
         """Get summary of all confluence zones"""
         active_obs = [ob for ob in self.order_blocks if ob.status == ZoneStatus.ACTIVE]
         active_fvgs = [fvg for fvg in self.fair_value_gaps if fvg.status == ZoneStatus.ACTIVE]
+        active_liq = [lz for lz in self.liquidity_zones if not lz.swept]
 
         return {
             "order_blocks": {
@@ -527,6 +585,12 @@ class ConfluenceZoneAnalyzer:
                 "active": len(active_fvgs),
                 "bullish": len([fvg for fvg in active_fvgs if fvg.is_bullish]),
                 "bearish": len([fvg for fvg in active_fvgs if not fvg.is_bullish]),
+            },
+            "liquidity_zones": {
+                "total": len(self.liquidity_zones),
+                "active": len(active_liq),
+                "buy_side": len([lz for lz in active_liq if lz.is_bullish]),
+                "sell_side": len([lz for lz in active_liq if not lz.is_bullish]),
             },
         }
 
@@ -569,6 +633,23 @@ class ConfluenceZoneAnalyzer:
         fvgs.sort(key=lambda x: x.strength_score, reverse=True)
 
         return fvgs
+
+    def get_active_liquidity_zones(self, is_bullish: Optional[bool] = None) -> list[LiquidityZone]:
+        """
+        Get active (un-swept) liquidity zones.
+
+        Args:
+            is_bullish: Filter by buy-side (True) or sell-side (False), None for all
+
+        Returns:
+            List of active LiquidityZone objects
+        """
+        zones = [lz for lz in self.liquidity_zones if not lz.swept]
+
+        if is_bullish is not None:
+            zones = [lz for lz in zones if lz.is_bullish == is_bullish]
+
+        return zones
 
     def find_confluence_at_price(self, price: Decimal, tolerance: Decimal = Decimal("0.5")) -> dict:
         """

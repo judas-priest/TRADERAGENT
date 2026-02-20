@@ -191,6 +191,14 @@ class TestSMCReset:
         assert len(strategy.market_structure.swing_highs) == 0
 
 
+class TestSMCGetStateLiquidity:
+    def test_active_liquidity_zones_in_state(self):
+        strategy = SMCStrategy()
+        state = strategy.get_strategy_state()
+        assert "active_liquidity_zones" in state
+        assert state["active_liquidity_zones"] >= 0
+
+
 class TestSMCConfigDataclass:
     def test_defaults(self):
         cfg = SMCConfig()
@@ -200,6 +208,11 @@ class TestSMCConfigDataclass:
         assert cfg.entry_timeframe == "15m"
         assert cfg.risk_per_trade == Decimal("0.02")
         assert cfg.min_risk_reward == Decimal("2.5")
+        assert cfg.swing_length == 50
+        assert cfg.close_break is True
+        assert cfg.close_mitigation is False
+        assert cfg.join_consecutive_fvg is False
+        assert cfg.liquidity_range_percent == 0.01
 
     def test_custom(self):
         cfg = SMCConfig(swing_length=10, trend_period=30)

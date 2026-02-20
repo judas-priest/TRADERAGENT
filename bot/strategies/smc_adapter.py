@@ -150,6 +150,7 @@ class SMCStrategyAdapter(BaseStrategy):
                 "trend_aligned": best_signal.trend_aligned,
                 "trend_direction": best_signal.trend_direction.value,
                 "pattern_quality": best_signal.pattern.quality_score,
+                "liquidity_tp": any("LIQ_" in z for z in best_signal.confluence_zones),
             },
         )
 

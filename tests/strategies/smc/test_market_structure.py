@@ -219,12 +219,13 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
 
     def test_multi_timeframe_aligned_trends(self):
         """Test multi-timeframe with aligned bullish trends"""
-        df_d1 = self._create_sample_data("uptrend", length=200)
-        df_h4 = self._create_sample_data("uptrend", length=200)
+        # Use larger datasets with strong trend so library detection is reliable
+        df_d1 = self._create_sample_data("uptrend", length=500)
+        df_h4 = self._create_sample_data("uptrend", length=500)
 
         result = self.analyzer.analyze_trend(df_d1, df_h4)
 
-        # Both should be bullish
+        # Both should be bullish (strong uptrend over 500 bars)
         self.assertEqual(result["d1_trend"], TrendDirection.BULLISH)
         self.assertEqual(result["h4_trend"], TrendDirection.BULLISH)
         self.assertTrue(result["trend_aligned"])
@@ -301,6 +302,21 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
 
         self.assertLess(elapsed_time, 5000,
                        f"Analysis took {elapsed_time:.2f}ms, should be < 5000ms")
+
+    def test_get_swings_df_returns_dataframe(self):
+        """Test get_swings_df returns valid DataFrame after analysis"""
+        df = self._create_sample_data("uptrend", length=100)
+        self.analyzer.analyze(df)
+
+        swings_df = self.analyzer.get_swings_df()
+        self.assertIsNotNone(swings_df)
+        self.assertIsInstance(swings_df, pd.DataFrame)
+        self.assertIn("HighLow", swings_df.columns)
+        self.assertIn("Level", swings_df.columns)
+
+    def test_get_swings_df_none_before_analysis(self):
+        """Test get_swings_df returns None before analysis"""
+        self.assertIsNone(self.analyzer.get_swings_df())
 
     def test_swing_detection_accuracy(self):
         """Test swing detection accuracy with known pattern"""

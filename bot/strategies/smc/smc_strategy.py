@@ -44,11 +44,17 @@ class SMCStrategy:
 
         # Initialize all components
         self.market_structure = MarketStructureAnalyzer(
-            swing_length=self.config.swing_length, trend_period=self.config.trend_period
+            swing_length=self.config.swing_length,
+            trend_period=self.config.trend_period,
+            close_break=self.config.close_break,
         )
 
         self.confluence_analyzer = ConfluenceZoneAnalyzer(
-            market_structure=self.market_structure, timeframe=self.config.working_timeframe
+            market_structure=self.market_structure,
+            timeframe=self.config.working_timeframe,
+            close_mitigation=self.config.close_mitigation,
+            join_consecutive_fvg=self.config.join_consecutive_fvg,
+            liquidity_range_percent=self.config.liquidity_range_percent,
         )
 
         self.signal_generator = EntrySignalGenerator(
@@ -270,6 +276,7 @@ class SMCStrategy:
             # Confluence zones
             "active_order_blocks": len(self.confluence_analyzer.get_active_order_blocks()),
             "active_fvgs": len(self.confluence_analyzer.get_active_fvgs()),
+            "active_liquidity_zones": len(self.confluence_analyzer.get_active_liquidity_zones()),
             # Signals
             "active_signals": len(self.active_signals),
             "signal_summary": self.signal_generator.get_signals_summary(),
@@ -313,10 +320,22 @@ class SMCStrategy:
     def reset(self):
         """Reset strategy state (for backtesting)"""
         self.market_structure = MarketStructureAnalyzer(
-            swing_length=self.config.swing_length, trend_period=self.config.trend_period
+            swing_length=self.config.swing_length,
+            trend_period=self.config.trend_period,
+            close_break=self.config.close_break,
         )
         self.confluence_analyzer = ConfluenceZoneAnalyzer(
-            market_structure=self.market_structure, timeframe=self.config.working_timeframe
+            market_structure=self.market_structure,
+            timeframe=self.config.working_timeframe,
+            close_mitigation=self.config.close_mitigation,
+            join_consecutive_fvg=self.config.join_consecutive_fvg,
+            liquidity_range_percent=self.config.liquidity_range_percent,
+        )
+        self.signal_generator = EntrySignalGenerator(
+            market_structure=self.market_structure,
+            confluence_analyzer=self.confluence_analyzer,
+            min_risk_reward=self.config.min_risk_reward,
+            sl_buffer_pct=0.5,
         )
         self.active_signals.clear()
 
