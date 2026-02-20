@@ -3,16 +3,84 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 20 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + **Load Test Thresholds Fixed**
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + **SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed**
 **Pass Rate:** 100% (1859/1859 tests passing, 25 skipped)
 **Realnyy obem testov:** 1884 collected (1857 bez testnet)
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
-**Posledniy commit:** `3f6c237` (fix: relax load test thresholds)
+**Posledniy commit:** `7d84e8d` (fix: strip tzinfo from saved_at)
+**Bot Status:** STOPPED, all orders cancelled, all positions closed
 
 ---
 
-## Poslednyaya Sessiya (2026-02-20) - Session 14: Test Verification + Load Test Fix + SMC Audit
+## Poslednyaya Sessiya (2026-02-20) - Session 15: Timezone Bug Fix + SMC Integration Merge + Bot Shutdown
+
+### Zadacha
+
+1. Fix baga `periodic_state_save_failed` — spam kazhdye 1.5s v logah bota
+2. Merge vetki `feat/smc-smartmoneyconcepts-integration` v main
+3. Ostanovka bota, otmena orderov, zakrytie pozitsiy
+
+### Rezultat
+
+#### Bug Fix: periodic_state_save_failed (CRITICAL)
+
+**Problema:** asyncpg otklanyal timezone-aware datetime (`datetime.now(timezone.utc)`) pri zapisi v kolonku `TIMESTAMP WITHOUT TIME ZONE`. Oshibka spamila v logah kazhdye ~1.5 sekundy:
+```
+periodic_state_save_failed error='asyncpg.exceptions.DataError: invalid input for query argument $8'
+```
+
+**Prichina:** `saved_at` kolonka v PostgreSQL imeet tip `TIMESTAMP WITHOUT TIME ZONE`, no kod peredaval `datetime.now(timezone.utc)` — timezone-aware datetime. asyncpg strogo proveryaet sovmestimost.
+
+**Fix:** `.replace(tzinfo=None)` — snyatie timezone info pered zapisyu (znachenie vsyo ravno UTC):
+- `bot/database/models_state.py:28` — default lambda
+- `bot/orchestrator/bot_orchestrator.py:962` — yavnoe prisvoenie saved_at
+
+**Rezultat:** Posle deploya oshibka polnostyu propala. `state_saved` soobshcheniya poyavilis v logah vmesto spam oshibok.
+
+#### SMC smartmoneyconcepts Integration — Merged to Main
+
+Vetka `feat/smc-smartmoneyconcepts-integration` (2 commita) smerzhena v main cherez fast-forward:
+- `0600bf5` — feat(smc): integrate smartmoneyconcepts library for swing/BOS/CHoCH/OB/FVG/Liquidity detection
+- `7d84e8d` — fix: strip tzinfo from saved_at to match TIMESTAMP WITHOUT TIME ZONE column
+
+Vetka udalena (lokalno i na remote).
+
+#### Bot Shutdown + Position Closure
+
+| Deystvie | Rezultat |
+|----------|----------|
+| `docker compose stop bot` | Bot ostanovlen |
+| `cancel_all_orders("BTCUSDT")` | 6 limit orderov otmeneny |
+| `create_order(Sell 0.004 BTCUSDT Market reduceOnly)` | Long pozitsiya zakryta po rynku |
+| **ETHUSDT / SOLUSDT** | 0 orderov, 0 pozitsiy (byli pustye) |
+
+**Pozitsiya do zakrytiya:** Buy 0.004 BTC @ $67,682.75, unrealised PnL: -$0.045
+**Balance posle:** ~$99,998 USDT
+
+### Izmenennye Fayly (2)
+
+| # | Fayl | Izmenenie |
+|---|------|-----------|
+| 1 | `bot/database/models_state.py` | saved_at default: `.replace(tzinfo=None)` |
+| 2 | `bot/orchestrator/bot_orchestrator.py` | saved_at assignment: `.replace(tzinfo=None)` |
+
+### Commits
+
+| Commit | Opisanie |
+|--------|----------|
+| `0600bf5` | feat(smc): integrate smartmoneyconcepts library for swing/BOS/CHoCH/OB/FVG/Liquidity detection |
+| `7d84e8d` | fix: strip tzinfo from saved_at to match TIMESTAMP WITHOUT TIME ZONE column |
+
+### Git Operations
+
+- Merged `feat/smc-smartmoneyconcepts-integration` → `main` (fast-forward)
+- Deleted branch `feat/smc-smartmoneyconcepts-integration` (local + remote)
+- Main now at commit `7d84e8d`
+
+---
+
+## Predydushchaya Sessiya (2026-02-20) - Session 14: Test Verification + Load Test Fix + SMC Audit
 
 ### Zadacha
 
@@ -692,6 +760,15 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 15 (2026-02-20): Timezone Bug Fix + SMC Integration Merge + Bot Shutdown
+- Fix `periodic_state_save_failed` — asyncpg otklanyal timezone-aware datetime dlya TIMESTAMP WITHOUT TIME ZONE kolonki
+- `.replace(tzinfo=None)` v models_state.py i bot_orchestrator.py
+- Merge `feat/smc-smartmoneyconcepts-integration` → main (fast-forward, 2 commita)
+- Udalenie feature branch (local + remote)
+- Ostanovka bota, otmena 6 BTCUSDT limit orderov, zakrytie 0.004 BTC long pozitsii po rynku
+- **Commits:** `0600bf5`, `7d84e8d`
+- **Status:** COMPLETE, bot ostanovlen
+
 ### Sessiya 14 (2026-02-20): Test Verification + Load Test Fix + SMC Audit
 - Polnaya verifikatsiya: 1859 passed, 25 skipped, 0 failed (1884 total)
 - Fix 2 nagruzochnyh testov: throughput 50→30 req/s, SMC speed 1.0→2.0s
@@ -948,26 +1025,29 @@ docker compose up webui-backend webui-frontend
 ## Last Updated
 
 - **Date:** February 20, 2026
-- **Session:** 14 (Test Verification + Load Test Fix + SMC Audit)
+- **Session:** 15 (Timezone Bug Fix + SMC Integration Merge + Bot Shutdown)
 - **Status:** 1859/1884 tests passing (100%), 25 skipped
 - **Total tests:** 1884 collected (dokumentatsiya obnovlena s realnym chislom)
-- **Last commit:** `3f6c237` (fix: relax load test thresholds)
+- **Last commit:** `7d84e8d` (fix: strip tzinfo from saved_at to match TIMESTAMP WITHOUT TIME ZONE column)
+- **Bot Status:** STOPPED — all orders cancelled, all positions closed, balance ~$99,998 USDT
 - **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1322 strok, 29 konfliktov ustraneny)
 - **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1676 strok)
 - **Conflict Analysis:** Session 12: 16 + Session 13: 13 = **29 konfliktov** ustraneny
+- **SMC Integration:** smartmoneyconcepts library integrated (swing/BOS/CHoCH/OB/FVG/Liquidity), merged to main
 - **SMC Audit:** 5 kriticheskikh raskhozhdenii naideny (swing_length, OB lookback, liquidity zones, mitigation, close_break)
 - **SMC Fixes:** PLANNED (Variant A, ~4-6 chasov): swing_length 5→50, OB lookback 20→50, liquidity zones, wick mitigation
+- **Timezone Bug Fix:** periodic_state_save_failed resolved — `.replace(tzinfo=None)` for asyncpg compatibility
 - **HYBRID:** Udalyon kak otdelnaya strategiya; funktsiya perenesena v Strategy Router
 - **SMC:** Pereproektirovan iz strategii v filtr (tolko ENTRY, zone staleness, per-entry touch)
 - **Backtesting Service:** 174 tests (bylo 169, +5 novyh), 5 bug fixes applied
 - **Shared Core Refactoring:** COMPLETE — eliminatsiya dublikatov, re-export shims, IGridExchange Protocol
 - **XRP/USDT Backtest:** COMPLETE — pervyy preset v biblioteke (preset_id f191113c-b34)
 - **Grid Backtesting:** COMPLETE (39 tests, 4 phases) — polnaya sovmestimost s prodakshn
-- **State Persistence:** COMPLETE (#237) — save/load/reconcile
+- **State Persistence:** COMPLETE (#237) — save/load/reconcile + timezone bug fixed
 - **Phase 7.4:** Load/Stress Testing — COMPLETE (40 tests)
 - **Web UI Dashboard:** COMPLETE (PR #221 merged)
-- **Phase 7.3:** Bybit Demo Trading — DEPLOYED
-- **Server:** 185.233.200.13 (Docker)
+- **Phase 7.3:** Bybit Demo Trading — DEPLOYED (currently stopped)
+- **Server:** 185.233.200.13 (Docker, bot stopped)
 - **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed to server
 - **Presets Library:** 1 preset (XRPUSDT) v `/data/presets.db`
 - **Next Action:** Ispravlenie SMC parametrov (Variant A) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
