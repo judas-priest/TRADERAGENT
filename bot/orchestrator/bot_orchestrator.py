@@ -959,7 +959,7 @@ class BotOrchestrator:
             risk_state=sp.serialize_risk_state(self.risk_manager),
             trend_state=sp.serialize_trend_state(self.trend_follower_strategy),
             hybrid_state=sp.serialize_hybrid_state(hybrid),
-            saved_at=datetime.now(timezone.utc),
+            saved_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         await self.db.save_state_snapshot(snapshot)
         logger.debug("state_saved", bot_name=self.config.name)
