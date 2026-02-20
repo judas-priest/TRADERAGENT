@@ -3,17 +3,114 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 20 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + **SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed**
-**Pass Rate:** 100% (1859/1859 tests passing, 25 skipped)
-**Realnyy obem testov:** 1884 collected (1857 bez testnet)
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + **Repository Cleanup + Code Quality Fixes + PR #245 Merged**
+**Pass Rate:** 100% (1479/1479 tests passing, 25 skipped)
+**Realnyy obem testov:** 1504 collected (posle udaleniya dca_grid_bot)
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
-**Posledniy commit:** `7d84e8d` (fix: strip tzinfo from saved_at)
+**Posledniy commit:** `7b854d0` (Merge pull request #245)
 **Bot Status:** STOPPED, all orders cancelled, all positions closed
 
 ---
 
-## Poslednyaya Sessiya (2026-02-20) - Session 15: Timezone Bug Fix + SMC Integration Merge + Bot Shutdown
+## Poslednyaya Sessiya (2026-02-20) - Session 16: Repository Cleanup + Code Quality + PR #245 Merge
+
+### Zadacha
+
+1. Navesti poryadok v repozitorii (struktura faylov, mertvyy kod, dokumentatsiya)
+2. Ispravit Code Quality CI checks (black, ruff)
+3. Obnovit vetku i vmerzit PR #245 (SMC smartmoneyconcepts integration)
+
+### Rezultat
+
+#### Repository Cleanup (commit `be978d7`)
+
+Polnyy audit i restrukturizatsiya repozitoriya:
+
+| Deystvie | Kolichestvo |
+|----------|-------------|
+| Udalen mertvyy kod `dca_grid_bot/` | 16 faylov, 3673 stroki |
+| Dokumentatsiya EN peremeshchena v `docs/` | 24 fayla |
+| Dokumentatsiya RU peremeshchena v `docs/ru/` | 18 faylov |
+| Dubli arkhivirovany v `docs/archive/` | 5 faylov (ARCHITECTURE1/2, SESSION_CONTEXT1/QUICK, HOW_TO_USE) |
+| Python skripty peremeshcheny v `scripts/` | 7 faylov |
+| Skrinshoty konsolidirovany v `docs/screenshots/` | 6 faylov |
+| Udaleny temp-fayly (`.ci-trigger`, `ci-logs/`) | 2 fayla |
+| Udaleny lokalnye merged-vetki | 22 vetki |
+| Podchishcheny stale remote refs | 12 ref |
+| Obnovlen `.gitignore` | +3 pravila (.playwright-mcp/, ci-logs/, node_modules/) |
+| Ispravleny ssylki v `README.md` | 8 ssylok |
+
+**Koren repozitoriya teper soderzhit tolko:** README.md, CLAUDE.md, Dockerfiles, docker-compose, configs, requirements i istochnye directorii.
+
+#### Code Quality Fixes
+
+| Check | Commit | Deystvie |
+|-------|--------|----------|
+| black (24.1.1) | `73b058e`, `4a4e532` | 58 faylov otformatirovany (sootvetstvenno versii CI) |
+| ruff | `318c5f9` | 102 oshibki ispravleny (94 avto + 8 vruchnuyu) |
+| mypy | — | 47 pre-existing oshibok tipizatsii (ne ispravleno, trebuet otdelnoy sessii) |
+
+**Ruff manual fixes:**
+- B904: `raise ... from err` v `backup.py`
+- E741: Pereimenovanie `l` → `lvl`/`low` v `grid_adapter.py`, `test_trend_follower_e2e.py`
+- B007: Unused loop vars `oid` → `_oid`, `i` → `_i`
+- B905: `zip()` → `zip(..., strict=False)`
+- B027: `noqa` dlya intentional non-abstract empty method `reset()`
+
+#### PR #245 Merged (commit `7b854d0`)
+
+**PR:** https://github.com/alekseymavai/TRADERAGENT/pull/245
+**Vetka:** `feature/smc-smartmoneyconcepts-integration` → `main`
+**Soderzhanie:** docs/SMC_INTEGRATION_PLAN.md — plan integratsii smartmoneyconcepts library
+
+**CI status posle merge:**
+- black: PASS
+- ruff: PASS
+- Docker Build: PASS
+- Security Scan: PASS
+- Trivy: PASS
+- mypy: FAIL (47 pre-existing, ne iz PR)
+- Tests 3.10/3.11/3.12: FAIL (pkg_resources issue v GitHub Actions runner — ne nasha problema)
+
+**Lokalnye testy:** 1479 passed, 25 skipped, 0 failed
+
+#### Izvestnye Problemy CI (pre-existing)
+
+1. **mypy:** 47 oshibok tipizatsii v 10 faylah — trebuet otdelnoy sessii
+2. **GitHub Actions Python 3.12:** `ModuleNotFoundError: No module named 'pkg_resources'` pri sborke pandas — problema okruzheniya CI runner
+
+### Izmenennye Fayly
+
+| # | Fayl | Izmenenie |
+|---|------|-----------|
+| 1 | 83 faylov | Repo cleanup (mv, rm, rename) |
+| 2 | `.gitignore` | +3 pravila |
+| 3 | `README.md` | Ispravleny 8 ssylok na peremeshchennye docs |
+| 4 | 58 faylov v `bot/` | black 24.1.1 formatting |
+| 5 | 44 faylov v `bot/` | ruff lint fixes |
+
+### Commits
+
+| Commit | Opisanie |
+|--------|----------|
+| `be978d7` | refactor: clean up repository structure |
+| `73b058e` | style: apply black formatting to entire bot/ directory |
+| `4a4e532` | style: fix black 24.1.1 formatting (match CI version) |
+| `318c5f9` | style: fix all ruff lint errors (102 issues) |
+| `7b854d0` | Merge pull request #245 from feature/smc-smartmoneyconcepts-integration |
+
+### Git Operations
+
+- Udaleny 22 lokalnye merged vetki (feature/*, fix/*)
+- Pruned 12 stale remote tracking refs
+- Rebased feature/smc-smartmoneyconcepts-integration na main (3x)
+- Force-pushed s --force-with-lease
+- Merged PR #245 cherez `gh pr merge`
+
+---
+
+## Predydushchaya Sessiya (2026-02-20) - Session 15: Timezone Bug Fix + SMC Integration Merge + Bot Shutdown
 
 ### Zadacha
 
@@ -760,6 +857,19 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 16 (2026-02-20): Repository Cleanup + Code Quality + PR #245 Merge
+- Polnyy audit i restrukturizatsiya repozitoriya (83 fayla peremeshcheny/udaleny)
+- Udalyon `dca_grid_bot/` (mertvyy kod, 16 faylov, 3673 stroki)
+- 42 docs peremeshcheny iz kornya v `docs/`, `docs/ru/`, `docs/archive/`
+- 7 skriptov peremeshcheny v `scripts/`, 6 skrinshtov v `docs/screenshots/`
+- black formatting: 58 faylov (versiya 24.1.1 = CI)
+- ruff lint: 102 oshibki ispravleny (94 avto + 8 vruchnuyu)
+- Udaleny 22 lokalnye merged vetki, pruned 12 stale remote refs
+- PR #245 vmerzhen (SMC smartmoneyconcepts integration plan)
+- **Commits:** `be978d7`, `73b058e`, `4a4e532`, `318c5f9`, `7b854d0`
+- **Testy:** 1479 passed, 25 skipped, 0 failed (lokalno)
+- **Status:** COMPLETE
+
 ### Sessiya 15 (2026-02-20): Timezone Bug Fix + SMC Integration Merge + Bot Shutdown
 - Fix `periodic_state_save_failed` — asyncpg otklanyal timezone-aware datetime dlya TIMESTAMP WITHOUT TIME ZONE kolonki
 - `.replace(tzinfo=None)` v models_state.py i bot_orchestrator.py
@@ -920,7 +1030,8 @@ Phase 7.8: Backtesting 5 Bug Fixes   [##########] 100%
 Phase 7.9: v2.0 Algorithm Design     [##########] 100%
 Phase 7.10: Backtesting Architecture  [##########] 100%
 Phase 7.11: Conflict Analysis (16)    [##########] 100%
-Phase 7.12: Cross-Audit (+13=29)      [##########] 100%  <- NEW!
+Phase 7.12: Cross-Audit (+13=29)      [##########] 100%
+Phase 7.13: Repo Cleanup + CodeQual   [##########] 100%  <- NEW!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -1025,10 +1136,10 @@ docker compose up webui-backend webui-frontend
 ## Last Updated
 
 - **Date:** February 20, 2026
-- **Session:** 15 (Timezone Bug Fix + SMC Integration Merge + Bot Shutdown)
-- **Status:** 1859/1884 tests passing (100%), 25 skipped
-- **Total tests:** 1884 collected (dokumentatsiya obnovlena s realnym chislom)
-- **Last commit:** `7d84e8d` (fix: strip tzinfo from saved_at to match TIMESTAMP WITHOUT TIME ZONE column)
+- **Session:** 16 (Repository Cleanup + Code Quality + PR #245 Merge)
+- **Status:** 1479/1504 tests passing (100%), 25 skipped
+- **Total tests:** 1504 collected (posle udaleniya dca_grid_bot)
+- **Last commit:** `7b854d0` (Merge pull request #245)
 - **Bot Status:** STOPPED — all orders cancelled, all positions closed, balance ~$99,998 USDT
 - **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1322 strok, 29 konfliktov ustraneny)
 - **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1676 strok)
@@ -1050,5 +1161,8 @@ docker compose up webui-backend webui-frontend
 - **Server:** 185.233.200.13 (Docker, bot stopped)
 - **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed to server
 - **Presets Library:** 1 preset (XRPUSDT) v `/data/presets.db`
-- **Next Action:** Ispravlenie SMC parametrov (Variant A) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
+- **Repository Cleanup:** COMPLETE — dca_grid_bot udalyon, docs reorganizovany, code quality fixes applied
+- **Code Quality:** black + ruff PASS; mypy 47 pre-existing errors (TODO)
+- **CI Known Issues:** GitHub Actions Python 3.12 pkg_resources failure (environment issue)
+- **Next Action:** Fix mypy errors → Ispravlenie SMC parametrov (Variant A) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
 - **Co-Authored:** Claude Opus 4.6
