@@ -76,3 +76,13 @@ alembic.ini
 
 # Historical data CSV files
 data/historical/*.csv
+
+# CI/Build artifacts
+.ci-trigger
+ci-logs/
+
+# Playwright MCP logs
+.playwright-mcp/
+
+# Node.js
+node_modules/
