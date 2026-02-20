@@ -3,14 +3,95 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 20 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + **v2.0 Algorithm Architecture COMPLETE** + **Unified Backtesting Architecture COMPLETE**
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + **Cross-Audit: 13 New Conflicts Resolved (total 29)**
 **Pass Rate:** 100% (1859/1859 tests passing, 25 skipped)
 **Realnyy obem testov:** 1884 collected (1857 bez testnet)
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
+**Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-20) - v2.0 Unified Algorithm + Backtesting Architecture + Conflict Analysis
+## Poslednyaya Sessiya (2026-02-20) - Session 13: Cross-Audit — 13 New Conflicts Resolved
+
+### Zadacha
+
+Perekryostnyy audit TRADERAGENT_V2_ALGORITHM.md (1104 strok) i BACKTESTING_SYSTEM_ARCHITECTURE.md (1567 strok) na nalichie vnutrennih protivorechiy, raskhozhdenii mezhdu dokumentami, i nesootvetstviy s tekushchey kodovoy bazoy.
+
+### Rezultat
+
+Naideno i ustraneno **13 novyh konfliktov** (ne vhodyashchih v spisok 16 ranee ustranyonnyh). Obshchiy itog: **29 konfliktov** vyyavleno i razresheno v algoritme v2.0.
+
+### 13 Novyh Konfliktov
+
+#### CRITICAL (2)
+
+| # | Konflikt | Reshenie |
+|---|---------|---------|
+| NEW-C1 | QUIET_TRANSITION: Grid+DCA na odnoy pare vs zapret 7.2 (Grid+DCA = ZAPRESHCHENO) | Odna strategiya (Grid ostorozhnyy, range×0.7), DCA kak rezervnaya. Bez odnovremennoy raboty |
+| NEW-C2 | TRANSITION_TIMEOUT_CANDLES=120 neveren dlya 1h+ (120h vmesto 2h) | Dinamicheskiy raschet: `(TIMEOUT_HOURS × 60) / tf_minutes` |
+
+#### HIGH (5)
+
+| # | Konflikt | Reshenie |
+|---|---------|---------|
+| NEW-H1 | Emergency Halt vo vremya Graceful Transition → deadlock | Halt prinuditelno osvobozhdaet vse strategy_locks, preryvaet transitions |
+| NEW-H2 | REDUCED MODE + STRESS MODE: 50%+50%=? (ne opredeleno) | Multiplikativno: 0.5 × 0.5 = 0.25. Ierarkhiya: Halt > Reduced > Stress > Drawdown |
+| NEW-H3 | SMC filter formula rashoditsya (algo: decay×quality, backtest: tolko decay) | Edinaya formula: `confidence = decay × zone_quality`. Backtesting obnovlyon |
+| NEW-H4 | SMC zone touch per-candle: zona umiraet za 2 svechi vnutri neyo | Per-entry podschyot: `_was_inside` treking, inkrement tolko na perekhode snaruzhi→vnutr |
+| NEW-H5 | Reserve 15% "vsegda" ne obespechivayetsya pri overcommitted | Reserve = target s enforcement: committed > 90% → myagkoe sokrashchenie |
+
+#### MEDIUM (4)
+
+| # | Konflikt | Reshenie |
+|---|---------|---------|
+| NEW-M1 | 3 min zaderzhki pervoy strategii pri starte (confirmation_counter) | Cold start: `current_regime == None → return True` (nemedlennaya initsializatsiya) |
+| NEW-M2 | Dublirovanie koda coordinator/ vs backtesting/multi/ | Backtesting importiruet iz coordinator/, ne dubliruet |
+| NEW-M3 | Grid NEUTRAL ot SMC = polovinnaya setka nizhe min_order_size | `_check_grid_viability()`: esli per-level < min_order_size → REJECT |
+| NEW-M4 | Drawdown 15% + daily loss 5-10% — dvoynoy rezhim bez prioriteta | Ierarkhiya rezhimov: Halt > Reduced > Stress > Drawdown (ob'edineno s NEW-H2) |
+
+#### LOW (2)
+
+| # | Konflikt | Reshenie |
+|---|---------|---------|
+| NEW-L1 | SMC bez zon → confidence=0.5 → vsegda NEUTRAL, ne REJECT | Osoznannoe reshenie: net dannykh ≠ plokhoy signal. Zadokumentirovano |
+| NEW-L2 | MarketRegime enum: kod (SIDEWAYS) vs spets (TIGHT_RANGE/WIDE_RANGE) | Mapping enum + poryadok migratsii opisany v Algorithm 13 |
+
+### Izmenennye Dokumenty
+
+| Dokument | Bylo strok | Stalo strok | Izmeneniya |
+|----------|-----------|-------------|------------|
+| `TRADERAGENT_V2_ALGORITHM.md` | 1104 | 1322 | +218 strok, 11 pravok |
+| `BACKTESTING_SYSTEM_ARCHITECTURE.md` | 1567 | 1676 | +109 strok, 12 pravok |
+
+### Klyuchevye Pravki v Algorithm Doc
+
+- **Sektsiya 4.1:** QUIET_TRANSITION → Grid (ostorozhnyy), ne Grid+DCA odnovremenno
+- **Sektsiya 4.3 (NOVAYA):** Cold start — pervaya strategiya naznachayetsya nemedlenno
+- **Sektsiya 5.3:** Proverka zhiznesposobnosti Grid posle SMC NEUTRAL
+- **Sektsiya 5.4:** SMC zone touch → per-entry vmesto per-candle (_was_inside treking)
+- **Sektsiya 6.3:** Reserve 15% = target s enforcement (committed > 90% → sokrashchenie)
+- **Sektsiya 7.2 (NOVAYA):** RiskModeManager — ierarkhiya i vzaimodeystvie rezhimov
+- **Sektsiya 7.3.1 (NOVAYA):** Emergency Halt + Graceful Transition — protokol vzaimodeystviya
+- **Sektsiya 12:** Tablitsa dopolnena 13 novymi konfliktami
+- **Sektsiya 13:** MarketRegime enum mapping + printsip edinogo istochnika koda
+
+### Klyuchevye Pravki v Backtesting Doc
+
+- **Sektsiya 5.4:** `update_touches()` → per-entry; `_filter_single()` += `_zone_quality()`; `_filter_grid()` += min viable size check
+- **Sektsiya 6.2:** `TRANSITION_TIMEOUT_CANDLES` → dinamicheskiy raschet; cold start bez transition cost; `_abort_transition()` pri halt
+- **Sektsiya 6.3:** `BacktestRiskModeManager` (multiplikativnye modifikatory); `flag_reserve_breach()`; `_simulate_portfolio_halt()` preryvaet transitions
+- **Sektsiya 11:** Faylovaya struktura — coordinator/ importiruyetsya, ne dubliruetsya
+- **Sektsiya 13:** Tablitsa dopolnena 13 novymi konfliktami
+
+### Commit
+
+| Commit | Opisanie |
+|--------|----------|
+| `1041fbd` | docs: resolve 13 new conflicts in v2.0 algorithm and backtesting architecture |
+
+---
+
+## Predydushchaya Sessiya (2026-02-20) - Session 12: v2.0 Unified Algorithm + Backtesting Architecture + Conflict Analysis
 
 ### Zadacha
 
@@ -29,17 +110,17 @@ Proektirovanie edinogo torgovogo algoritma TRADERAGENT v2.0 i universalnoy siste
 2. **6 rezhimov rynka** s gisterezisom v RegimeClassifier (edinstvenniy istochnik istiny):
    - `TIGHT_RANGE` (ADX<18, ATR<1%) → Grid arithmetic
    - `WIDE_RANGE` (ADX<18, ATR≥1%) → Grid geometric
-   - `QUIET_TRANSITION` (ADX 22-32, ATR<2%) → Grid 60% + DCA 40%
+   - `QUIET_TRANSITION` (ADX 22-32, ATR<2%) → Grid ostorozhnyy (range×0.7)
    - `VOLATILE_TRANSITION` (ADX 22-32, ATR≥2%) → DCA ostorozhnyy
    - `BULL_TREND` (ADX>32, EMA20>50) → Trend Follower long
    - `BEAR_TREND` (ADX>32, EMA20<50) → DCA accumulation
 3. **HYBRID udalyon** — ego funktsiya perenesena v Strategy Router (ustranyaet dvoynoy routing)
 4. **SMC kak filtr, a ne strategiya** — filtruet tolko ENTRY; exit/SL/TP/GRID_COUNTER obhodyat
-5. **SMC-zony s confidence_decay** — max 2 kasaniya, zatem zona "umiraet"
+5. **SMC-zony s confidence_decay** — max 2 kasaniya (per-entry), zatem zona "umiraet"
 6. **Capital Allocator s normalizatsiey** — summa = 100% Active Pool, cold start factor = 0.8
 7. **committed/available capital** — overcommitted = zapret novyh orderov
 8. **3-urovnevyy Risk Aggregator** — trade → pair → portfolio
-9. **Emergency Halt** — 3-stage protokol s uchastiem operatora
+9. **Emergency Halt** — 3-stage protokol s uchastiem operatora + vzaimodeystvie s Graceful Transition
 10. **Dynamic Correlation Monitor** — STRESS_MODE pri korrelyatsii > 0.8 u > 60% par
 11. **Graceful Transition** — Transition Lock + taymayt 2h + crash recovery cherez TransitionState
 
@@ -538,6 +619,19 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 13 (2026-02-20): Cross-Audit — 13 New Conflicts Resolved
+- Perekryostnyy audit Algorithm (1104 strok) + Backtesting (1567 strok) dokumentov
+- Sopostavlenie s tekushchey kodovoy bazoy (orchestrator, strategies, risk)
+- Naideno 13 novyh konfliktov: 2 CRITICAL + 5 HIGH + 4 MEDIUM + 2 LOW
+- CRITICAL: QUIET_TRANSITION Grid+DCA na odnoy pare; TRANSITION_TIMEOUT_CANDLES neveren
+- HIGH: Emergency Halt + Transition deadlock; REDUCED+STRESS vzaimodeystvie; SMC formula raskhozhdenie; zone touch per-candle; reserve enforcement
+- Novye sektsii: 4.3 (cold start), 7.2 (RiskModeManager), 7.3.1 (Halt+Transition), 13 (enum mapping)
+- Obshchiy itog: **29 konfliktov** vyyavleno i razresheno
+- Algorithm doc: 1104 → 1322 strok (+218)
+- Backtesting doc: 1567 → 1676 strok (+109)
+- **Commit:** `1041fbd`
+- **Status:** COMPLETE
+
 ### Sessiya 12 (2026-02-20): v2.0 Unified Algorithm + Backtesting Architecture
 - Analiz sovmestimosti strategiy: mogut li rabotat odnovremenno
 - Sozdanie TRADERAGENT_V2_ALGORITHM.md (1105 strok):
@@ -664,9 +758,10 @@ Phase 7.5: State Persistence          [##########] 100%
 Phase 7.6: Shared Core Refactoring    [##########] 100%  <- NEW!
 Phase 7.7: XRP/USDT Backtest (1st)    [##########] 100%
 Phase 7.8: Backtesting 5 Bug Fixes   [##########] 100%
-Phase 7.9: v2.0 Algorithm Design     [##########] 100%  <- NEW!
-Phase 7.10: Backtesting Architecture  [##########] 100%  <- NEW!
-Phase 7.11: Conflict Analysis         [##########] 100%  <- NEW!
+Phase 7.9: v2.0 Algorithm Design     [##########] 100%
+Phase 7.10: Backtesting Architecture  [##########] 100%
+Phase 7.11: Conflict Analysis (16)    [##########] 100%
+Phase 7.12: Cross-Audit (+13=29)      [##########] 100%  <- NEW!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -771,13 +866,15 @@ docker compose up webui-backend webui-frontend
 ## Last Updated
 
 - **Date:** February 20, 2026
+- **Session:** 13 (Cross-Audit)
 - **Status:** 1859/1884 tests passing (100%), 25 skipped
 - **Total tests:** 1884 collected (dokumentatsiya obnovlena s realnym chislom)
-- **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1105 strok, 16 konfliktov ustraneny)
-- **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1567 strok)
-- **Conflict Analysis:** 2 CRITICAL + 9 HIGH + 4 MEDIUM + 1 LOW = 16 konfliktov ustraneny
+- **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1322 strok, 29 konfliktov ustraneny)
+- **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1676 strok)
+- **Conflict Analysis:** Session 12: 16 + Session 13: 13 = **29 konfliktov** ustraneny
+  - Session 13 novye: 2 CRITICAL + 5 HIGH + 4 MEDIUM + 2 LOW
 - **HYBRID:** Udalyon kak otdelnaya strategiya; funktsiya perenesena v Strategy Router
-- **SMC:** Pereproektirovan iz strategii v filtr (tolko ENTRY, zone staleness)
+- **SMC:** Pereproektirovan iz strategii v filtr (tolko ENTRY, zone staleness, per-entry touch)
 - **Backtesting Service:** 174 tests (bylo 169, +5 novyh), 5 bug fixes applied
 - **Shared Core Refactoring:** COMPLETE — eliminatsiya dublikatov, re-export shims, IGridExchange Protocol
 - **XRP/USDT Backtest:** COMPLETE — pervyy preset v biblioteke (preset_id f191113c-b34)
