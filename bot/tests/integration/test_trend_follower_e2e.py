@@ -9,10 +9,9 @@ Issue #137 - Phase 1.5
 
 import asyncio
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from bot.config.schemas import (
@@ -22,8 +21,6 @@ from bot.config.schemas import (
     TrendFollowerConfig,
 )
 from bot.orchestrator.bot_orchestrator import BotOrchestrator, BotState
-from bot.strategies.trend_follower.entry_logic import SignalType
-from bot.strategies.trend_follower.market_analyzer import MarketPhase, TrendStrength
 
 
 @pytest.fixture
@@ -111,9 +108,9 @@ def mock_exchange():
 
         # Return list of [timestamp, open, high, low, close, volume]
         return [
-            [i * 3600000, float(o), float(h), float(l), float(c), float(v)]
-            for i, (o, h, l, c, v) in enumerate(
-                zip(open_prices, high_prices, low_prices, close_prices, volume)
+            [i * 3600000, float(o), float(h), float(low), float(c), float(v)]
+            for i, (o, h, low, c, v) in enumerate(
+                zip(open_prices, high_prices, low_prices, close_prices, volume, strict=False)
             )
         ]
 

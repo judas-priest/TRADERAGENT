@@ -15,26 +15,23 @@ from typing import Any
 import pandas as pd
 import redis.asyncio as redis
 
-from bot.api.exchange_client import ExchangeAPIClient
 from bot.config.schemas import BotConfig, StrategyType
 from bot.core.dca_engine import DCAEngine
 from bot.core.grid_engine import GridEngine, GridType
 from bot.core.risk_manager import RiskManager
 from bot.database.manager import DatabaseManager
 from bot.database.models_state import BotStateSnapshot
-from bot.orchestrator.events import EventType, TradingEvent
-from bot.orchestrator.health_monitor import HealthMonitor, HealthCheckResult, HealthThresholds
 from bot.orchestrator import state_persistence as sp
+from bot.orchestrator.events import EventType, TradingEvent
+from bot.orchestrator.health_monitor import HealthCheckResult, HealthMonitor, HealthThresholds
 from bot.orchestrator.market_regime import (
     MarketRegimeDetector,
-    MarketRegime,
     RecommendedStrategy,
     RegimeAnalysis,
 )
 from bot.orchestrator.strategy_registry import (
     StrategyInstance,
     StrategyRegistry,
-    StrategyState,
 )
 from bot.strategies.trend_follower import TrendFollowerConfig as TrendFollowerDataclassConfig
 from bot.strategies.trend_follower import TrendFollowerStrategy

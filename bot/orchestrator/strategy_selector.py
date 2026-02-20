@@ -8,7 +8,7 @@ Responsibilities:
 - Track transition history for analysis
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
@@ -19,7 +19,6 @@ from bot.orchestrator.market_regime import (
     RegimeAnalysis,
 )
 from bot.orchestrator.strategy_registry import (
-    StrategyInstance,
     StrategyRegistry,
     StrategyState,
 )

@@ -1,6 +1,6 @@
 """Tests for multi-timeframe backtesting — Issue #172."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 
 import pandas as pd
@@ -8,7 +8,6 @@ import pytest
 
 from bot.tests.backtesting.backtesting_engine import BacktestResult
 from bot.tests.backtesting.multi_tf_data_loader import (
-    MultiTimeframeData,
     MultiTimeframeDataLoader,
 )
 from bot.tests.backtesting.multi_tf_engine import (
@@ -18,7 +17,6 @@ from bot.tests.backtesting.multi_tf_engine import (
 
 # Reuse ConcreteStrategy from existing tests
 from tests.strategies.test_base_strategy import ConcreteStrategy
-
 
 # =============================================================================
 # Fixtures

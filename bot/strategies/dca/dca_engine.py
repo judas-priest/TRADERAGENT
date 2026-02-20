@@ -35,14 +35,10 @@ from bot.strategies.dca.dca_position_manager import (
     DCADeal,
     DCAOrderConfig,
     DCAPositionManager,
-    DealStatus,
 )
 from bot.strategies.dca.dca_risk_manager import (
-    DCARiskAction,
     DCARiskConfig,
     DCARiskManager,
-    DealRiskState,
-    PortfolioRiskState,
 )
 from bot.strategies.dca.dca_signal_generator import (
     DCASignalConfig,
@@ -54,9 +50,7 @@ from bot.strategies.dca.dca_trailing_stop import (
     DCATrailingStop,
     TrailingStopConfig,
     TrailingStopSnapshot,
-    TrailingStopState,
 )
-
 
 # =============================================================================
 # Data Structures

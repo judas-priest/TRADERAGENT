@@ -5,10 +5,10 @@ Translates between SMC-specific types (SMCSignal, SignalDirection) and
 unified types (BaseSignal, SignalDirection) without modifying internal SMC code.
 """
 
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Optional
-import uuid
 
 import pandas as pd
 
@@ -21,12 +21,14 @@ from bot.strategies.base import (
     SignalDirection,
     StrategyPerformance,
 )
-from bot.strategies.smc.smc_strategy import SMCStrategy
 from bot.strategies.smc.config import SMCConfig
 from bot.strategies.smc.entry_signals import (
     SignalDirection as SMCSignalDirection,
+)
+from bot.strategies.smc.entry_signals import (
     SMCSignal,
 )
+from bot.strategies.smc.smc_strategy import SMCStrategy
 from bot.utils.logger import get_logger
 
 logger = get_logger(__name__)

@@ -12,13 +12,12 @@ Unified types:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Optional
 
 import pandas as pd
-
 
 # =============================================================================
 # Unified Enums
@@ -318,10 +317,9 @@ class BaseStrategy(ABC):
             "performance": performance.to_dict(),
         }
 
-    def reset(self) -> None:
+    def reset(self) -> None:  # noqa: B027
         """
         Reset strategy state. Used for backtesting.
 
         Default: no-op. Strategies that need reset should override.
         """
-        pass

@@ -23,7 +23,6 @@ import smartmoneyconcepts.smc as smc
 from bot.strategies.smc.market_structure import (
     MarketStructureAnalyzer,
     StructureEvent,
-    TrendDirection,
 )
 from bot.utils.logger import get_logger
 

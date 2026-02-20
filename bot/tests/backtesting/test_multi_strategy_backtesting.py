@@ -11,13 +11,11 @@ from bot.strategies.base import (
     BaseSignal,
     ExitReason,
     SignalDirection,
-    StrategyPerformance,
 )
 from bot.strategies.dca_adapter import DCAAdapter
 from bot.strategies.grid_adapter import GridAdapter
 from bot.tests.backtesting.backtesting_engine import BacktestResult
 from bot.tests.backtesting.multi_tf_data_loader import (
-    MultiTimeframeData,
     MultiTimeframeDataLoader,
 )
 from bot.tests.backtesting.multi_tf_engine import (
@@ -29,7 +27,6 @@ from bot.tests.backtesting.strategy_comparison import (
     StrategyComparisonResult,
 )
 from tests.strategies.test_base_strategy import ConcreteStrategy, _make_ohlcv
-
 
 # =============================================================================
 # Fixtures

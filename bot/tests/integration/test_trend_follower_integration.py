@@ -1,7 +1,6 @@
 """Integration tests for Trend-Follower Strategy with Bot Orchestrator"""
 
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -311,7 +310,7 @@ class TestRiskManagementIntegration:
 
         strategy.analyze_market(df)
 
-        for i in range(max_positions + 2):
+        for _i in range(max_positions + 2):
             entry_data = strategy.check_entry_signal(df, Decimal("10000"))
             if entry_data:
                 signal, metrics, position_size = entry_data

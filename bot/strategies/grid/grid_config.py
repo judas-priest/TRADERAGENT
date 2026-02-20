@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field, model_validator
 from .grid_calculator import GridConfig, GridSpacing
 from .grid_risk_manager import GridRiskConfig
 
-
 # =============================================================================
 # Volatility Presets
 # =============================================================================

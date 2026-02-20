@@ -15,14 +15,16 @@ from bot.strategies.base import (
     BaseMarketAnalysis,
     BaseSignal,
     BaseStrategy,
-    ExitReason as BaseExitReason,
     PositionInfo,
     SignalDirection,
     StrategyPerformance,
 )
-from bot.strategies.trend_follower.trend_follower_strategy import TrendFollowerStrategy
+from bot.strategies.base import (
+    ExitReason as BaseExitReason,
+)
 from bot.strategies.trend_follower.config import TrendFollowerConfig
 from bot.strategies.trend_follower.entry_logic import SignalType
+from bot.strategies.trend_follower.trend_follower_strategy import TrendFollowerStrategy
 from bot.utils.logger import get_logger
 
 logger = get_logger(__name__)

@@ -24,7 +24,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from bot.database.models import Base
 
-
 # =============================================================================
 # v2.0 Enums
 # =============================================================================

@@ -24,10 +24,9 @@ Usage:
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_DOWN
+from decimal import ROUND_DOWN, Decimal
 from enum import Enum
 from typing import Any
-
 
 # =============================================================================
 # Enums

@@ -14,10 +14,13 @@ from bot.strategies.base import (
     SignalDirection,
     StrategyPerformance,
 )
-from bot.strategies.smc import SMCConfig, SMCStrategy
-from bot.strategies.smc_adapter import SMCStrategyAdapter
-from bot.strategies.trend_follower import TrendFollowerConfig, TrendFollowerStrategy
-from bot.strategies.trend_follower_adapter import TrendFollowerAdapter
+from bot.strategies.dca import (
+    ConditionResult,
+    DCASignalConfig,
+    DCASignalGenerator,
+    MarketState,
+    SignalResult,
+)
 from bot.strategies.grid import (
     GridCalculator,
     GridConfig,
@@ -28,13 +31,10 @@ from bot.strategies.grid import (
     GridSpacing,
     OrderStatus,
 )
-from bot.strategies.dca import (
-    DCASignalGenerator,
-    DCASignalConfig,
-    MarketState,
-    SignalResult,
-    ConditionResult,
-)
+from bot.strategies.smc import SMCConfig, SMCStrategy
+from bot.strategies.smc_adapter import SMCStrategyAdapter
+from bot.strategies.trend_follower import TrendFollowerConfig, TrendFollowerStrategy
+from bot.strategies.trend_follower_adapter import TrendFollowerAdapter
 
 __all__ = [
     # Base types

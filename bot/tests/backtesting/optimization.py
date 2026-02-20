@@ -14,9 +14,10 @@ Usage:
 """
 
 import itertools
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 
 from bot.strategies.base import BaseStrategy
 from bot.tests.backtesting.backtesting_engine import BacktestResult
@@ -149,7 +150,7 @@ class ParameterOptimizer:
         values = list(param_grid.values())
         combinations = []
         for combo in itertools.product(*values):
-            combinations.append(dict(zip(keys, combo)))
+            combinations.append(dict(zip(keys, combo, strict=False)))
         return combinations
 
     def _get_objective_value(self, result: BacktestResult) -> float:

@@ -1,10 +1,16 @@
 """Grid Strategy Package — v2.0 Grid Calculator, Order Manager, and related utilities."""
 
+from .exchange_protocol import IGridExchange
 from .grid_calculator import (
     GridCalculator,
     GridConfig,
     GridLevel,
     GridSpacing,
+)
+from .grid_config import (
+    VOLATILITY_PRESETS,
+    GridStrategyConfig,
+    VolatilityMode,
 )
 from .grid_order_manager import (
     GridCycle,
@@ -19,12 +25,6 @@ from .grid_risk_manager import (
     RiskCheckResult,
     TrendState,
 )
-from .grid_config import (
-    GridStrategyConfig,
-    VolatilityMode,
-    VOLATILITY_PRESETS,
-)
-from .exchange_protocol import IGridExchange
 
 __all__ = [
     "GridCalculator",

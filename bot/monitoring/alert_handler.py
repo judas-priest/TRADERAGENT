@@ -11,9 +11,9 @@ Usage:
 """
 
 import json
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 from aiohttp import web
 

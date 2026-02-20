@@ -11,8 +11,6 @@ Usage:
 
 import random
 from dataclasses import dataclass, field
-from decimal import Decimal
-from typing import Any
 
 from bot.tests.backtesting.backtesting_engine import BacktestResult
 
@@ -187,7 +185,7 @@ class MonteCarloSimulation:
     def _percentiles(self, values: list[float]) -> dict[float, float]:
         """Compute percentiles for configured confidence levels."""
         if not values:
-            return {level: 0.0 for level in self.config.confidence_levels}
+            return dict.fromkeys(self.config.confidence_levels, 0.0)
 
         sorted_vals = sorted(values)
         n = len(sorted_vals)
@@ -199,7 +197,7 @@ class MonteCarloSimulation:
 
     def _empty_result(self, result: BacktestResult) -> MonteCarloResult:
         """Return empty result when no trades available."""
-        empty_pcts = {level: 0.0 for level in self.config.confidence_levels}
+        empty_pcts = dict.fromkeys(self.config.confidence_levels, 0.0)
         return MonteCarloResult(
             n_simulations=0,
             original_return_pct=float(result.total_return_pct),

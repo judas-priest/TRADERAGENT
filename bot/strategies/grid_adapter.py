@@ -13,7 +13,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
-from bot.core.grid_engine import GridEngine, GridOrder
+from bot.core.grid_engine import GridEngine
 from bot.strategies.base import (
     BaseMarketAnalysis,
     BaseSignal,
@@ -145,7 +145,7 @@ class GridAdapter(BaseStrategy):
         self._current_price = close
 
         # Find nearest buy level below current price
-        buy_levels = [l for l in self._grid_levels if l < close]
+        buy_levels = [lvl for lvl in self._grid_levels if lvl < close]
         if not buy_levels:
             return None
 

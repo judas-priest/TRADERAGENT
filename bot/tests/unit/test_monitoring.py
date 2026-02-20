@@ -1,16 +1,15 @@
 """Tests for monitoring components: MetricsExporter, MetricsCollector, AlertHandler."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aiohttp import web
-from aiohttp.test_utils import AioHTTPTestCase, TestClient, TestServer
+from aiohttp.test_utils import TestClient, TestServer
 
 from bot.monitoring.alert_handler import Alert, AlertHandler
 from bot.monitoring.metrics_collector import MetricsCollector
 from bot.monitoring.metrics_exporter import MetricsExporter
-
 
 # =========================================================================
 # MetricsExporter Tests

@@ -14,12 +14,11 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
-from bot.strategies.dca.dca_signal_generator import DCASignalConfig, TrendDirection
+from bot.strategies.dca.dca_engine import FalseSignalFilter
 from bot.strategies.dca.dca_position_manager import DCAOrderConfig
 from bot.strategies.dca.dca_risk_manager import DCARiskConfig
+from bot.strategies.dca.dca_signal_generator import DCASignalConfig, TrendDirection
 from bot.strategies.dca.dca_trailing_stop import TrailingStopConfig, TrailingStopType
-from bot.strategies.dca.dca_engine import FalseSignalFilter
-
 
 # =============================================================================
 # Market Presets

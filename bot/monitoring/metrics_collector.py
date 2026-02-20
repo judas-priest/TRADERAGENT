@@ -15,7 +15,6 @@ Usage:
 """
 
 import asyncio
-import time
 from typing import Any
 
 from bot.monitoring.metrics_exporter import MetricsExporter

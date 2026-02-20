@@ -12,12 +12,10 @@ Usage:
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
-
-import pandas as pd
 
 from bot.strategies.base import BaseStrategy, ExitReason, SignalDirection
 from bot.tests.backtesting.backtesting_engine import BacktestResult

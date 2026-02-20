@@ -11,16 +11,15 @@ Usage:
     await runner.downgrade("base")   # Downgrade to base
 """
 
-import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
+from alembic import command
 from bot.utils.logger import get_logger
 
 logger = get_logger(__name__)

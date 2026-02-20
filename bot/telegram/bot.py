@@ -497,7 +497,7 @@ class TelegramBot:
             has_positions = True
             orders = orch.grid_engine.active_orders
             response += f"*Grid Orders ({len(orders)} active):*\n"
-            for oid, order in list(orders.items())[:5]:
+            for _oid, order in list(orders.items())[:5]:
                 response += f"  {order.side.upper()} @ {order.price}\n"
             if len(orders) > 5:
                 response += f"  ... and {len(orders) - 5} more\n"

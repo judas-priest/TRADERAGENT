@@ -10,7 +10,6 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from bot.strategies.base import (
     BaseMarketAnalysis,
@@ -51,7 +50,6 @@ from bot.tests.backtesting.walk_forward import (
     WalkForwardConfig,
     WalkForwardResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

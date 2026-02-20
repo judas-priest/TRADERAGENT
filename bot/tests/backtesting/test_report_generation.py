@@ -7,12 +7,9 @@ Issue #175 — Phase 6.4: Report Generation.
 import tempfile
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from pathlib import Path
 from typing import Any, Optional
 
-import numpy as np
 import pandas as pd
-import pytest
 
 from bot.strategies.base import (
     BaseMarketAnalysis,
@@ -26,7 +23,6 @@ from bot.strategies.base import (
 from bot.tests.backtesting.backtesting_engine import BacktestResult
 from bot.tests.backtesting.monte_carlo import (
     MonteCarloConfig,
-    MonteCarloResult,
     MonteCarloSimulation,
 )
 from bot.tests.backtesting.multi_tf_data_loader import (
@@ -49,9 +45,7 @@ from bot.tests.backtesting.strategy_comparison import (
 from bot.tests.backtesting.walk_forward import (
     WalkForwardAnalysis,
     WalkForwardConfig,
-    WalkForwardResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

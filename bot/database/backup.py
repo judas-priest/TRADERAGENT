@@ -17,7 +17,7 @@ Usage:
 import asyncio
 import gzip
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -212,8 +212,10 @@ class BackupManager:
 
             return info
 
-        except FileNotFoundError:
-            raise RuntimeError("pg_dump not found. Ensure PostgreSQL client tools are installed.")
+        except FileNotFoundError as err:
+            raise RuntimeError(
+                "pg_dump not found. Ensure PostgreSQL client tools are installed."
+            ) from err
 
     async def restore_backup(
         self,

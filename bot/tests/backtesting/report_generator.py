@@ -12,13 +12,9 @@ Usage:
 """
 
 import html as html_mod
-import json
-import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
 from bot.tests.backtesting.backtesting_engine import BacktestResult
 from bot.tests.backtesting.monte_carlo import MonteCarloResult

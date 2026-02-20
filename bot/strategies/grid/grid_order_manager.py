@@ -12,7 +12,7 @@ Responsibilities:
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from enum import Enum
 from typing import Any
 
@@ -22,7 +22,6 @@ from .grid_calculator import (
     GridCalculator,
     GridConfig,
     GridLevel,
-    GridSpacing,
 )
 
 logger = structlog.get_logger(__name__)
