@@ -1,16 +1,81 @@
-# TRADERAGENT v2.0 - Session Context (Updated 2026-02-18)
+# TRADERAGENT v2.0 - Session Context (Updated 2026-02-20)
 
 ## Tekushchiy Status Proekta
 
-**Data:** 18 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + **Backtesting Service 5 Bug Fixes COMPLETE**
+**Data:** 20 fevralya 2026
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + **v2.0 Algorithm Architecture COMPLETE** + **Unified Backtesting Architecture COMPLETE**
 **Pass Rate:** 100% (1859/1859 tests passing, 25 skipped)
 **Realnyy obem testov:** 1884 collected (1857 bez testnet)
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-18) - Backtesting Service: 5 Bug Fixes
+## Poslednyaya Sessiya (2026-02-20) - v2.0 Unified Algorithm + Backtesting Architecture + Conflict Analysis
+
+### Zadacha
+
+Proektirovanie edinogo torgovogo algoritma TRADERAGENT v2.0 i universalnoy sistemy bektestinga. Analiz i ustranenie 16 konfliktov mezhdu komponentami.
+
+### Deliverables
+
+| Dokument | Strok | Opisanie |
+|----------|-------|----------|
+| `docs/TRADERAGENT_V2_ALGORITHM.md` | 1105 | Edinyy torgovyy algoritm s adaptivnym portfelem |
+| `docs/BACKTESTING_SYSTEM_ARCHITECTURE.md` | 1567 | Universalnyy freymvork bektestinga |
+
+### TRADERAGENT_V2_ALGORITHM.md — Klyuchevye Resheniya
+
+1. **Master Loop (60s) + Strategy Loop (1-5s)** — dva urovnya tsikla vmesto nezavisimyh botov
+2. **6 rezhimov rynka** s gisterezisom v RegimeClassifier (edinstvenniy istochnik istiny):
+   - `TIGHT_RANGE` (ADX<18, ATR<1%) → Grid arithmetic
+   - `WIDE_RANGE` (ADX<18, ATR≥1%) → Grid geometric
+   - `QUIET_TRANSITION` (ADX 22-32, ATR<2%) → Grid 60% + DCA 40%
+   - `VOLATILE_TRANSITION` (ADX 22-32, ATR≥2%) → DCA ostorozhnyy
+   - `BULL_TREND` (ADX>32, EMA20>50) → Trend Follower long
+   - `BEAR_TREND` (ADX>32, EMA20<50) → DCA accumulation
+3. **HYBRID udalyon** — ego funktsiya perenesena v Strategy Router (ustranyaet dvoynoy routing)
+4. **SMC kak filtr, a ne strategiya** — filtruet tolko ENTRY; exit/SL/TP/GRID_COUNTER obhodyat
+5. **SMC-zony s confidence_decay** — max 2 kasaniya, zatem zona "umiraet"
+6. **Capital Allocator s normalizatsiey** — summa = 100% Active Pool, cold start factor = 0.8
+7. **committed/available capital** — overcommitted = zapret novyh orderov
+8. **3-urovnevyy Risk Aggregator** — trade → pair → portfolio
+9. **Emergency Halt** — 3-stage protokol s uchastiem operatora
+10. **Dynamic Correlation Monitor** — STRESS_MODE pri korrelyatsii > 0.8 u > 60% par
+11. **Graceful Transition** — Transition Lock + taymayt 2h + crash recovery cherez TransitionState
+
+### 16 Konfliktov Obnaruzheny i Ustraneny
+
+| Kritichnost | Kol-vo | Primery |
+|-------------|--------|---------|
+| CRITICAL | 2 | SMC filtruet Stop-Loss; Emergency Halt bez protokola |
+| HIGH | 9 | Race condition Master/Strategy Loop; Capital > 100%; confirmation_counter bez sbrosa; Transition Deadlock; Grid "setka s dyrkami" |
+| MEDIUM | 4 | HYBRID dvoynoy routing; Cold start deadlock; Classifier/Router rassinhron; SMC-zony ne ustarevayut |
+| LOW | 1 | SMC rate limit pri bystrom loop |
+
+### Unified Backtesting Architecture — Klyuchevye Resheniya
+
+1. **UniversalSimulator** zamenyaet GridBacktestSimulator — podderzhka vsech 3 strategiy + SMC
+2. **SignalType routing** — SMC Filter tolko dlya ENTRY; Grid counter-orders obhodyat SMC
+3. **3 adaptera** (Grid, DCA, Trend) vmesto 5 (HYBRID udalyon, SMC — filtr)
+4. **MultiStrategyBacktest** — simulyatsiya pereklyucheniy s transition cost i halt events
+5. **PortfolioBacktest** — allocation normalizatsiya, STRESS_MODE, committed capital
+6. **MultiStrategyOptimizer** — optimizatsiya meta-parametrov (gisterezis, transition, SMC)
+7. **composite objective** shtrafit transition_cost (chastye pereklyucheniya)
+8. **transition_penalty slippage** — modeliruet povyshennoe proskalzyvanie pri force close
+9. **BacktestResult rasshiren** — transitions, halt events, SMC stats, correlation metrics
+10. **YAML preset** vklyuchaet vse novye polya (regime thresholds, correlation, risk levels)
+
+### Commits
+
+| Commit | Opisanie |
+|--------|----------|
+| `25e4564` | docs: add v2.0 unified trading algorithm and backtesting system architecture |
+| `44d4394` | docs: integrate 16 conflict resolutions into v2.0 algorithm |
+| `29b2813` | docs: integrate conflict resolutions into backtesting architecture |
+
+---
+
+## Predydushchaya Sessiya (2026-02-18) - Backtesting Service: 5 Bug Fixes
 
 ### Zadacha
 
@@ -473,6 +538,28 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 12 (2026-02-20): v2.0 Unified Algorithm + Backtesting Architecture
+- Analiz sovmestimosti strategiy: mogut li rabotat odnovremenno
+- Sozdanie TRADERAGENT_V2_ALGORITHM.md (1105 strok):
+  - Master Loop (60s) + Strategy Loop (1-5s)
+  - 6 rezhimov rynka s gisterezisom
+  - Strategy Router (HYBRID udalyon)
+  - SMC kak filtr (ne strategiya), tolko dlya ENTRY
+  - Capital Allocator s normalizatsiey i committed/available capital
+  - 3-urovnevyy Risk Aggregator + Emergency Halt protokol
+  - Dynamic Correlation Monitor + STRESS_MODE
+  - Graceful Transition s Transition Lock i taymaytom
+- Sozdanie BACKTESTING_SYSTEM_ARCHITECTURE.md (1567 strok):
+  - UniversalSimulator s SignalType routing
+  - 3 adaptera (Grid, DCA, Trend) + SMC Filter
+  - MultiStrategyBacktest (transition cost, halt events)
+  - PortfolioBacktest (allocation, correlation, stress mode)
+  - MultiStrategyOptimizer (meta-parametry)
+  - composite objective s transition_cost penalty
+- Analiz i ustranenie 16 konfliktov (2 CRITICAL, 9 HIGH, 4 MEDIUM, 1 LOW)
+- **Commits:** `25e4564`, `44d4394`, `29b2813`
+- **Status:** COMPLETE
+
 ### Sessiya 11 (2026-02-18): Backtesting Service — 5 Bug Fixes
 - Parallelnyy optimizer teper razdelyaet indicator cache s workerami (to_dict/from_dict)
 - Checkpoint sohranyaetsya srazu pri zavershenii kazhdogo trial (ne posle vseh)
@@ -576,7 +663,10 @@ Phase 7.4: Load/Stress Testing        [##########] 100%  <- COMPLETE!
 Phase 7.5: State Persistence          [##########] 100%
 Phase 7.6: Shared Core Refactoring    [##########] 100%  <- NEW!
 Phase 7.7: XRP/USDT Backtest (1st)    [##########] 100%
-Phase 7.8: Backtesting 5 Bug Fixes   [##########] 100%  <- NEW!
+Phase 7.8: Backtesting 5 Bug Fixes   [##########] 100%
+Phase 7.9: v2.0 Algorithm Design     [##########] 100%  <- NEW!
+Phase 7.10: Backtesting Architecture  [##########] 100%  <- NEW!
+Phase 7.11: Conflict Analysis         [##########] 100%  <- NEW!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -650,6 +740,9 @@ docker compose up webui-backend webui-frontend
 
 **Repository:** https://github.com/alekseymavai/TRADERAGENT
 **Architecture:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/ARCHITECTURE.md
+**v2.0 Algorithm:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/TRADERAGENT_V2_ALGORITHM.md
+**Backtesting Arch:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/BACKTESTING_SYSTEM_ARCHITECTURE.md
+**Strategy Algorithms:** https://github.com/alekseymavai/TRADERAGENT/blob/main/docs/STRATEGY_ALGORITHMS.md
 **Web UI PR:** https://github.com/alekseymavai/TRADERAGENT/pull/221
 **Release v2.0.0:** https://github.com/alekseymavai/TRADERAGENT/releases/tag/v2.0.0
 **Milestone:** https://github.com/alekseymavai/TRADERAGENT/milestone/1
@@ -658,10 +751,18 @@ docker compose up webui-backend webui-frontend
 
 ## Sleduyushchie Shagi
 
-1. **Batch bektesting:** 45 par na servere cherez Docker (`run_grid_backtest_all.py`) — ispolzovat korotkie okna (3-6 mes) vmesto polnogo perioda
-2. **Analiz rezultatov:** Vybor luchshih presetov po ROI/Sharpe/klasteram
-3. **Grid Backtesting Integration:** Podklyuchit k Web UI (zamenit zaglushku _run_backtest_sync()), integrirovat s HistoricalDataProvider
-4. **Strategy Dispatcher:** Dobavit marshrutizatsiyu po strategy_type v backtesting.py (Grid/DCA/TF)
+1. **Realizatsiya v2.0 Algorithm:** Implementatsiya novyh moduley iz `TRADERAGENT_V2_ALGORITHM.md`:
+   - `bot/coordinator/` — MasterLoop, RegimeClassifier (s gisterezisom), StrategyRouter, CapitalAllocator, RiskAggregator, GracefulTransition
+   - `bot/filters/smc_filter.py` — SMC Enhancement Layer s SignalType routing
+   - `bot/models/signal.py` — Signal + SignalType enum
+   - Udalenie HYBRID kak otdelnoy strategii
+2. **Realizatsiya Unified Backtesting:** Implementatsiya moduley iz `BACKTESTING_SYSTEM_ARCHITECTURE.md`:
+   - `bot/backtesting/core/` — UniversalSimulator, SimulatedExchange (committed capital)
+   - `bot/backtesting/adapters/` — Grid, DCA, Trend adaptery + SMC Filter
+   - `bot/backtesting/multi/` — MultiStrategyBacktest, PortfolioBacktest
+   - `bot/backtesting/optimization/` — MultiStrategyOptimizer (meta-params)
+3. **Batch bektesting:** 45 par na servere cherez Docker — ispolzovat korotkie okna (3-6 mes)
+4. **Grid Backtesting Integration:** Podklyuchit k Web UI (zamenit zaglushku), integrirovat s HistoricalDataProvider
 5. **Phase 8:** Production launch (security audit, gradual capital 5% → 25% → 100%)
 6. **Web UI:** Lightweight-charts integration (equity curves, price charts)
 
@@ -669,9 +770,14 @@ docker compose up webui-backend webui-frontend
 
 ## Last Updated
 
-- **Date:** February 18, 2026
+- **Date:** February 20, 2026
 - **Status:** 1859/1884 tests passing (100%), 25 skipped
 - **Total tests:** 1884 collected (dokumentatsiya obnovlena s realnym chislom)
+- **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1105 strok, 16 konfliktov ustraneny)
+- **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1567 strok)
+- **Conflict Analysis:** 2 CRITICAL + 9 HIGH + 4 MEDIUM + 1 LOW = 16 konfliktov ustraneny
+- **HYBRID:** Udalyon kak otdelnaya strategiya; funktsiya perenesena v Strategy Router
+- **SMC:** Pereproektirovan iz strategii v filtr (tolko ENTRY, zone staleness)
 - **Backtesting Service:** 174 tests (bylo 169, +5 novyh), 5 bug fixes applied
 - **Shared Core Refactoring:** COMPLETE — eliminatsiya dublikatov, re-export shims, IGridExchange Protocol
 - **XRP/USDT Backtest:** COMPLETE — pervyy preset v biblioteke (preset_id f191113c-b34)
@@ -681,8 +787,7 @@ docker compose up webui-backend webui-frontend
 - **Web UI Dashboard:** COMPLETE (PR #221 merged)
 - **Phase 7.3:** Bybit Demo Trading — DEPLOYED
 - **Server:** 185.233.200.13 (Docker)
-- **Bug fixed:** parallel cache, checkpoint timing, ATR fallback, datetime.utcnow, silent exceptions
 - **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed to server
 - **Presets Library:** 1 preset (XRPUSDT) v `/data/presets.db`
-- **Next Action:** Batch bektesting 45 par → analiz → best presets → Production
+- **Next Action:** Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
 - **Co-Authored:** Claude Opus 4.6
