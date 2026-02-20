@@ -126,8 +126,7 @@ class TestMultiTimeframeDataLoader:
         """H1 high should equal max of its 4 M15 highs."""
         h1_ts = data_2days.h1.index[0]
         m15_slice = data_2days.m15[
-            (data_2days.m15.index >= h1_ts)
-            & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
+            (data_2days.m15.index >= h1_ts) & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
         ]
         assert abs(data_2days.h1.loc[h1_ts, "high"] - m15_slice["high"].max()) < 1e-10
 
@@ -135,8 +134,7 @@ class TestMultiTimeframeDataLoader:
         """H1 open should equal the open of its first M15 bar."""
         h1_ts = data_2days.h1.index[0]
         m15_slice = data_2days.m15[
-            (data_2days.m15.index >= h1_ts)
-            & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
+            (data_2days.m15.index >= h1_ts) & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
         ]
         assert abs(data_2days.h1.loc[h1_ts, "open"] - m15_slice.iloc[0]["open"]) < 1e-10
 
@@ -144,8 +142,7 @@ class TestMultiTimeframeDataLoader:
         """H1 close should equal the close of its last M15 bar."""
         h1_ts = data_2days.h1.index[0]
         m15_slice = data_2days.m15[
-            (data_2days.m15.index >= h1_ts)
-            & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
+            (data_2days.m15.index >= h1_ts) & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
         ]
         assert abs(data_2days.h1.loc[h1_ts, "close"] - m15_slice.iloc[-1]["close"]) < 1e-10
 
@@ -153,8 +150,7 @@ class TestMultiTimeframeDataLoader:
         """H1 volume should equal sum of its 4 M15 volumes."""
         h1_ts = data_2days.h1.index[0]
         m15_slice = data_2days.m15[
-            (data_2days.m15.index >= h1_ts)
-            & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
+            (data_2days.m15.index >= h1_ts) & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
         ]
         assert abs(data_2days.h1.loc[h1_ts, "volume"] - m15_slice["volume"].sum()) < 1e-10
 
@@ -163,9 +159,7 @@ class TestGetContextAt:
     """Tests for get_context_at rolling window."""
 
     def test_context_sizes(self, loader, data_7days):
-        df_d1, df_h4, df_h1, df_m15 = loader.get_context_at(
-            data_7days, m15_index=200, lookback=50
-        )
+        df_d1, df_h4, df_h1, df_m15 = loader.get_context_at(data_7days, m15_index=200, lookback=50)
         assert len(df_m15) == 50
         assert len(df_h1) <= 50
         assert len(df_h4) <= 50
@@ -173,9 +167,7 @@ class TestGetContextAt:
 
     def test_context_early_index(self, loader, data_7days):
         """When m15_index < lookback, return whatever is available."""
-        df_d1, df_h4, df_h1, df_m15 = loader.get_context_at(
-            data_7days, m15_index=10, lookback=50
-        )
+        df_d1, df_h4, df_h1, df_m15 = loader.get_context_at(data_7days, m15_index=10, lookback=50)
         assert len(df_m15) == 11  # indices 0..10
         assert len(df_d1) >= 1
 
@@ -206,9 +198,7 @@ class TestDataLoaderTrends:
     """Test different trend modes."""
 
     def test_uptrend_prices_increase(self, loader):
-        data = loader.load(
-            "BTC/USDT", datetime(2024, 1, 1), datetime(2024, 2, 1), trend="up"
-        )
+        data = loader.load("BTC/USDT", datetime(2024, 1, 1), datetime(2024, 2, 1), trend="up")
         first_close = data.m15.iloc[0]["close"]
         last_close = data.m15.iloc[-1]["close"]
         # In an uptrend over 1 month, last price should generally be higher
@@ -216,9 +206,7 @@ class TestDataLoaderTrends:
         assert last_close > first_close * 0.8
 
     def test_downtrend_prices_decrease(self, loader):
-        data = loader.load(
-            "BTC/USDT", datetime(2024, 1, 1), datetime(2024, 2, 1), trend="down"
-        )
+        data = loader.load("BTC/USDT", datetime(2024, 1, 1), datetime(2024, 2, 1), trend="down")
         first_close = data.m15.iloc[0]["close"]
         last_close = data.m15.iloc[-1]["close"]
         assert last_close < first_close * 1.2

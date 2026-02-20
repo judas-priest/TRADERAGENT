@@ -116,9 +116,7 @@ class SignalResult:
     confluence_score: float
     reason: str
     conditions: list[ConditionResult] = field(default_factory=list)
-    timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def score_pct(self) -> float:
@@ -274,9 +272,7 @@ class DCASignalGenerator:
 
         # If blocking filters fail, reject immediately
         if not risk_result.passed or not timing_result.passed:
-            blocking_reasons = [
-                c.detail for c in [risk_result, timing_result] if not c.passed
-            ]
+            blocking_reasons = [c.detail for c in [risk_result, timing_result] if not c.passed]
             return SignalResult(
                 should_open=False,
                 confluence_score=0.0,
@@ -299,7 +295,9 @@ class DCASignalGenerator:
             if should_open:
                 reason = f"Signal confirmed (confluence: {confluence:.2f})"
             else:
-                reason = f"Confluence too low: {confluence:.2f} < {self._config.min_confluence_score}"
+                reason = (
+                    f"Confluence too low: {confluence:.2f} < {self._config.min_confluence_score}"
+                )
         else:
             # Simple AND logic — all signal conditions must pass
             signal_conditions = [
@@ -351,9 +349,7 @@ class DCASignalGenerator:
                 ema_ok = state.ema_fast > state.ema_slow
 
             if ema_ok:
-                reasons.append(
-                    f"EMA crossover OK (fast={state.ema_fast}, slow={state.ema_slow})"
-                )
+                reasons.append(f"EMA crossover OK (fast={state.ema_fast}, slow={state.ema_slow})")
             else:
                 passed = False
                 reasons.append(
@@ -370,9 +366,7 @@ class DCASignalGenerator:
                 reasons.append(f"ADX OK ({state.adx:.1f} >= {cfg.min_trend_strength})")
             else:
                 passed = False
-                reasons.append(
-                    f"ADX weak ({state.adx:.1f} < {cfg.min_trend_strength})"
-                )
+                reasons.append(f"ADX weak ({state.adx:.1f} < {cfg.min_trend_strength})")
         else:
             reasons.append("ADX data not available, skipped")
 
@@ -396,9 +390,7 @@ class DCASignalGenerator:
         if cfg.entry_price_min is not None and cfg.entry_price_max is not None:
             in_range = cfg.entry_price_min <= state.current_price <= cfg.entry_price_max
             if in_range:
-                reasons.append(
-                    f"Price in range ({cfg.entry_price_min}-{cfg.entry_price_max})"
-                )
+                reasons.append(f"Price in range ({cfg.entry_price_min}-{cfg.entry_price_max})")
             else:
                 passed = False
                 reasons.append(
@@ -410,13 +402,9 @@ class DCASignalGenerator:
 
         # Distance from support
         if state.nearest_support is not None and state.nearest_support > 0:
-            distance = (
-                (state.current_price - state.nearest_support) / state.nearest_support
-            )
+            distance = (state.current_price - state.nearest_support) / state.nearest_support
             if distance <= cfg.max_distance_from_support:
-                reasons.append(
-                    f"Near support ({distance:.4f} <= {cfg.max_distance_from_support})"
-                )
+                reasons.append(f"Near support ({distance:.4f} <= {cfg.max_distance_from_support})")
             else:
                 passed = False
                 reasons.append(
@@ -444,9 +432,7 @@ class DCASignalGenerator:
         # RSI
         if state.rsi is not None:
             if state.rsi < cfg.rsi_oversold_threshold:
-                reasons.append(
-                    f"RSI oversold ({state.rsi:.1f} < {cfg.rsi_oversold_threshold})"
-                )
+                reasons.append(f"RSI oversold ({state.rsi:.1f} < {cfg.rsi_oversold_threshold})")
             else:
                 passed = False
                 reasons.append(
@@ -463,9 +449,7 @@ class DCASignalGenerator:
                     reasons.append(f"Volume confirmed ({ratio:.2f}x avg)")
                 else:
                     passed = False
-                    reasons.append(
-                        f"Volume low ({ratio:.2f}x < {cfg.min_volume_multiplier}x)"
-                    )
+                    reasons.append(f"Volume low ({ratio:.2f}x < {cfg.min_volume_multiplier}x)")
             else:
                 reasons.append("Avg volume is zero, skipped")
         else:
@@ -475,14 +459,10 @@ class DCASignalGenerator:
         if state.bb_lower is not None:
             tolerance = state.bb_lower * (1 + cfg.bb_tolerance)
             if state.current_price <= tolerance:
-                reasons.append(
-                    f"At BB lower ({state.current_price} <= {tolerance:.2f})"
-                )
+                reasons.append(f"At BB lower ({state.current_price} <= {tolerance:.2f})")
             else:
                 passed = False
-                reasons.append(
-                    f"Above BB lower ({state.current_price} > {tolerance:.2f})"
-                )
+                reasons.append(f"Above BB lower ({state.current_price} > {tolerance:.2f})")
         else:
             reasons.append("BB data not available, skipped")
 
@@ -510,17 +490,13 @@ class DCASignalGenerator:
                     f"Max concurrent deals reached ({state.active_deals} >= {cfg.max_concurrent_deals})"
                 )
             else:
-                reasons.append(
-                    f"Deals OK ({state.active_deals}/{cfg.max_concurrent_deals})"
-                )
+                reasons.append(f"Deals OK ({state.active_deals}/{cfg.max_concurrent_deals})")
 
         # Daily PnL
         if cfg.max_daily_loss > 0:
             if state.daily_pnl < -cfg.max_daily_loss:
                 passed = False
-                reasons.append(
-                    f"Daily loss exceeded ({state.daily_pnl} < -{cfg.max_daily_loss})"
-                )
+                reasons.append(f"Daily loss exceeded ({state.daily_pnl} < -{cfg.max_daily_loss})")
             else:
                 reasons.append(f"Daily PnL OK ({state.daily_pnl})")
 
@@ -561,10 +537,7 @@ class DCASignalGenerator:
         reasons: list[str] = []
         passed = True
 
-        if (
-            state.last_deal_closed_at is not None
-            and cfg.min_seconds_between_deals > 0
-        ):
+        if state.last_deal_closed_at is not None and cfg.min_seconds_between_deals > 0:
             now = state.current_time or datetime.now(timezone.utc)
             # Ensure both are timezone-aware
             last_closed = state.last_deal_closed_at
@@ -577,9 +550,7 @@ class DCASignalGenerator:
             if elapsed < cfg.min_seconds_between_deals:
                 passed = False
                 remaining = cfg.min_seconds_between_deals - elapsed
-                reasons.append(
-                    f"Cooldown active ({remaining:.0f}s remaining)"
-                )
+                reasons.append(f"Cooldown active ({remaining:.0f}s remaining)")
             else:
                 reasons.append(f"Cooldown passed ({elapsed:.0f}s elapsed)")
         else:
@@ -597,9 +568,7 @@ class DCASignalGenerator:
     # Scoring
     # -----------------------------------------------------------------
 
-    def _calculate_score(
-        self, conditions: list[ConditionResult]
-    ) -> tuple[int, int]:
+    def _calculate_score(self, conditions: list[ConditionResult]) -> tuple[int, int]:
         """
         Calculate weighted score from condition results.
 

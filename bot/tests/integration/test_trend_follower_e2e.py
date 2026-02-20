@@ -294,14 +294,12 @@ class TestSignalGenerationAndExecution:
         mock_exchange.fetch_ohlcv.assert_called()
 
         # Market conditions should be set
-        assert hasattr(orch.trend_follower_strategy, 'current_market_conditions')
+        assert hasattr(orch.trend_follower_strategy, "current_market_conditions")
 
         # Stop bot
         await orch.stop()
 
-    async def test_order_execution_dry_run(
-        self, trend_follower_orchestrator, mock_exchange
-    ):
+    async def test_order_execution_dry_run(self, trend_follower_orchestrator, mock_exchange):
         """Test order execution in dry run mode."""
         orch = trend_follower_orchestrator
 
@@ -350,9 +348,7 @@ class TestSignalGenerationAndExecution:
 class TestPositionManagementThroughOrchestrator:
     """Test position management through orchestrator."""
 
-    async def test_position_opening_and_tracking(
-        self, trend_follower_orchestrator, mock_exchange
-    ):
+    async def test_position_opening_and_tracking(self, trend_follower_orchestrator, mock_exchange):
         """Test that positions are opened and tracked correctly."""
         orch = trend_follower_orchestrator
 
@@ -370,9 +366,7 @@ class TestPositionManagementThroughOrchestrator:
 
         await orch.stop()
 
-    async def test_position_updates_and_exit(
-        self, trend_follower_orchestrator, mock_exchange
-    ):
+    async def test_position_updates_and_exit(self, trend_follower_orchestrator, mock_exchange):
         """Test position update logic and exit conditions."""
         orch = trend_follower_orchestrator
         strategy = orch.trend_follower_strategy
@@ -385,17 +379,15 @@ class TestPositionManagementThroughOrchestrator:
                 position = strategy.position_manager.active_positions[position_id]
 
                 # Position should have all required fields
-                assert hasattr(position, 'signal_type')
-                assert hasattr(position, 'entry_price')
-                assert hasattr(position, 'size')
-                assert hasattr(position, 'stop_loss')
-                assert hasattr(position, 'take_profit')
+                assert hasattr(position, "signal_type")
+                assert hasattr(position, "entry_price")
+                assert hasattr(position, "size")
+                assert hasattr(position, "stop_loss")
+                assert hasattr(position, "take_profit")
 
         await orch.stop()
 
-    async def test_max_positions_limit_enforced(
-        self, trend_follower_orchestrator, mock_exchange
-    ):
+    async def test_max_positions_limit_enforced(self, trend_follower_orchestrator, mock_exchange):
         """Test that max positions limit is enforced by orchestrator."""
         orch = trend_follower_orchestrator
         strategy = orch.trend_follower_strategy
@@ -444,9 +436,7 @@ class TestRiskManagerIntegration:
 
         await orch.stop()
 
-    async def test_daily_loss_limit_enforcement(
-        self, trend_follower_orchestrator, mock_exchange
-    ):
+    async def test_daily_loss_limit_enforcement(self, trend_follower_orchestrator, mock_exchange):
         """Test that daily loss limits are enforced."""
         orch = trend_follower_orchestrator
         strategy = orch.trend_follower_strategy
@@ -463,9 +453,7 @@ class TestRiskManagerIntegration:
 class TestEventPublishing:
     """Test event publishing throughout Trend-Follower lifecycle."""
 
-    async def test_events_published_on_lifecycle_changes(
-        self, trend_follower_orchestrator
-    ):
+    async def test_events_published_on_lifecycle_changes(self, trend_follower_orchestrator):
         """Test that lifecycle events are published correctly."""
         orch = trend_follower_orchestrator
         publish_mock = orch.redis_client.publish
@@ -511,9 +499,7 @@ class TestEventPublishing:
 class TestErrorHandling:
     """Test error handling in Trend-Follower orchestration."""
 
-    async def test_exchange_error_handling(
-        self, trend_follower_bot_config, mock_db
-    ):
+    async def test_exchange_error_handling(self, trend_follower_bot_config, mock_db):
         """Test handling of exchange errors."""
         # Create exchange that raises errors
         error_exchange = AsyncMock()
@@ -543,14 +529,14 @@ class TestErrorHandling:
                 await orchestrator.start()
             except Exception as e:
                 # Error should be caught and logged
-                assert "Exchange connection failed" in str(e) or orchestrator.state != BotState.RUNNING
+                assert (
+                    "Exchange connection failed" in str(e) or orchestrator.state != BotState.RUNNING
+                )
 
             # Cleanup
             await orchestrator.cleanup()
 
-    async def test_invalid_signal_handling(
-        self, trend_follower_orchestrator, mock_exchange
-    ):
+    async def test_invalid_signal_handling(self, trend_follower_orchestrator, mock_exchange):
         """Test handling of invalid or missing signals."""
         orch = trend_follower_orchestrator
 
@@ -570,9 +556,7 @@ class TestErrorHandling:
 class TestStatusReporting:
     """Test status reporting with Trend-Follower metrics."""
 
-    async def test_status_includes_trend_follower_metrics(
-        self, trend_follower_orchestrator
-    ):
+    async def test_status_includes_trend_follower_metrics(self, trend_follower_orchestrator):
         """Test that status includes Trend-Follower specific metrics."""
         orch = trend_follower_orchestrator
 
@@ -595,9 +579,7 @@ class TestStatusReporting:
 
         await orch.stop()
 
-    async def test_market_conditions_in_status(
-        self, trend_follower_orchestrator
-    ):
+    async def test_market_conditions_in_status(self, trend_follower_orchestrator):
         """Test that market conditions are included in status."""
         orch = trend_follower_orchestrator
 
@@ -613,9 +595,7 @@ class TestStatusReporting:
 
         await orch.stop()
 
-    async def test_status_reflects_state_changes(
-        self, trend_follower_orchestrator
-    ):
+    async def test_status_reflects_state_changes(self, trend_follower_orchestrator):
         """Test that status correctly reflects state changes."""
         orch = trend_follower_orchestrator
 
@@ -676,9 +656,7 @@ class TestFullE2EWorkflow:
         # Phase 7: Verify events were published
         assert orch.redis_client.publish.call_count >= 2  # At least start + stop
 
-    async def test_recovery_from_pause(
-        self, trend_follower_orchestrator, mock_exchange
-    ):
+    async def test_recovery_from_pause(self, trend_follower_orchestrator, mock_exchange):
         """Test that bot can recover from paused state and continue trading."""
         orch = trend_follower_orchestrator
 

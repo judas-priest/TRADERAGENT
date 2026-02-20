@@ -35,9 +35,7 @@ class WalkForwardConfig:
 
     n_splits: int = 5
     train_pct: float = 0.7
-    backtest_config: MultiTFBacktestConfig = field(
-        default_factory=MultiTFBacktestConfig
-    )
+    backtest_config: MultiTFBacktestConfig = field(default_factory=MultiTFBacktestConfig)
 
 
 @dataclass
@@ -115,21 +113,21 @@ class WalkForwardAnalysis:
             test_result = await engine.run(strategy, test_data)
 
             ts = data.m15.index
-            results.append(WalkForwardWindow(
-                window_index=i,
-                train_start=ts[train_slice.start].to_pydatetime(),
-                train_end=ts[train_slice.stop - 1].to_pydatetime(),
-                test_start=ts[test_slice.start].to_pydatetime(),
-                test_end=ts[test_slice.stop - 1].to_pydatetime(),
-                train_result=train_result,
-                test_result=test_result,
-            ))
+            results.append(
+                WalkForwardWindow(
+                    window_index=i,
+                    train_start=ts[train_slice.start].to_pydatetime(),
+                    train_end=ts[train_slice.stop - 1].to_pydatetime(),
+                    test_start=ts[test_slice.start].to_pydatetime(),
+                    test_end=ts[test_slice.stop - 1].to_pydatetime(),
+                    train_result=train_result,
+                    test_result=test_result,
+                )
+            )
 
         return self._aggregate(results)
 
-    def _split_windows(
-        self, data: MultiTimeframeData
-    ) -> list[tuple[slice, slice]]:
+    def _split_windows(self, data: MultiTimeframeData) -> list[tuple[slice, slice]]:
         """Split M15 index range into n_splits train/test pairs."""
         total = len(data.m15)
         warmup = self.config.backtest_config.warmup_bars
@@ -150,15 +148,14 @@ class WalkForwardAnalysis:
             test_slice = slice(start + train_size, end)
 
             # Ensure minimum sizes
-            if (train_slice.stop - train_slice.start) > warmup and \
-               (test_slice.stop - test_slice.start) > warmup:
+            if (train_slice.stop - train_slice.start) > warmup and (
+                test_slice.stop - test_slice.start
+            ) > warmup:
                 windows.append((train_slice, test_slice))
 
         return windows
 
-    def _build_slice_data(
-        self, data: MultiTimeframeData, s: slice
-    ) -> MultiTimeframeData:
+    def _build_slice_data(self, data: MultiTimeframeData, s: slice) -> MultiTimeframeData:
         """
         Build a MultiTimeframeData for a sub-range of M15 indices.
 
@@ -182,9 +179,7 @@ class WalkForwardAnalysis:
 
         return MultiTimeframeData(d1=d1, h4=h4, h1=h1, m15=m15)
 
-    def _aggregate(
-        self, windows: list[WalkForwardWindow]
-    ) -> WalkForwardResult:
+    def _aggregate(self, windows: list[WalkForwardWindow]) -> WalkForwardResult:
         """Aggregate walk-forward window results."""
         if not windows:
             return WalkForwardResult(
@@ -207,7 +202,7 @@ class WalkForwardAnalysis:
 
         for w in windows:
             ret_pct = w.test_result.total_return_pct / Decimal("100")
-            compound *= (Decimal("1") + ret_pct)
+            compound *= Decimal("1") + ret_pct
 
             if w.test_result.total_return_pct > 0:
                 positive_windows += 1
@@ -221,9 +216,7 @@ class WalkForwardAnalysis:
         consistency = positive_windows / n if n > 0 else 0.0
         avg_win_rate = sum(win_rates) / n if n > 0 else Decimal("0")
         avg_drawdown = sum(drawdowns) / n if n > 0 else Decimal("0")
-        avg_sharpe = (
-            sum(sharpes) / len(sharpes) if sharpes else None
-        )
+        avg_sharpe = sum(sharpes) / len(sharpes) if sharpes else None
 
         return WalkForwardResult(
             windows=windows,

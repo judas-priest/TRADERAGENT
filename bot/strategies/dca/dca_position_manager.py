@@ -92,9 +92,7 @@ class DCAOrder:
     status: DCAOrderStatus = DCAOrderStatus.PENDING
     exchange_order_id: str | None = None
     filled_at: datetime | None = None
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -136,9 +134,7 @@ class DCADeal:
     close_reason: str | None = None
 
     # Timestamps
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     closed_at: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -236,7 +232,7 @@ class DCAOrderConfig:
         """
         total = self.base_order_volume
         for level in range(1, self.max_safety_orders + 1):
-            so_cost = self.base_order_volume * self.volume_multiplier ** level
+            so_cost = self.base_order_volume * self.volume_multiplier**level
             total += so_cost
         return total
 
@@ -360,28 +356,18 @@ class DCAPositionManager:
         if deal.status != DealStatus.ACTIVE:
             raise ValueError(f"Deal {deal_id} is not active")
         if level != deal.safety_orders_filled + 1:
-            raise ValueError(
-                f"Expected SO level {deal.safety_orders_filled + 1}, got {level}"
-            )
+            raise ValueError(f"Expected SO level {deal.safety_orders_filled + 1}, got {level}")
         if level > deal.max_safety_orders:
-            raise ValueError(
-                f"Max safety orders ({deal.max_safety_orders}) exceeded"
-            )
+            raise ValueError(f"Max safety orders ({deal.max_safety_orders}) exceeded")
 
         # Calculate this SO's volume
-        so_cost = self._config.base_order_volume * (
-            self._config.volume_multiplier ** level
-        )
-        so_volume = (so_cost / fill_price).quantize(
-            Decimal("0.00000001"), rounding=ROUND_DOWN
-        )
+        so_cost = self._config.base_order_volume * (self._config.volume_multiplier**level)
+        so_volume = (so_cost / fill_price).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
         actual_cost = so_volume * fill_price
 
         # Check max position cost
         if deal.total_cost + actual_cost > self._config.max_position_cost:
-            raise ValueError(
-                f"Position cost would exceed max ({self._config.max_position_cost})"
-            )
+            raise ValueError(f"Position cost would exceed max ({self._config.max_position_cost})")
 
         # Update deal
         deal.total_volume += so_volume
@@ -438,9 +424,7 @@ class DCAPositionManager:
 
         sell_value = exit_price * deal.total_volume
         profit = sell_value - deal.total_cost
-        profit_pct = (
-            (profit / deal.total_cost) * 100 if deal.total_cost > 0 else Decimal("0")
-        )
+        profit_pct = (profit / deal.total_cost) * 100 if deal.total_cost > 0 else Decimal("0")
 
         # Update deal
         deal.status = DealStatus.CLOSED
@@ -453,7 +437,9 @@ class DCAPositionManager:
         order = DCAOrder(
             id=f"{deal_id}-EXIT",
             deal_id=deal_id,
-            order_type=DCAOrderType(reason) if reason in DCAOrderType.__members__.values() else DCAOrderType.TAKE_PROFIT,
+            order_type=DCAOrderType(reason)
+            if reason in DCAOrderType.__members__.values()
+            else DCAOrderType.TAKE_PROFIT,
             side="sell",
             price=exit_price,
             volume=deal.total_volume,
@@ -512,10 +498,8 @@ class DCAPositionManager:
             if so_price <= 0:
                 break
 
-            so_cost = cfg.base_order_volume * (cfg.volume_multiplier ** level)
-            so_volume = (so_cost / so_price).quantize(
-                Decimal("0.00000001"), rounding=ROUND_DOWN
-            )
+            so_cost = cfg.base_order_volume * (cfg.volume_multiplier**level)
+            so_volume = (so_cost / so_price).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
 
             result.append(
                 SafetyOrderLevel(
@@ -532,9 +516,7 @@ class DCAPositionManager:
     def get_take_profit_price(self, deal_id: str) -> Decimal:
         """Calculate take-profit price based on average entry."""
         deal = self._get_deal(deal_id)
-        return deal.average_entry_price * (
-            1 + self._config.take_profit_pct / 100
-        )
+        return deal.average_entry_price * (1 + self._config.take_profit_pct / 100)
 
     def get_stop_loss_price(self, deal_id: str) -> Decimal:
         """Calculate stop-loss price."""
@@ -585,15 +567,11 @@ class DCAPositionManager:
         deal = self._get_deal(deal_id)
         current_value = current_price * deal.total_volume
         profit = current_value - deal.total_cost
-        profit_pct = (
-            (profit / deal.total_cost) * 100 if deal.total_cost > 0 else Decimal("0")
-        )
+        profit_pct = (profit / deal.total_cost) * 100 if deal.total_cost > 0 else Decimal("0")
         deal.current_profit_pct = profit_pct
         return profit, profit_pct
 
-    def update_highest_price(
-        self, deal_id: str, current_price: Decimal
-    ) -> bool:
+    def update_highest_price(self, deal_id: str, current_price: Decimal) -> bool:
         """
         Update highest price since entry. Returns True if new high set.
 
@@ -628,11 +606,7 @@ class DCAPositionManager:
     @property
     def total_realized_pnl(self) -> Decimal:
         """Total realized profit across all closed deals."""
-        return sum(
-            d.realized_profit
-            for d in self._deals.values()
-            if d.status == DealStatus.CLOSED
-        )
+        return sum(d.realized_profit for d in self._deals.values() if d.status == DealStatus.CLOSED)
 
     # -----------------------------------------------------------------
     # Statistics
@@ -652,11 +626,7 @@ class DCAPositionManager:
             "closed_deals": len(closed),
             "winning_deals": len(winning),
             "losing_deals": len(losing),
-            "win_rate": (
-                f"{len(winning) / len(closed) * 100:.1f}%"
-                if closed
-                else "N/A"
-            ),
+            "win_rate": (f"{len(winning) / len(closed) * 100:.1f}%" if closed else "N/A"),
             "total_realized_pnl": str(self.total_realized_pnl),
             "config": {
                 "base_order_volume": str(self._config.base_order_volume),

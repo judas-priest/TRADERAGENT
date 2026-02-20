@@ -88,9 +88,7 @@ class MultiTimeframeBacktestEngine:
         )
 
         # Run execution loop
-        equity_curve, max_drawdown = await self._execute_loop(
-            strategy, data, simulator
-        )
+        equity_curve, max_drawdown = await self._execute_loop(strategy, data, simulator)
 
         # Build result
         return self._build_result(
@@ -166,9 +164,7 @@ class MultiTimeframeBacktestEngine:
 
             # Open position if signal
             if signal is not None:
-                await self._handle_signal_execution(
-                    strategy, signal, current_price, simulator
-                )
+                await self._handle_signal_execution(strategy, signal, current_price, simulator)
 
             # Update positions and handle exits
             try:
@@ -178,17 +174,17 @@ class MultiTimeframeBacktestEngine:
                 exits = []
 
             if exits:
-                await self._handle_exits(
-                    strategy, exits, current_price, simulator
-                )
+                await self._handle_exits(strategy, exits, current_price, simulator)
 
             # Record equity curve
             portfolio_value = simulator.get_portfolio_value()
-            equity_curve.append({
-                "timestamp": data.m15.index[i].isoformat(),
-                "price": float(current_price),
-                "portfolio_value": float(portfolio_value),
-            })
+            equity_curve.append(
+                {
+                    "timestamp": data.m15.index[i].isoformat(),
+                    "price": float(current_price),
+                    "portfolio_value": float(portfolio_value),
+                }
+            )
 
             # Update drawdown
             if portfolio_value > peak_value:
@@ -343,9 +339,7 @@ class MultiTimeframeBacktestEngine:
             if total_trades > 0
             else Decimal("0")
         )
-        avg_profit = (
-            total_profit / Decimal(total_trades) if total_trades > 0 else Decimal("0")
-        )
+        avg_profit = total_profit / Decimal(total_trades) if total_trades > 0 else Decimal("0")
 
         # Sharpe ratio
         sharpe_ratio = self._calculate_sharpe_ratio(equity_curve)
@@ -374,9 +368,7 @@ class MultiTimeframeBacktestEngine:
             equity_curve=equity_curve,
         )
 
-    def _calculate_sharpe_ratio(
-        self, equity_curve: list[dict[str, Any]]
-    ) -> Decimal | None:
+    def _calculate_sharpe_ratio(self, equity_curve: list[dict[str, Any]]) -> Decimal | None:
         """Calculate Sharpe ratio from equity curve."""
         if len(equity_curve) < 2:
             return None

@@ -100,7 +100,11 @@ class TrendFollowerAdapter(BaseStrategy):
         details: dict[str, Any] = {}
 
         if conditions:
-            phase = conditions.phase.value if hasattr(conditions.phase, "value") else str(conditions.phase)
+            phase = (
+                conditions.phase.value
+                if hasattr(conditions.phase, "value")
+                else str(conditions.phase)
+            )
             trend_str = phase.lower()
 
             strength = conditions.trend_strength
@@ -110,14 +114,18 @@ class TrendFollowerAdapter(BaseStrategy):
             else:
                 trend_strength_val = float(strength) if strength else 0.0
 
-            volatility = float(conditions.atr) if hasattr(conditions, "atr") and conditions.atr else 0.0
+            volatility = (
+                float(conditions.atr) if hasattr(conditions, "atr") and conditions.atr else 0.0
+            )
 
             details = {
                 "phase": phase,
                 "ema_fast": float(conditions.ema_fast) if hasattr(conditions, "ema_fast") else None,
                 "ema_slow": float(conditions.ema_slow) if hasattr(conditions, "ema_slow") else None,
                 "rsi": float(conditions.rsi) if hasattr(conditions, "rsi") else None,
-                "ema_divergence": float(conditions.ema_divergence) if hasattr(conditions, "ema_divergence") else None,
+                "ema_divergence": float(conditions.ema_divergence)
+                if hasattr(conditions, "ema_divergence")
+                else None,
             }
 
         self._last_analysis = BaseMarketAnalysis(
@@ -131,9 +139,7 @@ class TrendFollowerAdapter(BaseStrategy):
 
         return self._last_analysis
 
-    def generate_signal(
-        self, df: pd.DataFrame, current_balance: Decimal
-    ) -> Optional[BaseSignal]:
+    def generate_signal(self, df: pd.DataFrame, current_balance: Decimal) -> Optional[BaseSignal]:
         """
         Generate entry signal using Trend-Follower strategy.
         """
@@ -176,13 +182,17 @@ class TrendFollowerAdapter(BaseStrategy):
             timestamp=datetime.now(timezone.utc),
             strategy_type="trend_follower",
             signal_reason=signal.entry_reason.value,
-            risk_reward_ratio=float(abs(estimated_tp - entry_price) / abs(entry_price - estimated_sl))
+            risk_reward_ratio=float(
+                abs(estimated_tp - entry_price) / abs(entry_price - estimated_sl)
+            )
             if abs(entry_price - estimated_sl) > 0
             else 0.0,
             metadata={
                 "volume_confirmed": signal.volume_confirmed,
                 "position_size": str(position_size),
-                "market_phase": conditions.phase.value if hasattr(conditions.phase, "value") else str(conditions.phase),
+                "market_phase": conditions.phase.value
+                if hasattr(conditions.phase, "value")
+                else str(conditions.phase),
             },
         )
 
@@ -193,9 +203,7 @@ class TrendFollowerAdapter(BaseStrategy):
         Uses the cached pending signal from generate_signal().
         """
         if self._pending_signal:
-            position_id = self._strategy.open_position(
-                self._pending_signal, position_size
-            )
+            position_id = self._strategy.open_position(self._pending_signal, position_size)
             self._pending_signal = None
             self._pending_metrics = None
             return position_id
@@ -210,14 +218,10 @@ class TrendFollowerAdapter(BaseStrategy):
         """Update all active positions."""
         exits: list[tuple[str, BaseExitReason]] = []
 
-        active_ids = list(
-            self._strategy.position_manager.active_positions.keys()
-        )
+        active_ids = list(self._strategy.position_manager.active_positions.keys())
 
         for position_id in active_ids:
-            exit_reason = self._strategy.update_position(
-                position_id, current_price, df
-            )
+            exit_reason = self._strategy.update_position(position_id, current_price, df)
             if exit_reason:
                 reason_str = exit_reason if isinstance(exit_reason, str) else str(exit_reason)
                 exits.append((position_id, _map_exit_reason(reason_str)))
@@ -228,9 +232,7 @@ class TrendFollowerAdapter(BaseStrategy):
         self, position_id: str, exit_reason: BaseExitReason, exit_price: Decimal
     ) -> None:
         """Close position via underlying strategy."""
-        self._strategy.close_position(
-            position_id, exit_reason.value, exit_price
-        )
+        self._strategy.close_position(position_id, exit_reason.value, exit_price)
 
     def get_active_positions(self) -> list[PositionInfo]:
         """Get active positions from underlying strategy."""
@@ -257,7 +259,9 @@ class TrendFollowerAdapter(BaseStrategy):
                     stop_loss=pos.levels.stop_loss if hasattr(pos, "levels") else Decimal("0"),
                     take_profit=pos.levels.take_profit if hasattr(pos, "levels") else Decimal("0"),
                     unrealized_pnl=pnl,
-                    entry_time=pos.entry_time if hasattr(pos, "entry_time") else datetime.now(timezone.utc),
+                    entry_time=pos.entry_time
+                    if hasattr(pos, "entry_time")
+                    else datetime.now(timezone.utc),
                     strategy_type="trend_follower",
                 )
             )

@@ -310,9 +310,7 @@ class BotOrchestrator:
                 self._price_monitor_task = asyncio.create_task(self._price_monitor())
 
                 # v2.0: Start regime monitor and health monitor
-                self._regime_monitor_task = asyncio.create_task(
-                    self._regime_monitor_loop()
-                )
+                self._regime_monitor_task = asyncio.create_task(self._regime_monitor_loop())
                 await self.health_monitor.start()
 
                 await self._publish_event(
@@ -572,7 +570,9 @@ class BotOrchestrator:
                         continue
 
                     filled_price = grid_order.price
-                    rebalance_order = self.grid_engine.handle_order_filled(order_id, filled_price, grid_order.amount)
+                    rebalance_order = self.grid_engine.handle_order_filled(
+                        order_id, filled_price, grid_order.amount
+                    )
 
                     await self._publish_event(
                         EventType.ORDER_FILLED,
@@ -600,9 +600,7 @@ class BotOrchestrator:
             if self.risk_manager:
                 order_value = self.dca_engine.amount_per_step
                 current_position = (
-                    self.dca_engine.position.amount
-                    if self.dca_engine.position
-                    else Decimal("0")
+                    self.dca_engine.position.amount if self.dca_engine.position else Decimal("0")
                 )
                 balance = self._cached_balance or await self._get_available_balance()
 
@@ -809,7 +807,9 @@ class BotOrchestrator:
                         "position_size": str(position_size),
                         "tp": str(signal.take_profit),
                         "sl": str(signal.stop_loss),
-                        "market_phase": market_conditions.phase.value if market_conditions else None,
+                        "market_phase": market_conditions.phase.value
+                        if market_conditions
+                        else None,
                     },
                 )
 
@@ -1295,9 +1295,7 @@ class BotOrchestrator:
     # v2.0: Health Monitoring Callbacks
     # =========================================================================
 
-    async def _on_strategy_unhealthy(
-        self, strategy_id: str, result: HealthCheckResult
-    ) -> None:
+    async def _on_strategy_unhealthy(self, strategy_id: str, result: HealthCheckResult) -> None:
         """Handle unhealthy strategy event."""
         logger.warning(
             "strategy_unhealthy",
@@ -1313,9 +1311,7 @@ class BotOrchestrator:
             },
         )
 
-    async def _on_strategy_critical(
-        self, strategy_id: str, result: HealthCheckResult
-    ) -> None:
+    async def _on_strategy_critical(self, strategy_id: str, result: HealthCheckResult) -> None:
         """Handle critical strategy health event."""
         logger.error(
             "strategy_critical",

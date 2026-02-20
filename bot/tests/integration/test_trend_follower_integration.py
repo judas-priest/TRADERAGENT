@@ -106,10 +106,7 @@ class TestTrendFollowerInitialization:
         assert strategy.market_analyzer.atr_period == trend_follower_config.atr_period
 
         # Risk manager should have correct limits
-        assert (
-            strategy.risk_manager.risk_per_trade_pct
-            == trend_follower_config.risk_per_trade_pct
-        )
+        assert strategy.risk_manager.risk_per_trade_pct == trend_follower_config.risk_per_trade_pct
         assert (
             strategy.risk_manager.max_position_size_usd
             == trend_follower_config.max_position_size_usd
@@ -120,9 +117,7 @@ class TestTrendFollowerInitialization:
 class TestMarketAnalysisIntegration:
     """Test market analysis integration with main strategy."""
 
-    def test_analyze_market_returns_conditions(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_analyze_market_returns_conditions(self, trend_follower_strategy, sample_ohlcv_data):
         """Test that market analysis returns proper market conditions."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data
@@ -144,9 +139,7 @@ class TestMarketAnalysisIntegration:
         assert conditions.atr > 0
         assert 0 <= conditions.rsi <= 100
 
-    def test_market_conditions_stored_in_strategy(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_market_conditions_stored_in_strategy(self, trend_follower_strategy, sample_ohlcv_data):
         """Test that market conditions are stored in strategy state."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data
@@ -184,9 +177,7 @@ class TestEntrySignalIntegration:
             assert position_size > 0
             assert position_size <= strategy.config.max_position_size_usd
 
-    def test_entry_signal_respects_risk_limits(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_entry_signal_respects_risk_limits(self, trend_follower_strategy, sample_ohlcv_data):
         """Test that entry signals respect risk management limits."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data
@@ -210,9 +201,7 @@ class TestEntrySignalIntegration:
 class TestPositionManagementIntegration:
     """Test position management integration with strategy."""
 
-    def test_open_position_creates_position(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_open_position_creates_position(self, trend_follower_strategy, sample_ohlcv_data):
         """Test opening a position through the strategy."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data
@@ -237,9 +226,7 @@ class TestPositionManagementIntegration:
             assert position.size == position_size
             assert position.entry_price == signal.entry_price
 
-    def test_update_position_with_price_changes(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_update_position_with_price_changes(self, trend_follower_strategy, sample_ohlcv_data):
         """Test updating position with price changes."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data
@@ -262,9 +249,7 @@ class TestPositionManagementIntegration:
             # But should not raise exception
             assert exit_reason is None or isinstance(exit_reason, str)
 
-    def test_close_position_completes_trade(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_close_position_completes_trade(self, trend_follower_strategy, sample_ohlcv_data):
         """Test that closing position completes the trade cycle."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data
@@ -294,9 +279,7 @@ class TestPositionManagementIntegration:
 class TestRiskManagementIntegration:
     """Test risk management integration."""
 
-    def test_position_sizing_based_on_balance(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_position_sizing_based_on_balance(self, trend_follower_strategy, sample_ohlcv_data):
         """Test that position sizing adapts to account balance."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data
@@ -317,9 +300,7 @@ class TestRiskManagementIntegration:
                     strategy.config.max_position_size_usd,
                 )
 
-    def test_max_positions_limit_enforced(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_max_positions_limit_enforced(self, trend_follower_strategy, sample_ohlcv_data):
         """Test that maximum positions limit is enforced."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data
@@ -489,9 +470,7 @@ class TestStrategyStatistics:
             assert "profit_factor" in trade_stats
             assert "max_drawdown" in trade_stats
 
-    def test_statistics_update_after_trades(
-        self, trend_follower_strategy, sample_ohlcv_data
-    ):
+    def test_statistics_update_after_trades(self, trend_follower_strategy, sample_ohlcv_data):
         """Test that statistics update after completing trades."""
         strategy = trend_follower_strategy
         df = sample_ohlcv_data

@@ -224,9 +224,7 @@ class BaseStrategy(ABC):
         ...
 
     @abstractmethod
-    def generate_signal(
-        self, df: pd.DataFrame, current_balance: Decimal
-    ) -> Optional[BaseSignal]:
+    def generate_signal(self, df: pd.DataFrame, current_balance: Decimal) -> Optional[BaseSignal]:
         """
         Generate an entry signal based on current market data.
 

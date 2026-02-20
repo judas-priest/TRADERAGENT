@@ -162,10 +162,8 @@ class GridCalculator:
 
         levels = []
         for i in range(num_levels):
-            price = lower_price * Decimal(str(ratio ** i))
-            levels.append(
-                price.quantize(GridCalculator.PRICE_PRECISION, rounding=ROUND_HALF_UP)
-            )
+            price = lower_price * Decimal(str(ratio**i))
+            levels.append(price.quantize(GridCalculator.PRICE_PRECISION, rounding=ROUND_HALF_UP))
         return levels
 
     @staticmethod
@@ -188,13 +186,9 @@ class GridCalculator:
             Sorted list of Decimal prices from lower to upper.
         """
         if spacing == GridSpacing.ARITHMETIC:
-            return GridCalculator.calculate_arithmetic_levels(
-                upper_price, lower_price, num_levels
-            )
+            return GridCalculator.calculate_arithmetic_levels(upper_price, lower_price, num_levels)
         elif spacing == GridSpacing.GEOMETRIC:
-            return GridCalculator.calculate_geometric_levels(
-                upper_price, lower_price, num_levels
-            )
+            return GridCalculator.calculate_geometric_levels(upper_price, lower_price, num_levels)
         else:
             raise ValueError(f"Unknown spacing type: {spacing}")
 
@@ -229,9 +223,7 @@ class GridCalculator:
         """
         n = len(highs)
         if n < 2 or len(lows) != n or len(closes) != n:
-            raise ValueError(
-                "highs, lows, closes must have equal length >= 2"
-            )
+            raise ValueError("highs, lows, closes must have equal length >= 2")
         if period < 1:
             raise ValueError("period must be >= 1")
 
@@ -331,12 +323,8 @@ class GridCalculator:
 
             if price < current_price:
                 # Buy order: convert quote amount to base
-                base_amount = (amount_per_grid / price).quantize(
-                    precision, rounding=ROUND_HALF_UP
-                )
-                orders.append(
-                    GridLevel(index=idx, price=price, side="buy", amount=base_amount)
-                )
+                base_amount = (amount_per_grid / price).quantize(precision, rounding=ROUND_HALF_UP)
+                orders.append(GridLevel(index=idx, price=price, side="buy", amount=base_amount))
             else:
                 # Sell order: apply profit margin
                 sell_price = price * (Decimal("1") + profit_per_grid)
@@ -347,9 +335,7 @@ class GridCalculator:
                     precision, rounding=ROUND_HALF_UP
                 )
                 orders.append(
-                    GridLevel(
-                        index=idx, price=sell_price, side="sell", amount=base_amount
-                    )
+                    GridLevel(index=idx, price=sell_price, side="sell", amount=base_amount)
                 )
 
         logger.debug(
@@ -488,9 +474,7 @@ class GridCalculator:
             Tuple of (grid_orders, metadata_dict).
         """
         atr = GridCalculator.calculate_atr(highs, lows, closes, atr_period)
-        upper, lower = GridCalculator.adjust_bounds_by_atr(
-            current_price, atr, atr_multiplier
-        )
+        upper, lower = GridCalculator.adjust_bounds_by_atr(current_price, atr, atr_multiplier)
 
         if num_levels is None:
             num_levels = GridCalculator.optimal_grid_count(
@@ -554,9 +538,7 @@ class GridCalculator:
         pcts = []
         for i in range(1, len(levels)):
             pct = ((levels[i] - levels[i - 1]) / levels[i - 1]) * 100
-            pcts.append(
-                pct.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-            )
+            pcts.append(pct.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
         return pcts
 
     @staticmethod

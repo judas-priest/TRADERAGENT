@@ -97,10 +97,7 @@ class BotApplication:
             # For Bybit Demo Trading (sandbox=true), use ByBitDirectClient
             # because CCXT sandbox mode routes to testnet.bybit.com, NOT
             # api-demo.bybit.com which is needed for demo trading
-            if (
-                bot_config.exchange.exchange_id == "bybit"
-                and bot_config.exchange.sandbox
-            ):
+            if bot_config.exchange.exchange_id == "bybit" and bot_config.exchange.sandbox:
                 logger.info(
                     "using_bybit_direct_client",
                     bot_name=bot_config.name,

@@ -75,8 +75,11 @@ class SimpleTestStrategy(BaseStrategy):
 
     def analyze_market(self, *dfs: pd.DataFrame) -> BaseMarketAnalysis:
         return BaseMarketAnalysis(
-            trend="sideways", trend_strength=0.5, volatility=0.01,
-            timestamp=datetime.now(timezone.utc), strategy_type="test",
+            trend="sideways",
+            trend_strength=0.5,
+            volatility=0.01,
+            timestamp=datetime.now(timezone.utc),
+            strategy_type="test",
         )
 
     def generate_signal(self, df: pd.DataFrame, current_balance: Decimal) -> Optional[BaseSignal]:
@@ -102,6 +105,7 @@ class SimpleTestStrategy(BaseStrategy):
 
     def open_position(self, signal: BaseSignal, position_size: Decimal) -> str:
         import uuid
+
         pos_id = str(uuid.uuid4())[:8]
         self._positions[pos_id] = {
             "direction": signal.direction,
@@ -113,7 +117,9 @@ class SimpleTestStrategy(BaseStrategy):
         }
         return pos_id
 
-    def update_positions(self, current_price: Decimal, df: pd.DataFrame) -> list[tuple[str, ExitReason]]:
+    def update_positions(
+        self, current_price: Decimal, df: pd.DataFrame
+    ) -> list[tuple[str, ExitReason]]:
         exits = []
         for pos_id, pos in list(self._positions.items()):
             pos["current_price"] = current_price
@@ -123,7 +129,9 @@ class SimpleTestStrategy(BaseStrategy):
                 exits.append((pos_id, ExitReason.STOP_LOSS))
         return exits
 
-    def close_position(self, position_id: str, exit_reason: ExitReason, exit_price: Decimal) -> None:
+    def close_position(
+        self, position_id: str, exit_reason: ExitReason, exit_price: Decimal
+    ) -> None:
         self._positions.pop(position_id, None)
 
     def get_active_positions(self) -> list[PositionInfo]:
@@ -145,8 +153,12 @@ def _make_backtest_result(
     """Build a BacktestResult with trade history."""
     if trades is None:
         trades = [
-            (45000, 45500), (45200, 45600), (45100, 44900),
-            (44800, 45200), (45300, 45100), (45000, 45800),
+            (45000, 45500),
+            (45200, 45600),
+            (45100, 44900),
+            (44800, 45200),
+            (45300, 45100),
+            (45000, 45800),
         ]
 
     history = []
@@ -155,8 +167,12 @@ def _make_backtest_result(
     total_pnl = 0.0
     for buy_p, sell_p in trades:
         amount = 0.01
-        history.append({"side": "buy", "price": buy_p, "amount": amount, "timestamp": "2024-01-01T00:00:00"})
-        history.append({"side": "sell", "price": sell_p, "amount": amount, "timestamp": "2024-01-01T01:00:00"})
+        history.append(
+            {"side": "buy", "price": buy_p, "amount": amount, "timestamp": "2024-01-01T00:00:00"}
+        )
+        history.append(
+            {"side": "sell", "price": sell_p, "amount": amount, "timestamp": "2024-01-01T01:00:00"}
+        )
         pnl = (sell_p - buy_p) * amount
         total_pnl += pnl
         if pnl > 0:
@@ -189,8 +205,11 @@ def _make_backtest_result(
         sharpe_ratio=Decimal("1.5"),
         trade_history=history,
         equity_curve=[
-            {"timestamp": (now - timedelta(hours=i)).isoformat(),
-             "price": 45000.0, "portfolio_value": initial_balance + i * 10}
+            {
+                "timestamp": (now - timedelta(hours=i)).isoformat(),
+                "price": 45000.0,
+                "portfolio_value": initial_balance + i * 10,
+            }
             for i in range(50)
         ],
     )
@@ -383,12 +402,18 @@ class TestReportGeneratorComparison:
             },
             summary={
                 "StrategyA": {
-                    "total_return_pct": 2.0, "total_trades": 6, "win_rate": 66.7,
-                    "max_drawdown_pct": 0.5, "sharpe_ratio": 1.5,
+                    "total_return_pct": 2.0,
+                    "total_trades": 6,
+                    "win_rate": 66.7,
+                    "max_drawdown_pct": 0.5,
+                    "sharpe_ratio": 1.5,
                 },
                 "StrategyB": {
-                    "total_return_pct": 1.5, "total_trades": 6, "win_rate": 70.0,
-                    "max_drawdown_pct": 0.3, "sharpe_ratio": 1.2,
+                    "total_return_pct": 1.5,
+                    "total_trades": 6,
+                    "win_rate": 70.0,
+                    "max_drawdown_pct": 0.3,
+                    "sharpe_ratio": 1.2,
                 },
             },
         )
@@ -403,9 +428,22 @@ class TestReportGeneratorComparison:
         result_b = _make_backtest_result("B")
         comparison = StrategyComparisonResult(
             results={"A": result_a, "B": result_b},
-            rankings={}, summary={
-                "A": {"total_return_pct": 1.0, "total_trades": 6, "win_rate": 50.0, "max_drawdown_pct": 0.5, "sharpe_ratio": 1.0},
-                "B": {"total_return_pct": 2.0, "total_trades": 6, "win_rate": 60.0, "max_drawdown_pct": 0.3, "sharpe_ratio": 1.5},
+            rankings={},
+            summary={
+                "A": {
+                    "total_return_pct": 1.0,
+                    "total_trades": 6,
+                    "win_rate": 50.0,
+                    "max_drawdown_pct": 0.5,
+                    "sharpe_ratio": 1.0,
+                },
+                "B": {
+                    "total_return_pct": 2.0,
+                    "total_trades": 6,
+                    "win_rate": 60.0,
+                    "max_drawdown_pct": 0.3,
+                    "sharpe_ratio": 1.5,
+                },
             },
         )
         gen = ReportGenerator()
@@ -468,11 +506,13 @@ class TestReportGeneratorMonteCarlo:
 class TestReportGeneratorWalkForward:
     async def test_walk_forward_report(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         wf_result = await wf.run(strategy, data)
 
@@ -483,11 +523,13 @@ class TestReportGeneratorWalkForward:
 
     async def test_walk_forward_has_robustness_badge(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         wf_result = await wf.run(strategy, data)
 
@@ -498,11 +540,13 @@ class TestReportGeneratorWalkForward:
 
     async def test_walk_forward_has_window_table(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         wf_result = await wf.run(strategy, data)
 

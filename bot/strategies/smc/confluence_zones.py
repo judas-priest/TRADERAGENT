@@ -290,7 +290,9 @@ class ConfluenceZoneAnalyzer:
             if mitigated_idx is not None and int(mitigated_idx) > i:
                 status = ZoneStatus.INVALIDATED
 
-            timestamp = df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            timestamp = (
+                df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            )
 
             candle = df.iloc[i]
             order_block = OrderBlock(
@@ -332,9 +334,7 @@ class ConfluenceZoneAnalyzer:
                 continue
 
             # Check if we already have this FVG
-            existing = any(
-                fvg.candle2_index == i for fvg in self.fair_value_gaps
-            )
+            existing = any(fvg.candle2_index == i for fvg in self.fair_value_gaps)
             if existing:
                 continue
 
@@ -348,7 +348,9 @@ class ConfluenceZoneAnalyzer:
             if mitigated_idx is not None and int(mitigated_idx) > i:
                 status = ZoneStatus.FILLED
 
-            timestamp = df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            timestamp = (
+                df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            )
 
             fvg_obj = FairValueGap(
                 is_bullish=is_bullish,
@@ -399,7 +401,9 @@ class ConfluenceZoneAnalyzer:
             end_index = int(row["End"]) if pd.notna(row["End"]) else i
             swept = pd.notna(row["Swept"])
 
-            timestamp = df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            timestamp = (
+                df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            )
 
             liq_zone = LiquidityZone(
                 is_bullish=is_bullish,

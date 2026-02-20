@@ -23,9 +23,7 @@ class MonteCarloConfig:
 
     n_simulations: int = 1000
     seed: int | None = None
-    confidence_levels: list[float] = field(
-        default_factory=lambda: [0.05, 0.25, 0.50, 0.75, 0.95]
-    )
+    confidence_levels: list[float] = field(default_factory=lambda: [0.05, 0.25, 0.50, 0.75, 0.95])
 
 
 @dataclass
@@ -119,9 +117,9 @@ class MonteCarloSimulation:
         # Probability metrics
         prob_profit = sum(1 for r in simulated_returns if r > 0) / len(simulated_returns)
         orig_dd = float(backtest_result.max_drawdown_pct)
-        prob_worse_dd = sum(
-            1 for d in simulated_drawdowns if d > orig_dd
-        ) / len(simulated_drawdowns)
+        prob_worse_dd = sum(1 for d in simulated_drawdowns if d > orig_dd) / len(
+            simulated_drawdowns
+        )
 
         return MonteCarloResult(
             n_simulations=self.config.n_simulations,
@@ -136,9 +134,7 @@ class MonteCarloSimulation:
             simulated_drawdowns=simulated_drawdowns,
         )
 
-    def _extract_trade_returns(
-        self, result: BacktestResult
-    ) -> list[float]:
+    def _extract_trade_returns(self, result: BacktestResult) -> list[float]:
         """Extract per-trade return percentages from trade history."""
         history = result.trade_history
         if not history:

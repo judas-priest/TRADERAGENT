@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 @dataclass
 class AuditResult:
     """Result of a single audit check."""
+
     check_name: str
     passed: bool
     severity: str  # "critical", "warning", "info"
@@ -33,6 +34,7 @@ class AuditResult:
 @dataclass
 class SecurityAuditReport:
     """Complete security audit report."""
+
     results: list[AuditResult] = field(default_factory=list)
 
     @property
@@ -69,8 +71,8 @@ class SecurityAuditor:
         (r'api_secret\s*=\s*["\'][a-zA-Z0-9]{20,}["\']', "Hardcoded API secret"),
         (r'password\s*=\s*["\'][^"\']{8,}["\']', "Hardcoded password"),
         (r'token\s*=\s*["\'][0-9]+:[a-zA-Z0-9_-]{35}["\']', "Hardcoded bot token"),
-        (r'redis://[^@\s]+:[^@\s]+@', "Redis credentials in URL"),
-        (r'postgresql://[^@\s]+:[^@\s]+@', "Database credentials in URL"),
+        (r"redis://[^@\s]+:[^@\s]+@", "Redis credentials in URL"),
+        (r"postgresql://[^@\s]+:[^@\s]+@", "Database credentials in URL"),
     ]
 
     # Files that should never contain secrets
@@ -179,30 +181,36 @@ class SecurityAuditor:
                 for pattern, description in self.SECRET_PATTERNS:
                     matches = re.findall(pattern, content)
                     if matches:
-                        issues_found.append({
-                            "file": str(path.relative_to(self.project_root)),
-                            "issue": description,
-                            "count": len(matches),
-                        })
+                        issues_found.append(
+                            {
+                                "file": str(path.relative_to(self.project_root)),
+                                "issue": description,
+                                "count": len(matches),
+                            }
+                        )
             except (PermissionError, UnicodeDecodeError):
                 continue
 
         if issues_found:
-            results.append(AuditResult(
-                check_name="no_hardcoded_secrets",
-                passed=False,
-                severity="critical",
-                message=f"Found {len(issues_found)} files with potential hardcoded secrets",
-                details={"issues": issues_found, "files_scanned": files_scanned},
-            ))
+            results.append(
+                AuditResult(
+                    check_name="no_hardcoded_secrets",
+                    passed=False,
+                    severity="critical",
+                    message=f"Found {len(issues_found)} files with potential hardcoded secrets",
+                    details={"issues": issues_found, "files_scanned": files_scanned},
+                )
+            )
         else:
-            results.append(AuditResult(
-                check_name="no_hardcoded_secrets",
-                passed=True,
-                severity="critical",
-                message=f"No hardcoded secrets found in {files_scanned} files",
-                details={"files_scanned": files_scanned},
-            ))
+            results.append(
+                AuditResult(
+                    check_name="no_hardcoded_secrets",
+                    passed=True,
+                    severity="critical",
+                    message=f"No hardcoded secrets found in {files_scanned} files",
+                    details={"files_scanned": files_scanned},
+                )
+            )
 
         return results
 

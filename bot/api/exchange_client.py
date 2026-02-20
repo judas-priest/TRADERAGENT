@@ -375,9 +375,7 @@ class ExchangeAPIClient:
         """Fetch recent trades for a symbol."""
         self._ensure_initialized()
         return await self._tracked_request(
-            self._exchange.fetch_trades(
-                symbol, since=since, limit=limit, params=params or {}
-            )
+            self._exchange.fetch_trades(symbol, since=since, limit=limit, params=params or {})
         )
 
     # =========================================================================
@@ -497,9 +495,7 @@ class ExchangeAPIClient:
         self._ensure_initialized()
         try:
             result = await self._tracked_request(
-                self._exchange.cancel_order(
-                    id=order_id, symbol=symbol, params=params or {}
-                )
+                self._exchange.cancel_order(id=order_id, symbol=symbol, params=params or {})
             )
             logger.info("Cancelled order", order_id=order_id, symbol=symbol)
             return result
@@ -517,9 +513,7 @@ class ExchangeAPIClient:
         """Cancel all open orders for a symbol."""
         self._ensure_initialized()
         try:
-            result = await self._tracked_request(
-                self._exchange.cancel_all_orders(symbol)
-            )
+            result = await self._tracked_request(self._exchange.cancel_all_orders(symbol))
             logger.info("All orders cancelled", symbol=symbol)
             return result
         except ExchangeAPIError:
@@ -614,9 +608,7 @@ class ExchangeAPIClient:
         except Exception as e:
             raise self._map_ccxt_exception(e) from e
 
-    async def watch_ohlcv(
-        self, symbol: str, timeframe: str = "1m"
-    ) -> list[list]:
+    async def watch_ohlcv(self, symbol: str, timeframe: str = "1m") -> list[list]:
         """Watch OHLCV candles via WebSocket."""
         if not self._ws_exchange:
             raise ExchangeAPIError("WebSocket exchange not initialized")
@@ -634,9 +626,7 @@ class ExchangeAPIClient:
         except Exception as e:
             raise self._map_ccxt_exception(e) from e
 
-    async def watch_order_book(
-        self, symbol: str, limit: int | None = None
-    ) -> dict[str, Any]:
+    async def watch_order_book(self, symbol: str, limit: int | None = None) -> dict[str, Any]:
         """Watch order book via WebSocket."""
         if not self._ws_exchange:
             raise ExchangeAPIError("WebSocket exchange not initialized")
@@ -651,9 +641,7 @@ class ExchangeAPIClient:
 
     def get_statistics(self) -> dict[str, Any]:
         """Get comprehensive client statistics."""
-        avg_latency = (
-            sum(self._latencies) / len(self._latencies) if self._latencies else 0.0
-        )
+        avg_latency = sum(self._latencies) / len(self._latencies) if self._latencies else 0.0
         return {
             "exchange": self.exchange_id,
             "initialized": self._initialized,

@@ -98,9 +98,7 @@ class StrategyComparison:
         )
         return await self.run(strategies, data)
 
-    def _compute_rankings(
-        self, results: dict[str, BacktestResult]
-    ) -> dict[str, list[str]]:
+    def _compute_rankings(self, results: dict[str, BacktestResult]) -> dict[str, list[str]]:
         """Compute rankings for each metric (higher is better, except drawdown)."""
         if not results:
             return {}
@@ -133,9 +131,7 @@ class StrategyComparison:
 
         return rankings
 
-    def _compute_summary(
-        self, results: dict[str, BacktestResult]
-    ) -> dict[str, dict[str, Any]]:
+    def _compute_summary(self, results: dict[str, BacktestResult]) -> dict[str, dict[str, Any]]:
         """Compute summary statistics for each strategy."""
         summary: dict[str, dict[str, Any]] = {}
 
@@ -167,12 +163,16 @@ class StrategyComparison:
         # Summary table
         lines.append("\nPerformance Summary:")
         lines.append("-" * 70)
-        header = f"{'Strategy':<20} {'Return%':>10} {'Trades':>8} {'Win%':>8} {'DD%':>8} {'Sharpe':>8}"
+        header = (
+            f"{'Strategy':<20} {'Return%':>10} {'Trades':>8} {'Win%':>8} {'DD%':>8} {'Sharpe':>8}"
+        )
         lines.append(header)
         lines.append("-" * 70)
 
         for name, stats in comparison.summary.items():
-            sharpe_str = f"{stats['sharpe_ratio']:.2f}" if stats["sharpe_ratio"] is not None else "N/A"
+            sharpe_str = (
+                f"{stats['sharpe_ratio']:.2f}" if stats["sharpe_ratio"] is not None else "N/A"
+            )
             line = (
                 f"{name:<20} "
                 f"{stats['total_return_pct']:>9.2f}% "

@@ -204,15 +204,11 @@ class MarketRegimeDetector:
         ema_slow_vals = close.ewm(span=self.ema_slow, adjust=False).mean()
         atr = self._calculate_atr(high, low, close, self.atr_period)
         rsi = self._calculate_rsi(close, self.rsi_period)
-        adx_vals, plus_di, minus_di = self._calculate_adx(
-            high, low, close, self.adx_period
-        )
+        adx_vals, plus_di, minus_di = self._calculate_adx(high, low, close, self.adx_period)
         bb_upper, bb_middle, bb_lower, bb_width_pct = self._calculate_bollinger_bands(
             close, self.bb_period, self.bb_std_dev
         )
-        avg_volume, volume_ratio = self._calculate_volume_ratio(
-            volume, self.volume_lookback
-        )
+        avg_volume, volume_ratio = self._calculate_volume_ratio(volume, self.volume_lookback)
 
         # Extract current values
         current_price = float(close.iloc[-1])
@@ -223,8 +219,12 @@ class MarketRegimeDetector:
 
         # Safe extraction for new indicators (handle NaN)
         current_adx = float(adx_vals.iloc[-1]) if not pd.isna(adx_vals.iloc[-1]) else 20.0
-        current_bb_width = float(bb_width_pct.iloc[-1]) if not pd.isna(bb_width_pct.iloc[-1]) else 4.0
-        current_volume_ratio = float(volume_ratio.iloc[-1]) if not pd.isna(volume_ratio.iloc[-1]) else 1.0
+        current_bb_width = (
+            float(bb_width_pct.iloc[-1]) if not pd.isna(bb_width_pct.iloc[-1]) else 4.0
+        )
+        current_volume_ratio = (
+            float(volume_ratio.iloc[-1]) if not pd.isna(volume_ratio.iloc[-1]) else 1.0
+        )
 
         # EMA divergence as percentage
         ema_divergence_pct = (
@@ -239,9 +239,7 @@ class MarketRegimeDetector:
         # ATR percentile (how volatile relative to recent history)
         atr_values = atr.dropna().values
         if len(atr_values) > 0:
-            vol_pctile = float(
-                (np.sum(atr_values <= current_atr) / len(atr_values)) * 100
-            )
+            vol_pctile = float((np.sum(atr_values <= current_atr) / len(atr_values)) * 100)
         else:
             vol_pctile = 50.0
 
@@ -312,7 +310,9 @@ class MarketRegimeDetector:
                 "bb_upper": float(bb_upper.iloc[-1]) if not pd.isna(bb_upper.iloc[-1]) else 0.0,
                 "bb_middle": float(bb_middle.iloc[-1]) if not pd.isna(bb_middle.iloc[-1]) else 0.0,
                 "bb_lower": float(bb_lower.iloc[-1]) if not pd.isna(bb_lower.iloc[-1]) else 0.0,
-                "avg_volume": float(avg_volume.iloc[-1]) if not pd.isna(avg_volume.iloc[-1]) else 0.0,
+                "avg_volume": float(avg_volume.iloc[-1])
+                if not pd.isna(avg_volume.iloc[-1])
+                else 0.0,
                 "plus_di": float(plus_di.iloc[-1]) if not pd.isna(plus_di.iloc[-1]) else 0.0,
                 "minus_di": float(minus_di.iloc[-1]) if not pd.isna(minus_di.iloc[-1]) else 0.0,
                 "data_points": len(df),
@@ -362,8 +362,7 @@ class MarketRegimeDetector:
         """
         # High volatility: wide BB bands or extreme ATR with volume spike
         if bb_width_pct > 6.0 or (
-            volatility_percentile >= self.high_volatility_percentile
-            and volume_ratio > 2.0
+            volatility_percentile >= self.high_volatility_percentile and volume_ratio > 2.0
         ):
             return MarketRegime.HIGH_VOLATILITY
 
@@ -568,9 +567,7 @@ class MarketRegimeDetector:
     # =========================================================================
 
     @staticmethod
-    def _calculate_atr(
-        high: pd.Series, low: pd.Series, close: pd.Series, period: int
-    ) -> pd.Series:
+    def _calculate_atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int) -> pd.Series:
         """Calculate Average True Range."""
         prev_close = close.shift(1)
         tr1 = high - low

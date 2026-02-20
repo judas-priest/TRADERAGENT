@@ -127,9 +127,7 @@ class DCAAdapter(BaseStrategy):
         )
         return self._last_analysis
 
-    def generate_signal(
-        self, df: pd.DataFrame, current_balance: Decimal
-    ) -> Optional[BaseSignal]:
+    def generate_signal(self, df: pd.DataFrame, current_balance: Decimal) -> Optional[BaseSignal]:
         """Generate DCA entry signal when price drops from recent high."""
         if df.empty or self._recent_high <= 0:
             return None
@@ -153,9 +151,7 @@ class DCAAdapter(BaseStrategy):
         # Calculate TP and SL
         take_profit = close * (Decimal("1") + self._take_profit_pct)
         # SL after all safety orders would be hit
-        total_drop = self._price_deviation_pct + (
-            self._safety_step_pct * self._max_safety_orders
-        )
+        total_drop = self._price_deviation_pct + (self._safety_step_pct * self._max_safety_orders)
         stop_loss = close * (Decimal("1") - total_drop)
 
         return BaseSignal(
@@ -239,18 +235,20 @@ class DCAAdapter(BaseStrategy):
             return
 
         pnl = (exit_price - pos["avg_price"]) * pos["size"]
-        self._closed_trades.append({
-            "position_id": position_id,
-            "entry_price": pos["entry_price"],
-            "avg_price": pos["avg_price"],
-            "exit_price": exit_price,
-            "size": pos["size"],
-            "pnl": pnl,
-            "exit_reason": exit_reason.value,
-            "safety_orders_filled": pos["safety_orders_filled"],
-            "entry_time": pos["entry_time"],
-            "exit_time": datetime.now(timezone.utc),
-        })
+        self._closed_trades.append(
+            {
+                "position_id": position_id,
+                "entry_price": pos["entry_price"],
+                "avg_price": pos["avg_price"],
+                "exit_price": exit_price,
+                "size": pos["size"],
+                "pnl": pnl,
+                "exit_reason": exit_reason.value,
+                "safety_orders_filled": pos["safety_orders_filled"],
+                "entry_time": pos["entry_time"],
+                "exit_time": datetime.now(timezone.utc),
+            }
+        )
 
     def get_active_positions(self) -> list[PositionInfo]:
         result = []
@@ -292,9 +290,7 @@ class DCAAdapter(BaseStrategy):
             total_pnl=total_pnl,
             avg_trade_pnl=total_pnl / total if total > 0 else Decimal("0"),
             metadata={
-                "avg_safety_orders": sum(
-                    t["safety_orders_filled"] for t in self._closed_trades
-                )
+                "avg_safety_orders": sum(t["safety_orders_filled"] for t in self._closed_trades)
                 / total
                 if total > 0
                 else 0,

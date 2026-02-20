@@ -32,6 +32,7 @@ class DecimalEncoder(json.JSONEncoder):
 # Grid Engine
 # ---------------------------------------------------------------------------
 
+
 def serialize_grid_state(grid_engine: Any) -> str | None:
     """Serialize GridEngine state to JSON string."""
     if grid_engine is None:
@@ -96,6 +97,7 @@ def deserialize_grid_state(grid_engine: Any, json_str: str | None) -> bool:
 # ---------------------------------------------------------------------------
 # DCA Engine
 # ---------------------------------------------------------------------------
+
 
 def serialize_dca_state(dca_engine: Any) -> str | None:
     """Serialize DCAEngine state to JSON string."""
@@ -176,14 +178,19 @@ def deserialize_dca_state(dca_engine: Any, json_str: str | None) -> bool:
 # Risk Manager (core)
 # ---------------------------------------------------------------------------
 
+
 def serialize_risk_state(risk_manager: Any) -> str | None:
     """Serialize core RiskManager state to JSON string."""
     if risk_manager is None:
         return None
 
     state = {
-        "initial_balance": str(risk_manager.initial_balance) if risk_manager.initial_balance else None,
-        "current_balance": str(risk_manager.current_balance) if risk_manager.current_balance else None,
+        "initial_balance": str(risk_manager.initial_balance)
+        if risk_manager.initial_balance
+        else None,
+        "current_balance": str(risk_manager.current_balance)
+        if risk_manager.current_balance
+        else None,
         "peak_balance": str(risk_manager.peak_balance) if risk_manager.peak_balance else None,
         "daily_loss": str(risk_manager.daily_loss),
         "is_halted": risk_manager.is_halted,
@@ -235,6 +242,7 @@ def deserialize_risk_state(risk_manager: Any, json_str: str | None) -> bool:
 # Trend-Follower Strategy (risk_manager counters only)
 # ---------------------------------------------------------------------------
 
+
 def serialize_trend_state(strategy: Any) -> str | None:
     """Serialize Trend-Follower risk_manager counters."""
     if strategy is None:
@@ -283,6 +291,7 @@ def deserialize_trend_state(strategy: Any, json_str: str | None) -> bool:
 # ---------------------------------------------------------------------------
 # Hybrid Strategy (mode, transitions, regime detector state)
 # ---------------------------------------------------------------------------
+
 
 def serialize_hybrid_state(hybrid_strategy: Any) -> str | None:
     """Serialize HybridStrategy state to JSON string."""

@@ -51,9 +51,19 @@ class ByBitDirectClient:
 
     # Bybit V5 kline interval mapping from CCXT-style timeframes
     TIMEFRAME_MAP: dict[str, str] = {
-        "1m": "1", "3m": "3", "5m": "5", "15m": "15", "30m": "30",
-        "1h": "60", "2h": "120", "4h": "240", "6h": "360", "12h": "720",
-        "1d": "D", "1w": "W", "1M": "M",
+        "1m": "1",
+        "3m": "3",
+        "5m": "5",
+        "15m": "15",
+        "30m": "30",
+        "1h": "60",
+        "2h": "120",
+        "4h": "240",
+        "6h": "360",
+        "12h": "720",
+        "1d": "D",
+        "1w": "W",
+        "1M": "M",
     }
 
     def __init__(
@@ -424,7 +434,9 @@ class ByBitDirectClient:
                     },
                 },
                 "precision": {
-                    "amount": abs(Decimal(lot_size_filter.get("basePrecision", "0.001")).as_tuple().exponent),
+                    "amount": abs(
+                        Decimal(lot_size_filter.get("basePrecision", "0.001")).as_tuple().exponent
+                    ),
                     "price": abs(Decimal(price_filter.get("tickSize", "0.01")).as_tuple().exponent),
                 },
             }
@@ -438,7 +450,9 @@ class ByBitDirectClient:
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
     async def fetch_open_orders(
-        self, symbol: str | None = None, params: dict[str, Any] | None = None,
+        self,
+        symbol: str | None = None,
+        params: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Fetch open orders.
@@ -482,7 +496,9 @@ class ByBitDirectClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    def _round_to_precision(self, symbol: str, amount: Decimal | float, field: str = "amount") -> str:
+    def _round_to_precision(
+        self, symbol: str, amount: Decimal | float, field: str = "amount"
+    ) -> str:
         """Round amount/price to exchange precision for the symbol."""
         market = self._markets.get(symbol, {})
         precision = market.get("precision", {}).get(field, 3)
@@ -649,7 +665,9 @@ class ByBitDirectClient:
             return False
         try:
             await self._request(
-                "GET", "/v5/market/time", authenticated=False,
+                "GET",
+                "/v5/market/time",
+                authenticated=False,
             )
             return True
         except Exception as e:
@@ -696,23 +714,31 @@ class ByBitDirectClient:
             request_params["start"] = since
 
         data = await self._request(
-            "GET", "/v5/market/kline", request_params, authenticated=False,
+            "GET",
+            "/v5/market/kline",
+            request_params,
+            authenticated=False,
         )
 
         # Bybit returns newest first, CCXT expects oldest first
         candles = []
         for kline in reversed(data.get("list", [])):
-            candles.append([
-                int(kline[0]),       # timestamp
-                float(kline[1]),     # open
-                float(kline[2]),     # high
-                float(kline[3]),     # low
-                float(kline[4]),     # close
-                float(kline[5]),     # volume
-            ])
+            candles.append(
+                [
+                    int(kline[0]),  # timestamp
+                    float(kline[1]),  # open
+                    float(kline[2]),  # high
+                    float(kline[3]),  # low
+                    float(kline[4]),  # close
+                    float(kline[5]),  # volume
+                ]
+            )
 
         logger.debug(
-            "Fetched OHLCV", symbol=symbol, timeframe=timeframe, count=len(candles),
+            "Fetched OHLCV",
+            symbol=symbol,
+            timeframe=timeframe,
+            count=len(candles),
         )
         return candles
 
@@ -747,7 +773,10 @@ class ByBitDirectClient:
             request_params["limit"] = min(limit, 200)
 
         data = await self._request(
-            "GET", "/v5/market/orderbook", request_params, authenticated=False,
+            "GET",
+            "/v5/market/orderbook",
+            request_params,
+            authenticated=False,
         )
 
         bids = [[float(p), float(q)] for p, q in data.get("b", [])]
@@ -782,19 +811,24 @@ class ByBitDirectClient:
             request_params["limit"] = min(limit, 1000)
 
         data = await self._request(
-            "GET", "/v5/market/recent-trade", request_params, authenticated=False,
+            "GET",
+            "/v5/market/recent-trade",
+            request_params,
+            authenticated=False,
         )
 
         trades = []
         for trade_data in data.get("list", []):
-            trades.append({
-                "id": trade_data.get("execId", ""),
-                "symbol": symbol,
-                "side": trade_data.get("side", "").lower(),
-                "price": float(trade_data.get("price", "0")),
-                "amount": float(trade_data.get("size", "0")),
-                "timestamp": int(trade_data.get("time", "0")),
-            })
+            trades.append(
+                {
+                    "id": trade_data.get("execId", ""),
+                    "symbol": symbol,
+                    "side": trade_data.get("side", "").lower(),
+                    "price": float(trade_data.get("price", "0")),
+                    "amount": float(trade_data.get("size", "0")),
+                    "timestamp": int(trade_data.get("time", "0")),
+                }
+            )
 
         logger.debug("Fetched trades", symbol=symbol, count=len(trades))
         return trades
@@ -830,7 +864,10 @@ class ByBitDirectClient:
         }
 
         data = await self._request(
-            "POST", "/v5/order/cancel", order_params, authenticated=True,
+            "POST",
+            "/v5/order/cancel",
+            order_params,
+            authenticated=True,
         )
 
         logger.info("Cancelled order", order_id=order_id, symbol=symbol)
@@ -863,16 +900,21 @@ class ByBitDirectClient:
         }
 
         data = await self._request(
-            "POST", "/v5/order/cancel-all", order_params, authenticated=True,
+            "POST",
+            "/v5/order/cancel-all",
+            order_params,
+            authenticated=True,
         )
 
         results = []
         for item in data.get("list", []):
-            results.append({
-                "id": item.get("orderId", ""),
-                "symbol": symbol,
-                "status": "cancelled",
-            })
+            results.append(
+                {
+                    "id": item.get("orderId", ""),
+                    "symbol": symbol,
+                    "status": "cancelled",
+                }
+            )
 
         logger.info("All orders cancelled", symbol=symbol, count=len(results))
         return results
@@ -908,7 +950,10 @@ class ByBitDirectClient:
         }
 
         data = await self._request(
-            "GET", "/v5/order/realtime", request_params, authenticated=True,
+            "GET",
+            "/v5/order/realtime",
+            request_params,
+            authenticated=True,
         )
 
         order_list = data.get("list", [])
@@ -951,24 +996,29 @@ class ByBitDirectClient:
             request_params["limit"] = min(limit, 50)
 
         data = await self._request(
-            "GET", "/v5/order/history", request_params, authenticated=True,
+            "GET",
+            "/v5/order/history",
+            request_params,
+            authenticated=True,
         )
 
         orders = []
         for order_data in data.get("list", []):
-            orders.append({
-                "id": order_data.get("orderId", ""),
-                "clientOrderId": order_data.get("orderLinkId", ""),
-                "symbol": order_data.get("symbol", ""),
-                "type": order_data.get("orderType", "").lower(),
-                "side": order_data.get("side", "").lower(),
-                "price": float(order_data.get("price", "0")),
-                "amount": float(order_data.get("qty", "0")),
-                "filled": float(order_data.get("cumExecQty", "0")),
-                "remaining": float(order_data.get("leavesQty", "0")),
-                "status": order_data.get("orderStatus", "").lower(),
-                "timestamp": int(order_data.get("createdTime", "0")),
-            })
+            orders.append(
+                {
+                    "id": order_data.get("orderId", ""),
+                    "clientOrderId": order_data.get("orderLinkId", ""),
+                    "symbol": order_data.get("symbol", ""),
+                    "type": order_data.get("orderType", "").lower(),
+                    "side": order_data.get("side", "").lower(),
+                    "price": float(order_data.get("price", "0")),
+                    "amount": float(order_data.get("qty", "0")),
+                    "filled": float(order_data.get("cumExecQty", "0")),
+                    "remaining": float(order_data.get("leavesQty", "0")),
+                    "status": order_data.get("orderStatus", "").lower(),
+                    "timestamp": int(order_data.get("createdTime", "0")),
+                }
+            )
 
         logger.debug("Fetched closed orders", count=len(orders))
         return orders
@@ -1006,18 +1056,25 @@ class ByBitDirectClient:
 
         try:
             data = await self._request(
-                "POST", "/v5/position/set-leverage", lever_params, authenticated=True,
+                "POST",
+                "/v5/position/set-leverage",
+                lever_params,
+                authenticated=True,
             )
         except ExchangeAPIError as e:
             # Error 110043 = leverage not modified (already set to this value)
             if "110043" in str(e):
                 logger.debug(
-                    "Leverage already set", symbol=symbol, leverage=leverage,
+                    "Leverage already set",
+                    symbol=symbol,
+                    leverage=leverage,
                 )
                 return {"symbol": symbol, "leverage": leverage}
             raise
 
         logger.info(
-            "Set leverage", symbol=symbol, leverage=leverage,
+            "Set leverage",
+            symbol=symbol,
+            leverage=leverage,
         )
         return {"symbol": symbol, "leverage": leverage}

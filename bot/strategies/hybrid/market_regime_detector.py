@@ -150,9 +150,7 @@ class RegimeResult:
     volume_score: float = 0.0  # 0.0 (low) to 1.0 (high)
 
     warnings: list[str] = field(default_factory=list)
-    timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -286,14 +284,10 @@ class MarketRegimeDetectorV2:
         )
 
         # Apply regime change detection
-        regime_changed, change_event = self._apply_regime_change(
-            raw_regime, now
-        )
+        regime_changed, change_event = self._apply_regime_change(raw_regime, now)
 
         # Determine strategy
-        strategy = self._recommend_strategy(
-            self._current_regime, indicators
-        )
+        strategy = self._recommend_strategy(self._current_regime, indicators)
         self._current_strategy = strategy
 
         # Confidence
@@ -332,9 +326,7 @@ class MarketRegimeDetectorV2:
             return 0.0
 
         # EMA divergence direction
-        ema_divergence = float(
-            (ind.ema_fast - ind.ema_slow) / ind.ema_slow * 100
-        )
+        ema_divergence = float((ind.ema_fast - ind.ema_slow) / ind.ema_slow * 100)
 
         # Scale by ADX strength
         adx = ind.adx if ind.adx is not None else 20.0
@@ -346,9 +338,7 @@ class MarketRegimeDetectorV2:
 
         return direction * magnitude * adx_factor
 
-    def _compute_volatility_score(
-        self, ind: MarketIndicators, warnings: list[str]
-    ) -> float:
+    def _compute_volatility_score(self, ind: MarketIndicators, warnings: list[str]) -> float:
         """
         Compute volatility score from 0.0 (calm) to 1.0 (extreme).
 
@@ -365,17 +355,13 @@ class MarketRegimeDetectorV2:
             and ind.bb_middle is not None
             and ind.bb_middle > 0
         ):
-            bb_width_pct = float(
-                (ind.bb_upper - ind.bb_lower) / ind.bb_middle * 100
-            )
+            bb_width_pct = float((ind.bb_upper - ind.bb_lower) / ind.bb_middle * 100)
             wide = float(self._config.bb_wide_pct)
             bb_score = min(bb_width_pct / wide, 1.0)
             has_data = True
 
             if bb_width_pct > wide:
-                warnings.append(
-                    f"BB width {bb_width_pct:.1f}% exceeds threshold {wide}%"
-                )
+                warnings.append(f"BB width {bb_width_pct:.1f}% exceeds threshold {wide}%")
 
         # ATR percentage
         if ind.atr_pct is not None:
@@ -410,9 +396,7 @@ class MarketRegimeDetectorV2:
             and ind.bb_middle is not None
             and ind.bb_middle > 0
         ):
-            bb_width = float(
-                (ind.bb_upper - ind.bb_lower) / ind.bb_middle * 100
-            )
+            bb_width = float((ind.bb_upper - ind.bb_lower) / ind.bb_middle * 100)
             narrow = float(self._config.bb_narrow_pct)
             if bb_width < narrow:
                 scores.append(1.0 - (bb_width / narrow))
@@ -428,11 +412,7 @@ class MarketRegimeDetectorV2:
         """
         Compute volume score from 0.0 (quiet) to 1.0 (spike).
         """
-        if (
-            ind.current_volume is None
-            or ind.avg_volume is None
-            or ind.avg_volume <= 0
-        ):
+        if ind.current_volume is None or ind.avg_volume is None or ind.avg_volume <= 0:
             return 0.5  # Default
 
         ratio = float(ind.current_volume / ind.avg_volume)

@@ -278,13 +278,15 @@ class TestMetricsCollector:
     @pytest.mark.asyncio
     async def test_collect_with_dca_status(self):
         exporter = MetricsExporter(port=0)
-        orch = self._make_mock_orchestrator(status={
-            "state": "running",
-            "current_price": "45000.0",
-            "dca": {"has_position": True},
-            "risk": {},
-            "health": {"overall_status": "healthy"},
-        })
+        orch = self._make_mock_orchestrator(
+            status={
+                "state": "running",
+                "current_price": "45000.0",
+                "dca": {"has_position": True},
+                "risk": {},
+                "health": {"overall_status": "healthy"},
+            }
+        )
 
         collector = MetricsCollector(
             exporter=exporter,
@@ -296,16 +298,18 @@ class TestMetricsCollector:
     @pytest.mark.asyncio
     async def test_collect_with_trend_follower_status(self):
         exporter = MetricsExporter(port=0)
-        orch = self._make_mock_orchestrator(status={
-            "state": "running",
-            "current_price": "45000.0",
-            "trend_follower": {
-                "active_positions": 2,
-                "statistics": {"total_trades": 15, "total_pnl": "350.0"},
-            },
-            "risk": {},
-            "health": {"overall_status": "healthy"},
-        })
+        orch = self._make_mock_orchestrator(
+            status={
+                "state": "running",
+                "current_price": "45000.0",
+                "trend_follower": {
+                    "active_positions": 2,
+                    "statistics": {"total_trades": 15, "total_pnl": "350.0"},
+                },
+                "risk": {},
+                "health": {"overall_status": "healthy"},
+            }
+        )
 
         collector = MetricsCollector(
             exporter=exporter,
@@ -317,12 +321,14 @@ class TestMetricsCollector:
     @pytest.mark.asyncio
     async def test_collect_with_strategy_registry(self):
         exporter = MetricsExporter(port=0)
-        orch = self._make_mock_orchestrator(status={
-            "state": "running",
-            "strategy_registry": {"total": 3, "active": 2},
-            "risk": {},
-            "health": {"overall_status": "degraded"},
-        })
+        orch = self._make_mock_orchestrator(
+            status={
+                "state": "running",
+                "strategy_registry": {"total": 3, "active": 2},
+                "risk": {},
+                "health": {"overall_status": "degraded"},
+            }
+        )
 
         collector = MetricsCollector(
             exporter=exporter,
@@ -401,7 +407,10 @@ class TestAlertHandler:
                         {
                             "status": "firing",
                             "labels": {"alertname": "HighLatency", "severity": "warning"},
-                            "annotations": {"summary": "API latency high", "description": "Latency > 1s"},
+                            "annotations": {
+                                "summary": "API latency high",
+                                "description": "Latency > 1s",
+                            },
                             "startsAt": "2026-02-16T12:00:00Z",
                             "endsAt": "0001-01-01T00:00:00Z",
                         }
@@ -587,7 +596,10 @@ class TestAlertTelegramBridge:
                     "alerts": [
                         {
                             "labels": {"alertname": "LargeDrawdown", "severity": "warning"},
-                            "annotations": {"summary": "Drawdown > 10%", "description": "Check positions"},
+                            "annotations": {
+                                "summary": "Drawdown > 10%",
+                                "description": "Check positions",
+                            },
                             "startsAt": "2026-02-16T12:00:00Z",
                             "endsAt": "",
                         }

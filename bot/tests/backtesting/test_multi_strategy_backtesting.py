@@ -501,9 +501,7 @@ class TestMultiTrendComparison:
 
     async def test_uptrend_vs_downtrend(self, config):
         loader = MultiTimeframeDataLoader()
-        data_up = loader.load(
-            "BTC/USDT", datetime(2024, 1, 1), datetime(2024, 1, 8), trend="up"
-        )
+        data_up = loader.load("BTC/USDT", datetime(2024, 1, 1), datetime(2024, 1, 8), trend="up")
         data_down = loader.load(
             "BTC/USDT", datetime(2024, 1, 1), datetime(2024, 1, 8), trend="down"
         )
@@ -538,9 +536,7 @@ class TestMultiTrendComparison:
 
         # Load longer data for TF warmup
         loader = MultiTimeframeDataLoader()
-        data = loader.load(
-            "BTC/USDT", datetime(2024, 1, 1), datetime(2024, 1, 15), trend="up"
-        )
+        data = loader.load("BTC/USDT", datetime(2024, 1, 1), datetime(2024, 1, 15), trend="up")
 
         for strategy in strategies:
             engine = MultiTimeframeBacktestEngine(config=config)

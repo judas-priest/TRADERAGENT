@@ -65,9 +65,7 @@ class HybridConfig:
         """Validate configuration values."""
         total = self.grid_capital_pct + self.dca_capital_pct + self.reserve_pct
         if abs(total - 1.0) > 0.001:
-            raise ValueError(
-                f"Capital allocation must sum to 1.0, got {total:.3f}"
-            )
+            raise ValueError(f"Capital allocation must sum to 1.0, got {total:.3f}")
         if self.grid_capital_pct < 0 or self.grid_capital_pct > 1:
             raise ValueError("grid_capital_pct must be between 0 and 1")
         if self.dca_capital_pct < 0 or self.dca_capital_pct > 1:

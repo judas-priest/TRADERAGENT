@@ -182,14 +182,10 @@ class GridRiskManager:
             # Add warnings for approaching limits
             exposure_pct = float(new_exposure / self._config.max_total_exposure)
             if exposure_pct > 0.8:
-                result.warnings.append(
-                    f"Exposure at {exposure_pct:.0%} of max"
-                )
+                result.warnings.append(f"Exposure at {exposure_pct:.0%} of max")
             orders_pct = current_open_orders / self._config.max_open_orders
             if orders_pct > 0.8:
-                result.warnings.append(
-                    f"Open orders at {orders_pct:.0%} of max"
-                )
+                result.warnings.append(f"Open orders at {orders_pct:.0%} of max")
 
         return result
 
@@ -242,9 +238,7 @@ class GridRiskManager:
     # Drawdown Check
     # =================================================================
 
-    def check_drawdown(
-        self, current_equity: Decimal
-    ) -> RiskCheckResult:
+    def check_drawdown(self, current_equity: Decimal) -> RiskCheckResult:
         """
         Check if drawdown from peak equity exceeds the limit.
 
@@ -269,9 +263,7 @@ class GridRiskManager:
                     f"{float(self._config.max_drawdown_pct):.2%}"
                 )
             elif drawdown >= self._config.max_drawdown_pct * Decimal("0.7"):
-                result.warnings.append(
-                    f"Drawdown {float(drawdown):.2%} approaching limit"
-                )
+                result.warnings.append(f"Drawdown {float(drawdown):.2%} approaching limit")
 
         return result
 

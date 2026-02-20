@@ -185,9 +185,7 @@ class MetricsExporter:
             # Metric values
             for mv in values:
                 if mv.labels:
-                    label_str = ",".join(
-                        f'{k}="{v}"' for k, v in sorted(mv.labels.items())
-                    )
+                    label_str = ",".join(f'{k}="{v}"' for k, v in sorted(mv.labels.items()))
                     lines.append(f"{name}{{{label_str}}} {mv.value}")
                 else:
                     lines.append(f"{name} {mv.value}")

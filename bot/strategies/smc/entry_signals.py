@@ -548,7 +548,7 @@ class EntrySignalGenerator:
         Returns:
             Liquidity level price or None
         """
-        if not hasattr(self.confluence_analyzer, 'get_active_liquidity_zones'):
+        if not hasattr(self.confluence_analyzer, "get_active_liquidity_zones"):
             return None
 
         if is_long:
@@ -638,7 +638,7 @@ class EntrySignalGenerator:
                 zones.append(f"FVG_{fvg.timeframe}")
 
         # Check Liquidity proximity (within 1% of price)
-        if hasattr(self.confluence_analyzer, 'get_active_liquidity_zones'):
+        if hasattr(self.confluence_analyzer, "get_active_liquidity_zones"):
             price_float = float(pattern.close)
             tolerance = price_float * 0.01
             for lz in self.confluence_analyzer.get_active_liquidity_zones():

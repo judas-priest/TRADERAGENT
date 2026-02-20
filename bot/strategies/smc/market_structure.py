@@ -162,7 +162,11 @@ class MarketStructureAnalyzer:
 
             is_high = row["HighLow"] == 1.0
             price = Decimal(str(row["Level"]))
-            timestamp = df.index[i] if hasattr(df.index[i], 'timestamp') or isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            timestamp = (
+                df.index[i]
+                if hasattr(df.index[i], "timestamp") or isinstance(df.index[i], pd.Timestamp)
+                else pd.Timestamp(df.index[i])
+            )
 
             swing = SwingPoint(
                 index=i,
@@ -201,7 +205,9 @@ class MarketStructureAnalyzer:
 
         for i in range(len(bos_choch_df)):
             row = bos_choch_df.iloc[i]
-            timestamp = df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            timestamp = (
+                df.index[i] if isinstance(df.index[i], pd.Timestamp) else pd.Timestamp(df.index[i])
+            )
 
             # Process BOS events
             if pd.notna(row["BOS"]):
@@ -267,7 +273,9 @@ class MarketStructureAnalyzer:
         logger.debug(
             "Structure breaks detected",
             bos=[e for e in self.structure_events if e.event_type == StructureBreak.BOS].__len__(),
-            choch=[e for e in self.structure_events if e.event_type == StructureBreak.CHOCH].__len__(),
+            choch=[
+                e for e in self.structure_events if e.event_type == StructureBreak.CHOCH
+            ].__len__(),
         )
 
     def _find_nearest_swing(self, target_index: int, is_high: bool) -> Optional[SwingPoint]:

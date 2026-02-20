@@ -79,8 +79,7 @@ class SVGChartBuilder:
             points.append((x, y))
 
         path_d = " ".join(
-            f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}"
-            for i, (x, y) in enumerate(points)
+            f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(points)
         )
 
         fill_path = ""
@@ -96,7 +95,7 @@ class SVGChartBuilder:
             y_labels_svg += (
                 f'<text x="{p - 5}" y="{y_pos:.1f}" '
                 f'text-anchor="end" font-size="11" fill="#666">'
-                f'{y_val:,.1f}</text>'
+                f"{y_val:,.1f}</text>"
             )
 
         return f"""<svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">
@@ -165,7 +164,7 @@ class SVGChartBuilder:
             y_labels_svg += (
                 f'<text x="{p - 5}" y="{y_pos:.1f}" '
                 f'text-anchor="end" font-size="11" fill="#666">'
-                f'{y_val:,.1f}</text>'
+                f"{y_val:,.1f}</text>"
             )
 
         return f"""<svg width="{w}" height="{h + 25}" xmlns="http://www.w3.org/2000/svg">
@@ -274,9 +273,7 @@ class ReportGenerator:
             body="\n".join(sections),
         )
 
-    def generate_comparison(
-        self, comparison: StrategyComparisonResult
-    ) -> str:
+    def generate_comparison(self, comparison: StrategyComparisonResult) -> str:
         """Generate HTML report comparing multiple strategies."""
         sections = [self._comparison_summary(comparison)]
 
@@ -284,9 +281,7 @@ class ReportGenerator:
         series = {}
         for name, result in comparison.results.items():
             if result.equity_curve:
-                series[name] = [
-                    e["portfolio_value"] for e in result.equity_curve
-                ]
+                series[name] = [e["portfolio_value"] for e in result.equity_curve]
         if series:
             sections.append(
                 '<div class="chart">'
@@ -301,7 +296,7 @@ class ReportGenerator:
 
         # Per-strategy details
         for name, result in comparison.results.items():
-            sections.append(f'<h2>Strategy: {html_mod.escape(name)}</h2>')
+            sections.append(f"<h2>Strategy: {html_mod.escape(name)}</h2>")
             sections.append(self._metrics_table(result))
 
         return self._wrap_html(
@@ -312,33 +307,35 @@ class ReportGenerator:
     def generate_monte_carlo(self, mc_result: MonteCarloResult) -> str:
         """Generate HTML report for Monte Carlo simulation."""
         sections = [
-            '<h2>Monte Carlo Simulation</h2>',
-            f'<p>Simulations: <strong>{mc_result.n_simulations}</strong> | '
-            f'Original Return: <strong>{mc_result.original_return_pct:.2f}%</strong> | '
-            f'Probability of Profit: <strong>{mc_result.probability_of_profit:.1%}</strong></p>',
+            "<h2>Monte Carlo Simulation</h2>",
+            f"<p>Simulations: <strong>{mc_result.n_simulations}</strong> | "
+            f"Original Return: <strong>{mc_result.original_return_pct:.2f}%</strong> | "
+            f"Probability of Profit: <strong>{mc_result.probability_of_profit:.1%}</strong></p>",
         ]
 
         # Return distribution histogram (approximation via bar chart)
         if mc_result.simulated_returns:
-            sections.append(self._distribution_chart(
-                mc_result.simulated_returns,
-                title="Return Distribution (%)",
-            ))
+            sections.append(
+                self._distribution_chart(
+                    mc_result.simulated_returns,
+                    title="Return Distribution (%)",
+                )
+            )
 
         # Percentile tables
-        sections.append(self._percentile_table(
-            "Return Percentiles (%)", mc_result.return_percentiles
-        ))
-        sections.append(self._percentile_table(
-            "Max Drawdown Percentiles (%)", mc_result.drawdown_percentiles
-        ))
+        sections.append(
+            self._percentile_table("Return Percentiles (%)", mc_result.return_percentiles)
+        )
+        sections.append(
+            self._percentile_table("Max Drawdown Percentiles (%)", mc_result.drawdown_percentiles)
+        )
 
         # VaR / CVaR
         var_5 = mc_result.get_var(0.05)
         cvar_5 = mc_result.get_cvar(0.05)
         sections.append(
             f'<div class="metrics"><p>VaR (5%): <strong>{var_5:.2f}%</strong> | '
-            f'CVaR (5%): <strong>{cvar_5:.2f}%</strong></p></div>'
+            f"CVaR (5%): <strong>{cvar_5:.2f}%</strong></p></div>"
         )
 
         return self._wrap_html(
@@ -349,10 +346,10 @@ class ReportGenerator:
     def generate_walk_forward(self, wf_result: WalkForwardResult) -> str:
         """Generate HTML report for walk-forward analysis."""
         sections = [
-            '<h2>Walk-Forward Analysis</h2>',
-            f'<p>Windows: <strong>{len(wf_result.windows)}</strong> | '
-            f'Consistency Ratio: <strong>{wf_result.consistency_ratio:.1%}</strong> | '
-            f'Aggregate Test Return: <strong>{float(wf_result.aggregate_test_return_pct):.2f}%</strong></p>',
+            "<h2>Walk-Forward Analysis</h2>",
+            f"<p>Windows: <strong>{len(wf_result.windows)}</strong> | "
+            f"Consistency Ratio: <strong>{wf_result.consistency_ratio:.1%}</strong> | "
+            f"Aggregate Test Return: <strong>{float(wf_result.aggregate_test_return_pct):.2f}%</strong></p>",
         ]
 
         # Per-window results table
@@ -367,24 +364,21 @@ class ReportGenerator:
             )
 
         sections.append(
-            '<table><thead><tr>'
-            '<th>Window</th><th>Train Return</th><th>Test Return</th>'
-            '<th>Test Win Rate</th><th>Test Max DD</th>'
-            '</tr></thead><tbody>'
-            + "\n".join(rows)
-            + '</tbody></table>'
+            "<table><thead><tr>"
+            "<th>Window</th><th>Train Return</th><th>Test Return</th>"
+            "<th>Test Win Rate</th><th>Test Max DD</th>"
+            "</tr></thead><tbody>" + "\n".join(rows) + "</tbody></table>"
         )
 
         # Chart: test returns per window
         if wf_result.windows:
-            test_returns = [
-                float(w.test_result.total_return_pct) for w in wf_result.windows
-            ]
+            test_returns = [float(w.test_result.total_return_pct) for w in wf_result.windows]
             labels = [f"W{w.window_index}" for w in wf_result.windows]
             sections.append(
                 '<div class="chart">'
                 + self.chart.bar_chart(
-                    labels, test_returns,
+                    labels,
+                    test_returns,
                     title="Out-of-Sample Returns by Window",
                     y_label="Return (%)",
                 )
@@ -394,9 +388,7 @@ class ReportGenerator:
         robust = wf_result.is_robust()
         badge_class = "badge-green" if robust else "badge-red"
         badge_text = "ROBUST" if robust else "NOT ROBUST"
-        sections.append(
-            f'<p>Robustness: <span class="{badge_class}">{badge_text}</span></p>'
-        )
+        sections.append(f'<p>Robustness: <span class="{badge_class}">{badge_text}</span></p>')
 
         return self._wrap_html(
             title=f"{self.config.title} — Walk-Forward",
@@ -417,51 +409,61 @@ class ReportGenerator:
     def _summary_section(self, result: BacktestResult) -> str:
         ret_class = "positive" if result.total_return_pct >= 0 else "negative"
         return (
-            f'<div class="summary">'
-            f'<h1>{html_mod.escape(result.strategy_name)}</h1>'
-            f'<p>{html_mod.escape(result.symbol)} | '
-            f'{result.start_time.strftime("%Y-%m-%d")} to {result.end_time.strftime("%Y-%m-%d")} | '
-            f'{result.duration.days}d</p>'
-            f'<div class="stat-cards">'
-            f'<div class="card"><span class="label">Return</span>'
-            f'<span class="value {ret_class}">{float(result.total_return_pct):.2f}%</span></div>'
-            f'<div class="card"><span class="label">Final Balance</span>'
-            f'<span class="value">${float(result.final_balance):,.2f}</span></div>'
-            f'<div class="card"><span class="label">Trades</span>'
-            f'<span class="value">{result.total_trades}</span></div>'
-            f'<div class="card"><span class="label">Win Rate</span>'
-            f'<span class="value">{float(result.win_rate):.1f}%</span></div>'
-            f'<div class="card"><span class="label">Max DD</span>'
-            f'<span class="value negative">{float(result.max_drawdown_pct):.2f}%</span></div>'
-            f'<div class="card"><span class="label">Sharpe</span>'
-            f'<span class="value">{float(result.sharpe_ratio):.4f}</span></div>'
-            f'</div></div>'
-        ) if result.sharpe_ratio else (
-            f'<div class="summary">'
-            f'<h1>{html_mod.escape(result.strategy_name)}</h1>'
-            f'<p>{html_mod.escape(result.symbol)} | '
-            f'{result.start_time.strftime("%Y-%m-%d")} to {result.end_time.strftime("%Y-%m-%d")} | '
-            f'{result.duration.days}d</p>'
-            f'<div class="stat-cards">'
-            f'<div class="card"><span class="label">Return</span>'
-            f'<span class="value {ret_class}">{float(result.total_return_pct):.2f}%</span></div>'
-            f'<div class="card"><span class="label">Final Balance</span>'
-            f'<span class="value">${float(result.final_balance):,.2f}</span></div>'
-            f'<div class="card"><span class="label">Trades</span>'
-            f'<span class="value">{result.total_trades}</span></div>'
-            f'<div class="card"><span class="label">Win Rate</span>'
-            f'<span class="value">{float(result.win_rate):.1f}%</span></div>'
-            f'<div class="card"><span class="label">Max DD</span>'
-            f'<span class="value negative">{float(result.max_drawdown_pct):.2f}%</span></div>'
-            f'</div></div>'
+            (
+                f'<div class="summary">'
+                f"<h1>{html_mod.escape(result.strategy_name)}</h1>"
+                f"<p>{html_mod.escape(result.symbol)} | "
+                f'{result.start_time.strftime("%Y-%m-%d")} to {result.end_time.strftime("%Y-%m-%d")} | '
+                f"{result.duration.days}d</p>"
+                f'<div class="stat-cards">'
+                f'<div class="card"><span class="label">Return</span>'
+                f'<span class="value {ret_class}">{float(result.total_return_pct):.2f}%</span></div>'
+                f'<div class="card"><span class="label">Final Balance</span>'
+                f'<span class="value">${float(result.final_balance):,.2f}</span></div>'
+                f'<div class="card"><span class="label">Trades</span>'
+                f'<span class="value">{result.total_trades}</span></div>'
+                f'<div class="card"><span class="label">Win Rate</span>'
+                f'<span class="value">{float(result.win_rate):.1f}%</span></div>'
+                f'<div class="card"><span class="label">Max DD</span>'
+                f'<span class="value negative">{float(result.max_drawdown_pct):.2f}%</span></div>'
+                f'<div class="card"><span class="label">Sharpe</span>'
+                f'<span class="value">{float(result.sharpe_ratio):.4f}</span></div>'
+                f"</div></div>"
+            )
+            if result.sharpe_ratio
+            else (
+                f'<div class="summary">'
+                f"<h1>{html_mod.escape(result.strategy_name)}</h1>"
+                f"<p>{html_mod.escape(result.symbol)} | "
+                f'{result.start_time.strftime("%Y-%m-%d")} to {result.end_time.strftime("%Y-%m-%d")} | '
+                f"{result.duration.days}d</p>"
+                f'<div class="stat-cards">'
+                f'<div class="card"><span class="label">Return</span>'
+                f'<span class="value {ret_class}">{float(result.total_return_pct):.2f}%</span></div>'
+                f'<div class="card"><span class="label">Final Balance</span>'
+                f'<span class="value">${float(result.final_balance):,.2f}</span></div>'
+                f'<div class="card"><span class="label">Trades</span>'
+                f'<span class="value">{result.total_trades}</span></div>'
+                f'<div class="card"><span class="label">Win Rate</span>'
+                f'<span class="value">{float(result.win_rate):.1f}%</span></div>'
+                f'<div class="card"><span class="label">Max DD</span>'
+                f'<span class="value negative">{float(result.max_drawdown_pct):.2f}%</span></div>'
+                f"</div></div>"
+            )
         )
 
     def _metrics_table(self, result: BacktestResult) -> str:
         rows = [
             ("Initial Balance", f"${float(result.initial_balance):,.2f}"),
             ("Final Balance", f"${float(result.final_balance):,.2f}"),
-            ("Total Return", f"${float(result.total_return):,.2f} ({float(result.total_return_pct):.2f}%)"),
-            ("Max Drawdown", f"${float(result.max_drawdown):,.2f} ({float(result.max_drawdown_pct):.2f}%)"),
+            (
+                "Total Return",
+                f"${float(result.total_return):,.2f} ({float(result.total_return_pct):.2f}%)",
+            ),
+            (
+                "Max Drawdown",
+                f"${float(result.max_drawdown):,.2f} ({float(result.max_drawdown_pct):.2f}%)",
+            ),
             ("Total Trades", str(result.total_trades)),
             ("Winning Trades", str(result.winning_trades)),
             ("Losing Trades", str(result.losing_trades)),
@@ -474,10 +476,9 @@ class ReportGenerator:
             rows.append(("Sharpe Ratio", f"{float(result.sharpe_ratio):.4f}"))
 
         table_rows = "\n".join(
-            f"<tr><td>{html_mod.escape(k)}</td><td>{html_mod.escape(v)}</td></tr>"
-            for k, v in rows
+            f"<tr><td>{html_mod.escape(k)}</td><td>{html_mod.escape(v)}</td></tr>" for k, v in rows
         )
-        return f'<h2>Performance Metrics</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>{table_rows}</tbody></table>'
+        return f"<h2>Performance Metrics</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>{table_rows}</tbody></table>"
 
     def _equity_chart(self, result: BacktestResult) -> str:
         values = [e["portfolio_value"] for e in result.equity_curve]
@@ -518,7 +519,7 @@ class ReportGenerator:
         )
 
     def _trade_table(self, result: BacktestResult) -> str:
-        history = result.trade_history[:self.config.max_trades_in_table]
+        history = result.trade_history[: self.config.max_trades_in_table]
         rows = []
         for t in history:
             rows.append(
@@ -528,15 +529,17 @@ class ReportGenerator:
                 f"<td>{float(t.get('amount', 0)):.6f}</td></tr>"
             )
         return (
-            '<h2>Trade History</h2>'
-            '<table><thead><tr><th>Time</th><th>Side</th><th>Price</th><th>Amount</th></tr></thead>'
+            "<h2>Trade History</h2>"
+            "<table><thead><tr><th>Time</th><th>Side</th><th>Price</th><th>Amount</th></tr></thead>"
             f'<tbody>{"".join(rows)}</tbody></table>'
         )
 
     def _comparison_summary(self, comparison: StrategyComparisonResult) -> str:
         rows = []
         for name, stats in comparison.summary.items():
-            sharpe = f"{stats['sharpe_ratio']:.2f}" if stats.get("sharpe_ratio") is not None else "N/A"
+            sharpe = (
+                f"{stats['sharpe_ratio']:.2f}" if stats.get("sharpe_ratio") is not None else "N/A"
+            )
             rows.append(
                 f"<tr><td>{html_mod.escape(name)}</td>"
                 f"<td>{stats['total_return_pct']:.2f}%</td>"
@@ -546,13 +549,17 @@ class ReportGenerator:
                 f"<td>{sharpe}</td></tr>"
             )
         winner = comparison.get_winner("total_return_pct")
-        winner_html = f'<p>Best Return: <strong>{html_mod.escape(winner or "N/A")}</strong></p>' if winner else ""
+        winner_html = (
+            f'<p>Best Return: <strong>{html_mod.escape(winner or "N/A")}</strong></p>'
+            if winner
+            else ""
+        )
 
         return (
-            '<h2>Strategy Comparison</h2>'
+            "<h2>Strategy Comparison</h2>"
             + winner_html
-            + '<table><thead><tr><th>Strategy</th><th>Return</th><th>Trades</th>'
-            '<th>Win Rate</th><th>Max DD</th><th>Sharpe</th></tr></thead>'
+            + "<table><thead><tr><th>Strategy</th><th>Return</th><th>Trades</th>"
+            "<th>Win Rate</th><th>Max DD</th><th>Sharpe</th></tr></thead>"
             f'<tbody>{"".join(rows)}</tbody></table>'
         )
 
@@ -564,14 +571,12 @@ class ReportGenerator:
                 f"<tr><td>{html_mod.escape(metric)}</td><td>{html_mod.escape(ranked)}</td></tr>"
             )
         return (
-            '<h2>Rankings</h2>'
-            '<table><thead><tr><th>Metric</th><th>Ranking</th></tr></thead>'
+            "<h2>Rankings</h2>"
+            "<table><thead><tr><th>Metric</th><th>Ranking</th></tr></thead>"
             f'<tbody>{"".join(rows)}</tbody></table>'
         )
 
-    def _distribution_chart(
-        self, values: list[float], title: str = ""
-    ) -> str:
+    def _distribution_chart(self, values: list[float], title: str = "") -> str:
         """Create a simple histogram approximation using bar chart."""
         n_bins = min(20, max(5, len(values) // 50))
         min_v = min(values)
@@ -597,8 +602,8 @@ class ReportGenerator:
         for level, value in sorted(percentiles.items()):
             rows.append(f"<tr><td>{level:.0%}</td><td>{value:.2f}</td></tr>")
         return (
-            f'<h3>{html_mod.escape(title)}</h3>'
-            '<table><thead><tr><th>Percentile</th><th>Value</th></tr></thead>'
+            f"<h3>{html_mod.escape(title)}</h3>"
+            "<table><thead><tr><th>Percentile</th><th>Value</th></tr></thead>"
             f'<tbody>{"".join(rows)}</tbody></table>'
         )
 

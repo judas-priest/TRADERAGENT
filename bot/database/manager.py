@@ -385,9 +385,7 @@ class DatabaseManager(LoggerMixin):
         """Upsert a bot state snapshot (insert or update by bot_name)."""
         async with self.session() as session:
             result = await session.execute(
-                select(BotStateSnapshot).where(
-                    BotStateSnapshot.bot_name == snapshot.bot_name
-                )
+                select(BotStateSnapshot).where(BotStateSnapshot.bot_name == snapshot.bot_name)
             )
             existing = result.scalar_one_or_none()
             if existing:

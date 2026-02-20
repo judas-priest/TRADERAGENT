@@ -144,17 +144,26 @@ class BackupManager:
         self._ensure_backup_dir()
 
         filename = self._generate_filename(label, compressed)
-        raw_path = self._backup_dir / filename.replace(".gz", "") if compressed else self._backup_dir / filename
+        raw_path = (
+            self._backup_dir / filename.replace(".gz", "")
+            if compressed
+            else self._backup_dir / filename
+        )
         final_path = self._backup_dir / filename
 
         cmd = [
             "pg_dump",
-            "-h", self._db_params["host"],
-            "-p", self._db_params["port"],
-            "-U", self._db_params["username"],
-            "-d", self._db_params["database"],
+            "-h",
+            self._db_params["host"],
+            "-p",
+            self._db_params["port"],
+            "-U",
+            self._db_params["username"],
+            "-d",
+            self._db_params["database"],
             "--no-password",
-            "-f", str(raw_path),
+            "-f",
+            str(raw_path),
         ]
 
         logger.info(
@@ -239,12 +248,17 @@ class BackupManager:
         try:
             cmd = [
                 "psql",
-                "-h", self._db_params["host"],
-                "-p", self._db_params["port"],
-                "-U", self._db_params["username"],
-                "-d", self._db_params["database"],
+                "-h",
+                self._db_params["host"],
+                "-p",
+                self._db_params["port"],
+                "-U",
+                self._db_params["username"],
+                "-d",
+                self._db_params["database"],
                 "--no-password",
-                "-f", str(sql_path),
+                "-f",
+                str(sql_path),
             ]
 
             process = await asyncio.create_subprocess_exec(
@@ -289,9 +303,11 @@ class BackupManager:
 
                 try:
                     created_str = f"{parts[1]}_{parts[2]}" if len(parts) > 2 else ""
-                    created = datetime.strptime(created_str, "%Y%m%d_%H%M%S").replace(
-                        tzinfo=timezone.utc
-                    ) if created_str else datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+                    created = (
+                        datetime.strptime(created_str, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+                        if created_str
+                        else datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+                    )
                 except (ValueError, IndexError):
                     created = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
 
@@ -375,7 +391,8 @@ class BackupManager:
         for tool in ("pg_dump", "psql"):
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    tool, "--version",
+                    tool,
+                    "--version",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )

@@ -187,9 +187,7 @@ class GridOrderManager:
 
         return order_states
 
-    def register_exchange_order(
-        self, internal_id: str, exchange_order_id: str
-    ) -> None:
+    def register_exchange_order(self, internal_id: str, exchange_order_id: str) -> None:
         """
         Register an exchange order ID after successful placement.
 
@@ -351,9 +349,7 @@ class GridOrderManager:
                 Decimal("0.001"), rounding=ROUND_HALF_UP
             )
 
-        counter_price = counter_price.quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        counter_price = counter_price.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         counter_level = GridLevel(
             index=filled_order.grid_level.index,
@@ -406,9 +402,7 @@ class GridOrderManager:
                     # Check if THIS sell is the counter from a previous buy
                     if cycle.sell_order_id == filled_order.id:
                         cycle.sell_price = filled_order.filled_price
-                        cycle.profit = (
-                            (cycle.sell_price - cycle.buy_price) * cycle.amount
-                        )
+                        cycle.profit = (cycle.sell_price - cycle.buy_price) * cycle.amount
                         cycle.completed = True
                         self._total_realized_pnl += cycle.profit
 

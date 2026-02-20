@@ -113,13 +113,19 @@ class MultiTimeframeDataLoader:
         Returns:
             Resampled DataFrame.
         """
-        resampled = df_m15.resample(rule).agg({
-            "open": "first",
-            "high": "max",
-            "low": "min",
-            "close": "last",
-            "volume": "sum",
-        }).dropna()
+        resampled = (
+            df_m15.resample(rule)
+            .agg(
+                {
+                    "open": "first",
+                    "high": "max",
+                    "low": "min",
+                    "close": "last",
+                    "volume": "sum",
+                }
+            )
+            .dropna()
+        )
         return resampled
 
     def get_context_at(

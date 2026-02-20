@@ -30,12 +30,22 @@ from bot.database.models import Base
 # =============================================================================
 
 _strategy_type_v2 = Enum(
-    "smc", "trend_follower", "grid", "dca", "hybrid",
+    "smc",
+    "trend_follower",
+    "grid",
+    "dca",
+    "hybrid",
     name="strategy_type_v2",
 )
 
 _strategy_state = Enum(
-    "idle", "starting", "active", "paused", "stopping", "stopped", "error",
+    "idle",
+    "starting",
+    "active",
+    "paused",
+    "stopping",
+    "stopped",
+    "error",
     name="strategy_state",
 )
 
@@ -44,8 +54,15 @@ _signal_direction = Enum("long", "short", name="signal_direction")
 _position_status = Enum("open", "closed", name="position_status_v2")
 
 _exit_reason = Enum(
-    "take_profit", "stop_loss", "trailing_stop", "breakeven",
-    "partial_close", "manual", "signal_reversed", "risk_limit", "timeout",
+    "take_profit",
+    "stop_loss",
+    "trailing_stop",
+    "breakeven",
+    "partial_close",
+    "manual",
+    "signal_reversed",
+    "risk_limit",
+    "timeout",
     name="exit_reason",
 )
 
@@ -72,9 +89,7 @@ class Strategy(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     strategy_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     strategy_type: Mapped[str] = mapped_column(_strategy_type_v2, nullable=False)
-    bot_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("bots.id"), nullable=True
-    )
+    bot_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("bots.id"), nullable=True)
     state: Mapped[str] = mapped_column(_strategy_state, default="idle", nullable=False)
     config_data: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -82,9 +97,7 @@ class Strategy(Base):
     total_signals: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     executed_trades: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     profitable_trades: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    total_pnl: Mapped[Decimal] = mapped_column(
-        DECIMAL(20, 8), default=Decimal("0"), nullable=False
-    )
+    total_pnl: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), default=Decimal("0"), nullable=False)
     error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -96,19 +109,16 @@ class Strategy(Base):
         DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     # Relationships
-    positions: Mapped[list["Position"]] = relationship(
-        "Position", back_populates="strategy"
-    )
-    signals: Mapped[list["Signal"]] = relationship(
-        "Signal", back_populates="strategy"
-    )
-    dca_deals: Mapped[list["DCADeal"]] = relationship(
-        "DCADeal", back_populates="strategy"
-    )
+    positions: Mapped[list["Position"]] = relationship("Position", back_populates="strategy")
+    signals: Mapped[list["Signal"]] = relationship("Signal", back_populates="strategy")
+    dca_deals: Mapped[list["DCADeal"]] = relationship("DCADeal", back_populates="strategy")
 
     __table_args__ = (
         Index("idx_strategy_type", "strategy_type"),
@@ -144,9 +154,7 @@ class Position(Base):
     )
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
     direction: Mapped[str] = mapped_column(_signal_direction, nullable=False)
-    status: Mapped[str] = mapped_column(
-        _position_status, default="open", nullable=False
-    )
+    status: Mapped[str] = mapped_column(_position_status, default="open", nullable=False)
 
     # Prices
     entry_price: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
@@ -159,9 +167,7 @@ class Position(Base):
     size: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
     realized_pnl: Mapped[Decimal | None] = mapped_column(DECIMAL(20, 8), nullable=True)
     unrealized_pnl: Mapped[Decimal | None] = mapped_column(DECIMAL(20, 8), nullable=True)
-    fee_total: Mapped[Decimal] = mapped_column(
-        DECIMAL(20, 8), default=Decimal("0"), nullable=False
-    )
+    fee_total: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), default=Decimal("0"), nullable=False)
 
     # Exit info
     exit_reason: Mapped[str | None] = mapped_column(_exit_reason, nullable=True)
@@ -175,7 +181,10 @@ class Position(Base):
     opened_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     # Relationships
@@ -278,9 +287,7 @@ class DCADeal(Base):
     )
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
     direction: Mapped[str] = mapped_column(_signal_direction, nullable=False)
-    status: Mapped[str] = mapped_column(
-        _dca_deal_status, default="active", nullable=False
-    )
+    status: Mapped[str] = mapped_column(_dca_deal_status, default="active", nullable=False)
 
     # Deal metrics
     base_order_size: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
@@ -290,12 +297,8 @@ class DCADeal(Base):
 
     # Pricing
     average_entry_price: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
-    take_profit_price: Mapped[Decimal | None] = mapped_column(
-        DECIMAL(20, 8), nullable=True
-    )
-    current_price: Mapped[Decimal | None] = mapped_column(
-        DECIMAL(20, 8), nullable=True
-    )
+    take_profit_price: Mapped[Decimal | None] = mapped_column(DECIMAL(20, 8), nullable=True)
+    current_price: Mapped[Decimal | None] = mapped_column(DECIMAL(20, 8), nullable=True)
 
     # Totals
     total_invested: Mapped[Decimal] = mapped_column(
@@ -310,14 +313,15 @@ class DCADeal(Base):
     opened_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     # Relationships
     strategy: Mapped["Strategy"] = relationship("Strategy", back_populates="dca_deals")
-    dca_orders: Mapped[list["DCAOrder"]] = relationship(
-        "DCAOrder", back_populates="deal"
-    )
+    dca_orders: Mapped[list["DCAOrder"]] = relationship("DCAOrder", back_populates="deal")
 
     __table_args__ = (
         Index("idx_dca_deal_strategy", "strategy_db_id"),
@@ -345,29 +349,21 @@ class DCAOrder(Base):
     __tablename__ = "dca_orders"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    deal_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("dca_deals.id"), nullable=False
-    )
+    deal_id: Mapped[int] = mapped_column(Integer, ForeignKey("dca_deals.id"), nullable=False)
     order_number: Mapped[int] = mapped_column(Integer, nullable=False)
     is_base_order: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Order details
-    side: Mapped[str] = mapped_column(
-        Enum("buy", "sell", name="dca_order_side"), nullable=False
-    )
+    side: Mapped[str] = mapped_column(Enum("buy", "sell", name="dca_order_side"), nullable=False)
     price: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
     amount: Mapped[Decimal] = mapped_column(DECIMAL(20, 8), nullable=False)
     filled_amount: Mapped[Decimal] = mapped_column(
         DECIMAL(20, 8), default=Decimal("0"), nullable=False
     )
-    status: Mapped[str] = mapped_column(
-        _dca_order_status, default="pending", nullable=False
-    )
+    status: Mapped[str] = mapped_column(_dca_order_status, default="pending", nullable=False)
 
     # Exchange reference
-    exchange_order_id: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
+    exchange_order_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Deviation from base price (%)
     deviation_pct: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
@@ -407,12 +403,9 @@ class DCASignal(Base):
     __tablename__ = "dca_signals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    deal_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("dca_deals.id"), nullable=True
-    )
+    deal_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("dca_deals.id"), nullable=True)
     signal_type: Mapped[str] = mapped_column(
-        Enum("start_deal", "safety_order", "take_profit", "stop_loss",
-             name="dca_signal_type"),
+        Enum("start_deal", "safety_order", "take_profit", "stop_loss", name="dca_signal_type"),
         nullable=False,
     )
     direction: Mapped[str] = mapped_column(_signal_direction, nullable=False)

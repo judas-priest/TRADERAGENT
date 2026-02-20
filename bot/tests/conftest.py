@@ -11,6 +11,7 @@ from sqlalchemy.ext.compiler import compiles
 
 from bot.database.models import Base
 
+
 # SQLite renders BigInteger as BIGINT which breaks autoincrement.
 # Override to render as INTEGER so SQLite autoincrement works correctly.
 @compiles(BigInteger, "sqlite")

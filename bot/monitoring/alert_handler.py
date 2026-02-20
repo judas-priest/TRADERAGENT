@@ -52,9 +52,7 @@ class Alert:
 
     def format_message(self) -> str:
         """Format alert as human-readable message."""
-        emoji = {"critical": "🚨", "warning": "⚠️", "info": "ℹ️"}.get(
-            self.severity, "🔔"
-        )
+        emoji = {"critical": "🚨", "warning": "⚠️", "info": "ℹ️"}.get(self.severity, "🔔")
         status_text = "FIRING" if self.status == "firing" else "RESOLVED"
         return (
             f"{emoji} [{status_text}] {self.name}\n"

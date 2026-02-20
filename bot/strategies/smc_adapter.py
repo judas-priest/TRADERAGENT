@@ -114,9 +114,7 @@ class SMCStrategyAdapter(BaseStrategy):
 
         return self._last_analysis
 
-    def generate_signal(
-        self, df: pd.DataFrame, current_balance: Decimal
-    ) -> Optional[BaseSignal]:
+    def generate_signal(self, df: pd.DataFrame, current_balance: Decimal) -> Optional[BaseSignal]:
         """
         Generate signal using SMC strategy.
 
@@ -221,17 +219,19 @@ class SMCStrategyAdapter(BaseStrategy):
         else:
             pnl = (pos["entry_price"] - exit_price) * pos["size"] / pos["entry_price"]
 
-        self._closed_trades.append({
-            "position_id": position_id,
-            "direction": pos["direction"].value,
-            "entry_price": pos["entry_price"],
-            "exit_price": exit_price,
-            "size": pos["size"],
-            "pnl": pnl,
-            "exit_reason": exit_reason.value,
-            "entry_time": pos["entry_time"],
-            "exit_time": datetime.now(timezone.utc),
-        })
+        self._closed_trades.append(
+            {
+                "position_id": position_id,
+                "direction": pos["direction"].value,
+                "entry_price": pos["entry_price"],
+                "exit_price": exit_price,
+                "size": pos["size"],
+                "pnl": pnl,
+                "exit_reason": exit_reason.value,
+                "entry_time": pos["entry_time"],
+                "exit_time": datetime.now(timezone.utc),
+            }
+        )
 
         logger.info(
             "smc_position_closed",

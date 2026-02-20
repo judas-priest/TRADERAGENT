@@ -213,9 +213,7 @@ class StrategyRegistry:
         if strategy_id in self._strategies:
             raise ValueError(f"Strategy '{strategy_id}' already registered")
         if len(self._strategies) >= self._max_strategies:
-            raise ValueError(
-                f"Maximum strategies ({self._max_strategies}) reached"
-            )
+            raise ValueError(f"Maximum strategies ({self._max_strategies}) reached")
 
         instance = StrategyInstance(
             strategy_id=strategy_id,
@@ -264,24 +262,15 @@ class StrategyRegistry:
 
     def get_by_type(self, strategy_type: str) -> list[StrategyInstance]:
         """Get all strategies of a given type."""
-        return [
-            s for s in self._strategies.values()
-            if s.strategy_type == strategy_type
-        ]
+        return [s for s in self._strategies.values() if s.strategy_type == strategy_type]
 
     def get_active(self) -> list[StrategyInstance]:
         """Get all strategies in ACTIVE state."""
-        return [
-            s for s in self._strategies.values()
-            if s.state == StrategyState.ACTIVE
-        ]
+        return [s for s in self._strategies.values() if s.state == StrategyState.ACTIVE]
 
     def get_by_state(self, state: StrategyState) -> list[StrategyInstance]:
         """Get all strategies in a specific state."""
-        return [
-            s for s in self._strategies.values()
-            if s.state == state
-        ]
+        return [s for s in self._strategies.values() if s.state == state]
 
     async def start_strategy(self, strategy_id: str) -> bool:
         """Transition a strategy from IDLE to STARTING → ACTIVE."""

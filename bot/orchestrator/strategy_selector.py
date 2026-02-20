@@ -324,9 +324,7 @@ class StrategySelector:
         self._add_history(record)
         return record
 
-    def resolve_signal_conflict(
-        self, signals: list[dict[str, Any]]
-    ) -> dict[str, Any] | None:
+    def resolve_signal_conflict(self, signals: list[dict[str, Any]]) -> dict[str, Any] | None:
         """
         Resolve conflicting signals from multiple active strategies.
 
@@ -374,8 +372,7 @@ class StrategySelector:
         return {
             "current_regime": self._current_regime.value if self._current_regime else None,
             "active_strategies": [
-                {"id": inst.strategy_id, "type": inst.strategy_type}
-                for inst in active
+                {"id": inst.strategy_id, "type": inst.strategy_type} for inst in active
             ],
             "target_strategies": [
                 {"type": w.strategy_type, "weight": w.weight, "priority": w.priority}
@@ -417,9 +414,7 @@ class StrategySelector:
             return []
         return list(self._regime_strategies.get(self._current_regime, []))
 
-    def _check_transition_blocked(
-        self, analysis: RegimeAnalysis
-    ) -> tuple[bool, str]:
+    def _check_transition_blocked(self, analysis: RegimeAnalysis) -> tuple[bool, str]:
         """
         Check if transition should be blocked.
 

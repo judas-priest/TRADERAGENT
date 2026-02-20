@@ -268,10 +268,7 @@ class DCATrailingStop:
             current_profit_pct=profit_pct,
             highest_price=new_highest,
             distance_to_stop_pct=distance_to_stop,
-            reason=(
-                f"Trailing active: stop={stop_price}, "
-                f"distance={distance_to_stop:.2f}%"
-            ),
+            reason=(f"Trailing active: stop={stop_price}, " f"distance={distance_to_stop:.2f}%"),
         )
 
     # -----------------------------------------------------------------

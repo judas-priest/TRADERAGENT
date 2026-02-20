@@ -163,7 +163,9 @@ class GridStrategyConfig(BaseModel):
     dry_run: bool = Field(default=False)
     auto_rebalance: bool = Field(default=True)
     rebalance_threshold_pct: Decimal = Field(
-        default=Decimal("0.02"), ge=0, le=1,
+        default=Decimal("0.02"),
+        ge=0,
+        le=1,
         description="Rebalance when price moves this % outside grid",
     )
 
@@ -197,7 +199,9 @@ class GridStrategyConfig(BaseModel):
         return self.risk.to_risk_config()
 
     @classmethod
-    def from_preset(cls, symbol: str, mode: VolatilityMode, **overrides: Any) -> "GridStrategyConfig":
+    def from_preset(
+        cls, symbol: str, mode: VolatilityMode, **overrides: Any
+    ) -> "GridStrategyConfig":
         """
         Create config from a volatility preset with optional overrides.
 

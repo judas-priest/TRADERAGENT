@@ -91,12 +91,8 @@ class BacktestResult:
 
     @property
     def profit_factor(self) -> Decimal:
-        gross_profit = sum(
-            (t.profit for t in self.trades if t.profit > 0), Decimal("0")
-        )
-        gross_loss = abs(
-            sum((t.profit for t in self.trades if t.profit < 0), Decimal("0"))
-        )
+        gross_profit = sum((t.profit for t in self.trades if t.profit > 0), Decimal("0"))
+        gross_loss = abs(sum((t.profit for t in self.trades if t.profit < 0), Decimal("0")))
         if gross_loss == 0:
             return Decimal("999") if gross_profit > 0 else Decimal("0")
         return gross_profit / gross_loss

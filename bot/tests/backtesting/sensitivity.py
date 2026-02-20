@@ -39,9 +39,7 @@ class SensitivityConfig:
             "sharpe_ratio",
         ]
     )
-    backtest_config: MultiTFBacktestConfig = field(
-        default_factory=MultiTFBacktestConfig
-    )
+    backtest_config: MultiTFBacktestConfig = field(default_factory=MultiTFBacktestConfig)
 
 
 @dataclass
@@ -158,25 +156,19 @@ class SensitivityAnalysis:
         data: MultiTimeframeData,
     ) -> ParameterSensitivity:
         """Run backtests for all values of a single parameter."""
-        metrics_data: dict[str, list[float]] = {
-            m: [] for m in self.config.metrics
-        }
+        metrics_data: dict[str, list[float]] = {m: [] for m in self.config.metrics}
 
         for value in values:
             params = base_params.copy()
             params[param_name] = value
 
             strategy = strategy_factory(params)
-            engine = MultiTimeframeBacktestEngine(
-                config=self.config.backtest_config
-            )
+            engine = MultiTimeframeBacktestEngine(config=self.config.backtest_config)
             result = await engine.run(strategy, data)
 
             for metric in self.config.metrics:
                 val = getattr(result, metric, None)
-                metrics_data[metric].append(
-                    float(val) if val is not None else 0.0
-                )
+                metrics_data[metric].append(float(val) if val is not None else 0.0)
 
         return ParameterSensitivity(
             param_name=param_name,

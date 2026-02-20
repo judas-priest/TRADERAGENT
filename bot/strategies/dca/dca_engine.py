@@ -89,9 +89,7 @@ class EngineAction:
     safety_order_triggers: list[tuple[str, int]] = field(default_factory=list)  # (deal_id, level)
 
     warnings: list[str] = field(default_factory=list)
-    timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -208,9 +206,12 @@ class DCAEngine:
 
         # 2. Check for new deal signal
         self._evaluate_new_deal(
-            market_state, action,
-            portfolio_equity, available_balance,
-            total_balance, daily_pnl,
+            market_state,
+            action,
+            portfolio_equity,
+            available_balance,
+            total_balance,
+            daily_pnl,
         )
 
         # Track price for spike detection
@@ -268,9 +269,7 @@ class DCAEngine:
 
         # Step 4: Pump & dump check
         if self._last_price is not None and self._last_price > 0:
-            price_check = self._risk_mgr.check_price_change(
-                self._last_price, state.current_price
-            )
+            price_check = self._risk_mgr.check_price_change(self._last_price, state.current_price)
             if not price_check.is_safe:
                 action.warnings.extend(price_check.reasons)
                 return
@@ -279,9 +278,7 @@ class DCAEngine:
         action.should_open_deal = True
         action.open_deal_reason = signal.reason
 
-    def _apply_false_signal_filters(
-        self, state: MarketState
-    ) -> str | None:
+    def _apply_false_signal_filters(self, state: MarketState) -> str | None:
         """
         Apply false signal filters. Returns rejection reason or None.
         """
@@ -290,15 +287,10 @@ class DCAEngine:
         # Confirmation count
         self._consecutive_signals += 1
         if self._consecutive_signals < flt.confirmation_count:
-            return (
-                f"Awaiting confirmation ({self._consecutive_signals}/{flt.confirmation_count})"
-            )
+            return f"Awaiting confirmation ({self._consecutive_signals}/{flt.confirmation_count})"
 
         # Rejection cooldown
-        if (
-            flt.min_rejection_cooldown > 0
-            and self._last_rejection_time is not None
-        ):
+        if flt.min_rejection_cooldown > 0 and self._last_rejection_time is not None:
             now = state.current_time or datetime.now(timezone.utc)
             elapsed = (now - self._last_rejection_time).total_seconds()
             if elapsed < flt.min_rejection_cooldown:
@@ -310,11 +302,11 @@ class DCAEngine:
             and self._last_price > 0
             and flt.max_recent_price_change_pct > 0
         ):
-            change_pct = abs(
-                (state.current_price - self._last_price) / self._last_price
-            ) * 100
+            change_pct = abs((state.current_price - self._last_price) / self._last_price) * 100
             if change_pct > flt.max_recent_price_change_pct:
-                return f"Price spike detected ({change_pct:.1f}% > {flt.max_recent_price_change_pct}%)"
+                return (
+                    f"Price spike detected ({change_pct:.1f}% > {flt.max_recent_price_change_pct}%)"
+                )
 
         return None
 
@@ -322,9 +314,7 @@ class DCAEngine:
     # Active Deal Monitoring
     # -----------------------------------------------------------------
 
-    def _monitor_active_deals(
-        self, current_price: Decimal, action: EngineAction
-    ) -> None:
+    def _monitor_active_deals(self, current_price: Decimal, action: EngineAction) -> None:
         """Monitor active deals for trailing stop and safety orders."""
 
         for deal in self._position_mgr.get_active_deals():
@@ -333,9 +323,7 @@ class DCAEngine:
 
             # Check trailing stop
             if self._trailing_stop.enabled:
-                snapshot = self._trailing_snapshots.setdefault(
-                    deal.id, TrailingStopSnapshot()
-                )
+                snapshot = self._trailing_snapshots.setdefault(deal.id, TrailingStopSnapshot())
                 ts_result = self._trailing_stop.evaluate(
                     current_price=current_price,
                     average_entry=deal.average_entry_price,
@@ -382,13 +370,9 @@ class DCAEngine:
                 continue
 
             # Check safety order triggers
-            so_trigger = self._position_mgr.check_safety_order_trigger(
-                deal.id, current_price
-            )
+            so_trigger = self._position_mgr.check_safety_order_trigger(deal.id, current_price)
             if so_trigger is not None:
-                action.safety_order_triggers.append(
-                    (deal.id, so_trigger.level)
-                )
+                action.safety_order_triggers.append((deal.id, so_trigger.level))
 
     # -----------------------------------------------------------------
     # Deal Execution Callbacks
@@ -407,9 +391,7 @@ class DCAEngine:
         self._consecutive_signals = 0
         return deal
 
-    def fill_safety_order(
-        self, deal_id: str, level: int, fill_price: Decimal
-    ) -> DCADeal:
+    def fill_safety_order(self, deal_id: str, level: int, fill_price: Decimal) -> DCADeal:
         """Record safety order fill (called after exchange order succeeds)."""
         return self._position_mgr.fill_safety_order(deal_id, level, fill_price)
 

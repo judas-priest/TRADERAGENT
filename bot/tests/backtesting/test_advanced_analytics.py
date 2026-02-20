@@ -57,6 +57,7 @@ from bot.tests.backtesting.walk_forward import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_ohlcv(n: int = 100, base_price: float = 45000.0) -> pd.DataFrame:
     """Create a simple OHLCV DataFrame with DatetimeIndex."""
     dates = pd.date_range("2024-01-01", periods=n, freq="15min")
@@ -113,9 +114,7 @@ class SimpleTestStrategy(BaseStrategy):
         )
         return self._last_analysis
 
-    def generate_signal(
-        self, df: pd.DataFrame, current_balance: Decimal
-    ) -> Optional[BaseSignal]:
+    def generate_signal(self, df: pd.DataFrame, current_balance: Decimal) -> Optional[BaseSignal]:
         if df.empty:
             return None
 
@@ -180,10 +179,12 @@ class SimpleTestStrategy(BaseStrategy):
         if not pos:
             return
         pnl = (exit_price - pos["entry_price"]) * pos["size"] / pos["entry_price"]
-        self._closed_trades.append({
-            "pnl": pnl,
-            "exit_reason": exit_reason.value,
-        })
+        self._closed_trades.append(
+            {
+                "pnl": pnl,
+                "exit_reason": exit_reason.value,
+            }
+        )
 
     def get_active_positions(self) -> list[PositionInfo]:
         return []
@@ -235,9 +236,15 @@ def _make_backtest_result(
     """
     if trades is None:
         trades = [
-            (45000, 45500), (45200, 45600), (45100, 44900),
-            (44800, 45200), (45300, 45100), (45000, 45800),
-            (45500, 45700), (45600, 45200), (45100, 45500),
+            (45000, 45500),
+            (45200, 45600),
+            (45100, 44900),
+            (44800, 45200),
+            (45300, 45100),
+            (45000, 45800),
+            (45500, 45700),
+            (45600, 45200),
+            (45100, 45500),
             (45300, 45900),
         ]
 
@@ -283,8 +290,11 @@ def _make_backtest_result(
         sharpe_ratio=Decimal("1.5"),
         trade_history=history,
         equity_curve=[
-            {"timestamp": (now - timedelta(hours=i)).isoformat(),
-             "price": 45000.0, "portfolio_value": initial_balance + i * 10}
+            {
+                "timestamp": (now - timedelta(hours=i)).isoformat(),
+                "price": 45000.0,
+                "portfolio_value": initial_balance + i * 10,
+            }
             for i in range(50)
         ],
     )
@@ -396,33 +406,39 @@ class TestWalkForwardConfig:
 class TestWalkForwardAnalysis:
     async def test_run_produces_result(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         result = await wf.run(strategy, data)
         assert isinstance(result, WalkForwardResult)
 
     async def test_windows_populated(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         result = await wf.run(strategy, data)
         assert len(result.windows) > 0
 
     async def test_each_window_has_results(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         result = await wf.run(strategy, data)
         for w in result.windows:
@@ -431,22 +447,26 @@ class TestWalkForwardAnalysis:
 
     async def test_consistency_ratio_range(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         result = await wf.run(strategy, data)
         assert 0.0 <= result.consistency_ratio <= 1.0
 
     async def test_is_robust(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         result = await wf.run(strategy, data)
         # is_robust is just consistency_ratio >= threshold
@@ -455,11 +475,13 @@ class TestWalkForwardAnalysis:
 
     async def test_aggregate_metrics_present(self):
         data = _load_test_data(days=10)
-        wf = WalkForwardAnalysis(config=WalkForwardConfig(
-            n_splits=2,
-            train_pct=0.6,
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        wf = WalkForwardAnalysis(
+            config=WalkForwardConfig(
+                n_splits=2,
+                train_pct=0.6,
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         strategy = SimpleTestStrategy(buy_every_n=5)
         result = await wf.run(strategy, data)
         assert isinstance(result.aggregate_test_return_pct, Decimal)
@@ -485,9 +507,11 @@ class TestOptimizationConfig:
 class TestParameterOptimizer:
     async def test_optimize_runs(self):
         data = _load_test_data(days=4)
-        optimizer = ParameterOptimizer(config=OptimizationConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await optimizer.optimize(
             strategy_factory=_make_strategy_factory(),
             param_grid={"tp_pct": [0.01, 0.02], "sl_pct": [0.02]},
@@ -497,9 +521,11 @@ class TestParameterOptimizer:
 
     async def test_all_combinations_tested(self):
         data = _load_test_data(days=4)
-        optimizer = ParameterOptimizer(config=OptimizationConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await optimizer.optimize(
             strategy_factory=_make_strategy_factory(),
             param_grid={"tp_pct": [0.01, 0.02], "sl_pct": [0.01, 0.02]},
@@ -510,9 +536,11 @@ class TestParameterOptimizer:
 
     async def test_best_params_present(self):
         data = _load_test_data(days=4)
-        optimizer = ParameterOptimizer(config=OptimizationConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await optimizer.optimize(
             strategy_factory=_make_strategy_factory(),
             param_grid={"tp_pct": [0.01, 0.02]},
@@ -523,9 +551,11 @@ class TestParameterOptimizer:
 
     async def test_trials_sorted(self):
         data = _load_test_data(days=4)
-        optimizer = ParameterOptimizer(config=OptimizationConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await optimizer.optimize(
             strategy_factory=_make_strategy_factory(),
             param_grid={"tp_pct": [0.005, 0.01, 0.02]},
@@ -537,9 +567,11 @@ class TestParameterOptimizer:
 
     async def test_top_n(self):
         data = _load_test_data(days=4)
-        optimizer = ParameterOptimizer(config=OptimizationConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await optimizer.optimize(
             strategy_factory=_make_strategy_factory(),
             param_grid={"tp_pct": [0.005, 0.01, 0.02]},
@@ -550,9 +582,11 @@ class TestParameterOptimizer:
 
     async def test_param_impact(self):
         data = _load_test_data(days=4)
-        optimizer = ParameterOptimizer(config=OptimizationConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await optimizer.optimize(
             strategy_factory=_make_strategy_factory(),
             param_grid={"tp_pct": [0.01, 0.02]},
@@ -564,9 +598,11 @@ class TestParameterOptimizer:
 
     async def test_empty_grid(self):
         data = _load_test_data(days=4)
-        optimizer = ParameterOptimizer(config=OptimizationConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await optimizer.optimize(
             strategy_factory=_make_strategy_factory(),
             param_grid={},
@@ -595,9 +631,11 @@ class TestSensitivityConfig:
 class TestSensitivityAnalysis:
     async def test_run_produces_result(self):
         data = _load_test_data(days=4)
-        sa = SensitivityAnalysis(config=SensitivityConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        sa = SensitivityAnalysis(
+            config=SensitivityConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await sa.run(
             strategy_factory=_make_strategy_factory(),
             base_params={"tp_pct": 0.01, "sl_pct": 0.02, "buy_every_n": 10},
@@ -608,9 +646,11 @@ class TestSensitivityAnalysis:
 
     async def test_baseline_result(self):
         data = _load_test_data(days=4)
-        sa = SensitivityAnalysis(config=SensitivityConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        sa = SensitivityAnalysis(
+            config=SensitivityConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await sa.run(
             strategy_factory=_make_strategy_factory(),
             base_params={"tp_pct": 0.01, "sl_pct": 0.02, "buy_every_n": 10},
@@ -621,9 +661,11 @@ class TestSensitivityAnalysis:
 
     async def test_parameter_sensitivity_populated(self):
         data = _load_test_data(days=4)
-        sa = SensitivityAnalysis(config=SensitivityConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        sa = SensitivityAnalysis(
+            config=SensitivityConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await sa.run(
             strategy_factory=_make_strategy_factory(),
             base_params={"tp_pct": 0.01, "sl_pct": 0.02, "buy_every_n": 10},
@@ -637,9 +679,11 @@ class TestSensitivityAnalysis:
 
     async def test_multiple_params(self):
         data = _load_test_data(days=4)
-        sa = SensitivityAnalysis(config=SensitivityConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        sa = SensitivityAnalysis(
+            config=SensitivityConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await sa.run(
             strategy_factory=_make_strategy_factory(),
             base_params={"tp_pct": 0.01, "sl_pct": 0.02, "buy_every_n": 10},
@@ -654,9 +698,11 @@ class TestSensitivityAnalysis:
 
     async def test_rank_by_impact(self):
         data = _load_test_data(days=4)
-        sa = SensitivityAnalysis(config=SensitivityConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        sa = SensitivityAnalysis(
+            config=SensitivityConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await sa.run(
             strategy_factory=_make_strategy_factory(),
             base_params={"tp_pct": 0.01, "sl_pct": 0.02, "buy_every_n": 10},
@@ -675,9 +721,11 @@ class TestSensitivityAnalysis:
 
     async def test_most_sensitive_param(self):
         data = _load_test_data(days=4)
-        sa = SensitivityAnalysis(config=SensitivityConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        sa = SensitivityAnalysis(
+            config=SensitivityConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await sa.run(
             strategy_factory=_make_strategy_factory(),
             base_params={"tp_pct": 0.01, "sl_pct": 0.02, "buy_every_n": 10},
@@ -692,9 +740,11 @@ class TestSensitivityAnalysis:
 
     async def test_get_range_and_best_value(self):
         data = _load_test_data(days=4)
-        sa = SensitivityAnalysis(config=SensitivityConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        sa = SensitivityAnalysis(
+            config=SensitivityConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         result = await sa.run(
             strategy_factory=_make_strategy_factory(),
             base_params={"tp_pct": 0.01, "sl_pct": 0.02, "buy_every_n": 10},
@@ -717,9 +767,7 @@ class TestAnalyticsIntegration:
     async def test_backtest_then_monte_carlo(self):
         """Run a backtest then analyze with Monte Carlo."""
         data = _load_test_data(days=4)
-        engine = MultiTimeframeBacktestEngine(
-            config=MultiTFBacktestConfig(warmup_bars=20)
-        )
+        engine = MultiTimeframeBacktestEngine(config=MultiTFBacktestConfig(warmup_bars=20))
         strategy = SimpleTestStrategy(buy_every_n=5)
         bt_result = await engine.run(strategy, data)
 
@@ -734,9 +782,11 @@ class TestAnalyticsIntegration:
         factory = _make_strategy_factory()
 
         # Optimize
-        optimizer = ParameterOptimizer(config=OptimizationConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         opt_result = await optimizer.optimize(
             strategy_factory=factory,
             param_grid={"tp_pct": [0.01, 0.02]},
@@ -744,9 +794,11 @@ class TestAnalyticsIntegration:
         )
 
         # Use best params as baseline for sensitivity
-        sa = SensitivityAnalysis(config=SensitivityConfig(
-            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
-        ))
+        sa = SensitivityAnalysis(
+            config=SensitivityConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
         base_params = opt_result.best_params.copy()
         base_params.setdefault("sl_pct", 0.02)
         base_params.setdefault("buy_every_n", 10)

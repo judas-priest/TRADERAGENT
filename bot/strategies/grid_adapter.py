@@ -136,9 +136,7 @@ class GridAdapter(BaseStrategy):
         )
         return self._last_analysis
 
-    def generate_signal(
-        self, df: pd.DataFrame, current_balance: Decimal
-    ) -> Optional[BaseSignal]:
+    def generate_signal(self, df: pd.DataFrame, current_balance: Decimal) -> Optional[BaseSignal]:
         """Generate buy signal when price is near a grid buy level."""
         if not self._grid_levels or df.empty:
             return None
@@ -219,24 +217,24 @@ class GridAdapter(BaseStrategy):
             return
 
         pnl = (exit_price - pos["entry_price"]) * pos["size"] / pos["entry_price"]
-        self._closed_trades.append({
-            "position_id": position_id,
-            "entry_price": pos["entry_price"],
-            "exit_price": exit_price,
-            "size": pos["size"],
-            "pnl": pnl,
-            "exit_reason": exit_reason.value,
-            "entry_time": pos["entry_time"],
-            "exit_time": datetime.now(timezone.utc),
-        })
+        self._closed_trades.append(
+            {
+                "position_id": position_id,
+                "entry_price": pos["entry_price"],
+                "exit_price": exit_price,
+                "size": pos["size"],
+                "pnl": pnl,
+                "exit_reason": exit_reason.value,
+                "entry_time": pos["entry_time"],
+                "exit_time": datetime.now(timezone.utc),
+            }
+        )
 
     def get_active_positions(self) -> list[PositionInfo]:
         result = []
         for pos_id, pos in self._positions.items():
             pnl = (
-                (pos["current_price"] - pos["entry_price"])
-                * pos["size"]
-                / pos["entry_price"]
+                (pos["current_price"] - pos["entry_price"]) * pos["size"] / pos["entry_price"]
                 if pos["entry_price"] > 0
                 else Decimal("0")
             )

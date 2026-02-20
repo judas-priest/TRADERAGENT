@@ -33,9 +33,7 @@ class OptimizationConfig:
 
     objective: str = "total_return_pct"
     higher_is_better: bool = True
-    backtest_config: MultiTFBacktestConfig = field(
-        default_factory=MultiTFBacktestConfig
-    )
+    backtest_config: MultiTFBacktestConfig = field(default_factory=MultiTFBacktestConfig)
 
 
 @dataclass
@@ -113,17 +111,17 @@ class ParameterOptimizer:
 
         for params in combinations:
             strategy = strategy_factory(params)
-            engine = MultiTimeframeBacktestEngine(
-                config=self.config.backtest_config
-            )
+            engine = MultiTimeframeBacktestEngine(config=self.config.backtest_config)
             result = await engine.run(strategy, data)
 
             objective_val = self._get_objective_value(result)
-            trials.append(OptimizationTrial(
-                params=params,
-                result=result,
-                objective_value=objective_val,
-            ))
+            trials.append(
+                OptimizationTrial(
+                    params=params,
+                    result=result,
+                    objective_value=objective_val,
+                )
+            )
 
         # Sort by objective
         trials.sort(
@@ -142,9 +140,7 @@ class ParameterOptimizer:
             param_grid=param_grid,
         )
 
-    def _generate_combinations(
-        self, param_grid: dict[str, list[Any]]
-    ) -> list[dict[str, Any]]:
+    def _generate_combinations(self, param_grid: dict[str, list[Any]]) -> list[dict[str, Any]]:
         """Generate all parameter combinations from grid."""
         if not param_grid:
             return [{}]

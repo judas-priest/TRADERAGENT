@@ -498,9 +498,7 @@ class TelegramBot:
             orders = orch.grid_engine.active_orders
             response += f"*Grid Orders ({len(orders)} active):*\n"
             for oid, order in list(orders.items())[:5]:
-                response += (
-                    f"  {order.side.upper()} @ {order.price}\n"
-                )
+                response += f"  {order.side.upper()} @ {order.price}\n"
             if len(orders) > 5:
                 response += f"  ... and {len(orders) - 5} more\n"
 
@@ -522,20 +520,13 @@ class TelegramBot:
             await message.answer(f"❌ Bot '{bot_name}' not found")
             return
 
-        targets = (
-            {bot_name: self.orchestrators[bot_name]}
-            if bot_name
-            else self.orchestrators
-        )
+        targets = {bot_name: self.orchestrators[bot_name]} if bot_name else self.orchestrators
 
         for name, orch in targets.items():
             response = f"📈 *Performance Report: {name}*\n\n"
             status = await orch.get_status()
 
-            response += (
-                f"State: {status['state']}\n"
-                f"Strategy: {status['strategy']}\n"
-            )
+            response += f"State: {status['state']}\n" f"Strategy: {status['strategy']}\n"
 
             if status.get("current_price"):
                 response += f"Current Price: {status['current_price']}\n"
@@ -563,8 +554,7 @@ class TelegramBot:
             if "trend_follower" in status:
                 tf = status["trend_follower"]
                 response += (
-                    f"\n*Trend-Follower:*\n"
-                    f"Active Positions: {tf.get('active_positions', 0)}\n"
+                    f"\n*Trend-Follower:*\n" f"Active Positions: {tf.get('active_positions', 0)}\n"
                 )
                 stats = tf.get("statistics", {})
                 if stats:

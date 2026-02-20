@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 
 class DeploymentPhase(str, Enum):
     """Capital deployment phases."""
+
     PHASE_1 = "phase_1_5pct"
     PHASE_2 = "phase_2_25pct"
     PHASE_3 = "phase_3_100pct"
@@ -31,6 +32,7 @@ class DeploymentPhase(str, Enum):
 @dataclass
 class PhaseConfig:
     """Configuration for a deployment phase."""
+
     phase: DeploymentPhase
     allocation_pct: Decimal
     min_duration_days: int
@@ -42,6 +44,7 @@ class PhaseConfig:
 @dataclass
 class PhaseMetrics:
     """Recorded metrics for a deployment phase."""
+
     phase: DeploymentPhase
     started_at: datetime
     total_trades: int = 0
@@ -81,6 +84,7 @@ class PhaseMetrics:
 @dataclass
 class ScalingDecision:
     """Decision on whether to scale up."""
+
     can_scale: bool
     current_phase: DeploymentPhase
     next_phase: DeploymentPhase | None
@@ -238,17 +242,13 @@ class CapitalManager:
 
         # Min trades check
         if metrics.total_trades < config.min_trades:
-            blockers.append(
-                f"Trades {metrics.total_trades} < required {config.min_trades}"
-            )
+            blockers.append(f"Trades {metrics.total_trades} < required {config.min_trades}")
         else:
             reasons.append(f"Trade count gate passed ({metrics.total_trades})")
 
         # Win rate check
         if metrics.total_trades > 0 and metrics.win_rate < config.min_win_rate:
-            blockers.append(
-                f"Win rate {metrics.win_rate:.2%} < required {config.min_win_rate:.2%}"
-            )
+            blockers.append(f"Win rate {metrics.win_rate:.2%} < required {config.min_win_rate:.2%}")
         elif metrics.total_trades > 0:
             reasons.append(f"Win rate gate passed ({metrics.win_rate:.2%})")
 
@@ -280,9 +280,7 @@ class CapitalManager:
         """Advance to the next deployment phase."""
         decision = self.evaluate_scaling()
         if not decision.can_scale:
-            raise RuntimeError(
-                f"Cannot advance: {', '.join(decision.blockers)}"
-            )
+            raise RuntimeError(f"Cannot advance: {', '.join(decision.blockers)}")
 
         # Archive current metrics
         if self.current_metrics:

@@ -203,7 +203,9 @@ class DCARiskManager:
             deal_result = self.check_deal_risk(deal_state)
             if not deal_result.is_safe:
                 all_reasons.extend(deal_result.reasons)
-                if self._action_priority(deal_result.action) > self._action_priority(highest_action):
+                if self._action_priority(deal_result.action) > self._action_priority(
+                    highest_action
+                ):
                     highest_action = deal_result.action
             all_warnings.extend(deal_result.warnings)
 
@@ -336,9 +338,7 @@ class DCARiskManager:
         warning_at = max(1, cfg.max_concurrent_deals - 1)
         if active_count >= warning_at:
             return RiskCheckResult(
-                warnings=[
-                    f"Approaching max deals ({active_count}/{cfg.max_concurrent_deals})"
-                ],
+                warnings=[f"Approaching max deals ({active_count}/{cfg.max_concurrent_deals})"],
             )
 
         return RiskCheckResult()
@@ -373,9 +373,7 @@ class DCARiskManager:
 
         return RiskCheckResult()
 
-    def check_daily_loss(
-        self, daily_pnl: Decimal | None = None
-    ) -> RiskCheckResult:
+    def check_daily_loss(self, daily_pnl: Decimal | None = None) -> RiskCheckResult:
         """Check daily realized PnL limit."""
         cfg = self._config
         pnl = daily_pnl if daily_pnl is not None else self._daily_realized_pnl
@@ -383,17 +381,13 @@ class DCARiskManager:
         if cfg.max_daily_loss > 0 and pnl < -cfg.max_daily_loss:
             return RiskCheckResult(
                 action=DCARiskAction.PAUSE,
-                reasons=[
-                    f"Daily loss exceeded ({pnl} < -{cfg.max_daily_loss})"
-                ],
+                reasons=[f"Daily loss exceeded ({pnl} < -{cfg.max_daily_loss})"],
             )
 
         warning_threshold = -cfg.max_daily_loss * Decimal("0.7")
         if cfg.max_daily_loss > 0 and pnl < warning_threshold:
             return RiskCheckResult(
-                warnings=[
-                    f"Approaching daily loss limit ({pnl} / -{cfg.max_daily_loss})"
-                ],
+                warnings=[f"Approaching daily loss limit ({pnl} / -{cfg.max_daily_loss})"],
             )
 
         return RiskCheckResult()
@@ -412,9 +406,7 @@ class DCARiskManager:
 
         return RiskCheckResult()
 
-    def check_balance(
-        self, available_balance: Decimal, total_balance: Decimal
-    ) -> RiskCheckResult:
+    def check_balance(self, available_balance: Decimal, total_balance: Decimal) -> RiskCheckResult:
         """Check minimum free balance threshold."""
         cfg = self._config
 
@@ -428,16 +420,12 @@ class DCARiskManager:
         if free_ratio < cfg.min_balance_pct:
             return RiskCheckResult(
                 action=DCARiskAction.PAUSE,
-                reasons=[
-                    f"Free balance too low ({free_ratio:.1%} < {cfg.min_balance_pct:.0%})"
-                ],
+                reasons=[f"Free balance too low ({free_ratio:.1%} < {cfg.min_balance_pct:.0%})"],
             )
 
         return RiskCheckResult()
 
-    def check_total_exposure(
-        self, deals: list[DealRiskState]
-    ) -> RiskCheckResult:
+    def check_total_exposure(self, deals: list[DealRiskState]) -> RiskCheckResult:
         """Check total exposure across all deals."""
         cfg = self._config
         total_cost = sum(d.total_cost for d in deals)
@@ -445,17 +433,13 @@ class DCARiskManager:
         if total_cost > cfg.max_total_exposure:
             return RiskCheckResult(
                 action=DCARiskAction.PAUSE,
-                reasons=[
-                    f"Total exposure exceeded ({total_cost} > {cfg.max_total_exposure})"
-                ],
+                reasons=[f"Total exposure exceeded ({total_cost} > {cfg.max_total_exposure})"],
             )
 
         warning_threshold = cfg.max_total_exposure * Decimal("0.85")
         if total_cost > warning_threshold:
             return RiskCheckResult(
-                warnings=[
-                    f"Approaching exposure limit ({total_cost} / {cfg.max_total_exposure})"
-                ],
+                warnings=[f"Approaching exposure limit ({total_cost} / {cfg.max_total_exposure})"],
             )
 
         return RiskCheckResult()
@@ -476,15 +460,17 @@ class DCARiskManager:
         change_pct = abs((current_price - previous_price) / previous_price) * 100
 
         if change_pct >= cfg.max_price_change_pct:
-            action = DCARiskAction.PAUSE if cfg.pause_on_extreme_volatility else DCARiskAction.CONTINUE
+            action = (
+                DCARiskAction.PAUSE if cfg.pause_on_extreme_volatility else DCARiskAction.CONTINUE
+            )
             return RiskCheckResult(
                 action=action,
-                reasons=[
-                    f"Extreme price change ({change_pct:.1f}% >= {cfg.max_price_change_pct}%)"
-                ] if action != DCARiskAction.CONTINUE else [],
-                warnings=[
-                    f"Extreme price change detected ({change_pct:.1f}%)"
-                ] if action == DCARiskAction.CONTINUE else [],
+                reasons=[f"Extreme price change ({change_pct:.1f}% >= {cfg.max_price_change_pct}%)"]
+                if action != DCARiskAction.CONTINUE
+                else [],
+                warnings=[f"Extreme price change detected ({change_pct:.1f}%)"]
+                if action == DCARiskAction.CONTINUE
+                else [],
             )
 
         return RiskCheckResult()
@@ -566,7 +552,10 @@ class DCARiskManager:
                 )
 
         # Daily loss
-        if self._config.max_daily_loss > 0 and self._daily_realized_pnl < -self._config.max_daily_loss:
+        if (
+            self._config.max_daily_loss > 0
+            and self._daily_realized_pnl < -self._config.max_daily_loss
+        ):
             action = DCARiskAction.PAUSE
             reasons.append("Daily loss limit already exceeded")
 

@@ -17,6 +17,7 @@ logger = get_logger(__name__)
 @dataclass
 class ValidationResult:
     """Result of a configuration validation check."""
+
     check_name: str
     passed: bool
     message: str
@@ -26,6 +27,7 @@ class ValidationResult:
 @dataclass
 class ConfigValidationReport:
     """Complete configuration validation report."""
+
     results: list[ValidationResult] = field(default_factory=list)
 
     @property
@@ -79,64 +81,80 @@ class ConfigValidator:
         results = []
 
         if risk_per_trade > self.MAX_RISK_PER_TRADE:
-            results.append(ValidationResult(
-                check_name="risk_per_trade",
-                passed=False,
-                message=f"Risk per trade {risk_per_trade} exceeds max {self.MAX_RISK_PER_TRADE}",
-                category="risk",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="risk_per_trade",
+                    passed=False,
+                    message=f"Risk per trade {risk_per_trade} exceeds max {self.MAX_RISK_PER_TRADE}",
+                    category="risk",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="risk_per_trade",
-                passed=True,
-                message=f"Risk per trade {risk_per_trade} within limits",
-                category="risk",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="risk_per_trade",
+                    passed=True,
+                    message=f"Risk per trade {risk_per_trade} within limits",
+                    category="risk",
+                )
+            )
 
         if max_exposure > self.MAX_TOTAL_EXPOSURE:
-            results.append(ValidationResult(
-                check_name="max_exposure",
-                passed=False,
-                message=f"Max exposure {max_exposure} exceeds limit {self.MAX_TOTAL_EXPOSURE}",
-                category="risk",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="max_exposure",
+                    passed=False,
+                    message=f"Max exposure {max_exposure} exceeds limit {self.MAX_TOTAL_EXPOSURE}",
+                    category="risk",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="max_exposure",
-                passed=True,
-                message=f"Max exposure {max_exposure} within limits",
-                category="risk",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="max_exposure",
+                    passed=True,
+                    message=f"Max exposure {max_exposure} within limits",
+                    category="risk",
+                )
+            )
 
         if max_daily_loss > self.MAX_DAILY_LOSS_PCT:
-            results.append(ValidationResult(
-                check_name="max_daily_loss",
-                passed=False,
-                message=f"Max daily loss {max_daily_loss} exceeds limit {self.MAX_DAILY_LOSS_PCT}",
-                category="risk",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="max_daily_loss",
+                    passed=False,
+                    message=f"Max daily loss {max_daily_loss} exceeds limit {self.MAX_DAILY_LOSS_PCT}",
+                    category="risk",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="max_daily_loss",
-                passed=True,
-                message=f"Max daily loss {max_daily_loss} within limits",
-                category="risk",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="max_daily_loss",
+                    passed=True,
+                    message=f"Max daily loss {max_daily_loss} within limits",
+                    category="risk",
+                )
+            )
 
         if min_risk_reward < self.MIN_RISK_REWARD:
-            results.append(ValidationResult(
-                check_name="min_risk_reward",
-                passed=False,
-                message=f"Min R:R {min_risk_reward} below minimum {self.MIN_RISK_REWARD}",
-                category="risk",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="min_risk_reward",
+                    passed=False,
+                    message=f"Min R:R {min_risk_reward} below minimum {self.MIN_RISK_REWARD}",
+                    category="risk",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="min_risk_reward",
-                passed=True,
-                message=f"Min R:R {min_risk_reward} meets minimum",
-                category="risk",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="min_risk_reward",
+                    passed=True,
+                    message=f"Min R:R {min_risk_reward} meets minimum",
+                    category="risk",
+                )
+            )
 
         return results
 
@@ -150,50 +168,62 @@ class ConfigValidator:
         results = []
 
         if num_levels > self.MAX_GRID_LEVELS:
-            results.append(ValidationResult(
-                check_name="grid_levels",
-                passed=False,
-                message=f"Grid levels {num_levels} exceeds max {self.MAX_GRID_LEVELS}",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="grid_levels",
+                    passed=False,
+                    message=f"Grid levels {num_levels} exceeds max {self.MAX_GRID_LEVELS}",
+                    category="strategy",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="grid_levels",
-                passed=True,
-                message=f"Grid levels {num_levels} within limits",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="grid_levels",
+                    passed=True,
+                    message=f"Grid levels {num_levels} within limits",
+                    category="strategy",
+                )
+            )
 
         total_investment = amount_per_grid * num_levels
         if total_investment > self.MAX_POSITION_SIZE_USD:
-            results.append(ValidationResult(
-                check_name="grid_total_investment",
-                passed=False,
-                message=f"Total grid investment ${total_investment} exceeds max ${self.MAX_POSITION_SIZE_USD}",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="grid_total_investment",
+                    passed=False,
+                    message=f"Total grid investment ${total_investment} exceeds max ${self.MAX_POSITION_SIZE_USD}",
+                    category="strategy",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="grid_total_investment",
-                passed=True,
-                message=f"Total grid investment ${total_investment} within limits",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="grid_total_investment",
+                    passed=True,
+                    message=f"Total grid investment ${total_investment} within limits",
+                    category="strategy",
+                )
+            )
 
         if grid_range_pct > Decimal("0.20"):
-            results.append(ValidationResult(
-                check_name="grid_range",
-                passed=False,
-                message=f"Grid range {grid_range_pct} too wide (>20%)",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="grid_range",
+                    passed=False,
+                    message=f"Grid range {grid_range_pct} too wide (>20%)",
+                    category="strategy",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="grid_range",
-                passed=True,
-                message=f"Grid range {grid_range_pct} within acceptable bounds",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="grid_range",
+                    passed=True,
+                    message=f"Grid range {grid_range_pct} within acceptable bounds",
+                    category="strategy",
+                )
+            )
 
         return results
 
@@ -208,50 +238,62 @@ class ConfigValidator:
         results = []
 
         if max_safety_orders > self.MAX_SAFETY_ORDERS:
-            results.append(ValidationResult(
-                check_name="dca_safety_orders",
-                passed=False,
-                message=f"Max safety orders {max_safety_orders} exceeds limit {self.MAX_SAFETY_ORDERS}",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="dca_safety_orders",
+                    passed=False,
+                    message=f"Max safety orders {max_safety_orders} exceeds limit {self.MAX_SAFETY_ORDERS}",
+                    category="strategy",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="dca_safety_orders",
-                passed=True,
-                message=f"Max safety orders {max_safety_orders} within limits",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="dca_safety_orders",
+                    passed=True,
+                    message=f"Max safety orders {max_safety_orders} within limits",
+                    category="strategy",
+                )
+            )
 
         max_capital = base_order_size + (safety_order_size * max_safety_orders)
         if max_capital > self.MAX_POSITION_SIZE_USD:
-            results.append(ValidationResult(
-                check_name="dca_max_capital",
-                passed=False,
-                message=f"Max DCA capital ${max_capital} exceeds limit",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="dca_max_capital",
+                    passed=False,
+                    message=f"Max DCA capital ${max_capital} exceeds limit",
+                    category="strategy",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="dca_max_capital",
-                passed=True,
-                message=f"Max DCA capital ${max_capital} within limits",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="dca_max_capital",
+                    passed=True,
+                    message=f"Max DCA capital ${max_capital} within limits",
+                    category="strategy",
+                )
+            )
 
         if take_profit_pct < Decimal("0.005"):
-            results.append(ValidationResult(
-                check_name="dca_take_profit",
-                passed=False,
-                message=f"Take profit {take_profit_pct} too low (<0.5%)",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="dca_take_profit",
+                    passed=False,
+                    message=f"Take profit {take_profit_pct} too low (<0.5%)",
+                    category="strategy",
+                )
+            )
         else:
-            results.append(ValidationResult(
-                check_name="dca_take_profit",
-                passed=True,
-                message=f"Take profit {take_profit_pct} acceptable",
-                category="strategy",
-            ))
+            results.append(
+                ValidationResult(
+                    check_name="dca_take_profit",
+                    passed=True,
+                    message=f"Take profit {take_profit_pct} acceptable",
+                    category="strategy",
+                )
+            )
 
         return results
 

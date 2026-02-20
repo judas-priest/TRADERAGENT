@@ -206,7 +206,9 @@ class MigrationRunner:
     def get_config_info(self) -> dict[str, Any]:
         """Get migration configuration info."""
         return {
-            "database_url": self._database_url[:20] + "..." if len(self._database_url) > 20 else self._database_url,
+            "database_url": self._database_url[:20] + "..."
+            if len(self._database_url) > 20
+            else self._database_url,
             "alembic_ini": str(self._alembic_ini),
             "script_location": self._script_location,
             "ini_exists": self._alembic_ini.exists(),

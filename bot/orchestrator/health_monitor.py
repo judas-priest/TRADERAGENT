@@ -172,9 +172,7 @@ class HealthMonitor:
 
         # Check error count
         if strategy.metrics.error_count >= self._thresholds.max_error_count:
-            issues.append(
-                f"High error count: {strategy.metrics.error_count}"
-            )
+            issues.append(f"High error count: {strategy.metrics.error_count}")
             status = HealthStatus.UNHEALTHY
 
         # Check consecutive errors
@@ -288,9 +286,7 @@ class HealthMonitor:
 
     def record_error(self, strategy_id: str) -> None:
         """Record an error for consecutive error tracking."""
-        self._consecutive_errors[strategy_id] = (
-            self._consecutive_errors.get(strategy_id, 0) + 1
-        )
+        self._consecutive_errors[strategy_id] = self._consecutive_errors.get(strategy_id, 0) + 1
 
     def record_success(self, strategy_id: str) -> None:
         """Record a successful operation, resetting consecutive error counter."""
