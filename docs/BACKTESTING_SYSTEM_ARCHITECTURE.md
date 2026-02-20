@@ -471,8 +471,9 @@ class SMCZone:
     price_high: float
     zone_type: Literal["order_block", "fvg", "liquidity"]
     created_at: int              # индекс свечи
-    touches: int = 0
+    touches: int = 0             # уникальные входы в зону (не per-candle!)
     max_touches: int = 2
+    _was_inside: bool = False    # трекинг перехода снаружи → внутрь (NEW-H4)
 
     @property
     def is_alive(self) -> bool:
@@ -514,10 +515,16 @@ class SMCBacktestFilter:
         self._merge_zones(new_zones)
 
     def update_touches(self, current_price: float):
-        """Обновить касания зон текущей ценой."""
+        """Обновить касания зон текущей ценой.
+
+        Исправление конфликта NEW-H4: считаем уникальные ВХОДЫ в зону
+        (переход снаружи → внутрь), а не каждую свечу внутри зоны.
+        Иначе зона умирала бы за 2 последовательные свечи."""
         for zone in self.zones:
-            if zone.price_low <= current_price <= zone.price_high:
-                zone.touches += 1
+            is_inside = zone.price_low <= current_price <= zone.price_high
+            if is_inside and not zone._was_inside:
+                zone.touches += 1  # новый вход в зону
+            zone._was_inside = is_inside
 
     def filter(self, signal: Signal, candle: pd.Series) -> Signal | None:
         """Маршрутизация фильтра по стратегии-источнику."""
@@ -561,18 +568,31 @@ class SMCBacktestFilter:
             return signal  # ENHANCED — полный размер
         elif confidence >= min_conf:
             mult = Decimal(str(self._params.get("neutral_size_mult", 0.5)))
+            # Исправление конфликта NEW-M3: проверяем жизнеспособность
+            # уменьшенной Grid-сетки (per-level qty >= min_order_size)
+            num_levels = signal.metadata.get("num_levels", 15)
+            min_order = self._params.get("min_order_size", Decimal("0.001"))
+            per_level = signal.qty * mult / num_levels
+            if per_level < min_order:
+                return None  # REJECT: сетка нежизнеспособна при уменьшенном размере
             signal.qty = signal.qty * mult
             return signal  # NEUTRAL — уменьшенный
         else:
             return None  # REJECT
 
     def _filter_single(self, signal: Signal, candle: pd.Series) -> Signal | None:
-        """Фильтрация одиночного сигнала (DCA, Trend Follower)."""
+        """Фильтрация одиночного сигнала (DCA, Trend Follower).
+
+        Исправление конфликта NEW-H3: добавлен _zone_quality() для
+        консистентности с продакшен-формулой (Algorithm 5.4):
+        confidence = decay × zone_quality (а не просто decay)."""
         nearest = self._find_nearest_alive_zone(signal.price or candle.close)
         if nearest is None:
+            # Нет зон → нейтральный. Осознанное решение (NEW-L1):
+            # отсутствие SMC-данных ≠ плохой сигнал.
             confidence = 0.5
         else:
-            confidence = nearest.confidence_decay
+            confidence = nearest.confidence_decay * self._zone_quality(nearest, signal)
 
         min_conf = self._params.get("min_confidence", 0.4)
         enhanced = self._params.get("enhanced_threshold", 0.7)
@@ -622,9 +642,14 @@ class MultiStrategyBacktest:
     - M1: HYBRID удалён, Router переключает Grid/DCA напрямую
     """
 
-    TRANSITION_TIMEOUT_CANDLES = 120  # 2 часа на 1h = 2 свечи; на 1m = 120 свечей
+    TRANSITION_TIMEOUT_HOURS = 2  # 2 часа — единица измерения одна для всех TF
 
     def __init__(self, config: MultiStrategyConfig):
+        # Исправление конфликта NEW-C2: ранее TRANSITION_TIMEOUT_CANDLES = 120
+        # был фиксированным, что давало 120 часов на 1h TF вместо 2 часов.
+        # Теперь timeout вычисляется динамически:
+        tf_minutes = config.timeframe_minutes  # 1h=60, 5m=5, 1d=1440
+        self.transition_timeout_candles = (self.TRANSITION_TIMEOUT_HOURS * 60) // tf_minutes
         self.classifier = RegimeClassifier()  # тот же что в продакшене
         self.router = StrategyRouter()        # тот же что в продакшене
         self.smc_filter = SMCBacktestFilter(config.smc_params)
@@ -655,17 +680,16 @@ class MultiStrategyBacktest:
             target = self.router.route(regime)
 
             # 4. Проверить переключение (с confirmation_counter)
+            # Исправление конфликта NEW-M1: evaluate_transition при
+            # current_regime=None немедленно возвращает True (cold start),
+            # поэтому первая стратегия назначается без задержки.
             if self.router.evaluate_transition(regime, current_regime):
-                transition_cost = self._execute_transition(
-                    current_strategy, target, candle
-                )
+                if current_strategy is not None:
+                    transition_cost = self._execute_transition(
+                        current_strategy, target, candle
+                    )
+                    self.journal.record_transition(i, candle, regime, target, transition_cost)
                 current_strategy = self.adapters[target]
-                current_regime = regime
-                self.journal.record_transition(i, candle, regime, target, transition_cost)
-
-            elif current_strategy is None:
-                # Первая свеча — инициализация
-                current_strategy = self.adapters.get(target)
                 current_regime = regime
 
             # 5. Обновить SMC-зоны (раз в N свечей)
@@ -686,8 +710,14 @@ class MultiStrategyBacktest:
                         self.exchange.execute(signal)
 
             # 7. Risk check (Emergency Halt симуляция)
+            # Исправление конфликта NEW-H1: Emergency Halt прерывает
+            # незавершённые transitions и принудительно освобождает locks.
             halt_event = self.risk_manager.check_portfolio_halt(self.exchange.state)
             if halt_event:
+                # Если transition в процессе — прервать
+                if self._transition_in_progress:
+                    self._abort_transition(candle)
+                    self.journal.record_transition_abort(i, candle, "emergency_halt")
                 self._simulate_emergency_halt(halt_event, candle)
                 self.journal.record_halt(i, candle, halt_event)
 
@@ -822,11 +852,22 @@ class PortfolioBacktest:
                     sim.allow_new_entries = True
 
                 # Portfolio-level risk check BEFORE execution
+                # Исправление NEW-H2 + NEW-M4: используем RiskModeManager
+                # с иерархией и мультипликативными модификаторами
                 total_exposure = sum(
                     s.exchange.committed_capital for s in self.pair_sims.values()
                 )
-                if not self.risk_agg.allow_portfolio(total_exposure):
+                max_exposure = self.risk_agg.get_max_exposure()  # 70% или 40% в STRESS
+                if total_exposure > self.total_capital * max_exposure:
                     continue  # skip this pair
+
+                # Исправление NEW-H5: Reserve enforcement
+                # Если committed > 90% total → мягкое сокращение
+                if total_exposure > self.total_capital * Decimal("0.90"):
+                    self.risk_agg.flag_reserve_breach(pair, sim)
+
+                # Apply size multiplier (REDUCED × STRESS = multiplicative)
+                sim.size_multiplier = self.risk_agg.get_size_multiplier()
 
                 # Execute one step
                 sim.step(candle, data[pair], ts_idx)
@@ -849,12 +890,56 @@ class PortfolioBacktest:
         return self.journal.to_portfolio_result()
 
     def _simulate_portfolio_halt(self):
-        """Emergency Halt: отменить все ордера, tight SL на все позиции."""
+        """Emergency Halt: отменить все ордера, tight SL на все позиции.
+        Исправление NEW-H1: также прерывает незавершённые transitions."""
         for sim in self.pair_sims.values():
+            if sim._transition_in_progress:
+                sim._abort_transition()
             sim.exchange.cancel_all_pending()
             for pos in list(sim.exchange.positions.values()):
                 if abs(pos.size) > 0:
                     sim.exchange.place_tight_sl(pos)
+```
+
+**BacktestRiskModeManager — иерархия режимов (NEW-H2 + NEW-M4):**
+
+```python
+class BacktestRiskModeManager:
+    """Управление режимами риска в бэктесте.
+    Порядок приоритета: HALT > REDUCED > STRESS > DRAWDOWN > NORMAL.
+    REDUCED + STRESS = мультипликативно (0.5 × 0.5 = 0.25)."""
+
+    def __init__(self):
+        self.emergency_halt = False
+        self.reduced_mode = False     # daily loss > 5%
+        self.stress_mode = False      # correlation > 0.8
+        self.drawdown_mode = False    # DD > 15% ATH
+
+    def get_size_multiplier(self) -> float:
+        if self.emergency_halt:
+            return 0.0
+        multiplier = 1.0
+        if self.reduced_mode:
+            multiplier *= 0.5
+        if self.stress_mode:
+            multiplier *= 0.5
+        return multiplier  # min = 0.25
+
+    def get_max_exposure(self) -> Decimal:
+        if self.stress_mode:
+            return Decimal("0.40")
+        return Decimal("0.70")
+
+    def flag_reserve_breach(self, pair: str, sim):
+        """NEW-H5: Reserve < 10% → пометить пару для сокращения."""
+        # Наименее приоритетная пара (min performance_factor)
+        # будет сокращена при следующей ребалансировке
+        sim.pending_reduction = True
+
+    def update(self, daily_loss: float, drawdown: float):
+        self.emergency_halt = daily_loss > 0.10
+        self.reduced_mode = daily_loss > 0.05
+        self.drawdown_mode = drawdown > 0.15
 ```
 
 **BacktestCapitalAllocator с нормализацией:**
@@ -865,7 +950,11 @@ class BacktestCapitalAllocator:
     Тот же алгоритм что в продакшене, включая нормализацию."""
 
     def allocate(self, pairs, pair_regimes, pair_performance,
-                 stress_mode=False) -> dict[str, PairAllocation]:
+                 stress_mode=False,
+                 pairs_pending_reduction: set = None) -> dict[str, PairAllocation]:
+        """Исправление NEW-H5: reserve_pct = target с enforcement.
+        Если committed > 90% total, pairs_pending_reduction содержит
+        пары для мягкого сокращения (target снижается на 50%)."""
         active_pool = self.total_capital * (1 - self.reserve_pct)
 
         # Stress mode → снизить active_pool
@@ -886,11 +975,14 @@ class BacktestCapitalAllocator:
             norm_factor = 1.0 / raw_total
             raw = {pair: alloc * norm_factor for pair, alloc in raw.items()}
 
-        # Apply per-pair cap (25%)
+        # Apply per-pair cap (25%) + reserve enforcement (NEW-H5)
         allocations = {}
         for pair in pairs:
             target = Decimal(str(raw[pair])) * active_pool
             target = min(target, active_pool * Decimal("0.25"))
+            # Reserve enforcement: мягкое сокращение при breach
+            if pairs_pending_reduction and pair in pairs_pending_reduction:
+                target *= Decimal("0.5")  # снижаем target на 50%
             allocations[pair] = PairAllocation(target=target)
 
         return allocations
@@ -1395,10 +1487,10 @@ bot/backtesting/
 ├── multi/
 │   ├── multi_strategy.py           # MultiStrategyBacktest (transition, halt)
 │   ├── portfolio.py                # PortfolioBacktest (allocation, correlation)
-│   ├── regime_classifier.py        # RegimeClassifier с гистерезисом
-│   ├── strategy_router.py          # StrategyRouter с confirmation_counter
-│   ├── capital_allocator.py        # BacktestCapitalAllocator (нормализация, cold start)
-│   ├── risk_aggregator.py          # BacktestPortfolioRisk (3-level, halt)
+│   ├── # regime_classifier.py      # НЕ СОЗДАВАТЬ — импорт из bot.coordinator (NEW-M2)
+│   ├── # strategy_router.py        # НЕ СОЗДАВАТЬ — импорт из bot.coordinator (NEW-M2)
+│   ├── capital_allocator.py        # BacktestCapitalAllocator (обёртка над coordinator)
+│   ├── risk_aggregator.py          # BacktestPortfolioRisk + BacktestRiskModeManager
 │   ├── correlation_monitor.py      # BacktestCorrelationMonitor (STRESS_MODE)
 │   └── transition.py               # TransitionCost, transition execution
 │
@@ -1564,3 +1656,21 @@ performance:
 | L1 | SMC rate limit | `recalc_interval`: пересчёт зон раз в N свечей | 5.4 |
 | NEW | Transition cost не учитывается | `TransitionCost`, `transition_penalty` slippage, `composite` objective | 4.3, 6.2, 7.4 |
 | NEW | Halt events не моделируются | `_simulate_portfolio_halt()` в PortfolioBacktest | 6.3 |
+
+### Дополнительные конфликты (Session 13 — выявлены и устранены)
+
+| # | Конфликт | Решение в бэктесте | Раздел |
+|---|----------|---------------------|--------|
+| NEW-C1 | QUIET_TRANSITION: Grid+DCA на одной паре | Одна стратегия (Grid осторожный), без одновременной работы. Исправлено в Algorithm 4.1 | A:4.1 |
+| NEW-C2 | TRANSITION_TIMEOUT_CANDLES=120 неверен для 1h+ | Динамический расчёт: `(TIMEOUT_HOURS × 60) / tf_minutes` | 6.2 |
+| NEW-H1 | Emergency Halt во время transition → deadlock | `_abort_transition()` при halt; `_simulate_portfolio_halt()` прерывает transitions | 6.2, 6.3 |
+| NEW-H2 | REDUCED MODE + STRESS MODE: 50%+50% = ? | `BacktestRiskModeManager`: мультипликативно (0.5×0.5=0.25), иерархия приоритетов | 6.3 |
+| NEW-H3 | SMC `_filter_single()` без `_zone_quality()` | Добавлен `_zone_quality()` в `_filter_single()` для консистентности с продакшеном | 5.4 |
+| NEW-H4 | SMC zone touches per-candle: зона умирает за 2 свечи | Per-entry подсчёт: `_was_inside` трекинг, инкремент только на переходе снаружи→внутрь | 5.4 |
+| NEW-H5 | Reserve 15% не обеспечивается при overcommitted | `flag_reserve_breach()` + `pairs_pending_reduction` в allocator (target × 0.5) | 6.3 |
+| NEW-M1 | 3 мин задержки первой стратегии при старте | `evaluate_transition(regime, None) → True` (cold start, немедленная инициализация) | 6.2 |
+| NEW-M2 | Дублирование кода coordinator/ vs backtesting/multi/ | backtesting импортирует из coordinator/, не создаёт копии | 11 |
+| NEW-M3 | Grid NEUTRAL = половинная сетка ниже min_order_size | Проверка `per_level >= min_order_size` в `_filter_grid()`, иначе REJECT | 5.4 |
+| NEW-M4 | Drawdown + daily loss — двойной режим без приоритета | `BacktestRiskModeManager.update()`: иерархия HALT > REDUCED > STRESS > DRAWDOWN | 6.3 |
+| NEW-L1 | SMC без зон → всегда NEUTRAL, не REJECT | Осознанное решение. Задокументировано: нет данных ≠ плохой сигнал | 5.4 |
+| NEW-L2 | MarketRegime enum: код vs спецификация | Миграция enum описана в Algorithm 13. Backtesting использует v2.0 enum | A:13 |

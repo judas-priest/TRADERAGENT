@@ -190,10 +190,15 @@ class RegimeClassifier:
 |-------|-------------------|-----------|-----------|
 | `TIGHT_RANGE` | Grid (arithmetic) | — | Trend Follower |
 | `WIDE_RANGE` | Grid (geometric) | — | — |
-| `QUIET_TRANSITION` | Grid (60% капитала) + DCA (40%) | Grid 100% | — |
+| `QUIET_TRANSITION` | Grid (осторожный, суженный range × 0.7) | DCA (осторожный) | Grid + DCA одновременно (см. 7.2) |
 | `VOLATILE_TRANSITION` | DCA (осторожный) | — | Grid без SMC фильтра |
 | `BULL_TREND` | Trend Follower (long) | — | Grid, DCA (long) |
 | `BEAR_TREND` | DCA (accumulation) | Trend Follower (short) | Grid |
+
+> **Исправление конфликта NEW-C1:** Ранее QUIET_TRANSITION назначал Grid (60%) + DCA (40%)
+> на одну пару одновременно, что противоречило правилу 7.2 (Grid + DCA на одной паре = ЗАПРЕЩЕНО).
+> Теперь используется ОДНА стратегия: Grid с суженным диапазоном (×0.7 от нормального),
+> либо DCA как резервная. Переключение через стандартный Router без одновременной работы.
 
 ### 4.2. Правила переключения
 
@@ -242,6 +247,25 @@ class StrategyRouter:
 1. `_pending_regime` отслеживает конкретного кандидата. Если режим «мерцает» (RANGE → TRANSITION → RANGE → TRANSITION), counter сбрасывается при каждом возврате к текущему.
 2. Если кандидат сменился (был TRANSITION, стал TREND), counter начинается с 1.
 3. Это исключает ложные переключения от осцилляции ADX.
+
+### 4.3. Инициализация первой стратегии (Cold Start)
+
+> **Исправление конфликта NEW-M1:** При старте системы (или после crash recovery)
+> `current_regime = None`, и стандартный `CONFIRMATION_COUNT = 3` приводит к 3-минутной задержке
+> без торговли. Это неприемлемо.
+
+```python
+class StrategyRouter:
+    def evaluate_transition(self, new_regime, current_regime) -> bool:
+        # COLD START: первая стратегия назначается немедленно
+        if current_regime is None:
+            self._last_switch_time = datetime.utcnow()
+            return True
+
+        # Далее стандартная логика с confirmation_counter...
+```
+
+**Правило:** Первая стратегия после запуска или crash recovery назначается **немедленно** без подтверждений. Все последующие переключения проходят через стандартный `CONFIRMATION_COUNT`.
 
 ---
 
@@ -336,8 +360,23 @@ class SMCGridFilter:
         if center_score >= 0.7:
             return SMCVerdict.ENHANCED  # вся сетка одобрена с полным размером
 
+        # NEUTRAL: уменьшенный размер. Но проверяем жизнеспособность:
+        # если размер ордера на уровень < min_order_size биржи, REJECT вместо NEUTRAL.
+        # (Исправление конфликта NEW-M3: «половинная сетка» может быть ниже
+        # минимального размера ордера, что сделает Grid неработоспособным.)
         return SMCVerdict.NEUTRAL  # вся сетка с уменьшенным размером
+
+    def _check_grid_viability(self, grid_qty: Decimal, num_levels: int,
+                               neutral_multiplier: float,
+                               min_order_size: Decimal) -> bool:
+        """Проверить, что Grid останется жизнеспособным после SMC NEUTRAL."""
+        per_level = grid_qty * Decimal(str(neutral_multiplier)) / num_levels
+        return per_level >= min_order_size
 ```
+
+> **Правило жизнеспособности Grid (NEW-M3):** Если SMC возвращает NEUTRAL и
+> `adjusted_qty / num_levels < exchange.min_order_size`, вердикт автоматически
+> повышается до REJECT. Лучше не ставить сетку, чем ставить нерабочую.
 
 **DCA + SMC — Фильтрация каждого safety order индивидуально:**
 - DCA хочет добавить safety order при падении на -3%
@@ -361,8 +400,9 @@ class SMCZone:
     price_high: float
     zone_type: Literal["order_block", "fvg", "liquidity"]
     created_candle: int           # индекс свечи создания
-    touches: int = 0              # сколько раз цена касалась зоны
+    touches: int = 0              # сколько раз цена ВХОДИЛА в зону (не per-candle!)
     max_touches: int = 2          # максимум касаний до «смерти»
+    _was_inside: bool = False     # трекинг перехода «снаружи → внутрь»
 
     @property
     def is_alive(self) -> bool:
@@ -377,9 +417,16 @@ class SMCZone:
         return max(0.0, 1.0 - (self.touches * 0.3))
 
     def on_price_touch(self, price: float):
-        """Вызывается когда цена входит в зону."""
-        if self.price_low <= price <= self.price_high:
-            self.touches += 1
+        """Вызывается на каждой свече. Считает УНИКАЛЬНЫЕ входы в зону,
+        а не каждую свечу внутри зоны.
+
+        Исправление конфликта NEW-H4: per-candle подсчёт был слишком
+        агрессивным — зона умирала за 2 свечи подряд внутри неё.
+        Теперь считается переход «цена была вне зоны → цена вошла в зону»."""
+        is_inside = self.price_low <= price <= self.price_high
+        if is_inside and not self._was_inside:
+            self.touches += 1  # новый вход в зону
+        self._was_inside = is_inside
 ```
 
 ```python
@@ -413,7 +460,11 @@ class SMCFilter:
         # Найти ближайшую живую зону
         zone = self._find_nearest_alive_zone(signal.price)
         if zone is None:
-            confidence = 0.5  # нет зон — нейтральный
+            # Нет зон — нейтральный (0.5). При min_confidence=0.4 сигнал
+            # пройдёт с уменьшенным размером (NEUTRAL), но не будет отклонён.
+            # Это ОСОЗНАННОЕ РЕШЕНИЕ: отсутствие SMC-данных ≠ плохой сигнал.
+            # Полный REJECT применяется только когда зона ЕСТЬ, но confidence < 0.4.
+            confidence = 0.5
         else:
             confidence = zone.confidence_decay * self._zone_quality(zone, signal)
 
@@ -554,9 +605,19 @@ class PairAllocation:
 
 - **Максимум на одну пару:** 25% от Active Pool
 - **Максимум на одну стратегию (кросс-пары):** 40% от Active Pool
-- **Минимум Reserve:** 15% всегда (даже при просадке)
+- **Reserve 15% — target с enforcement:**
+  - Allocator никогда не назначает target, нарушающий reserve
+  - Но при overcommitted (рыночное движение) reserve может быть нарушен
+  - **Enforcement:** если `committed_total > 90% × total_capital` (reserve < 10%),
+    Capital Allocator помечает наименее приоритетные пары для принудительного
+    сокращения при следующей ребалансировке (force reduce, не force close)
+  - Это мягче Emergency Halt, но защищает минимальный буфер
 - **Ребалансировка:** каждые 4 часа (совпадает с MIN_REGIME_DURATION)
 - **Emergency Halt:** если портфель упал на > 10% за сутки — протокол экстренной остановки (см. раздел 7.3)
+
+> **Исправление конфликта NEW-H5:** Ранее reserve описывался как «15% всегда»,
+> но overcommitted позиции не отменяются, и при крэше committed мог поглотить весь reserve.
+> Теперь определена граница enforcement (10% reserve = 90% committed) с мягким сокращением.
 
 ---
 
@@ -586,7 +647,53 @@ Level 3: Portfolio Risk (по всему портфелю)
 └── Drawdown > 15% от ATH → постепенное сокращение позиций
 ```
 
-### 7.2. Определение «позиции» для каждой стратегии
+### 7.2. Иерархия режимов риска и их взаимодействие
+
+> **Исправление конфликтов NEW-H2 + NEW-M4:** Ранее не было определено,
+> как REDUCED MODE и STRESS MODE взаимодействуют, и какой режим приоритетнее
+> при одновременной активации нескольких защитных механизмов.
+
+**Приоритет (от высшего к низшему):**
+
+```
+1. EMERGENCY HALT        (daily loss > 10%)  → ВСЕ остановлено, ожидание оператора
+2. REDUCED MODE          (daily loss > 5%)   → размеры × 0.5
+3. STRESS MODE           (корреляция > 0.8)  → экспозиция → 40%, размеры × 0.5
+4. DRAWDOWN REDUCTION    (DD > 15% от ATH)   → постепенное сокращение позиций
+5. NORMAL                                     → стандартные параметры
+```
+
+**Правила взаимодействия:**
+
+- EMERGENCY HALT перекрывает всё — при активации никакие другие режимы не действуют
+- REDUCED + STRESS одновременно → **мультипликативно:** `size = base × 0.5 × 0.5 = 25%`
+  (максимальная защита капитала, не "одинарный" 50%)
+- REDUCED + DRAWDOWN REDUCTION → REDUCED побеждает (более строгий)
+- STRESS + DRAWDOWN REDUCTION → оба применяются: STRESS снижает экспозицию,
+  DRAWDOWN REDUCTION дополнительно сокращает отдельные позиции
+
+```python
+class RiskModeManager:
+    """Управление взаимодействием режимов риска."""
+
+    def get_size_multiplier(self) -> float:
+        if self.emergency_halt:
+            return 0.0  # торговля остановлена
+
+        multiplier = 1.0
+        if self.reduced_mode:      # daily loss > 5%
+            multiplier *= 0.5
+        if self.stress_mode:       # high correlation
+            multiplier *= 0.5
+        return multiplier          # min = 0.25 (оба активны)
+
+    def get_max_exposure(self) -> float:
+        if self.stress_mode:
+            return 0.40  # 40% вместо 70%
+        return 0.70
+```
+
+### 7.3. Определение «позиции» для каждой стратегии
 
 > **Проблема:** правило «1 позиция на пару» несовместимо с Grid (до 30 ордеров)
 > и DCA (до 11 ордеров). Формулировку нужно уточнить.
@@ -662,6 +769,44 @@ class PerPairRisk:
 │  └── Master Loop → RESUME                                          │
 └────────────────────────────────────────────────────────────────────┘
 ```
+
+### 7.3.1. Emergency Halt во время Graceful Transition
+
+> **Исправление конфликта NEW-H1:** Если Emergency Halt срабатывает, пока
+> Graceful Transition удерживает `strategy_locks[pair]`, возникает deadlock:
+> transition ждёт закрытия позиции (до 2 часов), а halt пытается остановить всё.
+
+**Протокол взаимодействия:**
+
+```python
+class EmergencyHalt:
+    async def execute(self):
+        # 1. Прервать ВСЕ незавершённые transitions
+        for pair, lock in self.strategy_locks.items():
+            if lock.locked():
+                # Принудительное освобождение lock
+                lock.release()
+                logger.warning(f"Emergency Halt: force-released transition lock for {pair}")
+
+        # 2. Пометить все TransitionState как прерванные
+        pending = await self.state_persistence.get_pending_transitions()
+        for transition in pending:
+            transition.in_progress = False
+            transition.completed_at = datetime.utcnow()
+            transition.metadata["interrupted_by"] = "emergency_halt"
+            await self.state_persistence.save_transition(transition)
+
+        # 3. Стандартный протокол halt (cancel all, pause loops, notify)
+        await self._cancel_all_orders()
+        await self._pause_all_loops()
+        await self._notify_operator()
+```
+
+**Правила:**
+- Emergency Halt **ВСЕГДА** имеет приоритет над Graceful Transition
+- Все strategy_locks принудительно освобождаются
+- Прерванные transitions помечаются в PostgreSQL
+- При /resume: система обнаруживает прерванные transitions и выполняет crash recovery (раздел 8.2)
 
 ### 7.4. Динамическая корреляционная защита
 
@@ -1068,6 +1213,42 @@ SHUTDOWN:
 |---|----------|---------|--------|
 | L1 | SMC rate limit при быстром Strategy Loop | SMC зоны пересчитываются в Master Loop (60с), Strategy Loop использует кеш | 5.5 |
 
+### Дополнительные конфликты (Session 13 — выявлены и устранены)
+
+> Найдены при перекрёстном аудите Algorithm + Backtesting документов и сопоставлении с кодовой базой.
+
+#### CRITICAL
+
+| # | Конфликт | Решение | Раздел |
+|---|----------|---------|--------|
+| NEW-C1 | QUIET_TRANSITION: Grid+DCA на одной паре vs запрет 7.2 | Одна стратегия (Grid осторожный), DCA как резервная. Без одновременной работы | 4.1 |
+
+#### HIGH
+
+| # | Конфликт | Решение | Раздел |
+|---|----------|---------|--------|
+| NEW-H1 | Emergency Halt во время Graceful Transition → deadlock | Halt принудительно освобождает все strategy_locks, прерывает transitions | 7.3.1 |
+| NEW-H2 | REDUCED MODE + STRESS MODE: 50%+50% = ? | Мультипликативно: 0.5 × 0.5 = 0.25. Иерархия: Halt > Reduced > Stress > Drawdown | 7.2 |
+| NEW-H3 | SMC filter формула расходится (algo: decay×quality, backtest: только decay) | Единая формула: `confidence = decay × zone_quality`. Backtesting обновлён | 5.4, BT:5.4 |
+| NEW-H4 | SMC zone touch per-candle: зона умирает за 2 свечи внутри неё | Per-entry подсчёт: `_was_inside` трекинг, инкремент только на переходе снаружи→внутрь | 5.4 |
+| NEW-H5 | Reserve 15% «всегда» не обеспечивается при overcommitted | Reserve = target с enforcement: committed > 90% → мягкое сокращение наименее приоритетных пар | 6.3 |
+
+#### MEDIUM
+
+| # | Конфликт | Решение | Раздел |
+|---|----------|---------|--------|
+| NEW-M1 | Первая стратегия: 3 мин задержки (confirmation_counter) | Cold start: `current_regime == None → return True` (немедленная инициализация) | 4.3 |
+| NEW-M2 | Дублирование кода coordinator/ vs backtesting/multi/ | Backtesting импортирует из coordinator/, не дублирует | BT:11 |
+| NEW-M3 | Grid NEUTRAL от SMC = половинная сетка ниже min_order_size | `_check_grid_viability()`: если per-level < min_order_size → REJECT | 5.3 |
+| NEW-M4 | Drawdown 15% + daily loss 5-10% — двойной режим без приоритета | Иерархия режимов: Halt > Reduced > Stress > Drawdown | 7.2 |
+
+#### LOW
+
+| # | Конфликт | Решение | Раздел |
+|---|----------|---------|--------|
+| NEW-L1 | SMC без зон → confidence=0.5 → всегда NEUTRAL, не REJECT | Осознанное решение: нет данных ≠ плохой сигнал. Задокументировано | 5.4 |
+| NEW-L2 | MarketRegime enum: код (SIDEWAYS) vs спец (TIGHT_RANGE/WIDE_RANGE) | Миграция enum при реализации v2.0. Маппинг описан в 13 | 13 |
+
 ---
 
 ## 13. Компоненты для реализации
@@ -1099,6 +1280,43 @@ bot/
 - `BotOrchestrator` → делегирует решения `MasterLoop`
 - `BaseStrategy` → возвращает `Signal` с `SignalType` вместо raw dict
 - `GridStrategy` → counter-orders помечаются как `SignalType.GRID_COUNTER`
-- `RiskManager` → расширен до `RiskAggregator` с 3 уровнями
+- `RiskManager` → расширен до `RiskAggregator` с 3 уровнями + `RiskModeManager`
 - `StatePersistence` → сохраняет `TransitionState`, regime history, allocation snapshots
 - `HYBRID` стратегия → удалена (роутинг перенесён в `StrategyRouter`)
+
+### Миграция MarketRegime enum (NEW-L2)
+
+> Текущий код использует другие имена enum. При реализации v2.0 необходим маппинг:
+
+| Текущий код (market_regime.py) | v2.0 спецификация | Действие |
+|-------------------------------|-------------------|----------|
+| `SIDEWAYS` | `TIGHT_RANGE` + `WIDE_RANGE` | Разделить по ATR (< 1% = tight, ≥ 1% = wide) |
+| `TRENDING_BULLISH` | `BULL_TREND` | Переименовать |
+| `TRENDING_BEARISH` | `BEAR_TREND` | Переименовать |
+| `HIGH_VOLATILITY` | Поглощён `VOLATILE_TRANSITION` | Удалить, заменить |
+| `TRANSITIONING` | `QUIET_TRANSITION` + `VOLATILE_TRANSITION` | Разделить по ATR (< 2% = quiet, ≥ 2% = volatile) |
+| `UNKNOWN` | — | Оставить как fallback при инициализации |
+
+**Порядок миграции:**
+1. Создать новый `RegimeClassifier` в `bot/coordinator/` с v2.0 enum
+2. Обновить тесты (1859 тестов используют старые enum)
+3. `MarketRegimeDetector` → deprecated, делегирует в `RegimeClassifier`
+4. Постепенная миграция: оба enum работают параллельно через adapter
+
+### Принцип единого источника кода (NEW-M2)
+
+> Бэктестинг НЕ ДОЛЖЕН дублировать координаторные компоненты.
+
+```python
+# ПРАВИЛЬНО: backtesting импортирует из coordinator
+# bot/backtesting/multi/multi_strategy.py
+from bot.coordinator.regime_classifier import RegimeClassifier
+from bot.coordinator.strategy_router import StrategyRouter
+from bot.coordinator.capital_allocator import CapitalAllocator
+
+# НЕПРАВИЛЬНО: отдельные копии в backtesting/multi/
+# bot/backtesting/multi/regime_classifier.py  ← НЕ СОЗДАВАТЬ
+```
+
+Исключение: `SimulatedExchange` и `BacktestRiskManager` — бэктест-специфичные,
+живут только в `bot/backtesting/`.
