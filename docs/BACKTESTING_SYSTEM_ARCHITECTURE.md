@@ -4,44 +4,49 @@
 
 Текущая система бэктестинга поддерживает **только Grid-стратегию**. Но для v2.0 нужно тестировать:
 
-- Все 5 стратегий по отдельности
-- Переключения между стратегиями (режим рынка меняется)
+- Все 3 стратегии по отдельности (Grid, DCA, Trend Follower)
+- Адаптивное переключение между стратегиями (режим рынка меняется)
 - Портфельные комбинации (несколько пар с разными стратегиями)
-- SMC Filter как энхансер
-- Capital Allocator и Risk Aggregator
+- SMC Filter как энхансер с трекингом зон
+- Capital Allocator с нормализацией и committed/available capital
+- Risk Aggregator с 3-уровневой защитой, Emergency Halt, STRESS_MODE
 
-**Цель:** единый фреймворк бэктестинга, который может валидировать весь алгоритм v2.0 на исторических данных до запуска в продакшен.
+> **Примечание:** HYBRID удалён как отдельная стратегия (см. TRADERAGENT_V2_ALGORITHM.md,
+> раздел 4.1). Его функция переключения Grid/DCA теперь выполняется Strategy Router'ом.
+> Multi-Strategy Backtest полностью покрывает сценарий HYBRID.
+
+**Цель:** единый фреймворк бэктестинга, который может валидировать весь алгоритм v2.0 — включая переключения, аллокацию и риск-менеджмент — на исторических данных до запуска в продакшен.
 
 ---
 
 ## 2. Высокоуровневая архитектура
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                   BACKTESTING FRAMEWORK v2.0                     │
-│                                                                 │
-│  ┌───────────┐   ┌─────────────┐   ┌──────────────────────┐    │
-│  │  Data      │   │  Simulation │   │  Analysis &          │    │
-│  │  Pipeline  │──→│  Engine     │──→│  Reporting           │    │
-│  │            │   │             │   │                      │    │
-│  └───────────┘   └─────────────┘   └──────────────────────┘    │
-│       │                │                      │                  │
-│       ▼                ▼                      ▼                  │
-│  ┌───────────┐   ┌─────────────┐   ┌──────────────────────┐    │
-│  │ Historical │   │  Strategy   │   │  Equity Curves       │    │
-│  │ OHLCV Data │   │  Adapters   │   │  Trade Journal       │    │
-│  │ 450 CSVs   │   │  (5 types)  │   │  Metrics Dashboard   │    │
-│  │ 5.4 GB     │   │             │   │  Optimization Report │    │
-│  └───────────┘   └─────────────┘   └──────────────────────┘    │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────┐       │
-│  │              OPTIMIZATION ENGINE                      │       │
-│  │  ┌──────────┐  ┌──────────┐  ┌───────────────────┐  │       │
-│  │  │  Single   │  │  Multi   │  │  Walk-Forward     │  │       │
-│  │  │  Strategy │  │  Strategy│  │  Validation       │  │       │
-│  │  └──────────┘  └──────────┘  └───────────────────┘  │       │
-│  └──────────────────────────────────────────────────────┘       │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   BACKTESTING FRAMEWORK v2.0                             │
+│                                                                         │
+│  ┌───────────┐   ┌──────────────────┐   ┌──────────────────────┐       │
+│  │  Data      │   │  Simulation      │   │  Analysis &          │       │
+│  │  Pipeline  │──→│  Engine          │──→│  Reporting           │       │
+│  │            │   │                  │   │                      │       │
+│  └───────────┘   └──────────────────┘   └──────────────────────┘       │
+│       │                │                        │                       │
+│       ▼                ▼                        ▼                       │
+│  ┌───────────┐   ┌──────────────────┐   ┌──────────────────────┐       │
+│  │ Historical │   │  Strategy        │   │  Equity Curves       │       │
+│  │ OHLCV Data │   │  Adapters        │   │  Trade Journal       │       │
+│  │ 450 CSVs   │   │  (3 strategies   │   │  Transition Log      │       │
+│  │ 5.4 GB     │   │   + SMC filter)  │   │  Halt Events         │       │
+│  └───────────┘   └──────────────────┘   │  Correlation Report   │       │
+│                                          └──────────────────────┘       │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │              OPTIMIZATION ENGINE                              │       │
+│  │  ┌──────────┐  ┌───────────┐  ┌──────────┐  ┌───────────┐  │       │
+│  │  │  Single   │  │  Multi    │  │ Portfolio│  │Walk-Forward│  │       │
+│  │  │  Strategy │  │  Strategy │  │  Backtest│  │Validation  │  │       │
+│  │  └──────────┘  └───────────┘  └──────────┘  └───────────┘  │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -72,10 +77,10 @@ class BacktestDataLoader:
 
     def load_multi_timeframe(self, symbol: str,
                               timeframes: list[str]) -> dict[str, pd.DataFrame]:
-        """Загрузить несколько таймфреймов (для SMC и Trend Follower)."""
+        """Загрузить несколько таймфреймов (для SMC Filter: 1h + 4h)."""
 
     def precompute_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Предрассчитать индикаторы: EMA, ADX, ATR, RSI, BB, Volume ratio.
+        """Предрассчитать индикаторы: EMA(20,50), ADX(14), ATR(14), RSI(14), BB, Volume ratio.
         Выполняется один раз, результат кешируется."""
 
     def split_windows(self, df: pd.DataFrame,
@@ -108,11 +113,36 @@ data/
 
 ### 4.1. Универсальный симулятор
 
-Текущий `GridBacktestSimulator` заменяется на **универсальный**:
+Текущий `GridBacktestSimulator` заменяется на **универсальный** с поддержкой `SignalType`-маршрутизации:
+
+> **Ключевое решение конфликта C1:** SMC Filter применяется ТОЛЬКО к сигналам типа `ENTRY`.
+> Exit-сигналы (SL, TP, transition close) обходят фильтр. Grid counter-orders тоже обходят фильтр.
 
 ```python
+class SignalType(Enum):
+    """Тип сигнала определяет маршрут обработки."""
+    ENTRY = "entry"                 # Вход → проходит SMC Filter
+    EXIT_TP = "exit_tp"             # Take-Profit → обходит SMC
+    EXIT_SL = "exit_sl"             # Stop-Loss → обходит SMC
+    EXIT_TRANSITION = "exit_transition"  # Закрытие при смене стратегии → обходит SMC
+    EXIT_EMERGENCY = "exit_emergency"    # Emergency Halt → обходит SMC
+    GRID_COUNTER = "grid_counter"   # Grid counter-order → обходит SMC (часть цикла)
+
+
+@dataclass
+class Signal:
+    """Торговый сигнал от стратегии."""
+    symbol: str
+    side: Literal["buy", "sell"]
+    qty: Decimal
+    price: Decimal | None           # None = market order
+    signal_type: SignalType
+    strategy_source: str            # "grid" | "dca" | "trend"
+    metadata: dict = field(default_factory=dict)
+
+
 class UniversalSimulator:
-    """Единый симулятор для всех стратегий."""
+    """Единый симулятор для всех стратегий с маршрутизацией сигналов."""
 
     def __init__(self, config: SimulationConfig):
         self.exchange = SimulatedExchange(config)
@@ -125,30 +155,50 @@ class UniversalSimulator:
         """Главный цикл симуляции."""
         for i, candle in data.iterrows():
             # 1. Обновить SimulatedExchange (исполнить pending orders)
-            self.exchange.process_candle(candle)
+            fills = self.exchange.process_candle(candle)
 
-            # 2. Получить сигнал от стратегии
-            signal = self.strategy.evaluate(candle, self.exchange.state)
+            # 2. Обновить SMC-зоны (раз в N свечей, эмуляция Master Loop)
+            if self.smc_filter and i % self.smc_filter.recalc_interval == 0:
+                self.smc_filter.recalculate_zones(data, i)
 
-            # 3. Пропустить через SMC Filter (если включён)
-            if self.smc_filter and signal:
-                signal = self.smc_filter.filter(signal, candle)
+            # 3. Обновить касания SMC-зон текущей ценой
+            if self.smc_filter:
+                self.smc_filter.update_touches(candle.close)
 
-            # 4. Risk check
-            if signal and self.risk_manager.allow(signal):
-                self.exchange.execute(signal)
+            # 4. Получить сигнал(ы) от стратегии
+            signals = self.strategy.evaluate(candle, self.exchange.state)
 
-            # 5. Записать состояние
+            # 5. Маршрутизация каждого сигнала
+            for signal in (signals if isinstance(signals, list) else [signals]):
+                if signal is None:
+                    continue
+                signal = self._route_signal(signal, candle)
+                if signal and self.risk_manager.allow(signal, self.exchange.state):
+                    self.exchange.execute(signal)
+
+            # 6. Записать состояние
             self.journal.record(candle, self.exchange.state)
 
         return self.journal.to_result()
+
+    def _route_signal(self, signal: Signal, candle: pd.Series) -> Signal | None:
+        """Маршрутизация сигнала через SMC Filter на основе SignalType."""
+
+        # ТОЛЬКО entry-сигналы проходят через SMC
+        if signal.signal_type == SignalType.ENTRY and self.smc_filter:
+            return self.smc_filter.filter(signal, candle)
+
+        # Все остальные типы — прямое исполнение без фильтрации:
+        # EXIT_TP, EXIT_SL, EXIT_TRANSITION, EXIT_EMERGENCY, GRID_COUNTER
+        return signal
 ```
 
 ### 4.2. SimulatedExchange — Имитация биржи
 
 ```python
 class SimulatedExchange:
-    """Реалистичная симуляция биржевого исполнения."""
+    """Реалистичная симуляция биржевого исполнения
+    с трекингом committed capital."""
 
     def __init__(self, config: SimulationConfig):
         self.balance = config.initial_capital
@@ -158,20 +208,55 @@ class SimulatedExchange:
         self.fee_rate = config.fee_rate           # default: 0.075% (Bybit taker)
         self.slippage_model = config.slippage      # "none" | "fixed" | "volume_based"
 
-    def process_candle(self, candle: pd.Series):
-        """Проверяет исполнение pending orders по high/low свечи."""
-        for order in self.pending_orders:
-            if order.side == "buy" and candle.low <= order.price:
-                self._fill(order, fill_price=order.price, candle=candle)
-            elif order.side == "sell" and candle.high >= order.price:
-                self._fill(order, fill_price=order.price, candle=candle)
+    @property
+    def committed_capital(self) -> Decimal:
+        """Капитал, залоченный в открытых позициях и pending ордерах."""
+        in_positions = sum(
+            abs(p.size * p.entry_price) for p in self.positions.values()
+        )
+        in_orders = sum(
+            abs(o.qty * o.price) for o in self.pending_orders
+        )
+        return in_positions + in_orders
 
-    def _fill(self, order, fill_price, candle):
+    @property
+    def available_capital(self) -> Decimal:
+        """Капитал, доступный для новых ордеров."""
+        return max(Decimal(0), self.balance - self.committed_capital)
+
+    def process_candle(self, candle: pd.Series) -> list[Fill]:
+        """Проверяет исполнение pending orders по high/low свечи.
+        Возвращает список fills для атрибуции."""
+        fills = []
+        for order in list(self.pending_orders):
+            if order.side == "buy" and candle.low <= order.price:
+                fill = self._fill(order, fill_price=order.price, candle=candle)
+                fills.append(fill)
+            elif order.side == "sell" and candle.high >= order.price:
+                fill = self._fill(order, fill_price=order.price, candle=candle)
+                fills.append(fill)
+        return fills
+
+    def _fill(self, order, fill_price, candle) -> Fill:
         """Исполнить ордер с учётом комиссии и проскальзывания."""
         slippage = self._calc_slippage(order, candle)
         actual_price = fill_price + slippage
         fee = abs(order.qty * actual_price) * self.fee_rate
-        # Обновить balance, positions...
+        self.balance -= fee
+        self.pending_orders.remove(order)
+        self.filled_orders.append(order)
+        # Обновить positions...
+        return Fill(order=order, price=actual_price, fee=fee)
+
+    def cancel_all_pending(self, symbol: str = None) -> list[Order]:
+        """Отменить все pending ордера. Используется при transition и halt."""
+        to_cancel = [
+            o for o in self.pending_orders
+            if symbol is None or o.symbol == symbol
+        ]
+        for order in to_cancel:
+            self.pending_orders.remove(order)
+        return to_cancel
 ```
 
 ### 4.3. Модели проскальзывания
@@ -195,21 +280,31 @@ class SlippageModel:
         """Проскальзывание пропорционально order_size / candle_volume."""
         participation = (order.qty * order.price) / (candle.volume * candle.close)
         return order.price * participation * impact
+
+    @staticmethod
+    def transition_penalty(order, candle, base_bps: float = 3.0) -> float:
+        """Повышенное проскальзывание при принудительном закрытии (transition/halt).
+        Моделирует market impact спешного выхода."""
+        return order.price * (base_bps / 10000)
 ```
 
 ---
 
 ## 5. Strategy Adapters — Адаптеры стратегий
 
-Каждая стратегия имеет бэктест-адаптер, реализующий единый интерфейс:
+### 5.0. Базовый интерфейс
+
+Каждая стратегия имеет бэктест-адаптер, возвращающий `Signal` с `SignalType`:
 
 ```python
 class BaseBacktestStrategy(ABC):
     """Единый интерфейс для всех стратегий в бэктесте."""
 
     @abstractmethod
-    def evaluate(self, candle: pd.Series, state: ExchangeState) -> Signal | None:
-        """Получить торговый сигнал на основе текущей свечи."""
+    def evaluate(self, candle: pd.Series,
+                 state: ExchangeState) -> Signal | list[Signal] | None:
+        """Получить торговый сигнал(ы) на основе текущей свечи.
+        Каждый Signal содержит signal_type для маршрутизации через SMC Filter."""
 
     @abstractmethod
     def get_parameter_space(self) -> dict[str, list]:
@@ -218,6 +313,22 @@ class BaseBacktestStrategy(ABC):
     @abstractmethod
     def from_params(self, params: dict) -> "BaseBacktestStrategy":
         """Создать экземпляр с указанными параметрами."""
+
+    def on_transition_out(self, state: ExchangeState) -> list[Signal]:
+        """Вызывается при переключении НА ДРУГУЮ стратегию.
+        Возвращает exit-сигналы для закрытия позиций текущей стратегии.
+        По умолчанию: force close all."""
+        signals = []
+        for pos in state.open_positions:
+            signals.append(Signal(
+                symbol=pos.symbol,
+                side="sell" if pos.side == "long" else "buy",
+                qty=abs(pos.size),
+                price=None,  # market
+                signal_type=SignalType.EXIT_TRANSITION,
+                strategy_source=self.name,
+            ))
+        return signals
 ```
 
 ### 5.1. Grid Adapter
@@ -225,7 +336,13 @@ class BaseBacktestStrategy(ABC):
 ```python
 class GridBacktestAdapter(BaseBacktestStrategy):
     """Адаптер Grid-стратегии для бэктестинга.
-    Переиспользует существующий GridCalculator и GridOrderManager."""
+    Переиспользует существующий GridCalculator и GridOrderManager.
+
+    Grid counter-orders помечаются как GRID_COUNTER → обходят SMC Filter.
+    Это предотвращает 'сетку с дырками', когда SMC отклоняет
+    отдельные уровни и ломает Grid-цикл.
+    """
+    name = "grid"
 
     params = {
         "num_levels": [8, 10, 12, 15, 20, 25, 30],
@@ -234,17 +351,59 @@ class GridBacktestAdapter(BaseBacktestStrategy):
         "range_factor": [1.0, 1.5, 2.0, 2.5],  # множитель ATR для диапазона
     }
 
-    def evaluate(self, candle, state):
-        # Проверить заполненные уровни
-        # Разместить counter-orders
-        # Detect cycle completion
+    def evaluate(self, candle, state) -> list[Signal]:
+        signals = []
+
+        if not self._grid_initialized:
+            # Первичная установка сетки → ENTRY (пройдёт SMC Grid-фильтр)
+            signals.append(Signal(
+                signal_type=SignalType.ENTRY,
+                strategy_source="grid",
+                metadata={"grid_center": candle.close, "grid_range": self._calc_range()},
+                # ...
+            ))
+        else:
+            # Проверить fills и создать counter-orders
+            for fill in state.recent_fills:
+                counter = self._create_counter_order(fill)
+                counter.signal_type = SignalType.GRID_COUNTER  # обходит SMC!
+                signals.append(counter)
+
+            # Проверить SL для всей сетки
+            if self._grid_sl_hit(candle):
+                signals.append(Signal(
+                    signal_type=SignalType.EXIT_SL,  # обходит SMC!
+                    # ...
+                ))
+
+        return signals
+
+    def on_transition_out(self, state) -> list[Signal]:
+        """При переключении: отменить все Grid-ордера, закрыть net позицию."""
+        # Pending ордера отменяются SimulatedExchange.cancel_all_pending()
+        # Здесь закрываем net позицию если есть
+        net = state.get_net_position(self._symbol)
+        if net and abs(net.size) > 0:
+            return [Signal(
+                signal_type=SignalType.EXIT_TRANSITION,
+                side="sell" if net.size > 0 else "buy",
+                qty=abs(net.size),
+                price=None,  # market
+                strategy_source="grid",
+            )]
+        return []
 ```
 
 ### 5.2. DCA Adapter
 
 ```python
 class DCABacktestAdapter(BaseBacktestStrategy):
-    """Адаптер DCA-стратегии."""
+    """Адаптер DCA-стратегии.
+
+    Определение 'позиции' для DCA: 1 deal = base order + safety orders.
+    Risk Aggregator разрешает max 1 deal на пару.
+    """
+    name = "dca"
 
     params = {
         "base_order_pct": [0.01, 0.02, 0.03],           # % капитала на базовый ордер
@@ -257,17 +416,25 @@ class DCABacktestAdapter(BaseBacktestStrategy):
         "confluence_threshold": [0.4, 0.5, 0.6, 0.7],
     }
 
-    def evaluate(self, candle, state):
+    def evaluate(self, candle, state) -> Signal | None:
         # Рассчитать confluence score (EMA, ADX, RSI, BB, Volume)
-        # Если score >= threshold → сигнал на вход / safety order
-        # Проверить TP / trailing stop
+        # Base order → signal_type = ENTRY (проходит SMC Filter)
+        # Safety orders → signal_type = ENTRY (проходит SMC Filter)
+        # Take-Profit → signal_type = EXIT_TP (обходит SMC!)
+        # Trailing stop → signal_type = EXIT_SL (обходит SMC!)
+        ...
 ```
 
 ### 5.3. Trend Follower Adapter
 
 ```python
 class TrendFollowerBacktestAdapter(BaseBacktestStrategy):
-    """Адаптер Trend Follower."""
+    """Адаптер Trend Follower.
+
+    Определение 'позиции': 1 направление на пару.
+    Нельзя одновременно long и short.
+    """
+    name = "trend"
 
     params = {
         "ema_fast": [10, 12, 20],
@@ -281,36 +448,47 @@ class TrendFollowerBacktestAdapter(BaseBacktestStrategy):
         "trend_confirmation_candles": [2, 3, 5],
     }
 
-    def evaluate(self, candle, state):
-        # Проверить EMA crossover (fast > slow = bullish)
-        # Подтвердить RSI
-        # Рассчитать SL/TP по ATR
-        # Управлять trailing stop
+    def evaluate(self, candle, state) -> Signal | None:
+        # EMA crossover → signal_type = ENTRY (проходит SMC)
+        # ATR-based Stop-Loss → signal_type = EXIT_SL (обходит SMC!)
+        # ATR-based Take-Profit → signal_type = EXIT_TP (обходит SMC!)
+        # Trailing stop update → signal_type = EXIT_SL (обходит SMC!)
+        ...
 ```
 
-### 5.4. Hybrid Adapter
+### 5.4. SMC Filter — Бэктест-версия с трекингом зон
+
+> **Решённые конфликты:**
+> - Grid фильтруется на уровне ВСЕЙ сетки, не отдельных ордеров (H3)
+> - Зоны трекают касания и теряют confidence (M4)
+> - Пересчёт зон раз в N свечей, а не на каждой итерации (L1)
 
 ```python
-class HybridBacktestAdapter(BaseBacktestStrategy):
-    """Адаптер Hybrid — автопереключение Grid/DCA в рамках бэктеста."""
+@dataclass
+class SMCZone:
+    """Зона SMC с трекингом здоровья."""
+    price_low: float
+    price_high: float
+    zone_type: Literal["order_block", "fvg", "liquidity"]
+    created_at: int              # индекс свечи
+    touches: int = 0
+    max_touches: int = 2
 
-    params = {
-        "adx_threshold": [20, 25, 30],
-        "grid_allocation_pct": [0.5, 0.6, 0.7],
-        "dca_allocation_pct": [0.2, 0.3, 0.4],
-        # + все параметры Grid и DCA
-    }
+    @property
+    def is_alive(self) -> bool:
+        return self.touches < self.max_touches
 
-    def evaluate(self, candle, state):
-        # Определить режим по ADX
-        # Делегировать Grid или DCA sub-adapter
-```
+    @property
+    def confidence_decay(self) -> float:
+        """touch 0 → 1.0, touch 1 → 0.7, touch 2+ → dead (0.0)"""
+        if not self.is_alive:
+            return 0.0
+        return max(0.0, 1.0 - self.touches * 0.3)
 
-### 5.5. SMC Filter Adapter
 
-```python
 class SMCBacktestFilter:
-    """SMC как фильтр для бэктестинга. Работает поверх любой стратегии."""
+    """SMC как фильтр для бэктестинга. Работает поверх любой стратегии.
+    Различает Grid (фильтр всей сетки) и другие стратегии (фильтр отдельных сигналов)."""
 
     params = {
         "ob_lookback": [50, 100, 200],         # свечей для поиска Order Blocks
@@ -320,9 +498,96 @@ class SMCBacktestFilter:
         "neutral_size_mult": [0.3, 0.5, 0.7],
     }
 
+    def __init__(self, params: dict):
+        self.zones: list[SMCZone] = []
+        self.recalc_interval: int = 60  # каждые 60 свечей (эмуляция Master Loop 60 сек)
+        self._params = params
+
+    def recalculate_zones(self, data: pd.DataFrame, current_idx: int):
+        """Пересчитать зоны. Вызывается раз в recalc_interval свечей."""
+        self._prune_dead_zones()
+        lookback = self._params.get("ob_lookback", 100)
+        start = max(0, current_idx - lookback)
+        window = data.iloc[start:current_idx]
+        new_zones = self._find_order_blocks(window)
+        new_zones += self._find_fvg(window)
+        self._merge_zones(new_zones)
+
+    def update_touches(self, current_price: float):
+        """Обновить касания зон текущей ценой."""
+        for zone in self.zones:
+            if zone.price_low <= current_price <= zone.price_high:
+                zone.touches += 1
+
     def filter(self, signal: Signal, candle: pd.Series) -> Signal | None:
-        # Проверить: сигнал совпадает с Order Block или FVG?
-        # Вернуть: ENHANCED / NEUTRAL (уменьшенный) / REJECT (None)
+        """Маршрутизация фильтра по стратегии-источнику."""
+
+        # Grid: фильтруем ВСЮ сетку целиком (не отдельные ордера)
+        if signal.strategy_source == "grid" and "grid_range" in signal.metadata:
+            return self._filter_grid(signal, candle)
+
+        # DCA, Trend: фильтруем отдельный сигнал
+        return self._filter_single(signal, candle)
+
+    def _filter_grid(self, signal: Signal, candle: pd.Series) -> Signal | None:
+        """Фильтрация Grid: оценка всей сетки как единого целого.
+        Предотвращает 'сетку с дырками'."""
+        grid_range = signal.metadata["grid_range"]
+        grid_center = signal.metadata.get("grid_center", candle.close)
+
+        zones_in_range = [
+            z for z in self.zones
+            if z.is_alive and self._overlaps(z, grid_range)
+        ]
+
+        # Проверить ликвидность, пересекающую > 30% сетки
+        liquidity_zones = [z for z in zones_in_range if z.zone_type == "liquidity"]
+        liquidity_coverage = self._calc_coverage(liquidity_zones, grid_range)
+        if liquidity_coverage > 0.3:
+            return None  # REJECT вся сетка
+
+        # Оценить качество центра сетки
+        support_zones = [z for z in zones_in_range if z.zone_type in ("order_block", "fvg")]
+        if support_zones:
+            best_zone = max(support_zones, key=lambda z: z.confidence_decay)
+            confidence = best_zone.confidence_decay
+        else:
+            confidence = 0.5  # нет зон — нейтральный
+
+        min_conf = self._params.get("min_confidence", 0.4)
+        enhanced = self._params.get("enhanced_threshold", 0.7)
+
+        if confidence >= enhanced:
+            return signal  # ENHANCED — полный размер
+        elif confidence >= min_conf:
+            mult = Decimal(str(self._params.get("neutral_size_mult", 0.5)))
+            signal.qty = signal.qty * mult
+            return signal  # NEUTRAL — уменьшенный
+        else:
+            return None  # REJECT
+
+    def _filter_single(self, signal: Signal, candle: pd.Series) -> Signal | None:
+        """Фильтрация одиночного сигнала (DCA, Trend Follower)."""
+        nearest = self._find_nearest_alive_zone(signal.price or candle.close)
+        if nearest is None:
+            confidence = 0.5
+        else:
+            confidence = nearest.confidence_decay
+
+        min_conf = self._params.get("min_confidence", 0.4)
+        enhanced = self._params.get("enhanced_threshold", 0.7)
+
+        if confidence >= enhanced:
+            return signal
+        elif confidence >= min_conf:
+            mult = Decimal(str(self._params.get("neutral_size_mult", 0.5)))
+            signal.qty = signal.qty * mult
+            return signal
+        else:
+            return None
+
+    def _prune_dead_zones(self):
+        self.zones = [z for z in self.zones if z.is_alive]
 ```
 
 ---
@@ -338,78 +603,311 @@ Input:  BTC/USDT 1h, 2024-01-01 to 2025-12-31, Grid strategy
 Output: ROI, Sharpe, Calmar, Max Drawdown, Win Rate, Trade Count
 ```
 
-### 6.2. Multi-Strategy Backtest (НОВОЕ)
+Использует `UniversalSimulator` с одним адаптером. SMC Filter опционален.
 
-Тестирует переключение стратегий по режиму рынка — **это ключевое нововведение**:
+### 6.2. Multi-Strategy Backtest — Симуляция полного алгоритма v2.0
+
+> **Ключевое нововведение.** Заменяет отдельный Hybrid-адаптер.
+> Использует тот же RegimeClassifier и StrategyRouter что и продакшен,
+> с полным гистерезисом и исправленным confirmation_counter.
 
 ```python
 class MultiStrategyBacktest:
-    """Симуляция полного алгоритма v2.0 на исторических данных."""
+    """Симуляция полного алгоритма v2.0 на исторических данных.
+
+    Решённые конфликты:
+    - H7: confirmation_counter со сбросом при возврате к текущему режиму
+    - M3: гистерезис встроен в RegimeClassifier (единый источник истины)
+    - H9: таймаут на transition (2 часа в свечах)
+    - M1: HYBRID удалён, Router переключает Grid/DCA напрямую
+    """
+
+    TRANSITION_TIMEOUT_CANDLES = 120  # 2 часа на 1h = 2 свечи; на 1m = 120 свечей
+
+    def __init__(self, config: MultiStrategyConfig):
+        self.classifier = RegimeClassifier()  # тот же что в продакшене
+        self.router = StrategyRouter()        # тот же что в продакшене
+        self.smc_filter = SMCBacktestFilter(config.smc_params)
+        self.exchange = SimulatedExchange(config)
+        self.risk_manager = BacktestRiskManager(config)
+        self.journal = MultiStrategyJournal()
+
+        # Адаптеры стратегий
+        self.adapters = {
+            "grid": GridBacktestAdapter(config.grid_params),
+            "dca": DCABacktestAdapter(config.dca_params),
+            "trend": TrendFollowerBacktestAdapter(config.trend_params),
+        }
 
     def run(self, data: pd.DataFrame, pair: str) -> BacktestResult:
-        regime_classifier = RegimeClassifier()
-        strategy_router = StrategyRouter()
         current_strategy = None
+        current_regime = None
 
         for i, candle in data.iterrows():
-            # 1. Определить режим (как в Master Loop)
-            regime = regime_classifier.classify(candle)
+            # 1. Исполнить pending orders
+            self.exchange.process_candle(candle)
 
-            # 2. Выбрать стратегию
-            target_strategy = strategy_router.route(regime)
+            # 2. Определить режим (с гистерезисом)
+            snapshot = self._build_snapshot(candle, data, i)
+            regime = self.classifier.classify(snapshot, current_regime)
 
-            # 3. Переключить если нужно (с гистерезисом)
-            if target_strategy != current_strategy:
-                if self._confirm_transition(regime):
-                    self._graceful_transition(current_strategy, target_strategy)
-                    current_strategy = target_strategy
+            # 3. Определить целевую стратегию
+            target = self.router.route(regime)
 
-            # 4. Выполнить стратегию
-            signal = current_strategy.evaluate(candle, state)
-            # ... SMC filter, risk check, execute
+            # 4. Проверить переключение (с confirmation_counter)
+            if self.router.evaluate_transition(regime, current_regime):
+                transition_cost = self._execute_transition(
+                    current_strategy, target, candle
+                )
+                current_strategy = self.adapters[target]
+                current_regime = regime
+                self.journal.record_transition(i, candle, regime, target, transition_cost)
+
+            elif current_strategy is None:
+                # Первая свеча — инициализация
+                current_strategy = self.adapters.get(target)
+                current_regime = regime
+
+            # 5. Обновить SMC-зоны (раз в N свечей)
+            if i % self.smc_filter.recalc_interval == 0:
+                self.smc_filter.recalculate_zones(data, i)
+            self.smc_filter.update_touches(candle.close)
+
+            # 6. Выполнить стратегию
+            if current_strategy:
+                signals = current_strategy.evaluate(candle, self.exchange.state)
+                for signal in self._ensure_list(signals):
+                    if signal is None:
+                        continue
+                    # Маршрутизация через SMC (только ENTRY)
+                    if signal.signal_type == SignalType.ENTRY:
+                        signal = self.smc_filter.filter(signal, candle)
+                    if signal and self.risk_manager.allow(signal, self.exchange.state):
+                        self.exchange.execute(signal)
+
+            # 7. Risk check (Emergency Halt симуляция)
+            halt_event = self.risk_manager.check_portfolio_halt(self.exchange.state)
+            if halt_event:
+                self._simulate_emergency_halt(halt_event, candle)
+                self.journal.record_halt(i, candle, halt_event)
+
+            # 8. Журнал
+            self.journal.record(candle, self.exchange.state, current_regime)
+
+        return self.journal.to_result()
+
+    def _execute_transition(self, old_strategy, new_target, candle) -> TransitionCost:
+        """Симуляция Graceful Transition с учётом стоимости переключения."""
+        cost = TransitionCost()
+
+        if old_strategy:
+            # 1. Отменить pending ордера
+            cancelled = self.exchange.cancel_all_pending()
+            cost.cancelled_orders = len(cancelled)
+
+            # 2. Получить exit-сигналы от старой стратегии
+            exit_signals = old_strategy.on_transition_out(self.exchange.state)
+            for signal in exit_signals:
+                # Exit при transition → повышенное проскальзывание
+                signal.metadata["slippage_model"] = "transition_penalty"
+                self.exchange.execute(signal)
+                cost.forced_closes += 1
+                cost.transition_slippage += signal.metadata.get("actual_slippage", 0)
+
+        return cost
+
+    def _simulate_emergency_halt(self, halt_event, candle):
+        """Симуляция Emergency Halt в бэктесте.
+
+        В продакшене оператор выбирает действие. В бэктесте моделируем
+        default поведение: отменить ордера + tight SL (1.5× ATR)."""
+        self.exchange.cancel_all_pending()
+        for pos in list(self.exchange.positions.values()):
+            if abs(pos.size) > 0:
+                atr = candle.get("atr_14", candle.close * 0.02)
+                tight_sl = pos.entry_price - (1.5 * atr) if pos.side == "long" \
+                    else pos.entry_price + (1.5 * atr)
+                self.exchange.place_sl(pos.symbol, tight_sl)
 ```
 
-Это позволяет **сравнить**:
-- "Всегда Grid" vs "Всегда DCA" vs "Адаптивное переключение"
-- Найти оптимальные пороги переключения (ADX thresholds)
-- Измерить стоимость ложных переключений (flip-flop)
+**Что позволяет Multi-Strategy Backtest сравнить:**
 
-### 6.3. Portfolio Backtest (НОВОЕ)
+```
+1. "Всегда Grid" vs "Всегда DCA" vs "Всегда Trend" vs "Адаптивное v2.0"
+2. Оптимальные пороги гистерезиса (ADX_ENTER_TRENDING, ADX_EXIT_TRENDING)
+3. Оптимальный CONFIRMATION_COUNT (2, 3, 5)
+4. Стоимость ложных переключений (transition_cost: slippage + forced closes)
+5. Стоимость Emergency Halt событий
+6. Влияние SMC Filter на общий P&L (с фильтром vs без)
+```
 
-Тестирует весь портфель — несколько пар одновременно:
+### 6.3. Portfolio Backtest — Симуляция портфеля
+
+> **Решённые конфликты:**
+> - H5: Capital Allocator с нормализацией (сумма = 100% Active Pool)
+> - H6: committed/available capital (overcommitted = no new orders)
+> - H8: Dynamic Correlation Monitor + STRESS_MODE
+> - C2: Emergency Halt с 3-stage протоколом
+> - M2: Cold start performance_factor = 0.8
 
 ```python
 class PortfolioBacktest:
-    """Симуляция портфеля из нескольких пар с Capital Allocator."""
+    """Симуляция портфеля из нескольких пар.
+    Моделирует Capital Allocator, Risk Aggregator, Dynamic Correlation."""
 
-    def run(self, pairs: list[str], data: dict[str, pd.DataFrame]) -> PortfolioResult:
-        allocator = CapitalAllocator(total_capital=100_000)
-        risk_agg = PortfolioRiskAggregator()
+    def __init__(self, config: PortfolioConfig):
+        self.total_capital = config.initial_capital
+        self.reserve_pct = Decimal("0.15")
+        self.allocator = BacktestCapitalAllocator(config)
+        self.risk_agg = BacktestPortfolioRisk(config)
+        self.correlation_monitor = BacktestCorrelationMonitor()
+
+        # Per-pair simulators
+        self.pair_sims: dict[str, MultiStrategyBacktest] = {}
+
+    def run(self, pairs: list[str],
+            data: dict[str, pd.DataFrame]) -> PortfolioResult:
 
         # Синхронизировать свечи по timestamp
         timeline = self._merge_timelines(data)
 
-        for timestamp in timeline:
-            # 1. Capital Allocation per pair
-            allocations = allocator.allocate(pair_regimes, pair_performance)
+        # Инициализировать per-pair симуляторы
+        for pair in pairs:
+            self.pair_sims[pair] = MultiStrategyBacktest(self._pair_config(pair))
 
-            # 2. Per-pair strategy execution
+        pair_performance: dict[str, PairPerformance] = {}
+        rebalance_counter = 0
+
+        for ts_idx, timestamp in enumerate(timeline):
+
+            # === РЕБАЛАНСИРОВКА (каждые 240 свечей ~ 4 часа на 1h) ===
+            rebalance_counter += 1
+            if rebalance_counter >= 240:
+                rebalance_counter = 0
+
+                # Dynamic Correlation Check
+                returns_24h = self._calc_returns_24h(data, pairs, ts_idx)
+                stress = self.correlation_monitor.check(pairs, returns_24h)
+                if stress == StressLevel.HIGH:
+                    self.risk_agg.enter_stress_mode()
+                    # Суммарная экспозиция → 40% вместо 70%
+                else:
+                    self.risk_agg.exit_stress_mode()
+
+                # Capital Allocation с нормализацией
+                pair_regimes = {
+                    p: self.pair_sims[p].current_regime for p in pairs
+                }
+                allocations = self.allocator.allocate(
+                    pairs, pair_regimes, pair_performance,
+                    stress_mode=self.risk_agg.stress_mode
+                )
+                for pair in pairs:
+                    alloc = allocations[pair]
+                    alloc.committed = self.pair_sims[pair].exchange.committed_capital
+                    self.pair_sims[pair].set_allocation(alloc)
+
+            # === PER-PAIR EXECUTION ===
             for pair in pairs:
+                if pair not in data or timestamp not in data[pair].index:
+                    continue
+
                 candle = data[pair].loc[timestamp]
-                signal = strategies[pair].evaluate(candle, states[pair])
+                sim = self.pair_sims[pair]
 
-                # 3. Portfolio-level risk check
-                if risk_agg.allow(signal, total_exposure):
-                    execute(signal, allocations[pair])
+                # Check: overcommitted → skip new orders
+                if sim.allocation and sim.allocation.overcommitted:
+                    sim.allow_new_entries = False
+                else:
+                    sim.allow_new_entries = True
 
-            # 4. Portfolio metrics
-            portfolio_equity.append(sum(pair_equities))
+                # Portfolio-level risk check BEFORE execution
+                total_exposure = sum(
+                    s.exchange.committed_capital for s in self.pair_sims.values()
+                )
+                if not self.risk_agg.allow_portfolio(total_exposure):
+                    continue  # skip this pair
+
+                # Execute one step
+                sim.step(candle, data[pair], ts_idx)
+
+                # Update performance
+                pair_performance[pair] = sim.get_performance()
+
+            # === PORTFOLIO METRICS ===
+            portfolio_equity = sum(
+                s.exchange.balance for s in self.pair_sims.values()
+            )
+            self.journal.record_portfolio(timestamp, portfolio_equity, allocations)
+
+            # === EMERGENCY HALT CHECK ===
+            daily_loss = self._calc_daily_loss(portfolio_equity)
+            if daily_loss > 0.10:  # > 10%
+                self._simulate_portfolio_halt()
+                self.journal.record_halt(timestamp, daily_loss)
+
+        return self.journal.to_portfolio_result()
+
+    def _simulate_portfolio_halt(self):
+        """Emergency Halt: отменить все ордера, tight SL на все позиции."""
+        for sim in self.pair_sims.values():
+            sim.exchange.cancel_all_pending()
+            for pos in list(sim.exchange.positions.values()):
+                if abs(pos.size) > 0:
+                    sim.exchange.place_tight_sl(pos)
 ```
 
-Это позволяет:
-- Увидеть диверсификационный эффект (портфель vs отдельные пары)
-- Протестировать корреляционные лимиты
-- Найти оптимальное количество пар и аллокацию
+**BacktestCapitalAllocator с нормализацией:**
+
+```python
+class BacktestCapitalAllocator:
+    """Capital Allocator для бэктеста.
+    Тот же алгоритм что в продакшене, включая нормализацию."""
+
+    def allocate(self, pairs, pair_regimes, pair_performance,
+                 stress_mode=False) -> dict[str, PairAllocation]:
+        active_pool = self.total_capital * (1 - self.reserve_pct)
+
+        # Stress mode → снизить active_pool
+        if stress_mode:
+            active_pool *= Decimal("0.57")  # 40% / 70% ≈ 0.57 от нормальной экспозиции
+
+        # Raw allocations
+        raw = {}
+        for pair in pairs:
+            w = self._pair_weight(pair)
+            c = self._regime_confidence(pair_regimes.get(pair))
+            p = self._performance_factor(pair_performance.get(pair))
+            raw[pair] = w * c * p
+
+        # НОРМАЛИЗАЦИЯ: сумма не превышает active_pool
+        raw_total = sum(raw.values())
+        if raw_total > 1.0:
+            norm_factor = 1.0 / raw_total
+            raw = {pair: alloc * norm_factor for pair, alloc in raw.items()}
+
+        # Apply per-pair cap (25%)
+        allocations = {}
+        for pair in pairs:
+            target = Decimal(str(raw[pair])) * active_pool
+            target = min(target, active_pool * Decimal("0.25"))
+            allocations[pair] = PairAllocation(target=target)
+
+        return allocations
+
+    def _performance_factor(self, perf) -> float:
+        """Cold start: factor = 0.8 при < 10 сделок (не 0.0 → не deadlock)."""
+        if perf is None or perf.total_trades < 10:
+            return 0.8
+        if perf.win_rate > 0.60:
+            return 1.2
+        elif perf.win_rate > 0.40:
+            return 1.0
+        elif perf.win_rate > 0.25:
+            return 0.6
+        else:
+            return 0.0  # отключение при >= 10 сделок и win_rate < 25%
+```
 
 ---
 
@@ -450,7 +948,36 @@ Phase 3: Walk-Forward Validation (проверка устойчивости)
   Результат: параметры, которые не переобучены
 ```
 
-### 7.2. Параллельная обработка
+### 7.2. Multi-Strategy Optimization — Новое
+
+> Помимо оптимизации параметров стратегий, оптимизируем **метапараметры** v2.0:
+
+```python
+class MultiStrategyOptimizer:
+    """Оптимизация метапараметров алгоритма переключения."""
+
+    meta_params = {
+        # Гистерезис RegimeClassifier
+        "adx_enter_trending": [28, 30, 32, 35],
+        "adx_exit_trending": [22, 25, 28],
+        "adx_enter_ranging": [15, 18, 20],
+        "adx_exit_ranging": [20, 22, 25],
+
+        # Confirmation
+        "confirmation_count": [2, 3, 5],
+        "min_regime_duration_candles": [120, 240, 480],  # 2h, 4h, 8h (на 1h TF)
+
+        # SMC Filter
+        "smc_enabled": [True, False],
+        "smc_min_confidence": [0.3, 0.4, 0.5],
+        "smc_enhanced_threshold": [0.6, 0.7, 0.8],
+
+        # Transition
+        "transition_timeout_candles": [60, 120, 240],  # 1h, 2h, 4h
+    }
+```
+
+### 7.3. Параллельная обработка
 
 ```python
 class ParallelOptimizer:
@@ -491,7 +1018,7 @@ class ParallelOptimizer:
         return self._rank_results(results, objective)
 ```
 
-### 7.3. Objective Functions — Целевые функции
+### 7.4. Objective Functions — Целевые функции
 
 ```python
 OBJECTIVES = {
@@ -512,15 +1039,19 @@ OBJECTIVES = {
         if r.gross_loss != 0 else float('inf')
     ),
 
-    # НОВОЕ: комбинированная метрика для v2.0
+    # Комбинированная метрика для v2.0
     "composite": lambda r: (
-        0.3 * normalize(r.total_return_pct)     # доходность
-        + 0.3 * normalize(r.sharpe_ratio)        # стабильность
-        + 0.2 * normalize(r.win_rate)            # точность
-        + 0.2 * normalize(-r.max_drawdown_pct)   # защита капитала
+        0.25 * normalize(r.total_return_pct)     # доходность
+        + 0.25 * normalize(r.sharpe_ratio)        # стабильность
+        + 0.15 * normalize(r.win_rate)            # точность
+        + 0.20 * normalize(-r.max_drawdown_pct)   # защита капитала
+        + 0.15 * normalize(-r.transition_cost_pct) # штраф за переключения
     ),
 }
 ```
+
+> **Новое в composite:** `transition_cost_pct` штрафует параметры, при которых
+> стратегия переключается слишком часто (высокая стоимость переходов).
 
 ---
 
@@ -532,7 +1063,7 @@ OBJECTIVES = {
 @dataclass
 class BacktestResult:
     # Идентификация
-    strategy: str               # "grid" | "dca" | "trend" | "hybrid" | "multi"
+    strategy: str               # "grid" | "dca" | "trend" | "multi"
     symbol: str                 # "BTC/USDT"
     timeframe: str              # "1h"
     period: tuple[datetime, datetime]
@@ -569,13 +1100,58 @@ class BacktestResult:
     # Trades (для журнала)
     trades: list[TradeRecord]
 
+    # === НОВЫЕ ПОЛЯ для Multi-Strategy ===
+
+    # Transition metrics
+    total_transitions: int = 0
+    transition_cost_total: Decimal = Decimal(0)
+    transition_cost_pct: float = 0.0             # % от initial_capital
+    forced_closes: int = 0                        # принудительные закрытия по таймауту
+    avg_transition_duration: timedelta = timedelta(0)
+
+    # Regime breakdown
+    regime_distribution: dict[str, float] = None  # {"TIGHT_RANGE": 0.35, ...}
+    strategy_distribution: dict[str, float] = None # {"grid": 0.40, "dca": 0.35, ...}
+
+    # SMC Filter impact
+    smc_entries_filtered: int = 0                 # сколько входов прошло SMC
+    smc_entries_rejected: int = 0                 # сколько входов отклонено
+    smc_entries_reduced: int = 0                  # сколько входов уменьшено (NEUTRAL)
+
+    # Emergency Halt events
+    halt_events: int = 0
+    halt_total_duration: timedelta = timedelta(0)
+
     # Strategy-specific
-    metadata: dict              # Grid: cycles, levels filled, etc.
-                                # DCA: safety orders used, avg accumulation
-                                # Trend: trends caught, false signals
+    metadata: dict = None           # Grid: cycles, levels filled, etc.
+                                    # DCA: safety orders used, avg accumulation
+                                    # Trend: trends caught, false signals
 ```
 
-### 8.2. Визуализация (Plotly)
+### 8.2. PortfolioResult — Расширенный результат для портфеля
+
+```python
+@dataclass
+class PortfolioResult(BacktestResult):
+    """Результат портфельного бэктеста."""
+
+    # Per-pair results
+    pair_results: dict[str, BacktestResult] = None
+
+    # Capital allocation history
+    allocation_history: list[dict[str, PairAllocation]] = None
+
+    # Correlation
+    avg_pairwise_correlation: float = 0.0
+    stress_mode_pct: float = 0.0      # % времени в STRESS_MODE
+    max_correlated_exposure: float = 0.0
+
+    # Diversification
+    diversification_ratio: float = 0.0  # portfolio_return / sum(pair_returns)
+    overcommitted_events: int = 0       # сколько раз пара была overcommitted
+```
+
+### 8.3. Визуализация (Plotly)
 
 ```
 Equity Curve Report
@@ -596,7 +1172,6 @@ Chart 2: Drawdown Underwater
   │──────╲    ╱──╲  ╱──────────╲  ╱─│
   │       ╲  ╱    ╲╱            ╲╱  │
   │        ╲╱                       │
-  │                                 │
   │         -8.3% max DD            │
   └──────────────────────────────────┘
 
@@ -604,35 +1179,55 @@ Chart 3: Monthly Returns Heatmap
   ┌────┬────┬────┬────┬────┬────┐
   │Jan │Feb │Mar │Apr │May │Jun │
   │+2.1│-0.5│+3.2│+1.8│+0.3│-1.1│
-  │ 🟢 │ 🔴 │ 🟢 │ 🟢 │ 🟡 │ 🔴 │
   └────┴────┴────┴────┴────┴────┘
 
-Chart 4: Strategy Switches (только для Multi-Strategy)
+Chart 4: Strategy Regime Timeline (Multi-Strategy)
+  ┌──────────────────────────────────────────────┐
+  │ GRID ████████░░ DCA ██████░░ TREND ██████████│
+  │ (sideways)    (bear)       (bull)            │
+  │                                              │
+  │ ↕ transitions: 5 | cost: -0.8%              │
+  │ ⚠ halt events: 1 | duration: 47h            │
+  └──────────────────────────────────────────────┘
+
+Chart 5: Capital Allocation Over Time (Portfolio)
   ┌──────────────────────────────────┐
-  │ GRID ████████░░ DCA ██████░░ TF █│
-  │ (sideways)    (bear)    (bull)   │
+  │▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░│ BTC 35%
+  │████████████░░░░░░░░░░░░░░░░░░░░░│ ETH 28%
+  │▒▒▒▒▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░│ SOL 15%
+  │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ Reserve 15%
+  └──────────────────────────────────┘
+
+Chart 6: Correlation Heatmap + Stress Periods (Portfolio)
+  ┌──────────────────────────────────┐
+  │  STRESS ████░░░░░████░░░░░░░░░░░│ 12% of time
+  │  Corr: ≈0.4 avg, 0.92 peak     │
   └──────────────────────────────────┘
 ```
 
-### 8.3. Сравнительный отчёт
+### 8.4. Сравнительный отчёт
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│              COMPARISON: BTC/USDT 2024-2025                      │
-├──────────────┬──────┬──────┬──────┬──────┬──────────────────────┤
-│ Metric       │ Grid │ DCA  │Trend │Hybrid│ Multi-Strategy (v2.0)│
-├──────────────┼──────┼──────┼──────┼──────┼──────────────────────┤
-│ ROI          │+8.2% │+12.1%│+18.5%│+14.3%│ +22.7%              │
-│ Max Drawdown │-4.1% │-8.7% │-11.2%│-6.5% │ -7.3%               │
-│ Sharpe       │ 1.82 │ 1.45 │ 1.21 │ 1.67 │  2.14               │
-│ Win Rate     │ 78%  │ 65%  │ 52%  │ 71%  │  68%                │
-│ Trades       │ 342  │  47  │  31  │ 189  │  198                │
-│ Profit Factor│ 2.1  │ 1.8  │ 2.4  │ 2.0  │  2.6                │
-├──────────────┴──────┴──────┴──────┴──────┴──────────────────────┤
-│ Verdict: Multi-Strategy beats all single strategies              │
-│ Best ROI with acceptable drawdown. SMC filter reduced            │
-│ losing trades by 23% compared to raw signals.                    │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│              COMPARISON: BTC/USDT 2024-2025                           │
+├──────────────────┬──────┬──────┬──────┬──────────────────────────────┤
+│ Metric           │ Grid │ DCA  │Trend │ Multi-Strategy (v2.0)        │
+├──────────────────┼──────┼──────┼──────┼──────────────────────────────┤
+│ ROI              │+8.2% │+12.1%│+18.5%│ +22.7%                      │
+│ Max Drawdown     │-4.1% │-8.7% │-11.2%│ -7.3%                       │
+│ Sharpe           │ 1.82 │ 1.45 │ 1.21 │  2.14                       │
+│ Win Rate         │ 78%  │ 65%  │ 52%  │  68%                        │
+│ Trades           │ 342  │  47  │  31  │  198                        │
+│ Profit Factor    │ 2.1  │ 1.8  │ 2.4  │  2.6                        │
+│ Transitions      │  —   │  —   │  —   │  5 (cost: -0.8%)            │
+│ Halt Events      │  —   │  —   │  —   │  1 (duration: 47h)          │
+│ SMC Reject Rate  │  —   │  —   │  —   │  23% entries filtered       │
+├──────────────────┴──────┴──────┴──────┴──────────────────────────────┤
+│ Verdict: Multi-Strategy v2.0 achieves best risk-adjusted returns.    │
+│ Transition cost (-0.8%) offset by better regime adaptation (+14.5%). │
+│ SMC filter eliminated 23% of losing entries.                         │
+│ Emergency Halt correctly triggered during -12% drawdown period.      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -645,18 +1240,20 @@ Chart 4: Strategy Switches (только для Multi-Strategy)
 POST /api/v1/backtesting/run
   Body: {
     "mode": "single" | "multi_strategy" | "portfolio",
-    "strategy": "grid" | "dca" | "trend" | "hybrid",
-    "symbol": "BTC/USDT",
+    "strategy": "grid" | "dca" | "trend",       // для mode=single
+    "symbol": "BTC/USDT",                        // для single и multi_strategy
+    "pairs": ["BTC/USDT", "ETH/USDT", ...],     // для portfolio
     "timeframe": "1h",
     "start_date": "2024-01-01",
     "end_date": "2025-12-31",
-    "params": { ... },                  // опционально: если нет — оптимизация
+    "params": { ... },                  // опционально: если нет → оптимизация
     "smc_filter": true,                 // включить SMC Enhancement
     "slippage_model": "volume_based",   // реалистичность
     "optimize": {
       "enabled": true,
       "objective": "composite",
-      "walk_forward": true
+      "walk_forward": true,
+      "include_meta_params": true       // оптимизировать гистерезис и transition
     }
   }
 
@@ -664,11 +1261,11 @@ GET /api/v1/backtesting/status/{job_id}
   Response: { "status": "running", "progress": 45, "eta_seconds": 120 }
 
 GET /api/v1/backtesting/result/{job_id}
-  Response: BacktestResult (JSON)
+  Response: BacktestResult (JSON) с transition_cost, halt_events, smc stats
 
 GET /api/v1/backtesting/compare
-  Query: job_ids=1,2,3,4
-  Response: Сравнительная таблица
+  Query: job_ids=1,2,3
+  Response: Сравнительная таблица (Grid vs DCA vs Trend vs Multi)
 
 POST /api/v1/backtesting/export-preset/{job_id}
   Response: YAML preset для продакшен-деплоя
@@ -680,8 +1277,12 @@ POST /api/v1/backtesting/export-preset/{job_id}
 WS /ws/backtesting/{job_id}
   Сообщения:
     {"type": "progress", "pct": 45, "current_date": "2024-06-15"}
-    {"type": "trade", "side": "buy", "price": 65000, "qty": 0.01}
-    {"type": "regime_change", "from": "GRID", "to": "DCA", "reason": "ADX=32"}
+    {"type": "trade", "side": "buy", "price": 65000, "qty": 0.01, "signal_type": "entry"}
+    {"type": "regime_change", "from": "TIGHT_RANGE", "to": "BEAR_TREND", "strategy": "dca"}
+    {"type": "transition", "from": "grid", "to": "dca", "cost": -120.50, "forced": false}
+    {"type": "smc_filter", "action": "reject", "signal_price": 95000, "confidence": 0.32}
+    {"type": "halt", "trigger": "daily_loss_10pct", "action": "tight_sl"}
+    {"type": "stress_mode", "enabled": true, "correlation": 0.91}
     {"type": "equity_update", "value": 102350.50}
     {"type": "complete", "result_id": "abc123"}
 ```
@@ -693,34 +1294,50 @@ WS /ws/backtesting/{job_id}
 ### 10.1. Single Strategy Backtest
 
 ```bash
-# Из CLI
 python -m bot.backtesting.run \
   --strategy grid \
   --symbol BTC/USDT \
   --timeframe 1h \
   --start 2024-01-01 \
   --end 2025-12-31 \
+  --smc-filter \
   --optimize \
   --objective sharpe
 
 # Результат: JSON + equity curve PNG + preset YAML
+# SMC Filter активен для входов; exits обходят фильтр
 ```
 
-### 10.2. Multi-Strategy Comparison
+### 10.2. Multi-Strategy Backtest
+
+```bash
+python -m bot.backtesting.run \
+  --mode multi_strategy \
+  --symbol BTC/USDT \
+  --timeframe 1h \
+  --start 2024-01-01 \
+  --end 2025-12-31 \
+  --smc-filter \
+  --optimize-meta        # оптимизировать гистерезис + transition параметры
+
+# Результат: equity curve + regime timeline + transition log + halt events
+```
+
+### 10.3. Multi-Strategy Comparison
 
 ```bash
 python -m bot.backtesting.run \
   --mode compare \
   --symbol BTC/USDT \
   --timeframe 1h \
-  --strategies grid,dca,trend,hybrid,multi \
+  --strategies grid,dca,trend,multi \
   --start 2024-01-01 \
   --end 2025-12-31
 
-# Результат: сравнительная таблица всех стратегий на одних данных
+# Результат: таблица сравнения всех стратегий (включая transition_cost)
 ```
 
-### 10.3. Portfolio Backtest
+### 10.4. Portfolio Backtest
 
 ```bash
 python -m bot.backtesting.run \
@@ -731,10 +1348,11 @@ python -m bot.backtesting.run \
   --start 2024-01-01 \
   --end 2025-12-31
 
-# Результат: портфельный equity curve, аллокации, корреляции
+# Результат: портфельный equity curve, allocation history,
+#   correlation report, stress_mode periods, halt events
 ```
 
-### 10.4. Batch Optimization (45 pairs)
+### 10.5. Batch Optimization (45 pairs)
 
 ```bash
 python -m bot.backtesting.batch \
@@ -756,47 +1374,54 @@ python -m bot.backtesting.batch \
 ```
 bot/backtesting/
 ├── __init__.py
-├── run.py                      # CLI entry point
-├── batch.py                    # Batch processing 45 pairs
+├── run.py                          # CLI entry point
+├── batch.py                        # Batch processing 45 pairs
 │
 ├── core/
-│   ├── simulator.py            # UniversalSimulator
-│   ├── exchange.py             # SimulatedExchange
-│   ├── slippage.py             # SlippageModel
-│   ├── journal.py              # TradeJournal
-│   └── result.py               # BacktestResult dataclass
+│   ├── simulator.py                # UniversalSimulator с SignalType-маршрутизацией
+│   ├── exchange.py                 # SimulatedExchange с committed/available capital
+│   ├── slippage.py                 # SlippageModel + transition_penalty
+│   ├── journal.py                  # TradeJournal
+│   ├── result.py                   # BacktestResult + PortfolioResult
+│   └── signal.py                   # Signal + SignalType enum
 │
 ├── adapters/
-│   ├── base.py                 # BaseBacktestStrategy (ABC)
-│   ├── grid_adapter.py         # GridBacktestAdapter
-│   ├── dca_adapter.py          # DCABacktestAdapter
-│   ├── trend_adapter.py        # TrendFollowerBacktestAdapter
-│   ├── hybrid_adapter.py       # HybridBacktestAdapter
-│   └── smc_filter.py           # SMCBacktestFilter
+│   ├── base.py                     # BaseBacktestStrategy (ABC) с on_transition_out()
+│   ├── grid_adapter.py             # GridBacktestAdapter (GRID_COUNTER bypass)
+│   ├── dca_adapter.py              # DCABacktestAdapter
+│   ├── trend_adapter.py            # TrendFollowerBacktestAdapter
+│   └── smc_filter.py               # SMCBacktestFilter с zone staleness
 │
 ├── multi/
-│   ├── multi_strategy.py       # MultiStrategyBacktest
-│   ├── portfolio.py            # PortfolioBacktest
-│   ├── regime_classifier.py    # RegimeClassifier for backtest
-│   └── capital_allocator.py    # CapitalAllocator simulation
+│   ├── multi_strategy.py           # MultiStrategyBacktest (transition, halt)
+│   ├── portfolio.py                # PortfolioBacktest (allocation, correlation)
+│   ├── regime_classifier.py        # RegimeClassifier с гистерезисом
+│   ├── strategy_router.py          # StrategyRouter с confirmation_counter
+│   ├── capital_allocator.py        # BacktestCapitalAllocator (нормализация, cold start)
+│   ├── risk_aggregator.py          # BacktestPortfolioRisk (3-level, halt)
+│   ├── correlation_monitor.py      # BacktestCorrelationMonitor (STRESS_MODE)
+│   └── transition.py               # TransitionCost, transition execution
 │
 ├── optimization/
-│   ├── optimizer.py            # ParallelOptimizer
-│   ├── walk_forward.py         # Walk-Forward Validation
-│   └── objectives.py           # Objective functions
+│   ├── optimizer.py                # ParallelOptimizer
+│   ├── meta_optimizer.py           # MultiStrategyOptimizer (meta-params)
+│   ├── walk_forward.py             # Walk-Forward Validation
+│   └── objectives.py               # Objective functions + composite с transition_cost
 │
 ├── data/
-│   ├── loader.py               # BacktestDataLoader
-│   └── indicator_cache.py      # Precomputed indicators (.parquet)
+│   ├── loader.py                   # BacktestDataLoader
+│   └── indicator_cache.py          # Precomputed indicators (.parquet)
 │
 ├── reporting/
-│   ├── charts.py               # Plotly equity curves, heatmaps
-│   ├── comparison.py           # Multi-strategy comparison
-│   └── preset_export.py        # YAML preset generation
+│   ├── charts.py                   # Plotly equity curves, heatmaps
+│   ├── comparison.py               # Multi-strategy comparison table
+│   ├── transition_report.py        # Transition log + cost analysis
+│   ├── correlation_report.py       # Correlation heatmap + stress periods
+│   └── preset_export.py            # YAML preset generation
 │
 └── api/
-    ├── routes.py               # FastAPI endpoints
-    └── websocket.py            # Real-time progress updates
+    ├── routes.py                   # FastAPI endpoints
+    └── websocket.py                # Real-time progress updates
 ```
 
 ---
@@ -814,14 +1439,18 @@ bot/backtesting/
   │  Walk-Forward│                    │  Master Loop         │
   │  Validated   │                    │  uses same:          │
   │              │                    │  • RegimeClassifier   │
-  │  Shared Core:│                    │  • StrategyRouter     │
+  │  Shared Code:│                    │  • StrategyRouter     │
   │  GridCalc    │◄─── same code ───→│  • GridCalculator     │
   │  DCAEngine   │                    │  • DCAEngine          │
   │  TrendLogic  │                    │  • TrendFollower      │
+  │  SMCFilter   │                    │  • SMCFilter          │
+  │  CapAlloc    │                    │  • CapitalAllocator   │
+  │  RiskAgg     │                    │  • RiskAggregator     │
   └──────────────┘                    └──────────────────────┘
 
-  Ключевой принцип: один и тот же код стратегий используется
-  и в бэктесте, и в продакшене. Отличается только exchange layer.
+  Ключевой принцип: один и тот же код стратегий, классификатора,
+  роутера, аллокатора и риск-агрегатора используется и в бэктесте,
+  и в продакшене. Отличается только exchange layer.
 ```
 
 Результат оптимизации — YAML preset — напрямую загружается в продакшен:
@@ -834,18 +1463,27 @@ optimized_at: "2026-02-20"
 walk_forward_validated: true
 test_period: "2024-01-01 to 2025-12-31"
 
+# Regime classification (с гистерезисом)
 regime_thresholds:
-  adx_enter_trend: 32
-  adx_exit_trend: 25
-  confirmation_candles: 3
-  min_regime_duration_hours: 4
+  adx_enter_trending: 32
+  adx_exit_trending: 25
+  adx_enter_ranging: 18
+  adx_exit_ranging: 22
 
+# Strategy Router
+router:
+  confirmation_count: 3
+  min_regime_duration_hours: 4
+  transition_timeout_hours: 2
+
+# Grid params
 grid_params:
   num_levels: 15
   profit_per_grid: 0.005
   grid_type: arithmetic
   range_factor: 2.0
 
+# DCA params
 dca_params:
   safety_order_step: 0.03
   step_multiplier: 1.5
@@ -853,21 +1491,76 @@ dca_params:
   take_profit_pct: 0.015
   max_safety_orders: 7
 
+# Trend Follower params
 trend_params:
   ema_fast: 20
   ema_slow: 50
   atr_sl_multiplier: 2.0
   atr_tp_multiplier: 2.5
 
+# SMC Filter (только для ENTRY-сигналов)
 smc_filter:
   enabled: true
   min_confidence: 0.4
   enhanced_threshold: 0.7
   neutral_size_mult: 0.5
+  ob_lookback: 100
+  zone_max_touches: 2
 
+# Capital Allocator
+capital:
+  reserve_pct: 0.15
+  max_per_pair_pct: 0.25
+  max_per_strategy_pct: 0.40
+  cold_start_factor: 0.8
+  stress_mode_exposure_pct: 0.40
+
+# Risk
+risk:
+  per_trade_max_loss_pct: 0.02
+  per_pair_daily_loss_pct: 0.03
+  portfolio_reduced_mode_pct: 0.05
+  portfolio_halt_pct: 0.10
+  drawdown_reduction_pct: 0.15
+  cooldown_after_losses: 3
+  cooldown_duration_hours: 2
+
+# Correlation
+correlation:
+  stress_threshold: 0.8
+  stress_pairs_ratio: 0.6
+
+# Performance (Walk-Forward validated)
 performance:
   roi: 22.7%
   sharpe: 2.14
   max_drawdown: -7.3%
   win_rate: 68%
+  transitions: 5
+  transition_cost: -0.8%
+  halt_events: 1
+  smc_reject_rate: 23%
 ```
+
+---
+
+## 13. Список решённых конфликтов в бэктестинге
+
+| # | Конфликт в продакшене | Решение в бэктесте | Раздел |
+|---|----------------------|---------------------|--------|
+| C1 | SMC фильтрует Stop-Loss | `SignalType` маршрутизация: SMC только для `ENTRY` | 4.1 |
+| C2 | Emergency Halt без протокола | `_simulate_emergency_halt()`: cancel + tight SL | 6.2, 6.3 |
+| H3 | SMC дырявит Grid | `_filter_grid()`: оценка всей сетки; `GRID_COUNTER` обходит SMC | 5.1, 5.4 |
+| H4 | "1 позиция" vs Grid/DCA | Per-strategy: 1 grid / 1 deal / 1 direction | 5.1, 5.2, 5.3 |
+| H5 | Capital Allocator > 100% | `BacktestCapitalAllocator` с нормализацией | 6.3 |
+| H6 | Ребалансировка vs залоченный капитал | `committed_capital` / `available_capital` / `overcommitted` | 4.2, 6.3 |
+| H7 | confirmation_counter без сброса | `StrategyRouter.evaluate_transition()` с полным сбросом | 6.2 |
+| H8 | Статические корреляции | `BacktestCorrelationMonitor` + STRESS_MODE | 6.3 |
+| H9 | Transition Deadlock | `_execute_transition()` c `on_transition_out()` + force close | 6.2 |
+| M1 | HYBRID двойной роутинг | HYBRID удалён; Multi-Strategy Backtest заменяет | 1, 6.2 |
+| M2 | Cold start deadlock | `_performance_factor()`: 0.8 при < 10 сделок | 6.3 |
+| M3 | Classifier vs Router рассинхрон | `RegimeClassifier` с встроенным гистерезисом | 6.2 |
+| M4 | SMC-зоны не устаревают | `SMCZone.confidence_decay` + `touches` + pruning | 5.4 |
+| L1 | SMC rate limit | `recalc_interval`: пересчёт зон раз в N свечей | 5.4 |
+| NEW | Transition cost не учитывается | `TransitionCost`, `transition_penalty` slippage, `composite` objective | 4.3, 6.2, 7.4 |
+| NEW | Halt events не моделируются | `_simulate_portfolio_halt()` в PortfolioBacktest | 6.3 |
