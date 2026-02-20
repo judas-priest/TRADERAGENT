@@ -185,12 +185,12 @@ def serialize_risk_state(risk_manager: Any) -> str | None:
         return None
 
     state = {
-        "initial_balance": str(risk_manager.initial_balance)
-        if risk_manager.initial_balance
-        else None,
-        "current_balance": str(risk_manager.current_balance)
-        if risk_manager.current_balance
-        else None,
+        "initial_balance": (
+            str(risk_manager.initial_balance) if risk_manager.initial_balance else None
+        ),
+        "current_balance": (
+            str(risk_manager.current_balance) if risk_manager.current_balance else None
+        ),
         "peak_balance": str(risk_manager.peak_balance) if risk_manager.peak_balance else None,
         "daily_loss": str(risk_manager.daily_loss),
         "is_halted": risk_manager.is_halted,

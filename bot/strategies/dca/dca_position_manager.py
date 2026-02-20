@@ -437,9 +437,11 @@ class DCAPositionManager:
         order = DCAOrder(
             id=f"{deal_id}-EXIT",
             deal_id=deal_id,
-            order_type=DCAOrderType(reason)
-            if reason in DCAOrderType.__members__.values()
-            else DCAOrderType.TAKE_PROFIT,
+            order_type=(
+                DCAOrderType(reason)
+                if reason in DCAOrderType.__members__.values()
+                else DCAOrderType.TAKE_PROFIT
+            ),
             side="sell",
             price=exit_price,
             volume=deal.total_volume,

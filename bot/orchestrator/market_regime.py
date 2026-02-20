@@ -310,9 +310,9 @@ class MarketRegimeDetector:
                 "bb_upper": float(bb_upper.iloc[-1]) if not pd.isna(bb_upper.iloc[-1]) else 0.0,
                 "bb_middle": float(bb_middle.iloc[-1]) if not pd.isna(bb_middle.iloc[-1]) else 0.0,
                 "bb_lower": float(bb_lower.iloc[-1]) if not pd.isna(bb_lower.iloc[-1]) else 0.0,
-                "avg_volume": float(avg_volume.iloc[-1])
-                if not pd.isna(avg_volume.iloc[-1])
-                else 0.0,
+                "avg_volume": (
+                    float(avg_volume.iloc[-1]) if not pd.isna(avg_volume.iloc[-1]) else 0.0
+                ),
                 "plus_di": float(plus_di.iloc[-1]) if not pd.isna(plus_di.iloc[-1]) else 0.0,
                 "minus_di": float(minus_di.iloc[-1]) if not pd.isna(minus_di.iloc[-1]) else 0.0,
                 "data_points": len(df),

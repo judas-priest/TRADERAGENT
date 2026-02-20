@@ -123,9 +123,11 @@ class TrendFollowerAdapter(BaseStrategy):
                 "ema_fast": float(conditions.ema_fast) if hasattr(conditions, "ema_fast") else None,
                 "ema_slow": float(conditions.ema_slow) if hasattr(conditions, "ema_slow") else None,
                 "rsi": float(conditions.rsi) if hasattr(conditions, "rsi") else None,
-                "ema_divergence": float(conditions.ema_divergence)
-                if hasattr(conditions, "ema_divergence")
-                else None,
+                "ema_divergence": (
+                    float(conditions.ema_divergence)
+                    if hasattr(conditions, "ema_divergence")
+                    else None
+                ),
             }
 
         self._last_analysis = BaseMarketAnalysis(
@@ -182,17 +184,19 @@ class TrendFollowerAdapter(BaseStrategy):
             timestamp=datetime.now(timezone.utc),
             strategy_type="trend_follower",
             signal_reason=signal.entry_reason.value,
-            risk_reward_ratio=float(
-                abs(estimated_tp - entry_price) / abs(entry_price - estimated_sl)
-            )
-            if abs(entry_price - estimated_sl) > 0
-            else 0.0,
+            risk_reward_ratio=(
+                float(abs(estimated_tp - entry_price) / abs(entry_price - estimated_sl))
+                if abs(entry_price - estimated_sl) > 0
+                else 0.0
+            ),
             metadata={
                 "volume_confirmed": signal.volume_confirmed,
                 "position_size": str(position_size),
-                "market_phase": conditions.phase.value
-                if hasattr(conditions.phase, "value")
-                else str(conditions.phase),
+                "market_phase": (
+                    conditions.phase.value
+                    if hasattr(conditions.phase, "value")
+                    else str(conditions.phase)
+                ),
             },
         )
 
@@ -259,9 +263,9 @@ class TrendFollowerAdapter(BaseStrategy):
                     stop_loss=pos.levels.stop_loss if hasattr(pos, "levels") else Decimal("0"),
                     take_profit=pos.levels.take_profit if hasattr(pos, "levels") else Decimal("0"),
                     unrealized_pnl=pnl,
-                    entry_time=pos.entry_time
-                    if hasattr(pos, "entry_time")
-                    else datetime.now(timezone.utc),
+                    entry_time=(
+                        pos.entry_time if hasattr(pos, "entry_time") else datetime.now(timezone.utc)
+                    ),
                     strategy_type="trend_follower",
                 )
             )

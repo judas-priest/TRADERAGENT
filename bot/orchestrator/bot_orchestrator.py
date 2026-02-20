@@ -807,9 +807,9 @@ class BotOrchestrator:
                         "position_size": str(position_size),
                         "tp": str(signal.take_profit),
                         "sl": str(signal.stop_loss),
-                        "market_phase": market_conditions.phase.value
-                        if market_conditions
-                        else None,
+                        "market_phase": (
+                            market_conditions.phase.value if market_conditions else None
+                        ),
                     },
                 )
 

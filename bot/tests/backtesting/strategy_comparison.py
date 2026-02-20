@@ -142,9 +142,9 @@ class StrategyComparison:
                 "total_trades": result.total_trades,
                 "win_rate": float(result.win_rate),
                 "max_drawdown_pct": float(result.max_drawdown_pct),
-                "sharpe_ratio": float(result.sharpe_ratio)
-                if result.sharpe_ratio is not None
-                else None,
+                "sharpe_ratio": (
+                    float(result.sharpe_ratio) if result.sharpe_ratio is not None else None
+                ),
                 "avg_profit_per_trade": float(result.avg_profit_per_trade),
                 "buy_orders": result.total_buy_orders,
                 "sell_orders": result.total_sell_orders,

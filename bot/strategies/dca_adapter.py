@@ -118,11 +118,11 @@ class DCAAdapter(BaseStrategy):
             strategy_type="dca",
             details={
                 "recent_high": float(self._recent_high),
-                "deviation_from_high": float(
-                    (self._recent_high - self._current_price) / self._recent_high
-                )
-                if self._recent_high > 0
-                else 0.0,
+                "deviation_from_high": (
+                    float((self._recent_high - self._current_price) / self._recent_high)
+                    if self._recent_high > 0
+                    else 0.0
+                ),
             },
         )
         return self._last_analysis
@@ -290,10 +290,11 @@ class DCAAdapter(BaseStrategy):
             total_pnl=total_pnl,
             avg_trade_pnl=total_pnl / total if total > 0 else Decimal("0"),
             metadata={
-                "avg_safety_orders": sum(t["safety_orders_filled"] for t in self._closed_trades)
-                / total
-                if total > 0
-                else 0,
+                "avg_safety_orders": (
+                    sum(t["safety_orders_filled"] for t in self._closed_trades) / total
+                    if total > 0
+                    else 0
+                ),
             },
         )
 

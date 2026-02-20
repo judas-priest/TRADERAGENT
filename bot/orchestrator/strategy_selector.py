@@ -378,9 +378,9 @@ class StrategySelector:
                 {"type": w.strategy_type, "weight": w.weight, "priority": w.priority}
                 for w in target
             ],
-            "last_transition": self._last_transition_time.isoformat()
-            if self._last_transition_time
-            else None,
+            "last_transition": (
+                self._last_transition_time.isoformat() if self._last_transition_time else None
+            ),
             "transition_cooldown_seconds": self._transition_cooldown,
             "min_regime_duration_seconds": self._min_regime_duration,
             "history_count": len(self._transition_history),

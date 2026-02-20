@@ -465,12 +465,16 @@ class DCARiskManager:
             )
             return RiskCheckResult(
                 action=action,
-                reasons=[f"Extreme price change ({change_pct:.1f}% >= {cfg.max_price_change_pct}%)"]
-                if action != DCARiskAction.CONTINUE
-                else [],
-                warnings=[f"Extreme price change detected ({change_pct:.1f}%)"]
-                if action == DCARiskAction.CONTINUE
-                else [],
+                reasons=(
+                    [f"Extreme price change ({change_pct:.1f}% >= {cfg.max_price_change_pct}%)"]
+                    if action != DCARiskAction.CONTINUE
+                    else []
+                ),
+                warnings=(
+                    [f"Extreme price change detected ({change_pct:.1f}%)"]
+                    if action == DCARiskAction.CONTINUE
+                    else []
+                ),
             )
 
         return RiskCheckResult()

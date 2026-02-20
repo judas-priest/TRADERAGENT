@@ -92,12 +92,12 @@ class HealthMonitor:
         self._consecutive_errors: dict[str, int] = {}
 
         # Callbacks for health events
-        self._on_unhealthy: Callable[
-            [str, HealthCheckResult], Coroutine[Any, Any, None]
-        ] | None = None
-        self._on_critical: Callable[
-            [str, HealthCheckResult], Coroutine[Any, Any, None]
-        ] | None = None
+        self._on_unhealthy: Callable[[str, HealthCheckResult], Coroutine[Any, Any, None]] | None = (
+            None
+        )
+        self._on_critical: Callable[[str, HealthCheckResult], Coroutine[Any, Any, None]] | None = (
+            None
+        )
 
     def set_unhealthy_callback(
         self,
