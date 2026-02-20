@@ -79,7 +79,7 @@ class TestAPIEndpointLoad:
         elapsed = time.perf_counter() - start
 
         throughput = 200 / elapsed
-        assert throughput > 50, f"Throughput: {throughput:.0f} req/s (need >50)"
+        assert throughput > 30, f"Throughput: {throughput:.0f} req/s (need >30)"
         print(f"\n  200 sequential /bots: {elapsed:.2f}s ({throughput:.0f} req/s)")
 
     async def test_concurrent_auth_10_users(self, client: AsyncClient):

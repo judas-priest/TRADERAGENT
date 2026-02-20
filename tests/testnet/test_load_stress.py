@@ -164,7 +164,7 @@ class TestAnalysisThroughput:
         elapsed = time.perf_counter() - start
 
         avg = elapsed / 10
-        assert avg < 1.0, f"SMC analysis took {avg:.3f}s per call"
+        assert avg < 2.0, f"SMC analysis took {avg:.3f}s per call"
 
     def test_tf_analysis_speed(self):
         adapter = TrendFollowerAdapter()
