@@ -127,6 +127,9 @@ export const botsApi = {
   update: (name: string, data: BotUpdateRequest) =>
     client.put(`/api/v1/bots/${name}`, data),
 
+  delete: (name: string) =>
+    client.delete(`/api/v1/bots/${name}`),
+
   getPnl: (name: string) =>
     client.get<PnL>(`/api/v1/bots/${name}/pnl`),
 

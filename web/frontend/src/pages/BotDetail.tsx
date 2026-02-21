@@ -235,7 +235,7 @@ function OverviewTab({ bot, positions, pnl }: { bot: BotStatus; positions: Posit
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 
-function SettingsTab({ bot }: { bot: BotStatus }) {
+function SettingsTab({ bot, onDeleted }: { bot: BotStatus; onDeleted: () => void }) {
   const toast = useToastStore((s) => s.add);
   const navigate = useNavigate();
 
@@ -244,18 +244,22 @@ function SettingsTab({ bot }: { bot: BotStatus }) {
     (bot.config as Record<string, unknown> | null) ?? {}
   );
   const [strategySchema, setStrategySchema] = useState<StrategyType | null>(null);
+  const [loadingSchema, setLoadingSchema] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Load strategy schema to build dynamic form
   useEffect(() => {
+    setLoadingSchema(true);
     client
       .get<StrategyType[]>('/api/v1/strategies/types')
       .then((res) => {
         const found = res.data.find((s) => s.name === bot.strategy);
         if (found) setStrategySchema(found);
       })
-      .catch(() => {/* ignore */});
+      .catch(() => {/* ignore */})
+      .finally(() => setLoadingSchema(false));
   }, [bot.strategy]);
 
   const handleSave = async () => {
@@ -286,6 +290,20 @@ function SettingsTab({ bot }: { bot: BotStatus }) {
       toast('Emergency stop failed', 'error');
     } finally {
       setStopping(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await botsApi.delete(bot.name);
+      toast(`Bot "${bot.name}" deleted`, 'success');
+      onDeleted();
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast(detail ?? 'Failed to delete bot', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -328,13 +346,25 @@ function SettingsTab({ bot }: { bot: BotStatus }) {
             />
           </div>
           <div className="flex items-center">
-            <Toggle checked={dryRun} onChange={setDryRun} label="Dry Run (simulation)" />
+            <Toggle checked={dryRun} onChange={setDryRun} label="Dry Run (simulation)" disabled={submitting} />
           </div>
         </div>
       </div>
 
       {/* Strategy params */}
-      {editableProperties.length > 0 && (
+      {loadingSchema ? (
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <Skeleton className="h-3 w-36 mb-4" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i}>
+                <Skeleton className="h-3 w-20 mb-1" />
+                <Skeleton className="h-9 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : editableProperties.length > 0 ? (
         <div className="bg-surface border border-border rounded-xl p-5">
           <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-4">
             Strategy Parameters
@@ -351,14 +381,19 @@ function SettingsTab({ bot }: { bot: BotStatus }) {
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Actions */}
       <div className="flex items-center justify-between">
-        <Button variant="danger" onClick={handleEmergencyStop} disabled={stopping}>
-          {stopping ? 'Stopping…' : '⚠ Emergency Stop'}
-        </Button>
-        <Button onClick={handleSave} disabled={submitting}>
+        <div className="flex gap-2">
+          <Button variant="danger" onClick={handleEmergencyStop} disabled={stopping || deleting || submitting}>
+            {stopping ? 'Stopping…' : '⚠ Emergency Stop'}
+          </Button>
+          <Button variant="ghost" onClick={handleDelete} disabled={deleting || stopping || submitting}>
+            {deleting ? 'Deleting…' : 'Delete Bot'}
+          </Button>
+        </div>
+        <Button onClick={handleSave} disabled={submitting || stopping || deleting || loadingSchema}>
           {submitting ? 'Saving…' : 'Save Changes'}
         </Button>
       </div>
@@ -561,7 +596,7 @@ export function BotDetail() {
         <OverviewTab bot={bot} positions={positions} pnl={pnl} />
       )}
       {activeTab === 'settings' && (
-        <SettingsTab bot={bot} />
+        <SettingsTab bot={bot} onDeleted={() => navigate('/bots')} />
       )}
       {activeTab === 'logs' && (
         <LogsTab botName={bot.name} />

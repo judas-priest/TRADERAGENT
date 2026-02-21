@@ -16,6 +16,7 @@ export function Bots() {
   const toast = useToastStore((s) => s.add);
   const [createOpen, setCreateOpen] = useState(false);
   const [pnlHistories, setPnlHistories] = useState<Record<string, PnLDataPoint[]>>({});
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchBots();
@@ -39,23 +40,48 @@ export function Bots() {
     });
   }, [bots]);
 
+  const setLoading = (name: string, loading: boolean) =>
+    setActionLoading((prev) => ({ ...prev, [name]: loading }));
+
   const handleStart = async (name: string) => {
+    setLoading(name, true);
     try {
       await botsApi.start(name);
       toast(`Bot "${name}" started`, 'success');
       fetchBots();
-    } catch {
-      toast(`Failed to start "${name}"`, 'error');
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast(detail ?? `Failed to start "${name}"`, 'error');
+    } finally {
+      setLoading(name, false);
     }
   };
 
   const handleStop = async (name: string) => {
+    setLoading(name, true);
     try {
       await botsApi.stop(name);
       toast(`Bot "${name}" stopped`, 'info');
       fetchBots();
-    } catch {
-      toast(`Failed to stop "${name}"`, 'error');
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast(detail ?? `Failed to stop "${name}"`, 'error');
+    } finally {
+      setLoading(name, false);
+    }
+  };
+
+  const handleDelete = async (name: string) => {
+    setLoading(name, true);
+    try {
+      await botsApi.delete(name);
+      toast(`Bot "${name}" deleted`, 'success');
+      fetchBots();
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast(detail ?? `Failed to delete "${name}"`, 'error');
+    } finally {
+      setLoading(name, false);
     }
   };
 
@@ -99,8 +125,10 @@ export function Bots() {
               key={bot.name}
               bot={bot}
               pnlHistory={pnlHistories[bot.name]}
+              actionLoading={actionLoading[bot.name] ?? false}
               onStart={() => handleStart(bot.name)}
               onStop={() => handleStop(bot.name)}
+              onDelete={() => handleDelete(bot.name)}
               onClick={() => navigate(`/bots/${bot.name}`)}
             />
           ))}

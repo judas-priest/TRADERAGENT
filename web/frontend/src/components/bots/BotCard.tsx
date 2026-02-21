@@ -7,8 +7,10 @@ import { PnLSparkline } from './PnLSparkline';
 interface BotCardProps {
   bot: BotListItem;
   pnlHistory?: PnLDataPoint[];
+  actionLoading?: boolean;
   onStart?: () => void;
   onStop?: () => void;
+  onDelete?: () => void;
   onClick?: () => void;
 }
 
@@ -34,7 +36,7 @@ const strategyVariant = (s: string) => {
   }
 };
 
-export function BotCard({ bot, pnlHistory, onStart, onStop, onClick }: BotCardProps) {
+export function BotCard({ bot, pnlHistory, actionLoading = false, onStart, onStop, onDelete, onClick }: BotCardProps) {
   const profit = parseFloat(bot.total_profit);
 
   return (
@@ -74,9 +76,18 @@ export function BotCard({ bot, pnlHistory, onStart, onStop, onClick }: BotCardPr
 
       <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
         {bot.status === 'running' ? (
-          <Button variant="danger" size="sm" onClick={onStop}>Stop</Button>
+          <Button variant="danger" size="sm" onClick={onStop} disabled={actionLoading}>
+            {actionLoading ? 'Stopping…' : 'Stop'}
+          </Button>
         ) : (
-          <Button variant="primary" size="sm" onClick={onStart}>Start</Button>
+          <Button variant="primary" size="sm" onClick={onStart} disabled={actionLoading}>
+            {actionLoading ? 'Starting…' : 'Start'}
+          </Button>
+        )}
+        {onDelete && (
+          <Button variant="ghost" size="sm" onClick={onDelete} disabled={actionLoading}>
+            Delete
+          </Button>
         )}
       </div>
     </motion.div>
