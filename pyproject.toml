@@ -49,6 +49,7 @@ dev = [
     "black==24.1.1",
     "ruff>=0.5.0",
     "mypy>=1.8.0",
+    "types-PyYAML",
     "pre-commit>=3.6.0",
     "ipython>=8.19.0",
 ]
@@ -124,6 +125,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "bot.tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]

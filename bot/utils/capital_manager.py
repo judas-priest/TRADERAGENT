@@ -286,6 +286,7 @@ class CapitalManager:
         if self.current_metrics:
             self.phase_history.append(self.current_metrics)
 
+        assert decision.next_phase is not None  # guarded by can_scale check above
         self.current_phase = decision.next_phase
         self.current_metrics = PhaseMetrics(
             phase=self.current_phase,

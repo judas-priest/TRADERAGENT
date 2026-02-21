@@ -19,7 +19,7 @@ from typing import Any
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from alembic import command
+from alembic import command  # type: ignore[attr-defined]
 from bot.utils.logger import get_logger
 
 logger = get_logger(__name__)
