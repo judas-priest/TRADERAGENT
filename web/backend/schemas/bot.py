@@ -123,3 +123,16 @@ class PnLResponse(BaseModel):
     total_trades: int = 0
     winning_trades: int = 0
     losing_trades: int = 0
+
+
+class PnLDataPoint(BaseModel):
+    """Single PnL data point for sparkline chart."""
+
+    timestamp: float
+    value: float
+
+
+class PnLHistoryResponse(BaseModel):
+    """Time-series PnL data for sparkline chart."""
+
+    points: list[PnLDataPoint] = []

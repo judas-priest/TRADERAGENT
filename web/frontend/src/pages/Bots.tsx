@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { botsApi } from '../api/bots';
+import type { PnLDataPoint } from '../api/bots';
 import { BotCard } from '../components/bots/BotCard';
 import { CreateBotModal } from '../components/bots/CreateBotModal';
 import { Button } from '../components/common/Button';
@@ -7,17 +9,35 @@ import { PageTransition } from '../components/common/PageTransition';
 import { SkeletonBotCard } from '../components/common/Skeleton';
 import { useToastStore } from '../components/common/Toast';
 import { useBotStore } from '../stores/botStore';
-import { botsApi } from '../api/bots';
 
 export function Bots() {
   const { bots, isLoading, fetchBots } = useBotStore();
   const navigate = useNavigate();
   const toast = useToastStore((s) => s.add);
   const [createOpen, setCreateOpen] = useState(false);
+  const [pnlHistories, setPnlHistories] = useState<Record<string, PnLDataPoint[]>>({});
 
   useEffect(() => {
     fetchBots();
   }, [fetchBots]);
+
+  // Fetch PnL histories in parallel whenever the bots list changes.
+  useEffect(() => {
+    if (bots.length === 0) return;
+    Promise.allSettled(
+      bots.map((bot) =>
+        botsApi.getPnlHistory(bot.name).then((res) => ({ name: bot.name, points: res.data.points }))
+      )
+    ).then((results) => {
+      const histories: Record<string, PnLDataPoint[]> = {};
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          histories[result.value.name] = result.value.points;
+        }
+      }
+      setPnlHistories(histories);
+    });
+  }, [bots]);
 
   const handleStart = async (name: string) => {
     try {
@@ -78,6 +98,7 @@ export function Bots() {
             <BotCard
               key={bot.name}
               bot={bot}
+              pnlHistory={pnlHistories[bot.name]}
               onStart={() => handleStart(bot.name)}
               onStop={() => handleStop(bot.name)}
               onClick={() => navigate(`/bots/${bot.name}`)}

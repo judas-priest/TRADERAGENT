@@ -12,6 +12,7 @@ from web.backend.schemas.bot import (
     BotListResponse,
     BotStatusResponse,
     BotUpdateRequest,
+    PnLHistoryResponse,
     PnLResponse,
     PositionResponse,
 )
@@ -208,5 +209,18 @@ async def get_pnl(
     """Get PnL metrics for a bot."""
     result = await service.get_pnl(bot_name)
     if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
+    return result
+
+
+@router.get("/{bot_name}/pnl/history", response_model=PnLHistoryResponse)
+async def get_pnl_history(
+    bot_name: str,
+    _: User = Depends(get_current_user),
+    service: BotService = Depends(_get_bot_service),
+):
+    """Get time-series PnL data for sparkline chart."""
+    result = await service.get_pnl_history(bot_name)
+    if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
     return result
