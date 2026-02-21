@@ -128,6 +128,18 @@ class MarketSimulator:
         # Check and execute limit orders
         await self._check_limit_orders()
 
+    async def set_candle(
+        self,
+        open_price: Decimal,
+        high: Decimal,
+        low: Decimal,
+        close: Decimal,
+    ) -> None:
+        """O->L->H->C sweep for realistic limit order fills."""
+        for price in [open_price, low, high, close]:
+            self.current_price = price
+            await self._check_limit_orders()
+
     def get_ticker(self) -> dict[str, Any]:
         """Get current market ticker"""
         return {

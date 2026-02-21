@@ -625,3 +625,142 @@ class TestMultiStrategyComparison:
         # Both should complete with same initial balance
         assert r1.initial_balance == r2.initial_balance
         assert len(r1.equity_curve) == len(r2.equity_curve)
+
+
+# =============================================================================
+# Phase 1: New Metrics Tests
+# =============================================================================
+
+
+class TestNewMetricsInResult:
+    """Tests for Sortino, Calmar, Profit Factor, Capital Efficiency."""
+
+    async def test_backtest_result_new_fields_in_dict(self, engine, data_7days):
+        strategy = ConcreteStrategy()
+        result = await engine.run(strategy, data_7days)
+        d = result.to_dict()
+        rm = d["risk_metrics"]
+        # Fields should be present (may be None if no trades)
+        assert "sortino_ratio" in rm
+        assert "calmar_ratio" in rm
+        assert "profit_factor" in rm
+        assert "capital_efficiency" in rm
+
+    async def test_capital_efficiency_tracked(self, engine, data_7days):
+        strategy = ConcreteStrategy()
+        result = await engine.run(strategy, data_7days)
+        # Capital efficiency should be a Decimal or None
+        if result.capital_efficiency is not None:
+            assert isinstance(result.capital_efficiency, Decimal)
+
+    async def test_engine_sweep_flag_default_false(self):
+        config = MultiTFBacktestConfig()
+        assert config.use_candle_sweep is False
+
+    async def test_engine_sweep_true(self, data_7days):
+        """With sweep enabled, engine should still produce valid results."""
+        config = MultiTFBacktestConfig(
+            warmup_bars=20,
+            use_candle_sweep=True,
+        )
+        engine = MultiTimeframeBacktestEngine(config=config)
+        strategy = ConcreteStrategy()
+        result = await engine.run(strategy, data_7days)
+        assert isinstance(result, BacktestResult)
+        assert len(result.equity_curve) > 0
+
+
+# =============================================================================
+# Phase 4: Intra-Candle Sweep Tests
+# =============================================================================
+
+
+class TestIntraCandleSweep:
+    """Tests for MarketSimulator.set_candle() and candle sweep."""
+
+    async def test_set_candle_sweeps_four_prices(self):
+        """set_candle should update current_price to close at the end."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_candle(
+            Decimal("100"), Decimal("110"), Decimal("90"), Decimal("105")
+        )
+        assert sim.current_price == Decimal("105")
+
+    async def test_limit_buy_fills_on_low(self):
+        """Limit buy at 95 should fill when candle low is 90."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_price(Decimal("100"))
+        # Place limit buy at 95
+        await sim.create_order("BTC/USDT", "limit", "buy", Decimal("1"), Decimal("95"))
+        assert len(sim.get_open_orders()) == 1
+
+        # Candle sweeps O=100, L=90, H=110, C=105 — low touches 90 < 95
+        await sim.set_candle(
+            Decimal("100"), Decimal("110"), Decimal("90"), Decimal("105")
+        )
+        assert len(sim.get_open_orders()) == 0
+        assert sim.balance.base == Decimal("1")
+
+    async def test_limit_sell_fills_on_high(self):
+        """Limit sell at 108 should fill when candle high is 110."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_base=Decimal("1"),
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_price(Decimal("100"))
+        # Place limit sell at 108
+        await sim.create_order("BTC/USDT", "limit", "sell", Decimal("1"), Decimal("108"))
+        assert len(sim.get_open_orders()) == 1
+
+        # Candle sweeps O=100, L=90, H=110, C=105 — high 110 >= 108
+        await sim.set_candle(
+            Decimal("100"), Decimal("110"), Decimal("90"), Decimal("105")
+        )
+        assert len(sim.get_open_orders()) == 0
+        assert sim.balance.base == Decimal("0")
+
+    async def test_market_orders_unaffected(self):
+        """Market orders should work the same regardless of set_candle."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_candle(
+            Decimal("100"), Decimal("110"), Decimal("90"), Decimal("105")
+        )
+        await sim.create_order("BTC/USDT", "market", "buy", Decimal("1"))
+        # Market order executes at current_price = 105 (close)
+        assert sim.balance.base == Decimal("1")
+
+    async def test_set_price_still_works(self):
+        """set_price should still work normally."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_price(Decimal("100"))
+        assert sim.current_price == Decimal("100")
+        await sim.set_price(Decimal("200"))
+        assert sim.current_price == Decimal("200")

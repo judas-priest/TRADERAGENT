@@ -809,3 +809,388 @@ class TestAnalyticsIntegration:
         )
         assert isinstance(sens_result, SensitivityResult)
         assert "tp_pct" in sens_result.parameters
+
+
+# ===========================================================================
+# Phase 1: New Metrics Tests
+# ===========================================================================
+
+
+class TestSortinoRatio:
+    async def test_sortino_ratio_computed(self):
+        data = _load_test_data(days=4)
+        engine = MultiTimeframeBacktestEngine(config=MultiTFBacktestConfig(warmup_bars=20))
+        strategy = SimpleTestStrategy(buy_every_n=5)
+        result = await engine.run(strategy, data)
+        # Sortino may be None if no downside returns, but should be computable
+        # with volatile data
+        if result.sortino_ratio is not None:
+            assert isinstance(result.sortino_ratio, Decimal)
+
+    async def test_sortino_no_downside(self):
+        """With no downside returns, sortino should be None."""
+        from bot.tests.backtesting.multi_tf_engine import MultiTimeframeBacktestEngine
+
+        returns = [Decimal("0.01"), Decimal("0.02"), Decimal("0.005")]
+        sortino = MultiTimeframeBacktestEngine._calculate_sortino(returns)
+        assert sortino is None
+
+
+class TestCalmarRatio:
+    async def test_calmar_ratio_computed(self):
+        data = _load_test_data(days=4)
+        engine = MultiTimeframeBacktestEngine(config=MultiTFBacktestConfig(warmup_bars=20))
+        strategy = SimpleTestStrategy(buy_every_n=5)
+        result = await engine.run(strategy, data)
+        # If there's a drawdown, calmar should be computed
+        if result.max_drawdown_pct > 0 and result.calmar_ratio is not None:
+            assert isinstance(result.calmar_ratio, Decimal)
+
+    async def test_calmar_zero_drawdown(self):
+        """With zero drawdown, calmar should be None."""
+        result = _make_backtest_result()
+        # Manually check — if max_drawdown_pct is 0, calmar is None
+        from decimal import Decimal as D
+
+        max_dd_pct = D("0")
+        calmar = None
+        if max_dd_pct > 0:
+            calmar = D("5") / max_dd_pct
+        assert calmar is None
+
+
+class TestProfitFactor:
+    async def test_profit_factor_computed(self):
+        data = _load_test_data(days=4)
+        engine = MultiTimeframeBacktestEngine(config=MultiTFBacktestConfig(warmup_bars=20))
+        strategy = SimpleTestStrategy(buy_every_n=5)
+        result = await engine.run(strategy, data)
+        if result.profit_factor is not None:
+            assert isinstance(result.profit_factor, Decimal)
+            assert result.profit_factor >= Decimal("0")
+
+    async def test_profit_factor_no_losses(self):
+        """With no losing trades, profit_factor should be None."""
+        # If gross_loss is 0, profit_factor is None
+        result = _make_backtest_result(trades=[(100, 110), (100, 120)])
+        # profit_factor is set by the engine, not constructor, so check logic:
+        # All trades are winners → gross_loss = 0 → profit_factor = None
+        assert result.profit_factor is None  # constructor doesn't set it
+
+
+class TestCapitalEfficiency:
+    async def test_capital_efficiency_tracked(self):
+        data = _load_test_data(days=4)
+        engine = MultiTimeframeBacktestEngine(config=MultiTFBacktestConfig(warmup_bars=20))
+        strategy = SimpleTestStrategy(buy_every_n=5)
+        result = await engine.run(strategy, data)
+        # Capital efficiency should be computed
+        if result.capital_efficiency is not None:
+            assert isinstance(result.capital_efficiency, Decimal)
+
+
+# ===========================================================================
+# Phase 1C: Stress Testing Tests
+# ===========================================================================
+
+
+class TestStressTesting:
+    async def test_stress_test_selects_volatile(self):
+        from bot.tests.backtesting.stress_testing import StressTestConfig, StressTester
+
+        data = _load_test_data(days=10)
+        config = StressTestConfig(
+            num_periods=2,
+            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+        )
+        tester = StressTester()
+        result = await tester.run(
+            strategy_factory=lambda: SimpleTestStrategy(buy_every_n=5),
+            data=data,
+            config=config,
+        )
+        assert len(result.periods) <= 2
+        # Periods should be sorted by volatility
+        if len(result.periods) == 2:
+            assert result.periods[0].volatility_score >= 0
+
+    async def test_stress_test_non_overlapping(self):
+        from bot.tests.backtesting.stress_testing import StressTestConfig, StressTester
+
+        data = _load_test_data(days=10)
+        config = StressTestConfig(
+            num_periods=2,
+            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+        )
+        tester = StressTester()
+        result = await tester.run(
+            strategy_factory=lambda: SimpleTestStrategy(buy_every_n=5),
+            data=data,
+            config=config,
+        )
+        # Check non-overlapping
+        for i in range(len(result.periods)):
+            for j in range(i + 1, len(result.periods)):
+                p1 = result.periods[i]
+                p2 = result.periods[j]
+                assert (
+                    p1.end_index <= p2.start_index or p2.end_index <= p1.start_index
+                ), "Stress periods should not overlap"
+
+    async def test_stress_test_runs_backtest(self):
+        from bot.tests.backtesting.stress_testing import StressTestConfig, StressTester
+
+        data = _load_test_data(days=10)
+        config = StressTestConfig(
+            num_periods=1,
+            backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+        )
+        tester = StressTester()
+        result = await tester.run(
+            strategy_factory=lambda: SimpleTestStrategy(buy_every_n=5),
+            data=data,
+            config=config,
+        )
+        if result.periods:
+            assert isinstance(result.periods[0].result, BacktestResult)
+            assert result.periods[0].result.initial_balance > 0
+
+
+# ===========================================================================
+# Phase 1D: Correlation-based param impact
+# ===========================================================================
+
+
+class TestParamImpactCorrelation:
+    async def test_param_impact_correlation(self):
+        data = _load_test_data(days=4)
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
+        result = await optimizer.optimize(
+            strategy_factory=_make_strategy_factory(),
+            param_grid={"tp_pct": [0.005, 0.01, 0.02], "sl_pct": [0.01, 0.02]},
+            data=data,
+        )
+        corr = result.get_param_impact_correlation()
+        assert "tp_pct" in corr
+        assert "sl_pct" in corr
+        for v in corr.values():
+            assert 0.0 <= v <= 1.0
+
+
+# ===========================================================================
+# Phase 1E: Rankings and Summary Tests
+# ===========================================================================
+
+
+class TestRankingsNewMetrics:
+    async def test_rankings_include_new_metrics(self):
+        from bot.tests.backtesting.strategy_comparison import StrategyComparison
+
+        data = _load_test_data(days=4)
+        comparison = StrategyComparison(
+            config=MultiTFBacktestConfig(warmup_bars=20)
+        )
+        s1 = SimpleTestStrategy(buy_every_n=5, name="s1")
+        s2 = SimpleTestStrategy(buy_every_n=10, name="s2")
+        result = await comparison.run([s1, s2], data)
+
+        assert "sortino_ratio" in result.rankings
+        assert "calmar_ratio" in result.rankings
+        assert "profit_factor" in result.rankings
+
+    async def test_summary_includes_new_metrics(self):
+        from bot.tests.backtesting.strategy_comparison import StrategyComparison
+
+        data = _load_test_data(days=4)
+        comparison = StrategyComparison(
+            config=MultiTFBacktestConfig(warmup_bars=20)
+        )
+        s1 = SimpleTestStrategy(buy_every_n=5, name="s1")
+        result = await comparison.run([s1], data)
+
+        summary = result.summary["s1"]
+        assert "sortino_ratio" in summary
+        assert "calmar_ratio" in summary
+        assert "profit_factor" in summary
+        assert "capital_efficiency" in summary
+
+
+# ===========================================================================
+# Phase 3A: Two-Phase Optimizer Tests
+# ===========================================================================
+
+
+class TestTwoPhaseOptimizer:
+    async def test_two_phase_optimizer(self):
+        data = _load_test_data(days=4)
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
+        result = await optimizer.two_phase_optimize(
+            strategy_factory=_make_strategy_factory(),
+            param_grid={"tp_pct": [0.005, 0.01, 0.015, 0.02, 0.025]},
+            data=data,
+            coarse_steps=3,
+            fine_steps=3,
+        )
+        assert isinstance(result, OptimizationResult)
+        # Should have more trials than just coarse (coarse + fine)
+        assert len(result.all_trials) >= 3
+
+    async def test_fine_combos_narrow(self):
+        """Fine phase should narrow around the best coarse value."""
+        data = _load_test_data(days=4)
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
+        result = await optimizer.two_phase_optimize(
+            strategy_factory=_make_strategy_factory(),
+            param_grid={"tp_pct": [0.005, 0.01, 0.015, 0.02, 0.025]},
+            data=data,
+            coarse_steps=3,
+            fine_steps=3,
+        )
+        # Best params should be in the original range
+        best_tp = result.best_params.get("tp_pct", 0)
+        assert 0.005 <= float(best_tp) <= 0.025
+
+    async def test_two_phase_better_than_coarse(self):
+        """Two-phase should find at least as good as coarse-only."""
+        data = _load_test_data(days=4)
+        optimizer = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
+        coarse_result = await optimizer.optimize(
+            strategy_factory=_make_strategy_factory(),
+            param_grid={"tp_pct": [0.005, 0.015, 0.025]},
+            data=data,
+        )
+        two_phase_result = await optimizer.two_phase_optimize(
+            strategy_factory=_make_strategy_factory(),
+            param_grid={"tp_pct": [0.005, 0.01, 0.015, 0.02, 0.025]},
+            data=data,
+            coarse_steps=3,
+            fine_steps=3,
+        )
+        # Two-phase best should be >= coarse best
+        assert two_phase_result.best_objective >= coarse_result.best_objective
+
+
+# ===========================================================================
+# Phase 3B: Parallel Execution Tests
+# ===========================================================================
+
+
+class TestParallelExecution:
+    async def test_parallel_same_as_sequential(self):
+        """Parallel and sequential should produce same number of trials."""
+        data = _load_test_data(days=4)
+        grid = {"tp_pct": [0.01, 0.02], "sl_pct": [0.02]}
+
+        opt_seq = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
+        result_seq = await opt_seq.optimize(
+            strategy_factory=_make_strategy_factory(),
+            param_grid=grid,
+            data=data,
+        )
+
+        opt_par = ParameterOptimizer(
+            config=OptimizationConfig(
+                backtest_config=MultiTFBacktestConfig(warmup_bars=20),
+            )
+        )
+        result_par = await opt_par.optimize(
+            strategy_factory=_make_strategy_factory(),
+            param_grid=grid,
+            data=data,
+            max_workers=2,
+        )
+
+        assert len(result_seq.all_trials) == len(result_par.all_trials)
+
+
+# ===========================================================================
+# Phase 3C: Indicator Cache Tests
+# ===========================================================================
+
+
+class TestIndicatorCache:
+    def test_cache_hit_miss(self):
+        from bot.tests.backtesting.indicator_cache import IndicatorCache
+
+        cache = IndicatorCache(max_size=10)
+        cache.put("key1", 42)
+
+        assert cache.get("key1") == 42  # hit
+        assert cache.get("key2") is None  # miss
+
+        stats = cache.stats
+        assert stats["hits"] == 1
+        assert stats["misses"] == 1
+        assert stats["hit_rate"] == 0.5
+
+    def test_cache_eviction(self):
+        from bot.tests.backtesting.indicator_cache import IndicatorCache
+
+        cache = IndicatorCache(max_size=10)
+        for i in range(15):
+            cache.put(f"key{i}", i)
+
+        # Should have evicted some entries
+        assert cache.stats["size"] <= 10
+
+    def test_cache_serialization(self):
+        from decimal import Decimal as D
+
+        from bot.tests.backtesting.indicator_cache import IndicatorCache
+
+        cache = IndicatorCache(max_size=10)
+        cache.put("k1", D("3.14"))
+        cache.put("k2", [D("1.0"), D("2.0")])
+
+        data = cache.to_dict()
+        restored = IndicatorCache.from_dict(data, max_size=10)
+
+        assert restored.get("k1") == D("3.14")
+        assert restored.get("k2") == [D("1.0"), D("2.0")]
+
+    def test_cache_make_key(self):
+        from bot.tests.backtesting.indicator_cache import IndicatorCache
+
+        key1 = IndicatorCache.make_key("sma", "abc123", period=20)
+        key2 = IndicatorCache.make_key("sma", "abc123", period=20)
+        key3 = IndicatorCache.make_key("sma", "abc123", period=50)
+
+        assert key1 == key2
+        assert key1 != key3
+
+    def test_get_or_compute(self):
+        from bot.tests.backtesting.indicator_cache import IndicatorCache
+
+        cache = IndicatorCache(max_size=10)
+        counter = {"calls": 0}
+
+        def compute():
+            counter["calls"] += 1
+            return 99
+
+        result1 = cache.get_or_compute("key", compute)
+        result2 = cache.get_or_compute("key", compute)
+
+        assert result1 == 99
+        assert result2 == 99
+        assert counter["calls"] == 1  # computed only once

@@ -121,13 +121,20 @@ class StrategyComparison:
             items.sort(key=lambda x: x[1], reverse=higher_is_better)
             rankings[metric] = [name for name, _ in items]
 
-        # Sharpe ratio ranking (higher is better, handle None)
-        sharpe_items = []
-        for name, result in results.items():
-            sr = result.sharpe_ratio
-            sharpe_items.append((name, float(sr) if sr is not None else float("-inf")))
-        sharpe_items.sort(key=lambda x: x[1], reverse=True)
-        rankings["sharpe_ratio"] = [name for name, _ in sharpe_items]
+        # Nullable metrics (higher is better, None → -inf)
+        nullable_metrics = [
+            "sharpe_ratio",
+            "sortino_ratio",
+            "calmar_ratio",
+            "profit_factor",
+        ]
+        for nm in nullable_metrics:
+            items = []
+            for name, result in results.items():
+                val = getattr(result, nm, None)
+                items.append((name, float(val) if val is not None else float("-inf")))
+            items.sort(key=lambda x: x[1], reverse=True)
+            rankings[nm] = [name for name, _ in items]
 
         return rankings
 
@@ -144,6 +151,20 @@ class StrategyComparison:
                 "max_drawdown_pct": float(result.max_drawdown_pct),
                 "sharpe_ratio": (
                     float(result.sharpe_ratio) if result.sharpe_ratio is not None else None
+                ),
+                "sortino_ratio": (
+                    float(result.sortino_ratio) if result.sortino_ratio is not None else None
+                ),
+                "calmar_ratio": (
+                    float(result.calmar_ratio) if result.calmar_ratio is not None else None
+                ),
+                "profit_factor": (
+                    float(result.profit_factor) if result.profit_factor is not None else None
+                ),
+                "capital_efficiency": (
+                    float(result.capital_efficiency)
+                    if result.capital_efficiency is not None
+                    else None
                 ),
                 "avg_profit_per_trade": float(result.avg_profit_per_trade),
                 "buy_orders": result.total_buy_orders,
