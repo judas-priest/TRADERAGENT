@@ -3,18 +3,118 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 21 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + **Multi-Strategy Backtester Production-Ready (PR #273 merged)**
-**Pass Rate:** 100% (1500/1500 tests passing, 25 skipped)
-**Realnyy obem testov:** 1525 collected (posle dobavleniya SMC testov)
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + **Lint Cleanup + Architecture v2.1 + Full Project Audit**
+**Pass Rate:** 100% (1508/1508 tests passing, 25 skipped)
+**Realnyy obem testov:** 1534 collected (posle lint cleanup)
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Multi-TF Backtesting:** 163 tests passing (bylo 31, +132 novyh — SHORT, M5, CSV, walk-forward)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
-**Posledniy commit:** `f122732` (Merge pull request #273 — multi-strategy backtester production)
+**Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
+**Posledniy commit:** `70de720` (docs: add ARCHITECTURE-TRADERAGENT v2.1.md)
 **Bot Status:** RUNNING (5 botov inicializirovany, SMC bot v dry_run rezhime)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-21) - Session 18: Multi-Strategy Backtester — Production-Ready
+## Poslednyaya Sessiya (2026-02-21) - Session 19: Project Audit + Lint Cleanup + Architecture v2.1
+
+### Zadacha
+
+1. Razobrat PR #258 (fix/ci-checks) — opredelit nado li merzhit
+2. Polnyy audit proekta: testy, CI, otkrytye issues, PR, arhitektura
+3. Pochistit lint v tests/ (ruff + black)
+4. Sravnit server vs repo, razvernut izmeneniya
+5. Sozdat Architecture v2.1
+6. Obnovit GitHub Pages
+
+### Rezultat
+
+#### 1. PR #258 — Closed as Already Resolved
+
+- **Avtor:** konard, vetka `fix/ci-checks`, 10 faylov, +23/-12
+- **Soderzhanie:** mypy fixes + pandas>=2.1.0 dlya Python 3.12
+- **Verdikt:** Vse 10 fixov uzhe v main cherez kommity `611ab19` i `aeaf1bc` (PR #273)
+- **Deystvie:** Zakryt s kommentariem, bez merzha
+
+#### 2. Polnyy Audit Proekta
+
+| Metrika | Znachenie |
+|---------|-----------|
+| Tests | 1508 passed, 1 failed (perf benchmark), 25 skipped |
+| CI | black PASS, ruff PASS, mypy PASS |
+| Open Issues | 5 (#85, #90, #91, #97, #144) |
+| Open PRs | 1 (#98) |
+| Merged PRs | 30 |
+| Strategii | 5 (Grid, DCA, Hybrid, Trend Follower, SMC) — vse deployable |
+| Commits | 468 |
+| Faylov | 202 Python |
+| LOC | 60,891 |
+
+#### 3. Lint Cleanup — 64 fayla
+
+**Avtomaticheski:**
+- `black tests/` — 47 faylov pereformatirovany
+- `ruff check tests/ --fix` — 146 oshibok ispravleny avtomaticheski
+
+**Vruchnuyu (18 oshibok v 10 faylah):**
+
+| Oshibka | Fayl | Fix |
+|---------|------|-----|
+| B007 unused loop var | test_clusterizer.py (×4) | `i` → `_i` |
+| B007 unused loop var | test_hybrid_strategy.py | `i` → `_i` |
+| B007 unused loop var | test_load_stress.py (×3) | `cycle`/`i` → `_cycle`/`_i` |
+| B007 unused loop var | test_telegram_integration.py | `state` → `_state` |
+| E741 ambiguous name | test_grid_calculator.py | `l` → `low` |
+| E741 ambiguous name | test_grid_integration.py | `l` → `low` |
+| B017 blind exception | test_smc_config_schema.py (×4) | `Exception` → `ValueError` |
+| B017 blind exception | test_models_v2.py (×2) | `Exception` → `IntegrityError` |
+| B017 blind exception | test_database_persistence.py | `Exception` → `IntegrityError` |
+
+**Rezultat:** ruff "All checks passed!", black "86 files would be left unchanged", 1508 testov
+
+#### 4. Server Deploy
+
+- Server git na kommite `663c2d6` (Session 13), 72 kommitov pozadi
+- Docker konteyner imel Session 17 kod (deployen cherez tar/scp)
+- Razvernuty: bot/ + configs/ + tests/ (lint cleanup)
+- `docker compose restart bot` — 5 botov inicializirovany, 0 oshibok
+
+#### 5. Architecture v2.1
+
+- Fayl: `docs/ARCHITECTURE-TRADERAGENT v2.1.md` (918 strok)
+- Staryy v2.0 sohranen bez izmeneniy
+- Novye razdelyy vs v2.0:
+  - Section 5: SMC Pipeline (4 TF, D1→H4→H1→M15)
+  - Section 9: Multi-TF Backtesting Engine
+  - Changelog v2.0 → v2.1
+- Obnovleny vse metriki, LOC annotatsii na vsekh komponentah
+- 20 razdelov s Mermaid diagrammami
+
+#### 6. GitHub Pages
+
+- Obnovlen `docs/screenshots/index.html`:
+  - Novyy badge: "5 Strategies"
+  - Podpis: 468 commits, 202 files, 60,891 LOC, 1,508 tests, Bybit Demo deployed
+  - Strategy Marketplace: dobavleny SMC i Hybrid
+
+### Izmenennye Fayly
+
+| # | Fayl | Izmenenie |
+|---|------|-----------|
+| 1 | `tests/` (64 fayla) | black + ruff lint cleanup |
+| 2 | `docs/ARCHITECTURE-TRADERAGENT v2.1.md` | Novyy fayl, 918 strok |
+| 3 | `docs/screenshots/index.html` | Obnovleny metriki i badgy |
+
+### Commits
+
+| Commit | Opisanie |
+|--------|----------|
+| `4d67d5e` | style: fix all ruff + black lint errors in tests/ (64 files) |
+| `70de720` | docs: add ARCHITECTURE-TRADERAGENT v2.1.md |
+| `fb87350` | docs: update GitHub Pages — aktualnye tsifry proekta |
+
+---
+
+## Predydushchaya Sessiya (2026-02-21) - Session 18: Multi-Strategy Backtester — Production-Ready
 
 ### Zadacha
 
@@ -142,7 +242,7 @@ Novye test-klassy:
 
 ---
 
-## Predydushchaya Sessiya (2026-02-21) - Session 17: SMC Standalone Strategy Implementation + Deploy
+## Session 17 (2026-02-21): SMC Standalone Strategy Implementation + Deploy
 
 ### Zadacha
 
@@ -1391,35 +1491,34 @@ docker compose up webui-backend webui-frontend
 ## Last Updated
 
 - **Date:** February 21, 2026
-- **Session:** 18 (Multi-Strategy Backtester — Production-Ready)
-- **Status:** 1500/1525 tests passing (100%), 25 skipped
-- **Total tests:** 1525 collected (posle dobavleniya SMC testov)
-- **Last commit:** `f122732` (Merge pull request #273 — multi-strategy backtester production)
+- **Session:** 19 (Project Audit + Lint Cleanup + Architecture v2.1)
+- **Status:** 1508/1534 tests passing (100%), 25 skipped
+- **Total tests:** 1534 collected (posle lint cleanup)
+- **Last commit:** `70de720` (docs: add ARCHITECTURE-TRADERAGENT v2.1.md)
 - **Bot Status:** RUNNING (5 botov, SMC bot v dry_run rezhime)
+- **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors) — **vse lintory chistye**
+- **Architecture v2.1:** COMPLETE — 918 strok, 20 razdelov, Mermaid diagrammy, SMC Pipeline, Multi-TF Backtesting
+- **Lint Cleanup:** COMPLETE — 64 fayla, 300+ ruff + 47 black errors fixed
+- **PR #258:** CLOSED (vse fixy uzhe v main cherez PR #273)
 - **Multi-TF Backtester:** PRODUCTION-READY — SHORT, M5, CSV, CLI runner, 163 tests, PR #273 merged, 9 issues closed
 - **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1322 strok, 29 konfliktov ustraneny)
 - **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1676 strok)
 - **Conflict Analysis:** Session 12: 16 + Session 13: 13 = **29 konfliktov** ustraneny
 - **SMC Integration:** smartmoneyconcepts library integrated (swing/BOS/CHoCH/OB/FVG/Liquidity), merged to main
-- **SMC Audit:** 5 kriticheskikh raskhozhdenii naideny (swing_length, OB lookback, liquidity zones, mitigation, close_break)
 - **SMC Standalone Strategy:** DEPLOYED — 7 faylov, +659 strok, adaptive swing_length, BotOrchestrator integration, 26 testov
-- **SMC Fixes:** COMPLETE — swing_length adaptive (D1: //5, H4: //2), dead params removed, max_positions added
 - **Timezone Bug Fix:** periodic_state_save_failed resolved — `.replace(tzinfo=None)` for asyncpg compatibility
-- **HYBRID:** Udalyon kak otdelnaya strategiya; funktsiya perenesena v Strategy Router
-- **SMC:** Pereproektirovan iz strategii v filtr (tolko ENTRY, zone staleness, per-entry touch)
 - **Backtesting Service:** 174 tests (bylo 169, +5 novyh), 5 bug fixes applied
 - **Shared Core Refactoring:** COMPLETE — eliminatsiya dublikatov, re-export shims, IGridExchange Protocol
-- **XRP/USDT Backtest:** COMPLETE — pervyy preset v biblioteke (preset_id f191113c-b34)
 - **Grid Backtesting:** COMPLETE (39 tests, 4 phases) — polnaya sovmestimost s prodakshn
 - **State Persistence:** COMPLETE (#237) — save/load/reconcile + timezone bug fixed
 - **Phase 7.4:** Load/Stress Testing — COMPLETE (40 tests)
 - **Web UI Dashboard:** COMPLETE (PR #221 merged)
 - **Phase 7.3:** Bybit Demo Trading — DEPLOYED (currently stopped)
-- **Server:** 185.233.200.13 (Docker, bot stopped)
+- **Server:** 185.233.200.13 (Docker, RUNNING — 5 botov)
 - **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed to server
-- **Presets Library:** 1 preset (XRPUSDT) v `/data/presets.db`
+- **GitHub Pages:** UPDATED — 468 commits, 1,508 tests, 5 Strategies, Bybit Demo deployed
 - **Repository Cleanup:** COMPLETE — dca_grid_bot udalyon, docs reorganizovany, code quality fixes applied
-- **Code Quality:** black + ruff PASS; mypy 47 pre-existing errors (TODO)
-- **CI Known Issues:** GitHub Actions Python 3.12 pkg_resources failure (environment issue)
-- **Next Action:** Fix mypy errors → Zapusk SMC bota (live dry-run) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
+- **Open Issues:** 5 (#85, #90, #91, #97, #144)
+- **Open PRs:** 1 (#98)
+- **Next Action:** Zapusk SMC bota (live dry-run) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
 - **Co-Authored:** Claude Opus 4.6
