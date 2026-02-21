@@ -111,7 +111,7 @@ class WalkForwardAnalysis:
             # Run on test window
             test_result = await engine.run(strategy, test_data)
 
-            ts = data.m15.index
+            ts = data.m5.index
             results.append(
                 WalkForwardWindow(
                     window_index=i,
@@ -127,8 +127,8 @@ class WalkForwardAnalysis:
         return self._aggregate(results)
 
     def _split_windows(self, data: MultiTimeframeData) -> list[tuple[slice, slice]]:
-        """Split M15 index range into n_splits train/test pairs."""
-        total = len(data.m15)
+        """Split M5 index range into n_splits train/test pairs."""
+        total = len(data.m5)
         warmup = self.config.backtest_config.warmup_bars
         n = self.config.n_splits
 
@@ -156,27 +156,29 @@ class WalkForwardAnalysis:
 
     def _build_slice_data(self, data: MultiTimeframeData, s: slice) -> MultiTimeframeData:
         """
-        Build a MultiTimeframeData for a sub-range of M15 indices.
+        Build a MultiTimeframeData for a sub-range of M5 indices.
 
-        Higher timeframes are filtered to match the M15 time range.
+        Higher timeframes are filtered to match the M5 time range.
         """
-        m15 = data.m15.iloc[s.start : s.stop]
-        if m15.empty:
+        m5 = data.m5.iloc[s.start : s.stop]
+        if m5.empty:
             return MultiTimeframeData(
                 d1=pd.DataFrame(),
                 h4=pd.DataFrame(),
                 h1=pd.DataFrame(),
-                m15=m15,
+                m15=pd.DataFrame(),
+                m5=m5,
             )
 
-        start_ts = m15.index[0]
-        end_ts = m15.index[-1]
+        start_ts = m5.index[0]
+        end_ts = m5.index[-1]
 
         d1 = data.d1[(data.d1.index >= start_ts) & (data.d1.index <= end_ts)]
         h4 = data.h4[(data.h4.index >= start_ts) & (data.h4.index <= end_ts)]
         h1 = data.h1[(data.h1.index >= start_ts) & (data.h1.index <= end_ts)]
+        m15 = data.m15[(data.m15.index >= start_ts) & (data.m15.index <= end_ts)]
 
-        return MultiTimeframeData(d1=d1, h4=h4, h1=h1, m15=m15)
+        return MultiTimeframeData(d1=d1, h4=h4, h1=h1, m15=m15, m5=m5)
 
     def _aggregate(self, windows: list[WalkForwardWindow]) -> WalkForwardResult:
         """Aggregate walk-forward window results."""

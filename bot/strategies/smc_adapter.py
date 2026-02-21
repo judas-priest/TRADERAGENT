@@ -80,15 +80,17 @@ class SMCStrategyAdapter(BaseStrategy):
         """
         Analyze market using SMC multi-timeframe analysis.
 
-        Expects 1-4 DataFrames in order: [df_d1, df_h4, df_h1, df_m15].
+        Expects 1-5 DataFrames in order: [df_d1, df_h4, df_h1, df_m15, df_m5].
         If fewer are provided, the last one is reused for missing timeframes.
         """
-        # Pad DataFrames if fewer than 4 provided
+        # Pad DataFrames if fewer than 5 provided
         df_list = list(dfs)
-        while len(df_list) < 4:
+        while len(df_list) < 5:
             df_list.append(df_list[-1])
 
-        df_d1, df_h4, df_h1, df_m15 = df_list[0], df_list[1], df_list[2], df_list[3]
+        df_d1, df_h4, df_h1, df_m15, df_m5 = (
+            df_list[0], df_list[1], df_list[2], df_list[3], df_list[4]
+        )
 
         # Cache for signal generation
         self._cached_dfs = {
@@ -96,8 +98,10 @@ class SMCStrategyAdapter(BaseStrategy):
             "h4": df_h4,
             "h1": df_h1,
             "m15": df_m15,
+            "m5": df_m5,
         }
 
+        # SMCStrategy.analyze_market expects 4 DFs (d1, h4, h1, m15)
         analysis = self._strategy.analyze_market(df_d1, df_h4, df_h1, df_m15)
 
         trend = analysis.get("trend", "unknown")

@@ -1,8 +1,9 @@
 """
 Multi-timeframe backtest engine that drives BaseStrategy implementations.
 
-Iterates M15 candles as the finest granularity, builds rolling DataFrames
-for each timeframe, and executes the full BaseStrategy lifecycle:
+Iterates M5 candles as the finest granularity, builds rolling DataFrames
+for each timeframe (D1, H4, H1, M15, M5), and executes the full
+BaseStrategy lifecycle:
 analyze_market → generate_signal → open_position → update_positions → close_position.
 
 Usage:
@@ -60,6 +61,7 @@ class MultiTimeframeBacktestEngine:
         self.config = config or MultiTFBacktestConfig()
         self.data_loader = MultiTimeframeDataLoader()
         self._position_amounts: dict[str, Decimal] = {}
+        self._position_directions: dict[str, SignalDirection] = {}
 
     async def run(
         self,
@@ -88,14 +90,15 @@ class MultiTimeframeBacktestEngine:
         # Run execution loop
         equity_curve, max_drawdown = await self._execute_loop(strategy, data, simulator)
 
-        # Build result
+        # Build result — use the finest-resolution TF for time range
+        base_df = data.m5
         return self._build_result(
             strategy_name=strategy.get_strategy_name(),
             simulator=simulator,
             equity_curve=equity_curve,
             max_drawdown=max_drawdown,
-            start_time=data.m15.index[0].to_pydatetime(),
-            end_time=data.m15.index[-1].to_pydatetime(),
+            start_time=base_df.index[0].to_pydatetime(),
+            end_time=base_df.index[-1].to_pydatetime(),
         )
 
     async def run_with_generated_data(
@@ -132,30 +135,33 @@ class MultiTimeframeBacktestEngine:
         peak_value = self.config.initial_balance
         max_drawdown = Decimal("0")
         self._position_amounts = {}
+        self._position_directions = {}
 
-        total_bars = len(data.m15)
+        # Iterate over the finest-resolution TF (M5)
+        base_df = data.m5
+        total_bars = len(base_df)
 
         for i in range(self.config.warmup_bars, total_bars):
-            # Get rolling context
-            df_d1, df_h4, df_h1, df_m15 = self.data_loader.get_context_at(
-                data, m15_index=i, lookback=self.config.lookback
+            # Get rolling context — 5 DataFrames
+            df_d1, df_h4, df_h1, df_m15, df_m5 = self.data_loader.get_context_at(
+                data, base_index=i, lookback=self.config.lookback
             )
 
-            # Current price from M15 close
-            current_price = Decimal(str(data.m15.iloc[i]["close"]))
-            simulator.set_price(current_price)
+            # Current price from M5 close
+            current_price = Decimal(str(base_df.iloc[i]["close"]))
+            await simulator.set_price(current_price)
 
-            # Periodically analyze market
+            # Periodically analyze market — pass all 5 TFs
             if (i - self.config.warmup_bars) % self.config.analyze_every_n == 0:
                 try:
-                    strategy.analyze_market(df_d1, df_h4, df_h1, df_m15)
+                    strategy.analyze_market(df_d1, df_h4, df_h1, df_m15, df_m5)
                 except Exception as e:
                     logger.debug("analyze_market error at bar %d: %s", i, e)
 
-            # Generate signal
+            # Generate signal using the finest TF
             try:
                 balance = simulator.get_portfolio_value()
-                signal = strategy.generate_signal(df_m15, balance)
+                signal = strategy.generate_signal(df_m5, balance)
             except Exception as e:
                 logger.debug("generate_signal error at bar %d: %s", i, e)
                 signal = None
@@ -166,7 +172,7 @@ class MultiTimeframeBacktestEngine:
 
             # Update positions and handle exits
             try:
-                exits = strategy.update_positions(current_price, df_m15)
+                exits = strategy.update_positions(current_price, df_m5)
             except Exception as e:
                 logger.debug("update_positions error at bar %d: %s", i, e)
                 exits = []
@@ -178,7 +184,7 @@ class MultiTimeframeBacktestEngine:
             portfolio_value = simulator.get_portfolio_value()
             equity_curve.append(
                 {
-                    "timestamp": data.m15.index[i].isoformat(),
+                    "timestamp": base_df.index[i].isoformat(),
                     "price": float(current_price),
                     "portfolio_value": float(portfolio_value),
                 }
@@ -205,11 +211,6 @@ class MultiTimeframeBacktestEngine:
         simulator: MarketSimulator,
     ) -> None:
         """Open position in strategy and place market order on simulator."""
-        # Only handle LONG signals (simulator has no short selling)
-        if signal.direction != SignalDirection.LONG:
-            logger.debug("Skipping SHORT signal (not supported)")
-            return
-
         # Calculate position size
         balance = simulator.get_portfolio_value()
         position_size = self._calculate_position_size(signal, balance, current_price)
@@ -225,16 +226,26 @@ class MultiTimeframeBacktestEngine:
             # Open position in strategy
             pos_id = strategy.open_position(signal, cost)
 
-            # Place buy order on simulator
-            await simulator.create_order(
-                symbol=self.config.symbol,
-                order_type="market",
-                side="buy",
-                amount=position_size,
-            )
+            # Place order on simulator based on direction
+            if signal.direction == SignalDirection.LONG:
+                await simulator.create_order(
+                    symbol=self.config.symbol,
+                    order_type="market",
+                    side="buy",
+                    amount=position_size,
+                )
+            else:
+                # SHORT: sell to open
+                await simulator.create_order(
+                    symbol=self.config.symbol,
+                    order_type="market",
+                    side="sell",
+                    amount=position_size,
+                )
 
-            # Track amount for closing later
+            # Track amount and direction for closing later
             self._position_amounts[pos_id] = position_size
+            self._position_directions[pos_id] = signal.direction
         except Exception as e:
             logger.debug("Signal execution failed: %s", e)
 
@@ -245,9 +256,10 @@ class MultiTimeframeBacktestEngine:
         current_price: Decimal,
         simulator: MarketSimulator,
     ) -> None:
-        """Close positions in strategy and execute sell orders on simulator."""
+        """Close positions in strategy and execute orders on simulator."""
         for pos_id, exit_reason in exits:
             amount = self._position_amounts.pop(pos_id, None)
+            direction = self._position_directions.pop(pos_id, SignalDirection.LONG)
             if amount is None:
                 continue
 
@@ -255,12 +267,21 @@ class MultiTimeframeBacktestEngine:
                 # Close in strategy
                 strategy.close_position(pos_id, exit_reason, current_price)
 
-                # Sell on simulator
-                if simulator.balance.base >= amount:
+                if direction == SignalDirection.LONG:
+                    # LONG exit: sell base
+                    if simulator.balance.base >= amount:
+                        await simulator.create_order(
+                            symbol=self.config.symbol,
+                            order_type="market",
+                            side="sell",
+                            amount=amount,
+                        )
+                else:
+                    # SHORT exit: buy to close
                     await simulator.create_order(
                         symbol=self.config.symbol,
                         order_type="market",
-                        side="sell",
+                        side="buy",
                         amount=amount,
                     )
             except Exception as e:
@@ -387,8 +408,8 @@ class MultiTimeframeBacktestEngine:
 
         if std_return > 0:
             sharpe = mean_return / std_return
-            # Annualize (assuming 15-minute returns)
-            sharpe = sharpe * Decimal(str((365 * 24 * 4) ** 0.5))
+            # Annualize (assuming 5-minute returns: 365 * 24 * 12)
+            sharpe = sharpe * Decimal(str((365 * 24 * 12) ** 0.5))
             return sharpe
 
         return None

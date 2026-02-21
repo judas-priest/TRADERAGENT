@@ -1,5 +1,7 @@
 """Tests for multi-timeframe backtesting — Issue #172."""
 
+import os
+import tempfile
 from datetime import datetime
 from decimal import Decimal
 
@@ -7,6 +9,7 @@ import pandas as pd
 import pytest
 
 from bot.tests.backtesting.backtesting_engine import BacktestResult
+from bot.tests.backtesting.market_simulator import MarketSimulator
 from bot.tests.backtesting.multi_tf_data_loader import (
     MultiTimeframeDataLoader,
 )
@@ -68,25 +71,31 @@ def engine():
 class TestMultiTimeframeDataLoader:
     """Tests for data loading and synchronization."""
 
-    def test_load_produces_four_dataframes(self, data_2days):
+    def test_load_produces_five_dataframes(self, data_2days):
         assert isinstance(data_2days.d1, pd.DataFrame)
         assert isinstance(data_2days.h4, pd.DataFrame)
         assert isinstance(data_2days.h1, pd.DataFrame)
         assert isinstance(data_2days.m15, pd.DataFrame)
+        assert isinstance(data_2days.m5, pd.DataFrame)
 
     def test_as_tuple(self, data_2days):
         t = data_2days.as_tuple()
-        assert len(t) == 4
+        assert len(t) == 5
         assert t[0] is data_2days.d1
         assert t[3] is data_2days.m15
+        assert t[4] is data_2days.m5
 
     def test_dataframe_columns(self, data_2days):
         expected = {"open", "high", "low", "close", "volume"}
-        for df in [data_2days.d1, data_2days.h4, data_2days.h1, data_2days.m15]:
+        for df in [data_2days.d1, data_2days.h4, data_2days.h1, data_2days.m15, data_2days.m5]:
             assert set(df.columns) >= expected
 
+    def test_m5_count(self, data_2days):
+        """2 days = 2*24*12 = 576 M5 bars."""
+        assert len(data_2days.m5) == 576
+
     def test_m15_count(self, data_2days):
-        """2 days = 2*24*4 = 192 M15 bars."""
+        """2 days = 2*24*4 = 192 M15 bars (resampled from M5)."""
         assert len(data_2days.m15) == 192
 
     def test_h1_count(self, data_2days):
@@ -102,94 +111,110 @@ class TestMultiTimeframeDataLoader:
         assert len(data_2days.d1) == 2
 
     def test_datetime_index(self, data_2days):
-        for df in [data_2days.d1, data_2days.h4, data_2days.h1, data_2days.m15]:
+        for df in [data_2days.d1, data_2days.h4, data_2days.h1, data_2days.m15, data_2days.m5]:
             assert isinstance(df.index, pd.DatetimeIndex)
 
     def test_timeframe_alignment(self, data_2days):
-        """Each M15 timestamp should have a corresponding H1 and H4 ancestor."""
-        for ts in data_2days.m15.index:
+        """Each M5 timestamp should have a corresponding M15, H1, and H4 ancestor."""
+        for ts in data_2days.m5.index[:20]:  # Check first 20 for speed
+            m15_before = data_2days.m15[data_2days.m15.index <= ts]
+            assert len(m15_before) > 0, f"No M15 candle for M5 at {ts}"
+
             h1_before = data_2days.h1[data_2days.h1.index <= ts]
-            assert len(h1_before) > 0, f"No H1 candle for M15 at {ts}"
+            assert len(h1_before) > 0, f"No H1 candle for M5 at {ts}"
 
             h4_before = data_2days.h4[data_2days.h4.index <= ts]
-            assert len(h4_before) > 0, f"No H4 candle for M15 at {ts}"
+            assert len(h4_before) > 0, f"No H4 candle for M5 at {ts}"
 
     def test_ohlcv_consistency(self, data_2days):
         """high >= max(open, close) and low <= min(open, close) for all bars."""
-        for df in [data_2days.d1, data_2days.h4, data_2days.h1, data_2days.m15]:
+        for df in [data_2days.d1, data_2days.h4, data_2days.h1, data_2days.m15, data_2days.m5]:
             assert (df["high"] >= df[["open", "close"]].max(axis=1) - 1e-10).all()
             assert (df["low"] <= df[["open", "close"]].min(axis=1) + 1e-10).all()
 
     def test_resampled_high_equals_child_max(self, data_2days):
-        """H1 high should equal max of its 4 M15 highs."""
-        h1_ts = data_2days.h1.index[0]
-        m15_slice = data_2days.m15[
-            (data_2days.m15.index >= h1_ts) & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
+        """M15 high should equal max of its 3 M5 highs."""
+        m15_ts = data_2days.m15.index[0]
+        m5_slice = data_2days.m5[
+            (data_2days.m5.index >= m15_ts) & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
         ]
-        assert abs(data_2days.h1.loc[h1_ts, "high"] - m15_slice["high"].max()) < 1e-10
+        assert abs(data_2days.m15.loc[m15_ts, "high"] - m5_slice["high"].max()) < 1e-10
 
     def test_resampled_open_equals_first_child(self, data_2days):
-        """H1 open should equal the open of its first M15 bar."""
-        h1_ts = data_2days.h1.index[0]
-        m15_slice = data_2days.m15[
-            (data_2days.m15.index >= h1_ts) & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
+        """M15 open should equal the open of its first M5 bar."""
+        m15_ts = data_2days.m15.index[0]
+        m5_slice = data_2days.m5[
+            (data_2days.m5.index >= m15_ts) & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
         ]
-        assert abs(data_2days.h1.loc[h1_ts, "open"] - m15_slice.iloc[0]["open"]) < 1e-10
+        assert abs(data_2days.m15.loc[m15_ts, "open"] - m5_slice.iloc[0]["open"]) < 1e-10
 
     def test_resampled_close_equals_last_child(self, data_2days):
-        """H1 close should equal the close of its last M15 bar."""
-        h1_ts = data_2days.h1.index[0]
-        m15_slice = data_2days.m15[
-            (data_2days.m15.index >= h1_ts) & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
+        """M15 close should equal the close of its last M5 bar."""
+        m15_ts = data_2days.m15.index[0]
+        m5_slice = data_2days.m5[
+            (data_2days.m5.index >= m15_ts) & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
         ]
-        assert abs(data_2days.h1.loc[h1_ts, "close"] - m15_slice.iloc[-1]["close"]) < 1e-10
+        assert abs(data_2days.m15.loc[m15_ts, "close"] - m5_slice.iloc[-1]["close"]) < 1e-10
 
     def test_resampled_volume_equals_child_sum(self, data_2days):
-        """H1 volume should equal sum of its 4 M15 volumes."""
-        h1_ts = data_2days.h1.index[0]
-        m15_slice = data_2days.m15[
-            (data_2days.m15.index >= h1_ts) & (data_2days.m15.index < h1_ts + pd.Timedelta(hours=1))
+        """M15 volume should equal sum of its 3 M5 volumes."""
+        m15_ts = data_2days.m15.index[0]
+        m5_slice = data_2days.m5[
+            (data_2days.m5.index >= m15_ts) & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
         ]
-        assert abs(data_2days.h1.loc[h1_ts, "volume"] - m15_slice["volume"].sum()) < 1e-10
+        assert abs(data_2days.m15.loc[m15_ts, "volume"] - m5_slice["volume"].sum()) < 1e-10
 
 
 class TestGetContextAt:
     """Tests for get_context_at rolling window."""
 
-    def test_context_sizes(self, loader, data_7days):
-        df_d1, df_h4, df_h1, df_m15 = loader.get_context_at(data_7days, m15_index=200, lookback=50)
-        assert len(df_m15) == 50
+    def test_context_sizes_base_index(self, loader, data_7days):
+        df_d1, df_h4, df_h1, df_m15, df_m5 = loader.get_context_at(
+            data_7days, base_index=200, lookback=50
+        )
+        assert len(df_m5) == 50
+        assert len(df_m15) <= 50
         assert len(df_h1) <= 50
         assert len(df_h4) <= 50
         assert len(df_d1) <= 50
 
     def test_context_early_index(self, loader, data_7days):
-        """When m15_index < lookback, return whatever is available."""
-        df_d1, df_h4, df_h1, df_m15 = loader.get_context_at(data_7days, m15_index=10, lookback=50)
-        assert len(df_m15) == 11  # indices 0..10
+        """When base_index < lookback, return whatever is available."""
+        df_d1, df_h4, df_h1, df_m15, df_m5 = loader.get_context_at(
+            data_7days, base_index=10, lookback=50
+        )
+        assert len(df_m5) == 11  # indices 0..10
         assert len(df_d1) >= 1
 
     def test_context_timestamps_aligned(self, loader, data_7days):
         """Context DataFrames should not contain future data."""
-        m15_index = 200
-        current_ts = data_7days.m15.index[m15_index]
-        df_d1, df_h4, df_h1, df_m15 = loader.get_context_at(
-            data_7days, m15_index=m15_index, lookback=50
+        idx = 200
+        current_ts = data_7days.m5.index[idx]
+        df_d1, df_h4, df_h1, df_m15, df_m5 = loader.get_context_at(
+            data_7days, base_index=idx, lookback=50
         )
-        assert df_m15.index[-1] == current_ts
+        assert df_m5.index[-1] == current_ts
+        assert df_m15.index[-1] <= current_ts
         assert df_h1.index[-1] <= current_ts
         assert df_h4.index[-1] <= current_ts
         assert df_d1.index[-1] <= current_ts
 
     def test_context_no_future_leak(self, loader, data_7days):
         """No candle in any context DataFrame should be after current timestamp."""
-        m15_index = 100
-        current_ts = data_7days.m15.index[m15_index]
-        df_d1, df_h4, df_h1, df_m15 = loader.get_context_at(
-            data_7days, m15_index=m15_index, lookback=50
+        idx = 100
+        current_ts = data_7days.m5.index[idx]
+        df_d1, df_h4, df_h1, df_m15, df_m5 = loader.get_context_at(
+            data_7days, base_index=idx, lookback=50
         )
-        for df in [df_d1, df_h4, df_h1, df_m15]:
+        for df in [df_d1, df_h4, df_h1, df_m15, df_m5]:
             assert (df.index <= current_ts).all()
+
+    def test_backwards_compat_m15_index(self, loader, data_7days):
+        """Legacy m15_index param still works."""
+        df_d1, df_h4, df_h1, df_m15, df_m5 = loader.get_context_at(
+            data_7days, m15_index=50, lookback=30
+        )
+        assert len(df_m15) == 30
 
 
 class TestDataLoaderTrends:
@@ -197,17 +222,182 @@ class TestDataLoaderTrends:
 
     def test_uptrend_prices_increase(self, loader):
         data = loader.load("BTC/USDT", datetime(2024, 1, 1), datetime(2024, 2, 1), trend="up")
-        first_close = data.m15.iloc[0]["close"]
-        last_close = data.m15.iloc[-1]["close"]
-        # In an uptrend over 1 month, last price should generally be higher
-        # Allow some tolerance since it's stochastic
+        first_close = data.m5.iloc[0]["close"]
+        last_close = data.m5.iloc[-1]["close"]
         assert last_close > first_close * 0.8
 
     def test_downtrend_prices_decrease(self, loader):
         data = loader.load("BTC/USDT", datetime(2024, 1, 1), datetime(2024, 2, 1), trend="down")
-        first_close = data.m15.iloc[0]["close"]
-        last_close = data.m15.iloc[-1]["close"]
+        first_close = data.m5.iloc[0]["close"]
+        last_close = data.m5.iloc[-1]["close"]
         assert last_close < first_close * 1.2
+
+
+# =============================================================================
+# CSV Loading Tests
+# =============================================================================
+
+
+class TestCSVLoading:
+    """Tests for CSV data loading."""
+
+    def test_load_csv_iso_timestamps(self, loader):
+        """Load CSV with ISO timestamp format."""
+        csv_content = (
+            "timestamp,open,high,low,close,volume\n"
+            "2024-01-01 00:00:00,100,105,99,103,1000\n"
+            "2024-01-01 00:05:00,103,107,102,106,1100\n"
+            "2024-01-01 00:10:00,106,108,104,105,900\n"
+            "2024-01-01 00:15:00,105,110,104,109,1200\n"
+            "2024-01-01 00:20:00,109,112,108,111,1050\n"
+            "2024-01-01 00:25:00,111,113,110,112,980\n"
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write(csv_content)
+            f.flush()
+            try:
+                data = loader.load_csv(f.name, base_timeframe="5m")
+                assert len(data.m5) == 6
+                assert isinstance(data.m15, pd.DataFrame)
+                assert isinstance(data.d1, pd.DataFrame)
+            finally:
+                os.unlink(f.name)
+
+    def test_load_csv_unix_ms_timestamps(self, loader):
+        """Load CSV with Unix millisecond timestamps and datetime column."""
+        csv_content = (
+            "timestamp,datetime,open,high,low,close,volume\n"
+            "1704067200000,2024-01-01 00:00:00,100,105,99,103,1000\n"
+            "1704067500000,2024-01-01 00:05:00,103,107,102,106,1100\n"
+            "1704067800000,2024-01-01 00:10:00,106,108,104,105,900\n"
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write(csv_content)
+            f.flush()
+            try:
+                data = loader.load_csv(f.name, base_timeframe="5m")
+                assert len(data.m5) == 3
+            finally:
+                os.unlink(f.name)
+
+    def test_load_csv_resamples_correctly(self, loader):
+        """CSV data should be resampled to all timeframes."""
+        # Generate 1 hour of 5m data (12 bars) to get 4 M15 bars
+        rows = ["timestamp,open,high,low,close,volume"]
+        for i in range(12):
+            ts = f"2024-01-01 00:{i*5:02d}:00"
+            rows.append(f"{ts},{100+i},{105+i},{99+i},{103+i},{1000+i}")
+        csv_content = "\n".join(rows) + "\n"
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write(csv_content)
+            f.flush()
+            try:
+                data = loader.load_csv(f.name, base_timeframe="5m")
+                assert len(data.m5) == 12
+                assert len(data.m15) == 4  # 12 M5 bars / 3 = 4 M15 bars
+            finally:
+                os.unlink(f.name)
+
+
+# =============================================================================
+# SHORT Position Simulation Tests
+# =============================================================================
+
+
+class TestMarketSimulatorShort:
+    """Tests for SHORT position simulation in MarketSimulator."""
+
+    async def test_short_open_and_close_profit(self):
+        """Open short at high price, close at lower price = profit."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_price(Decimal("100"))
+
+        # Sell to open SHORT (no base balance -> opens short)
+        await sim.create_order("BTC/USDT", "market", "sell", Decimal("10"))
+
+        # Verify short position exists
+        assert len(sim.short_positions) == 1
+        assert sim.short_positions[0]["amount"] == Decimal("10")
+
+        # Price drops
+        await sim.set_price(Decimal("90"))
+
+        # Buy to close SHORT
+        await sim.create_order("BTC/USDT", "market", "buy", Decimal("10"))
+
+        # Short closed
+        assert len(sim.short_positions) == 0
+
+        # PnL = (100 - 90) * 10 = 100 profit
+        assert sim.get_portfolio_value() == Decimal("10100")
+
+    async def test_short_open_and_close_loss(self):
+        """Open short at low price, close at higher price = loss."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_price(Decimal("100"))
+
+        # Open SHORT
+        await sim.create_order("BTC/USDT", "market", "sell", Decimal("10"))
+
+        # Price rises
+        await sim.set_price(Decimal("110"))
+
+        # Close SHORT
+        await sim.create_order("BTC/USDT", "market", "buy", Decimal("10"))
+
+        # PnL = (100 - 110) * 10 = -100 loss
+        assert sim.get_portfolio_value() == Decimal("9900")
+
+    async def test_short_unrealized_pnl(self):
+        """Portfolio value should reflect unrealized SHORT PnL."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_price(Decimal("100"))
+
+        # Open SHORT
+        await sim.create_order("BTC/USDT", "market", "sell", Decimal("10"))
+
+        # Price drops to 95 — unrealized profit = (100-95)*10 = 50
+        await sim.set_price(Decimal("95"))
+        assert sim.get_portfolio_value() == Decimal("10050")
+
+        # Price rises to 105 — unrealized loss = (100-105)*10 = -50
+        await sim.set_price(Decimal("105"))
+        assert sim.get_portfolio_value() == Decimal("9950")
+
+    async def test_short_reset_clears(self):
+        """Reset should clear short positions."""
+        sim = MarketSimulator(
+            symbol="BTC/USDT",
+            initial_balance_quote=Decimal("10000"),
+            maker_fee=Decimal("0"),
+            taker_fee=Decimal("0"),
+            slippage=Decimal("0"),
+        )
+        await sim.set_price(Decimal("100"))
+        await sim.create_order("BTC/USDT", "market", "sell", Decimal("5"))
+
+        assert len(sim.short_positions) == 1
+        sim.reset()
+        assert len(sim.short_positions) == 0
 
 
 # =============================================================================
@@ -269,10 +459,10 @@ class TestMultiTimeframeBacktestEngine:
         assert result.initial_balance == Decimal("10000")
 
     async def test_equity_curve_length(self, engine, data_7days):
-        """Equity curve entries = total M15 bars - warmup bars."""
+        """Equity curve entries = total M5 bars - warmup bars."""
         strategy = ConcreteStrategy()
         result = await engine.run(strategy, data_7days)
-        expected = len(data_7days.m15) - engine.config.warmup_bars
+        expected = len(data_7days.m5) - engine.config.warmup_bars
         assert len(result.equity_curve) == expected
 
     async def test_equity_curve_has_required_fields(self, engine, data_7days):

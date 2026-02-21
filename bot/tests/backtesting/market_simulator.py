@@ -118,6 +118,10 @@ class MarketSimulator:
         self.order_id_counter = 0
         self.trade_history: list[dict[str, Any]] = []
 
+        # Futures SHORT position tracking
+        self.short_positions: list[dict[str, Any]] = []
+        self._short_id_counter = 0
+
     async def set_price(self, price: Decimal) -> None:
         """Update current market price"""
         self.current_price = price
@@ -221,30 +225,74 @@ class MarketSimulator:
             return self.current_price * (Decimal("1") - self.slippage)
 
     async def _execute_order(self, order: SimulatedOrder) -> None:
-        """Execute an order"""
+        """Execute an order, supporting both spot and futures SHORT positions."""
         try:
-            if order.side == OrderSide.BUY:
-                # Calculate fee
-                fee = (
-                    order.amount * self.taker_fee
-                    if order.order_type == OrderType.MARKET
-                    else order.amount * self.maker_fee
-                )
-                order.amount - fee
+            fee_rate = (
+                self.taker_fee if order.order_type == OrderType.MARKET else self.maker_fee
+            )
 
-                # Execute buy
-                self.balance.execute_buy(order.amount, order.price)
-                # Adjust for fee (reduce received base currency)
-                self.balance.base -= fee
+            if order.side == OrderSide.BUY:
+                # Check if this BUY closes an open SHORT position
+                remaining = order.amount
+                fee = Decimal("0")
+                short_pnl = Decimal("0")
+
+                while remaining > 0 and self.short_positions:
+                    short = self.short_positions[0]
+                    close_amount = min(remaining, short["amount"])
+
+                    # PnL = (entry_price - exit_price) * amount
+                    pnl = (short["entry_price"] - order.price) * close_amount
+                    short_pnl += pnl
+
+                    # Release margin + add PnL
+                    margin_released = close_amount * short["entry_price"]
+                    self.balance.quote += margin_released + pnl
+
+                    # Fee on the closing trade
+                    fee += close_amount * order.price * fee_rate
+
+                    short["amount"] -= close_amount
+                    remaining -= close_amount
+
+                    if short["amount"] <= 0:
+                        self.short_positions.pop(0)
+
+                self.balance.quote -= fee
+
+                # If remaining amount after closing shorts, do a spot buy
+                if remaining > 0:
+                    spot_fee = remaining * fee_rate
+                    self.balance.execute_buy(remaining, order.price)
+                    self.balance.base -= spot_fee
+                    fee += spot_fee
 
             elif order.side == OrderSide.SELL:
-                # Execute sell
-                self.balance.execute_sell(order.amount, order.price)
-                # Calculate fee from quote currency received
-                fee = (order.amount * order.price) * (
-                    self.taker_fee if order.order_type == OrderType.MARKET else self.maker_fee
-                )
-                self.balance.quote -= fee
+                if self.balance.base >= order.amount:
+                    # Normal spot sell
+                    self.balance.execute_sell(order.amount, order.price)
+                    fee = (order.amount * order.price) * fee_rate
+                    self.balance.quote -= fee
+                else:
+                    # Open SHORT position — reserve margin from quote
+                    margin = order.amount * order.price
+                    if self.balance.quote < margin:
+                        raise ValueError(
+                            f"Insufficient margin for short: {self.balance.quote} < {margin}"
+                        )
+                    self.balance.quote -= margin
+
+                    self._short_id_counter += 1
+                    self.short_positions.append(
+                        {
+                            "id": f"short_{self._short_id_counter}",
+                            "amount": order.amount,
+                            "entry_price": order.price,
+                        }
+                    )
+
+                    fee = margin * fee_rate
+                    self.balance.quote -= fee
 
             # Mark order as filled
             order.filled = order.amount
@@ -258,7 +306,7 @@ class MarketSimulator:
                     "side": order.side.value,
                     "price": float(order.price),
                     "amount": float(order.amount),
-                    "fee": float(fee) if order.side == OrderSide.BUY else float(fee),
+                    "fee": float(fee),
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
@@ -336,9 +384,17 @@ class MarketSimulator:
         }
 
     def get_portfolio_value(self) -> Decimal:
-        """Calculate total portfolio value in quote currency"""
+        """Calculate total portfolio value in quote currency, including unrealized SHORT PnL."""
         base_value = self.balance.base * self.current_price
-        return self.balance.quote + base_value
+
+        # Add back margin + unrealized PnL for open SHORT positions
+        short_value = Decimal("0")
+        for short in self.short_positions:
+            margin = short["amount"] * short["entry_price"]
+            unrealized_pnl = (short["entry_price"] - self.current_price) * short["amount"]
+            short_value += margin + unrealized_pnl
+
+        return self.balance.quote + base_value + short_value
 
     def get_trade_history(self) -> list[dict[str, Any]]:
         """Get all executed trades"""
@@ -350,3 +406,5 @@ class MarketSimulator:
         self.orders.clear()
         self.trade_history.clear()
         self.order_id_counter = 0
+        self.short_positions.clear()
+        self._short_id_counter = 0
