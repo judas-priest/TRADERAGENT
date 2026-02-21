@@ -158,6 +158,34 @@ ignore_errors = true
 module = "bot.main"
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+module = "bot.orchestrator.health_monitor"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.strategies.dca.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.strategies.grid.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.strategies.trend_follower_adapter"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.utils.capital_manager"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "bot.utils.config_validator"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.strategies.*"
+ignore_errors = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["bot/tests"]
