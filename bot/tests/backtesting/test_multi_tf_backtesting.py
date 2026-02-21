@@ -136,7 +136,8 @@ class TestMultiTimeframeDataLoader:
         """M15 high should equal max of its 3 M5 highs."""
         m15_ts = data_2days.m15.index[0]
         m5_slice = data_2days.m5[
-            (data_2days.m5.index >= m15_ts) & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
+            (data_2days.m5.index >= m15_ts)
+            & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
         ]
         assert abs(data_2days.m15.loc[m15_ts, "high"] - m5_slice["high"].max()) < 1e-10
 
@@ -144,7 +145,8 @@ class TestMultiTimeframeDataLoader:
         """M15 open should equal the open of its first M5 bar."""
         m15_ts = data_2days.m15.index[0]
         m5_slice = data_2days.m5[
-            (data_2days.m5.index >= m15_ts) & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
+            (data_2days.m5.index >= m15_ts)
+            & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
         ]
         assert abs(data_2days.m15.loc[m15_ts, "open"] - m5_slice.iloc[0]["open"]) < 1e-10
 
@@ -152,7 +154,8 @@ class TestMultiTimeframeDataLoader:
         """M15 close should equal the close of its last M5 bar."""
         m15_ts = data_2days.m15.index[0]
         m5_slice = data_2days.m5[
-            (data_2days.m5.index >= m15_ts) & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
+            (data_2days.m5.index >= m15_ts)
+            & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
         ]
         assert abs(data_2days.m15.loc[m15_ts, "close"] - m5_slice.iloc[-1]["close"]) < 1e-10
 
@@ -160,7 +163,8 @@ class TestMultiTimeframeDataLoader:
         """M15 volume should equal sum of its 3 M5 volumes."""
         m15_ts = data_2days.m15.index[0]
         m5_slice = data_2days.m5[
-            (data_2days.m5.index >= m15_ts) & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
+            (data_2days.m5.index >= m15_ts)
+            & (data_2days.m5.index < m15_ts + pd.Timedelta(minutes=15))
         ]
         assert abs(data_2days.m15.loc[m15_ts, "volume"] - m5_slice["volume"].sum()) < 1e-10
 

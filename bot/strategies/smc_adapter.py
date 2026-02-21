@@ -89,7 +89,11 @@ class SMCStrategyAdapter(BaseStrategy):
             df_list.append(df_list[-1])
 
         df_d1, df_h4, df_h1, df_m15, df_m5 = (
-            df_list[0], df_list[1], df_list[2], df_list[3], df_list[4]
+            df_list[0],
+            df_list[1],
+            df_list[2],
+            df_list[3],
+            df_list[4],
         )
 
         # Cache for signal generation

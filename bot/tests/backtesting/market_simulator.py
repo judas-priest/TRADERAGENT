@@ -227,9 +227,7 @@ class MarketSimulator:
     async def _execute_order(self, order: SimulatedOrder) -> None:
         """Execute an order, supporting both spot and futures SHORT positions."""
         try:
-            fee_rate = (
-                self.taker_fee if order.order_type == OrderType.MARKET else self.maker_fee
-            )
+            fee_rate = self.taker_fee if order.order_type == OrderType.MARKET else self.maker_fee
 
             if order.side == OrderSide.BUY:
                 # Check if this BUY closes an open SHORT position
