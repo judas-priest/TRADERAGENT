@@ -968,18 +968,10 @@ class BotOrchestrator:
         try:
             # Fetch 4 timeframes of OHLCV data
             ohlcv_d1, ohlcv_h4, ohlcv_h1, ohlcv_m15 = await asyncio.gather(
-                self.exchange.fetch_ohlcv(
-                    symbol=self.config.symbol, timeframe="1d", limit=200
-                ),
-                self.exchange.fetch_ohlcv(
-                    symbol=self.config.symbol, timeframe="4h", limit=200
-                ),
-                self.exchange.fetch_ohlcv(
-                    symbol=self.config.symbol, timeframe="1h", limit=200
-                ),
-                self.exchange.fetch_ohlcv(
-                    symbol=self.config.symbol, timeframe="15m", limit=200
-                ),
+                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="1d", limit=200),
+                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="4h", limit=200),
+                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="1h", limit=200),
+                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="15m", limit=200),
             )
 
             # Convert each to DataFrame
@@ -1012,25 +1004,23 @@ class BotOrchestrator:
             if signal and self.state == BotState.RUNNING:
                 # Check max positions
                 active_positions = self.smc_strategy.get_active_positions()
-                max_positions = (
-                    self.config.smc.max_positions if self.config.smc else 3
-                )
+                max_positions = self.config.smc.max_positions if self.config.smc else 3
                 if len(active_positions) >= max_positions:
                     logger.debug("smc_max_positions_reached", count=len(active_positions))
                 else:
                     # Calculate position size from signal
                     position_size = min(
                         signal.entry_price * Decimal("0.1"),  # Default sizing
-                        Decimal(str(self.config.smc.max_position_size))
-                        if self.config.smc
-                        else Decimal("10000"),
+                        (
+                            Decimal(str(self.config.smc.max_position_size))
+                            if self.config.smc
+                            else Decimal("10000")
+                        ),
                     )
 
                     # Risk check
                     if self.risk_manager:
-                        current_position_value = sum(
-                            pos.size for pos in active_positions
-                        )
+                        current_position_value = sum(pos.size for pos in active_positions)
                         risk_check = self.risk_manager.check_trade(
                             position_size, current_position_value, balance
                         )
@@ -1043,9 +1033,7 @@ class BotOrchestrator:
 
                     if signal:
                         # Open position in adapter
-                        position_id = self.smc_strategy.open_position(
-                            signal, position_size
-                        )
+                        position_id = self.smc_strategy.open_position(signal, position_size)
 
                         # Execute order on exchange
                         if not self.config.dry_run:
@@ -1078,9 +1066,7 @@ class BotOrchestrator:
 
             for position_id, exit_reason in exits:
                 # Close in adapter
-                self.smc_strategy.close_position(
-                    position_id, exit_reason, self.current_price
-                )
+                self.smc_strategy.close_position(position_id, exit_reason, self.current_price)
 
                 # Execute on exchange
                 if not self.config.dry_run:
@@ -1110,11 +1096,7 @@ class BotOrchestrator:
     async def _execute_smc_entry(self, signal, position_size: Decimal) -> None:
         """Execute SMC entry order on exchange."""
         try:
-            side = (
-                "buy"
-                if signal.direction == BaseSignalDirection.LONG
-                else "sell"
-            )
+            side = "buy" if signal.direction == BaseSignalDirection.LONG else "sell"
 
             # Calculate amount in base currency
             amount = float(position_size / signal.entry_price)
