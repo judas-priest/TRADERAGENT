@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
-import type { BotListItem } from '../../api/bots';
+import type { BotListItem, PnLDataPoint } from '../../api/bots';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
+import { PnLSparkline } from './PnLSparkline';
 
 interface BotCardProps {
   bot: BotListItem;
+  pnlHistory?: PnLDataPoint[];
   onStart?: () => void;
   onStop?: () => void;
   onClick?: () => void;
@@ -20,7 +22,19 @@ const statusVariant = (s: string) => {
   }
 };
 
-export function BotCard({ bot, onStart, onStop, onClick }: BotCardProps) {
+const strategyVariant = (s: string) => {
+  switch (s.toLowerCase()) {
+    case 'grid': return 'success' as const;
+    case 'dca': return 'warning' as const;
+    case 'trend_follower':
+    case 'trend': return 'info' as const;
+    case 'smc': return 'error' as const;
+    case 'hybrid': return 'default' as const;
+    default: return 'info' as const;
+  }
+};
+
+export function BotCard({ bot, pnlHistory, onStart, onStop, onClick }: BotCardProps) {
   const profit = parseFloat(bot.total_profit);
 
   return (
@@ -36,20 +50,25 @@ export function BotCard({ bot, onStart, onStop, onClick }: BotCardProps) {
       </div>
 
       <div className="flex items-center gap-2 mb-4">
-        <Badge variant="info">{bot.strategy}</Badge>
+        <Badge variant={strategyVariant(bot.strategy)}>{bot.strategy}</Badge>
         <span className="text-xs text-text-muted">{bot.symbol}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <p className="text-xs text-text-muted">PnL</p>
-          <p className={`text-sm font-semibold ${profit >= 0 ? 'text-profit' : 'text-loss'}`}>
-            {profit >= 0 ? '+' : ''}{profit.toFixed(2)}$
-          </p>
+      <div className="flex items-end justify-between mb-4">
+        <div className="grid grid-cols-2 gap-3 flex-1">
+          <div>
+            <p className="text-xs text-text-muted">PnL</p>
+            <p className={`text-sm font-semibold ${profit >= 0 ? 'text-profit' : 'text-loss'}`}>
+              {profit >= 0 ? '+' : ''}{profit.toFixed(2)}$
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-text-muted">Trades</p>
+            <p className="text-sm font-semibold text-text">{bot.total_trades}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-xs text-text-muted">Trades</p>
-          <p className="text-sm font-semibold text-text">{bot.total_trades}</p>
+        <div className="ml-3 flex-shrink-0">
+          <PnLSparkline points={pnlHistory ?? []} />
         </div>
       </div>
 

@@ -87,6 +87,15 @@ export interface PnL {
   losing_trades: number;
 }
 
+export interface PnLDataPoint {
+  timestamp: number;
+  value: number;
+}
+
+export interface PnLHistory {
+  points: PnLDataPoint[];
+}
+
 export const botsApi = {
   create: (data: BotCreateRequest) =>
     client.post<BotCreateResponse>('/api/v1/bots', data),
@@ -120,4 +129,7 @@ export const botsApi = {
 
   getPnl: (name: string) =>
     client.get<PnL>(`/api/v1/bots/${name}/pnl`),
+
+  getPnlHistory: (name: string) =>
+    client.get<PnLHistory>(`/api/v1/bots/${name}/pnl/history`),
 };
