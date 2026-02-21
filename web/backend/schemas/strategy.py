@@ -49,3 +49,4 @@ class StrategyTypeInfo(BaseModel):
     name: str
     description: str
     config_schema: dict
+    coming_soon: bool = False

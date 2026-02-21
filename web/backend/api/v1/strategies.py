@@ -160,6 +160,7 @@ async def list_strategy_types(
             name="smc",
             description="Smart Money Concepts — institutional order flow analysis",
             config_schema=SMCConfigSchema.model_json_schema(),
+            coming_soon=True,
         ),
     ]
     return types

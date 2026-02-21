@@ -15,6 +15,7 @@ from web.backend.schemas.bot import (
     PnLHistoryResponse,
     PnLResponse,
     PositionResponse,
+    TradeResponse,
 )
 from web.backend.schemas.common import SuccessResponse
 from web.backend.services.bot_service import BotService
@@ -118,11 +119,33 @@ async def update_bot(
     _: User = Depends(get_current_user),
     service: BotService = Depends(_get_bot_service),
 ):
-    """Update bot configuration."""
-    success = await service.update_bot(bot_name, data.model_dump(exclude_none=True))
-    if not success:
+    """Update bot configuration (only allowed when bot is stopped)."""
+    result = await service.update_bot(bot_name, data.model_dump(exclude_none=True))
+    if result is False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
+    if result == "running":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Bot is running — stop it before updating configuration",
+        )
     return SuccessResponse(message=f"Bot '{bot_name}' updated successfully")
+
+
+@router.delete("/{bot_name}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_bot(
+    bot_name: str,
+    _: User = Depends(get_current_user),
+    service: BotService = Depends(_get_bot_service),
+):
+    """Delete a stopped bot from the system."""
+    result = await service.delete_bot(bot_name)
+    if result is False:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
+    if result == "running":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Bot is running — stop it before deleting",
+        )
 
 
 @router.post("/{bot_name}/start", response_model=SuccessResponse)
@@ -209,6 +232,20 @@ async def get_pnl(
     """Get PnL metrics for a bot."""
     result = await service.get_pnl(bot_name)
     if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
+    return result
+
+
+@router.get("/{bot_name}/trades", response_model=list[TradeResponse])
+async def get_trades(
+    bot_name: str,
+    limit: int = Query(default=50, ge=1, le=500, description="Number of trades to return"),
+    _: User = Depends(get_current_user),
+    service: BotService = Depends(_get_bot_service),
+):
+    """Get trade history for a bot."""
+    result = await service.get_trades(bot_name, limit=limit)
+    if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
     return result
 
