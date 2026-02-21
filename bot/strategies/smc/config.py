@@ -23,8 +23,6 @@ class SMCConfig:
     close_break: bool = True  # BOS/CHoCH: require candle close beyond level (vs wick)
 
     # Confluence Zone parameters
-    order_block_lookback: int = 50  # Candles to search for Order Blocks
-    fvg_min_size: Decimal = Decimal("0.001")  # Minimum FVG size (% of price)
     close_mitigation: bool = False  # OB: require close through OB for mitigation (vs wick)
     join_consecutive_fvg: bool = False  # FVG: merge adjacent same-direction FVGs
     liquidity_range_percent: float = 0.01  # Liquidity: % range for grouping swing clusters
@@ -39,6 +37,7 @@ class SMCConfig:
     min_volume_multiplier: Decimal = Decimal("1.5")  # 1.5x average volume
 
     # Position Management
+    max_positions: int = 3  # Maximum concurrent positions
     use_trailing_stop: bool = True
     trailing_stop_activation: Decimal = Decimal("0.015")  # Activate at +1.5% profit
     trailing_stop_distance: Decimal = Decimal("0.005")  # Trail by 0.5%

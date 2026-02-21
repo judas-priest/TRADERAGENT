@@ -16,6 +16,7 @@ class StrategyType(str, Enum):
     DCA = "dca"
     HYBRID = "hybrid"
     TREND_FOLLOWER = "trend_follower"
+    SMC = "smc"
 
 
 class ExchangeConfig(BaseModel):
@@ -202,6 +203,105 @@ class TrendFollowerConfig(BaseModel):
     )
 
 
+class SMCConfigSchema(BaseModel):
+    """Smart Money Concepts strategy configuration"""
+
+    enabled: bool = Field(default=True, description="Enable SMC strategy")
+
+    # Timeframes
+    trend_timeframe: str = Field(default="1d", description="Timeframe for global trend (D1)")
+    structure_timeframe: str = Field(default="4h", description="Timeframe for market structure (H4)")
+    working_timeframe: str = Field(default="1h", description="Timeframe for confluence zones (H1)")
+    entry_timeframe: str = Field(default="15m", description="Timeframe for entry signals (M15)")
+
+    # Market Structure
+    swing_length: int = Field(
+        default=50,
+        ge=5,
+        le=200,
+        description="Candles for swing high/low identification",
+    )
+    trend_period: int = Field(
+        default=20,
+        ge=5,
+        le=100,
+        description="Lookback period for trend detection",
+    )
+    close_break: bool = Field(
+        default=True,
+        description="BOS/CHoCH: require candle close beyond level (vs wick)",
+    )
+
+    # Confluence
+    close_mitigation: bool = Field(
+        default=False,
+        description="OB: require close through OB for mitigation (vs wick)",
+    )
+    join_consecutive_fvg: bool = Field(
+        default=False,
+        description="FVG: merge adjacent same-direction FVGs",
+    )
+    liquidity_range_percent: float = Field(
+        default=0.01,
+        gt=0,
+        le=0.1,
+        description="Liquidity: percentage range for grouping swing clusters",
+    )
+
+    # Risk Management
+    risk_per_trade: Decimal = Field(
+        default=Decimal("0.02"),
+        gt=0,
+        le=0.1,
+        description="Risk per trade as fraction of balance (0.02 = 2%)",
+    )
+    min_risk_reward: Decimal = Field(
+        default=Decimal("2.5"),
+        gt=0,
+        description="Minimum risk:reward ratio",
+    )
+    max_position_size: Decimal = Field(
+        default=Decimal("10000"),
+        gt=0,
+        description="Maximum position size in USD",
+    )
+
+    # Entry
+    require_volume_confirmation: bool = Field(
+        default=True,
+        description="Require volume confirmation for entries",
+    )
+    min_volume_multiplier: Decimal = Field(
+        default=Decimal("1.5"),
+        gt=0,
+        description="Minimum volume multiplier (1.5 = 150% of average)",
+    )
+
+    # Position Management
+    use_trailing_stop: bool = Field(
+        default=True,
+        description="Enable trailing stop",
+    )
+    trailing_stop_activation: Decimal = Field(
+        default=Decimal("0.015"),
+        gt=0,
+        description="Trailing stop activation at profit percentage (0.015 = 1.5%)",
+    )
+    trailing_stop_distance: Decimal = Field(
+        default=Decimal("0.005"),
+        gt=0,
+        description="Trailing stop distance percentage (0.005 = 0.5%)",
+    )
+
+    # Limits
+    max_positions: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum number of concurrent positions",
+    )
+
+
 class RiskManagementConfig(BaseModel):
     """Risk management configuration"""
 
@@ -253,6 +353,7 @@ class BotConfig(BaseModel):
     trend_follower: TrendFollowerConfig | None = Field(
         default=None, description="Trend-Follower strategy configuration"
     )
+    smc: SMCConfigSchema | None = Field(default=None, description="SMC strategy configuration")
     risk_management: RiskManagementConfig
     notifications: NotificationConfig = Field(default_factory=NotificationConfig)
 
@@ -272,6 +373,9 @@ class BotConfig(BaseModel):
         if self.strategy == StrategyType.TREND_FOLLOWER:
             if self.trend_follower is None:
                 raise ValueError("Strategy 'trend_follower' requires trend_follower configuration")
+        if self.strategy == StrategyType.SMC:
+            if self.smc is None:
+                raise ValueError("Strategy 'smc' requires smc configuration")
         return self
 
     class Config:

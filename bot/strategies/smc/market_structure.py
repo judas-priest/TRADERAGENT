@@ -353,20 +353,22 @@ class MarketStructureAnalyzer:
             "trend_aligned": False,
         }
 
-        # Analyze D1 trend
+        # Analyze D1 trend (scaled swing_length: ~10 candles = 2 weeks of daily data)
+        d1_swing_length = max(10, self.swing_length // 5)
         if len(df_d1) >= self.trend_period:
             d1_analyzer = MarketStructureAnalyzer(
-                swing_length=self.swing_length,
+                swing_length=d1_swing_length,
                 trend_period=self.trend_period,
                 close_break=self.close_break,
             )
             d1_analyzer.analyze(df_d1)
             result["d1_trend"] = d1_analyzer.current_trend
 
-        # Analyze H4 trend
+        # Analyze H4 trend (scaled swing_length: ~25 candles)
+        h4_swing_length = max(15, self.swing_length // 2)
         if len(df_h4) >= self.trend_period:
             h4_analyzer = MarketStructureAnalyzer(
-                swing_length=self.swing_length,
+                swing_length=h4_swing_length,
                 trend_period=self.trend_period,
                 close_break=self.close_break,
             )

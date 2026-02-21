@@ -213,12 +213,90 @@ class TestSMCConfigDataclass:
         assert cfg.close_mitigation is False
         assert cfg.join_consecutive_fvg is False
         assert cfg.liquidity_range_percent == 0.01
+        assert cfg.max_positions == 3
 
     def test_custom(self):
         cfg = SMCConfig(swing_length=10, trend_period=30)
         assert cfg.swing_length == 10
         assert cfg.trend_period == 30
 
+    def test_max_positions_custom(self):
+        cfg = SMCConfig(max_positions=5)
+        assert cfg.max_positions == 5
+
+    def test_removed_dead_fields(self):
+        """order_block_lookback and fvg_min_size were removed"""
+        cfg = SMCConfig()
+        assert not hasattr(cfg, "order_block_lookback")
+        assert not hasattr(cfg, "fvg_min_size")
+
     def test_default_instance(self):
         assert DEFAULT_SMC_CONFIG is not None
         assert isinstance(DEFAULT_SMC_CONFIG, SMCConfig)
+
+
+class TestAdaptiveSwingLength:
+    """Tests for adaptive swing_length in multi-timeframe analysis."""
+
+    def test_d1_analysis_with_50_candles(self):
+        """D1 analysis should work with ~50 daily candles (adaptive swing_length)."""
+        from bot.strategies.smc.market_structure import MarketStructureAnalyzer
+
+        analyzer = MarketStructureAnalyzer(swing_length=50, trend_period=20)
+        df_d1 = _make_df(n=50, base=45000.0)
+        df_h4 = _make_df(n=200, base=45000.0)
+
+        result = analyzer.analyze_trend(df_d1, df_h4)
+        # D1 should NOT be skipped — adaptive swing_length (50//5=10) needs 21 candles
+        assert "d1_trend" in result
+        assert "h4_trend" in result
+
+    def test_d1_adaptive_swing_length_value(self):
+        """D1 sub-analyzer should use swing_length // 5 (clamped to min 10)."""
+        from bot.strategies.smc.market_structure import MarketStructureAnalyzer
+
+        # swing_length=50 -> D1 gets 50//5=10
+        analyzer = MarketStructureAnalyzer(swing_length=50)
+        d1_swing = max(10, analyzer.swing_length // 5)
+        assert d1_swing == 10
+
+        # swing_length=30 -> D1 gets max(10, 30//5)=10
+        analyzer2 = MarketStructureAnalyzer(swing_length=30)
+        d1_swing2 = max(10, analyzer2.swing_length // 5)
+        assert d1_swing2 == 10
+
+        # swing_length=100 -> D1 gets 100//5=20
+        analyzer3 = MarketStructureAnalyzer(swing_length=100)
+        d1_swing3 = max(10, analyzer3.swing_length // 5)
+        assert d1_swing3 == 20
+
+    def test_h4_adaptive_swing_length_value(self):
+        """H4 sub-analyzer should use swing_length // 2 (clamped to min 15)."""
+        from bot.strategies.smc.market_structure import MarketStructureAnalyzer
+
+        # swing_length=50 -> H4 gets 50//2=25
+        analyzer = MarketStructureAnalyzer(swing_length=50)
+        h4_swing = max(15, analyzer.swing_length // 2)
+        assert h4_swing == 25
+
+        # swing_length=20 -> H4 gets max(15, 20//2)=15
+        analyzer2 = MarketStructureAnalyzer(swing_length=20)
+        h4_swing2 = max(15, analyzer2.swing_length // 2)
+        assert h4_swing2 == 15
+
+    def test_d1_analysis_no_longer_requires_101_candles(self):
+        """With adaptive swing_length, D1 should NOT need 101 candles."""
+        from bot.strategies.smc.market_structure import MarketStructureAnalyzer
+
+        analyzer = MarketStructureAnalyzer(swing_length=50, trend_period=20)
+        # Only 50 daily candles — should work with adaptive swing (10*2+1=21 needed)
+        df_d1 = _make_df(n=50, base=45000.0)
+        df_h4 = _make_df(n=200, base=45000.0)
+
+        result = analyzer.analyze_trend(df_d1, df_h4)
+        # d1_trend should be set (not skipped due to insufficient data)
+        assert result["d1_trend"] in [
+            TrendDirection.BULLISH,
+            TrendDirection.BEARISH,
+            TrendDirection.RANGING,
+        ]

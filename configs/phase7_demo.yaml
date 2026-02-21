@@ -180,3 +180,37 @@ bots:
 
     dry_run: false
     auto_start: false
+
+  # =========================================================================
+  # 5. BTC/USDT SMC (Smart Money Concepts) Strategy
+  # Manual start
+  # =========================================================================
+  - version: 1
+    name: demo_btc_smc
+    symbol: BTC/USDT
+    strategy: smc
+
+    exchange:
+      exchange_id: bybit
+      credentials_name: bybit_demo
+      sandbox: true
+      rate_limit: true
+
+    smc:
+      enabled: true
+      swing_length: 50
+      risk_per_trade: "0.02"
+      min_risk_reward: "2.5"
+      max_position_size: "5000"
+      max_positions: 3
+
+    risk_management:
+      max_position_size: "5000"
+      stop_loss_percentage: "0.15"
+      min_order_size: "10"
+
+    notifications:
+      enabled: false
+
+    dry_run: true
+    auto_start: false
