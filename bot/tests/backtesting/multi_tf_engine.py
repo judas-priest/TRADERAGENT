@@ -40,6 +40,7 @@ class MultiTFBacktestConfig:
     analyze_every_n: int = 4
     risk_per_trade: Decimal = Decimal("0.02")
     max_position_pct: Decimal = Decimal("0.5")
+    use_candle_sweep: bool = False
 
 
 class MultiTimeframeBacktestEngine:
@@ -88,7 +89,9 @@ class MultiTimeframeBacktestEngine:
         )
 
         # Run execution loop
-        equity_curve, max_drawdown = await self._execute_loop(strategy, data, simulator)
+        equity_curve, max_drawdown, capital_efficiency = await self._execute_loop(
+            strategy, data, simulator
+        )
 
         # Build result — use the finest-resolution TF for time range
         base_df = data.m5
@@ -99,6 +102,7 @@ class MultiTimeframeBacktestEngine:
             max_drawdown=max_drawdown,
             start_time=base_df.index[0].to_pydatetime(),
             end_time=base_df.index[-1].to_pydatetime(),
+            capital_efficiency=capital_efficiency,
         )
 
     async def run_with_generated_data(
@@ -124,18 +128,20 @@ class MultiTimeframeBacktestEngine:
         strategy: BaseStrategy,
         data: MultiTimeframeData,
         simulator: MarketSimulator,
-    ) -> tuple[list[dict[str, Any]], Decimal]:
+    ) -> tuple[list[dict[str, Any]], Decimal, Decimal | None]:
         """
         Core execution loop.
 
         Returns:
-            (equity_curve, max_drawdown)
+            (equity_curve, max_drawdown, capital_efficiency)
         """
         equity_curve: list[dict[str, Any]] = []
         peak_value = self.config.initial_balance
         max_drawdown = Decimal("0")
         self._position_amounts = {}
         self._position_directions = {}
+        cap_eff_sum = Decimal("0")
+        cap_eff_count = 0
 
         # Iterate over the finest-resolution TF (M5)
         base_df = data.m5
@@ -149,7 +155,16 @@ class MultiTimeframeBacktestEngine:
 
             # Current price from M5 close
             current_price = Decimal(str(base_df.iloc[i]["close"]))
-            await simulator.set_price(current_price)
+            if self.config.use_candle_sweep:
+                candle = base_df.iloc[i]
+                await simulator.set_candle(
+                    Decimal(str(candle["open"])),
+                    Decimal(str(candle["high"])),
+                    Decimal(str(candle["low"])),
+                    Decimal(str(candle["close"])),
+                )
+            else:
+                await simulator.set_price(current_price)
 
             # Periodically analyze market — pass all 5 TFs
             if (i - self.config.warmup_bars) % self.config.analyze_every_n == 0:
@@ -190,6 +205,12 @@ class MultiTimeframeBacktestEngine:
                 }
             )
 
+            # Track capital efficiency (base_value / portfolio_value)
+            base_value = simulator.balance.base * current_price
+            if portfolio_value > 0:
+                cap_eff_sum += base_value / portfolio_value
+                cap_eff_count += 1
+
             # Update drawdown
             if portfolio_value > peak_value:
                 peak_value = portfolio_value
@@ -201,7 +222,8 @@ class MultiTimeframeBacktestEngine:
             # Yield to event loop
             await asyncio.sleep(0)
 
-        return equity_curve, max_drawdown
+        capital_efficiency = cap_eff_sum / cap_eff_count if cap_eff_count > 0 else None
+        return equity_curve, max_drawdown, capital_efficiency
 
     async def _handle_signal_execution(
         self,
@@ -321,6 +343,7 @@ class MultiTimeframeBacktestEngine:
         max_drawdown: Decimal,
         start_time: datetime,
         end_time: datetime,
+        capital_efficiency: Decimal | None = None,
     ) -> BacktestResult:
         """Build BacktestResult from simulator state."""
         trade_history = simulator.get_trade_history()
@@ -340,6 +363,8 @@ class MultiTimeframeBacktestEngine:
         winning_trades = 0
         losing_trades = 0
         total_profit = Decimal("0")
+        gross_profit = Decimal("0")
+        gross_loss = Decimal("0")
 
         for i in range(min(len(buy_orders), len(sell_orders))):
             buy_price = Decimal(str(buy_orders[i]["price"]))
@@ -349,8 +374,10 @@ class MultiTimeframeBacktestEngine:
             total_profit += profit
             if profit > 0:
                 winning_trades += 1
+                gross_profit += profit
             else:
                 losing_trades += 1
+                gross_loss += abs(profit)
 
         total_trades = winning_trades + losing_trades
         win_rate = (
@@ -362,6 +389,22 @@ class MultiTimeframeBacktestEngine:
 
         # Sharpe ratio
         sharpe_ratio = self._calculate_sharpe_ratio(equity_curve)
+
+        # Sortino ratio
+        returns = self._extract_returns(equity_curve)
+        sortino_ratio = self._calculate_sortino(returns)
+
+        # Calmar ratio
+        calmar_ratio = None
+        if max_drawdown_pct > 0:
+            calmar_ratio = (total_return_pct / Decimal("100")) / (
+                max_drawdown_pct / Decimal("100")
+            )
+
+        # Profit factor
+        profit_factor = None
+        if gross_loss > 0:
+            profit_factor = gross_profit / gross_loss
 
         return BacktestResult(
             strategy_name=strategy_name,
@@ -383,9 +426,48 @@ class MultiTimeframeBacktestEngine:
             total_sell_orders=len(sell_orders),
             avg_profit_per_trade=avg_profit,
             sharpe_ratio=sharpe_ratio,
+            sortino_ratio=sortino_ratio,
+            calmar_ratio=calmar_ratio,
+            profit_factor=profit_factor,
+            capital_efficiency=capital_efficiency,
             trade_history=trade_history,
             equity_curve=equity_curve,
         )
+
+    @staticmethod
+    def _extract_returns(equity_curve: list[dict[str, Any]]) -> list[Decimal]:
+        """Extract period returns from equity curve."""
+        returns = []
+        for i in range(1, len(equity_curve)):
+            prev = Decimal(str(equity_curve[i - 1]["portfolio_value"]))
+            curr = Decimal(str(equity_curve[i]["portfolio_value"]))
+            if prev > 0:
+                returns.append((curr - prev) / prev)
+        return returns
+
+    @staticmethod
+    def _calculate_sortino(
+        returns: list[Decimal], periods_per_year: int = 365 * 24 * 12
+    ) -> Decimal | None:
+        """Calculate Sortino ratio from returns (downside deviation only)."""
+        if not returns:
+            return None
+
+        mean_return = sum(returns) / len(returns)
+        downside_returns = [r for r in returns if r < 0]
+
+        if not downside_returns:
+            return None  # No downside — Sortino undefined
+
+        downside_variance = sum(r**2 for r in downside_returns) / len(returns)
+        downside_std = downside_variance.sqrt() if downside_variance > 0 else Decimal("0")
+
+        if downside_std > 0:
+            sortino = mean_return / downside_std
+            sortino = sortino * Decimal(str(periods_per_year**0.5))
+            return sortino
+
+        return None
 
     def _calculate_sharpe_ratio(self, equity_curve: list[dict[str, Any]]) -> Decimal | None:
         """Calculate Sharpe ratio from equity curve."""

@@ -404,48 +404,50 @@ class ReportGenerator:
 
     def _summary_section(self, result: BacktestResult) -> str:
         ret_class = "positive" if result.total_return_pct >= 0 else "negative"
-        return (
-            (
-                f'<div class="summary">'
-                f"<h1>{html_mod.escape(result.strategy_name)}</h1>"
-                f"<p>{html_mod.escape(result.symbol)} | "
-                f'{result.start_time.strftime("%Y-%m-%d")} to {result.end_time.strftime("%Y-%m-%d")} | '
-                f"{result.duration.days}d</p>"
-                f'<div class="stat-cards">'
-                f'<div class="card"><span class="label">Return</span>'
-                f'<span class="value {ret_class}">{float(result.total_return_pct):.2f}%</span></div>'
-                f'<div class="card"><span class="label">Final Balance</span>'
-                f'<span class="value">${float(result.final_balance):,.2f}</span></div>'
-                f'<div class="card"><span class="label">Trades</span>'
-                f'<span class="value">{result.total_trades}</span></div>'
-                f'<div class="card"><span class="label">Win Rate</span>'
-                f'<span class="value">{float(result.win_rate):.1f}%</span></div>'
-                f'<div class="card"><span class="label">Max DD</span>'
-                f'<span class="value negative">{float(result.max_drawdown_pct):.2f}%</span></div>'
+        cards = (
+            f'<div class="card"><span class="label">Return</span>'
+            f'<span class="value {ret_class}">{float(result.total_return_pct):.2f}%</span></div>'
+            f'<div class="card"><span class="label">Final Balance</span>'
+            f'<span class="value">${float(result.final_balance):,.2f}</span></div>'
+            f'<div class="card"><span class="label">Trades</span>'
+            f'<span class="value">{result.total_trades}</span></div>'
+            f'<div class="card"><span class="label">Win Rate</span>'
+            f'<span class="value">{float(result.win_rate):.1f}%</span></div>'
+            f'<div class="card"><span class="label">Max DD</span>'
+            f'<span class="value negative">{float(result.max_drawdown_pct):.2f}%</span></div>'
+        )
+        if result.sharpe_ratio:
+            cards += (
                 f'<div class="card"><span class="label">Sharpe</span>'
                 f'<span class="value">{float(result.sharpe_ratio):.4f}</span></div>'
-                f"</div></div>"
             )
-            if result.sharpe_ratio
-            else (
-                f'<div class="summary">'
-                f"<h1>{html_mod.escape(result.strategy_name)}</h1>"
-                f"<p>{html_mod.escape(result.symbol)} | "
-                f'{result.start_time.strftime("%Y-%m-%d")} to {result.end_time.strftime("%Y-%m-%d")} | '
-                f"{result.duration.days}d</p>"
-                f'<div class="stat-cards">'
-                f'<div class="card"><span class="label">Return</span>'
-                f'<span class="value {ret_class}">{float(result.total_return_pct):.2f}%</span></div>'
-                f'<div class="card"><span class="label">Final Balance</span>'
-                f'<span class="value">${float(result.final_balance):,.2f}</span></div>'
-                f'<div class="card"><span class="label">Trades</span>'
-                f'<span class="value">{result.total_trades}</span></div>'
-                f'<div class="card"><span class="label">Win Rate</span>'
-                f'<span class="value">{float(result.win_rate):.1f}%</span></div>'
-                f'<div class="card"><span class="label">Max DD</span>'
-                f'<span class="value negative">{float(result.max_drawdown_pct):.2f}%</span></div>'
-                f"</div></div>"
+        if result.sortino_ratio:
+            cards += (
+                f'<div class="card"><span class="label">Sortino</span>'
+                f'<span class="value">{float(result.sortino_ratio):.4f}</span></div>'
             )
+        if result.calmar_ratio:
+            cards += (
+                f'<div class="card"><span class="label">Calmar</span>'
+                f'<span class="value">{float(result.calmar_ratio):.4f}</span></div>'
+            )
+        if result.profit_factor:
+            cards += (
+                f'<div class="card"><span class="label">Profit Factor</span>'
+                f'<span class="value">{float(result.profit_factor):.4f}</span></div>'
+            )
+        if result.capital_efficiency:
+            cards += (
+                f'<div class="card"><span class="label">Cap. Efficiency</span>'
+                f'<span class="value">{float(result.capital_efficiency):.4f}</span></div>'
+            )
+        return (
+            f'<div class="summary">'
+            f"<h1>{html_mod.escape(result.strategy_name)}</h1>"
+            f"<p>{html_mod.escape(result.symbol)} | "
+            f'{result.start_time.strftime("%Y-%m-%d")} to {result.end_time.strftime("%Y-%m-%d")} | '
+            f"{result.duration.days}d</p>"
+            f'<div class="stat-cards">{cards}</div></div>'
         )
 
     def _metrics_table(self, result: BacktestResult) -> str:
@@ -470,6 +472,14 @@ class ReportGenerator:
         ]
         if result.sharpe_ratio is not None:
             rows.append(("Sharpe Ratio", f"{float(result.sharpe_ratio):.4f}"))
+        if result.sortino_ratio is not None:
+            rows.append(("Sortino Ratio", f"{float(result.sortino_ratio):.4f}"))
+        if result.calmar_ratio is not None:
+            rows.append(("Calmar Ratio", f"{float(result.calmar_ratio):.4f}"))
+        if result.profit_factor is not None:
+            rows.append(("Profit Factor", f"{float(result.profit_factor):.4f}"))
+        if result.capital_efficiency is not None:
+            rows.append(("Capital Efficiency", f"{float(result.capital_efficiency):.4f}"))
 
         table_rows = "\n".join(
             f"<tr><td>{html_mod.escape(k)}</td><td>{html_mod.escape(v)}</td></tr>" for k, v in rows

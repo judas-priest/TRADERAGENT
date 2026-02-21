@@ -42,6 +42,10 @@ class BacktestResult:
 
     # Risk metrics
     sharpe_ratio: Decimal | None = None
+    sortino_ratio: Decimal | None = None
+    calmar_ratio: Decimal | None = None
+    profit_factor: Decimal | None = None
+    capital_efficiency: Decimal | None = None
     max_position_value: Decimal = Decimal("0")
 
     trade_history: list[dict[str, Any]] = field(default_factory=list)
@@ -74,6 +78,10 @@ class BacktestResult:
             },
             "risk_metrics": {
                 "sharpe_ratio": float(self.sharpe_ratio) if self.sharpe_ratio else None,
+                "sortino_ratio": float(self.sortino_ratio) if self.sortino_ratio else None,
+                "calmar_ratio": float(self.calmar_ratio) if self.calmar_ratio else None,
+                "profit_factor": float(self.profit_factor) if self.profit_factor else None,
+                "capital_efficiency": float(self.capital_efficiency) if self.capital_efficiency else None,
                 "max_position_value": float(self.max_position_value),
             },
             "trade_count": len(self.trade_history),
@@ -105,9 +113,21 @@ class BacktestResult:
         print(f"  Buy Orders:       {self.total_buy_orders}")
         print(f"  Sell Orders:      {self.total_sell_orders}")
         print(f"  Avg Profit/Trade: ${self.avg_profit_per_trade:.2f}")
+        risk_lines = []
         if self.sharpe_ratio:
+            risk_lines.append(f"  Sharpe Ratio:     {self.sharpe_ratio:.4f}")
+        if self.sortino_ratio:
+            risk_lines.append(f"  Sortino Ratio:    {self.sortino_ratio:.4f}")
+        if self.calmar_ratio:
+            risk_lines.append(f"  Calmar Ratio:     {self.calmar_ratio:.4f}")
+        if self.profit_factor:
+            risk_lines.append(f"  Profit Factor:    {self.profit_factor:.4f}")
+        if self.capital_efficiency:
+            risk_lines.append(f"  Capital Effic.:   {self.capital_efficiency:.4f}")
+        if risk_lines:
             print("\nRisk Metrics:")
-            print(f"  Sharpe Ratio:     {self.sharpe_ratio:.4f}")
+            for line in risk_lines:
+                print(line)
         print("=" * 70)
 
 
