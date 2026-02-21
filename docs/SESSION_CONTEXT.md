@@ -1,19 +1,251 @@
-# TRADERAGENT v2.0 - Session Context (Updated 2026-02-20)
+# TRADERAGENT v2.0 - Session Context (Updated 2026-02-21)
 
 ## Tekushchiy Status Proekta
 
-**Data:** 20 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + **Repository Cleanup + Code Quality Fixes + PR #245 Merged**
-**Pass Rate:** 100% (1479/1479 tests passing, 25 skipped)
-**Realnyy obem testov:** 1504 collected (posle udaleniya dca_grid_bot)
+**Data:** 21 fevralya 2026
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + **Multi-Strategy Backtester Production-Ready (PR #273 merged)**
+**Pass Rate:** 100% (1500/1500 tests passing, 25 skipped)
+**Realnyy obem testov:** 1525 collected (posle dobavleniya SMC testov)
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
+**Multi-TF Backtesting:** 163 tests passing (bylo 31, +132 novyh — SHORT, M5, CSV, walk-forward)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
-**Posledniy commit:** `7b854d0` (Merge pull request #245)
-**Bot Status:** STOPPED, all orders cancelled, all positions closed
+**Posledniy commit:** `f122732` (Merge pull request #273 — multi-strategy backtester production)
+**Bot Status:** RUNNING (5 botov inicializirovany, SMC bot v dry_run rezhime)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-20) - Session 16: Repository Cleanup + Code Quality + PR #245 Merge
+## Poslednyaya Sessiya (2026-02-21) - Session 18: Multi-Strategy Backtester — Production-Ready
+
+### Zadacha
+
+Dovedenie Multi-Strategy Backtester (`bot/tests/backtesting/`) do production-ready sostoyaniya:
+1. Ispravit 3 baga (await, CSV loading, TrendFollower.reset)
+2. Dobavit podderzhku SHORT-pozitsiy (fyucherskaya simulyatsiya)
+3. Rasshirit tayfreymy do M5→D1 dlya SMC (bylo tolko M15→D1)
+4. Podderzhka realnyh CSV-dannyh s resampling
+5. CLI-ranner s vizualnymi HTML-otchyotami
+
+### Rezultat
+
+#### 1. Tri baga ispravleny (Shagi 1-3)
+
+| Bug | Fayl | Fix |
+|-----|------|-----|
+| `simulator.set_price()` bez await | `multi_tf_engine.py:146` | Dobavlen `await` |
+| `load_csv_data()` padaet na Unix ms timestamp | `test_data.py:125-148` | Podderzhka kolonki `datetime` + Unix ms fallback |
+| `TrendFollowerAdapter.reset()` ne sbrasyvaet underlying strategy | `trend_follower_adapter.py:297-302` | Peresozdaniye `TrendFollowerStrategy` s sohrannyonnymi `_initial_capital`, `_log_trades` |
+
+#### 2. Fyucherskaya simulyatsiya SHORT-pozitsiy (Shagi 4-5)
+
+**MarketSimulator** (`market_simulator.py`):
+- Dobavlen `short_positions: list[dict]` i `_short_id_counter`
+- `_execute_order()` perepisana: SELL bez base → otkrytie SHORT (rezervatsiya margin); BUY s otkrytymi shorts → zakrytie SHORT (PnL = (entry-exit) × amount)
+- `get_portfolio_value()` vklyuchaet unrealized SHORT PnL (margin + unrealized)
+- `reset()` ochishchaet short_positions
+
+**MultiTFBacktestEngine** (`multi_tf_engine.py`):
+- Dobavlen `_position_directions: dict[str, SignalDirection]`
+- Ubrana blokirovka SHORT signalov (stroyka 209)
+- LONG: buy → sell (kak ran'she); SHORT: sell → buy
+
+#### 3. Rasshirenie do M5→D1 (Shagi 6-7)
+
+**MultiTimeframeDataLoader** (`multi_tf_data_loader.py`) — polnaya pererabotka:
+- `MultiTimeframeData` teper 5 poley: `d1, h4, h1, m15, m5`
+- `as_tuple()` vozvrashaet 5-tuple
+- `load()`: generiruet M5 kak bazu, resampling vverkh (M5→M15→H1→H4→D1)
+- Novyy `load_csv(filepath, base_timeframe)`: zagruzka CSV, resampling, obrabotka nevozmozhnosti downsampling
+- `get_context_at()`: podderzhka `base_index` (M5) i legacy `m15_index`, vozvrashaet 5 DataFrame
+
+**Engine** iteriruyetsya po `data.m5` (vmesto `data.m15`), peredayot 5 DF v strategii.
+
+**SMC Adapter** (`smc_adapter.py`): padding do 5 DF, M5 keshiruyetsya dlya `generate_signals()`.
+
+**Walk-forward** (`walk_forward.py`): obnovlen dlya M5 bazy.
+
+#### 4. CLI-ranner (`scripts/run_multi_strategy_backtest.py`)
+
+```bash
+# Sinteticheskie dannye:
+python scripts/run_multi_strategy_backtest.py --symbol ETH_USDT --days 30
+
+# CSV dannye:
+python scripts/run_multi_strategy_backtest.py --csv data/ETH_USDT_5m.csv --timeframe 5m
+
+# Odna strategiya:
+python scripts/run_multi_strategy_backtest.py --strategy smc --days 14
+```
+
+Podderzhka: `--csv`, `--timeframe`, `--days`, `--trend`, `--strategy`, `--balance`, `--warmup`
+Generatsiya: individualnye HTML-otchyoty + comparison report → `docs/backtesting-reports/html/`
+
+#### 5. Testy
+
+| Test file | Testov | Opisanie |
+|-----------|--------|----------|
+| `test_multi_tf_backtesting.py` | 45 | Polnaya pererabotka: 5-TF, CSV, SHORT, legacy compat |
+| Polnyy nabor `bot/tests/backtesting/` | 163 | Vse testy prohodyat (bylo 31) |
+
+Novye test-klassy:
+- `TestCSVLoading` (3 testa): ISO timestamps, Unix ms, resampling
+- `TestMarketSimulatorShort` (4 testa): profit, loss, unrealized PnL, reset
+- `test_backwards_compat_m15_index`: legacy sovmestimost
+
+#### 6. CI Proverka
+
+| Check | Status |
+|-------|--------|
+| black | PASS |
+| ruff | PASS |
+| mypy | PASS |
+| pytest (163/163) | PASS |
+
+#### 7. PR i Issues
+
+**PR:** https://github.com/alekseymavai/TRADERAGENT/pull/273
+**Vetka:** `feature/multi-strategy-backtester-production` → `main`
+**Status:** MERGED
+
+**Zakrytye issues (9):**
+#261 (await fix), #262 (CSV load fix), #263 (TrendFollower reset fix), #264 (SHORT simulator), #265 (SHORT v engine), #266 (M5 + load_csv), #267 (5 TF v engine + SMC), #268 (CLI ranner), #270 (obshchaya zadacha)
+
+### Izmenennye Fayly (8)
+
+| # | Fayl | Izmenenie |
+|---|------|-----------|
+| 1 | `bot/tests/backtesting/multi_tf_engine.py` | await fix + SHORT + 5 TF + M5 iteratsiya (~40 strok) |
+| 2 | `bot/tests/backtesting/market_simulator.py` | SHORT-simulyatsiya: open/close/PnL/reset (~50 strok) |
+| 3 | `bot/tests/backtesting/multi_tf_data_loader.py` | M5 pole + load_csv() + 5 DF context (~60 strok) |
+| 4 | `bot/tests/backtesting/test_data.py` | CSV-format podderzhka (~15 strok) |
+| 5 | `bot/strategies/trend_follower_adapter.py` | reset() peresozdayot strategy (~10 strok) |
+| 6 | `bot/strategies/smc_adapter.py` | 5 TF podderzhka (~10 strok) |
+| 7 | `bot/tests/backtesting/walk_forward.py` | M5 baza, 5 DF v MultiTimeframeData |
+| 8 | `scripts/run_multi_strategy_backtest.py` | Novyy CLI ranner (~160 strok) |
+| 9 | `bot/tests/backtesting/test_multi_tf_backtesting.py` | Polnaya pererabotka, 45 testov |
+
+### Commits
+
+| Commit | Opisanie |
+|--------|----------|
+| `d20b03d` | feat: multi-strategy backtester — SHORT positions, M5 timeframe, CSV loading, CLI runner |
+| `ef4492d` | style: apply black formatting to modified files |
+| `ef3c859` | merge: resolve formatting conflicts with main |
+| `f122732` | Merge pull request #273 |
+
+### Git Operations
+
+- Sozdana vetka `feature/multi-strategy-backtester-production`
+- Cherry-pick iz main
+- Razresheny merge konflikty (formatting-only, 3 fayla)
+- PR #273 vmerzhen, 9 issues zakryty (#261-268, #270)
+- Feature vetka udalena
+
+---
+
+## Predydushchaya Sessiya (2026-02-21) - Session 17: SMC Standalone Strategy Implementation + Deploy
+
+### Zadacha
+
+1. Realizovat SMC kak samostoyatelnuyu deployable strategiyu (ranee tolko library kod bez puti deploya)
+2. Dobavit Pydantic config schema dlya SMC
+3. Integrirovat SMC v BotOrchestrator (init, processing loop, entry/exit)
+4. Adaptive swing_length dlya D1/H4 sub-analyzerov
+5. Demo config + testy
+6. Deploy na server
+
+### Rezultat
+
+#### 1. SMC Config Dataclass — `bot/strategies/smc/config.py`
+
+| Izmenenie | Opisanie |
+|-----------|----------|
+| Dobavlen `max_positions: int = 3` | Maksimum odnovremennykh pozitsiy |
+| Udalyon `order_block_lookback` | Mertvyy parametr (library opredelyaet vnutrenne) |
+| Udalyon `fvg_min_size` | Mertvyy parametr (library opredelyaet vnutrenne) |
+
+#### 2. Adaptive Swing Length — `bot/strategies/smc/market_structure.py`
+
+Problema: `swing_length=50` treboval 101 dnevnuyu svechu (2*50+1) — slishkom mnogo dlya D1 taymfreyma.
+
+**Reshenie:** Masshtabiruemyy swing_length dlya sub-analyzerov:
+- **D1:** `max(10, swing_length // 5)` = 10 svechey (~2 nedeli) — trebuet tolko 21 svechu
+- **H4:** `max(15, swing_length // 2)` = 25 svechey
+
+#### 3. Pydantic Config Schema — `bot/config/schemas.py`
+
+- Dobavlen `SMC = "smc"` v `StrategyType` enum
+- Sozdana `SMCConfigSchema(BaseModel)` s 20 polyami (taymfreymy, struktura, konflyuentsiya, risk, vkhod, pozitsii, limity)
+- Dobavleno pole `smc: SMCConfigSchema | None` v `BotConfig`
+- Dobavlena validatsiya: strategiya `smc` trebuet smc konfigyuratsiyu
+
+#### 4. BotOrchestrator Integration — `bot/orchestrator/bot_orchestrator.py`
+
+| Komponent | Opisanie |
+|-----------|----------|
+| Importy | `SMCConfig`, `SMCStrategyAdapter`, `BaseSignalDirection` |
+| Init | `self.smc_strategy` + konvertatsiya Pydantic → dataclass v `initialize()` |
+| Processing | `_process_smc_logic()` — 4 taymfreyma OHLCV cherez `asyncio.gather` |
+| Entry | `_execute_smc_entry()` — market order po signalu |
+| Exit | `_execute_smc_exit()` — zakrytie pozitsiy |
+| Status | SMC dobavlen v `get_status()` |
+
+**Multi-timeframe pipeline:**
+```
+D1/200 + H4/200 + H1/200 + M15/200 → analyze_market → generate_signal → risk_check → execute
+```
+
+#### 5. Demo Config — `configs/phase7_demo.yaml`
+
+Dobavlen 5-y bot `demo_btc_smc`:
+- Symbol: BTC/USDT, Strategy: smc
+- dry_run: true, auto_start: false
+- swing_length: 50, risk_per_trade: 0.02, max_positions: 3
+
+#### 6. Testy
+
+| Test file | Testov | Opisanie |
+|-----------|--------|----------|
+| `tests/strategies/smc/test_smc_config_schema.py` | 19 | Pydantic validatsiya, konvertatsiya v dataclass, BotConfig integratsiya |
+| `tests/strategies/smc/test_smc_strategy.py` | +7 | Adaptive swing_length, max_positions, removed fields, SMCConfig defaults |
+
+**Polnyy nabor testov:** 1500 passed, 25 skipped, 0 failed
+
+#### 7. Deploy na Server
+
+| Shag | Rezultat |
+|------|----------|
+| `tar czf` + `scp` na 185.233.200.13 | Kod doslany |
+| `docker compose restart bot` | Konteyner perezapushchen |
+| Proverka logov | **5 botov inicializirovany** (bylo 4) |
+| SMC bot | `bot_initialized name=demo_btc_smc strategy=smc` — uspeshno |
+
+### Izmenennye Fayly (7)
+
+| # | Fayl | Izmenenie |
+|---|------|-----------|
+| 1 | `bot/strategies/smc/config.py` | +max_positions, -order_block_lookback, -fvg_min_size |
+| 2 | `bot/strategies/smc/market_structure.py` | Adaptive swing_length v analyze_trend() |
+| 3 | `bot/config/schemas.py` | SMC v StrategyType, SMCConfigSchema, BotConfig pole + validator |
+| 4 | `bot/orchestrator/bot_orchestrator.py` | SMC init, _process_smc_logic, _execute_smc_entry/exit, get_status |
+| 5 | `configs/phase7_demo.yaml` | +demo_btc_smc bot |
+| 6 | `tests/strategies/smc/test_smc_strategy.py` | +7 testov (adaptive swing, config) |
+| 7 | `tests/strategies/smc/test_smc_config_schema.py` | Novyy fayl, 19 testov |
+
+### Commits
+
+| Commit | Opisanie |
+|--------|----------|
+| `b5bd381` | feat: add SMC as standalone deployable strategy |
+
+### Statistika Koda
+
+- **+659 strok dobavleno, -6 strok udaleno**
+- 7 faylov izmeneno
+- 26 novyh testov
+
+---
+
+## Predydushchaya Sessiya (2026-02-20) - Session 16: Repository Cleanup + Code Quality + PR #245 Merge
 
 ### Zadacha
 
@@ -857,6 +1089,28 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 18 (2026-02-21): Multi-Strategy Backtester — Production-Ready
+- 3 baga ispravleny (await, CSV loading, TrendFollower.reset)
+- Fyucherskaya simulyatsiya SHORT-pozitsiy v MarketSimulator + engine
+- Rasshirenie do 5 taymfreymov: M5→M15→H1→H4→D1
+- Podderzhka realnyh CSV-dannyh s resampling
+- CLI-ranner s HTML-otchyotami (`scripts/run_multi_strategy_backtest.py`)
+- Walk-forward obnovlen dlya M5 bazy
+- 163 testa prohodyat (bylo 31, +132 novyh)
+- CI: black + ruff + mypy + pytest — vse PASS
+- **PR:** #273 (merged), **Issues:** #261-268, #270 (zakryty)
+- **Commits:** `d20b03d`, `ef4492d`, `ef3c859`, `f122732`
+- **Status:** COMPLETE
+
+### Sessiya 17 (2026-02-21): SMC Standalone Strategy Implementation + Deploy
+- SMC kak samostoyatelnaya deployable strategiya
+- Pydantic config schema, BotOrchestrator integration
+- Adaptive swing_length dlya D1/H4
+- Demo config + 26 testov
+- Deploy na server (5 botov inicializirovany)
+- **Commit:** `b5bd381`
+- **Status:** COMPLETE
+
 ### Sessiya 16 (2026-02-20): Repository Cleanup + Code Quality + PR #245 Merge
 - Polnyy audit i restrukturizatsiya repozitoriya (83 fayla peremeshcheny/udaleny)
 - Udalyon `dca_grid_bot/` (mertvyy kod, 16 faylov, 3673 stroki)
@@ -1031,7 +1285,8 @@ Phase 7.9: v2.0 Algorithm Design     [##########] 100%
 Phase 7.10: Backtesting Architecture  [##########] 100%
 Phase 7.11: Conflict Analysis (16)    [##########] 100%
 Phase 7.12: Cross-Audit (+13=29)      [##########] 100%
-Phase 7.13: Repo Cleanup + CodeQual   [##########] 100%  <- NEW!
+Phase 7.13: Repo Cleanup + CodeQual   [##########] 100%
+Phase 7.14: Multi-TF Backtester Prod  [##########] 100%  <- NEW!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -1135,18 +1390,20 @@ docker compose up webui-backend webui-frontend
 
 ## Last Updated
 
-- **Date:** February 20, 2026
-- **Session:** 16 (Repository Cleanup + Code Quality + PR #245 Merge)
-- **Status:** 1479/1504 tests passing (100%), 25 skipped
-- **Total tests:** 1504 collected (posle udaleniya dca_grid_bot)
-- **Last commit:** `7b854d0` (Merge pull request #245)
-- **Bot Status:** STOPPED — all orders cancelled, all positions closed, balance ~$99,998 USDT
+- **Date:** February 21, 2026
+- **Session:** 18 (Multi-Strategy Backtester — Production-Ready)
+- **Status:** 1500/1525 tests passing (100%), 25 skipped
+- **Total tests:** 1525 collected (posle dobavleniya SMC testov)
+- **Last commit:** `f122732` (Merge pull request #273 — multi-strategy backtester production)
+- **Bot Status:** RUNNING (5 botov, SMC bot v dry_run rezhime)
+- **Multi-TF Backtester:** PRODUCTION-READY — SHORT, M5, CSV, CLI runner, 163 tests, PR #273 merged, 9 issues closed
 - **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1322 strok, 29 konfliktov ustraneny)
 - **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1676 strok)
 - **Conflict Analysis:** Session 12: 16 + Session 13: 13 = **29 konfliktov** ustraneny
 - **SMC Integration:** smartmoneyconcepts library integrated (swing/BOS/CHoCH/OB/FVG/Liquidity), merged to main
 - **SMC Audit:** 5 kriticheskikh raskhozhdenii naideny (swing_length, OB lookback, liquidity zones, mitigation, close_break)
-- **SMC Fixes:** PLANNED (Variant A, ~4-6 chasov): swing_length 5→50, OB lookback 20→50, liquidity zones, wick mitigation
+- **SMC Standalone Strategy:** DEPLOYED — 7 faylov, +659 strok, adaptive swing_length, BotOrchestrator integration, 26 testov
+- **SMC Fixes:** COMPLETE — swing_length adaptive (D1: //5, H4: //2), dead params removed, max_positions added
 - **Timezone Bug Fix:** periodic_state_save_failed resolved — `.replace(tzinfo=None)` for asyncpg compatibility
 - **HYBRID:** Udalyon kak otdelnaya strategiya; funktsiya perenesena v Strategy Router
 - **SMC:** Pereproektirovan iz strategii v filtr (tolko ENTRY, zone staleness, per-entry touch)
@@ -1164,5 +1421,5 @@ docker compose up webui-backend webui-frontend
 - **Repository Cleanup:** COMPLETE — dca_grid_bot udalyon, docs reorganizovany, code quality fixes applied
 - **Code Quality:** black + ruff PASS; mypy 47 pre-existing errors (TODO)
 - **CI Known Issues:** GitHub Actions Python 3.12 pkg_resources failure (environment issue)
-- **Next Action:** Fix mypy errors → Ispravlenie SMC parametrov (Variant A) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
+- **Next Action:** Fix mypy errors → Zapusk SMC bota (live dry-run) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
 - **Co-Authored:** Claude Opus 4.6
