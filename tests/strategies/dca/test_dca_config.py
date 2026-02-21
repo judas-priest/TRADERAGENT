@@ -9,14 +9,20 @@ from decimal import Decimal
 import pytest
 import yaml
 
+from bot.strategies.dca.dca_backtester import (
+    BacktestResult,
+    BacktestTrade,
+    DCABacktester,
+    compare_strategies,
+)
 from bot.strategies.dca.dca_config import (
+    MARKET_PRESETS,
     DCAFilterSchema,
     DCAOrderSchema,
     DCARiskSchema,
     DCASignalSchema,
     DCAStrategyConfig,
     DCATrailingSchema,
-    MARKET_PRESETS,
     MarketPreset,
 )
 from bot.strategies.dca.dca_engine import DCAEngine, FalseSignalFilter
@@ -28,13 +34,6 @@ from bot.strategies.dca.dca_signal_generator import (
     TrendDirection,
 )
 from bot.strategies.dca.dca_trailing_stop import TrailingStopConfig, TrailingStopType
-from bot.strategies.dca.dca_backtester import (
-    BacktestResult,
-    BacktestTrade,
-    DCABacktester,
-    compare_strategies,
-)
-
 
 # =========================================================================
 # Market Presets Tests
@@ -243,7 +242,9 @@ class TestSchemas:
         assert o.max_safety_orders == 5
 
     def test_risk_schema_to_config(self):
-        r = DCARiskSchema(max_total_exposure=Decimal("20000"), max_deal_drawdown_pct=Decimal("18.0"))
+        r = DCARiskSchema(
+            max_total_exposure=Decimal("20000"), max_deal_drawdown_pct=Decimal("18.0")
+        )
         rc = r.to_risk_config()
         assert isinstance(rc, DCARiskConfig)
         assert rc.max_total_exposure == Decimal("20000")
@@ -401,9 +402,19 @@ class TestBacktester:
     def test_backtester_fixed_tp(self, order_config):
         """Fixed TP exits at take profit price."""
         # Price drops then recovers past TP
-        prices = [Decimal(str(p)) for p in [
-            3100, 3050, 3000, 3050, 3100, 3150, 3200, 3250,
-        ]]
+        prices = [
+            Decimal(str(p))
+            for p in [
+                3100,
+                3050,
+                3000,
+                3050,
+                3100,
+                3150,
+                3200,
+                3250,
+            ]
+        ]
         bt = DCABacktester(
             order_config=order_config,
             trailing_config=TrailingStopConfig(enabled=False),
@@ -417,10 +428,19 @@ class TestBacktester:
     def test_backtester_trailing_stop(self, order_config):
         """Trailing stop captures extended move."""
         # Price rises well past TP level, then drops to trigger trailing
-        prices = [Decimal(str(p)) for p in [
-            3100, 3200, 3300, 3400, 3500, 3600,
-            3700, 3650,  # Drop to trigger trailing (3700*0.992=3674.4)
-        ]]
+        prices = [
+            Decimal(str(p))
+            for p in [
+                3100,
+                3200,
+                3300,
+                3400,
+                3500,
+                3600,
+                3700,
+                3650,  # Drop to trigger trailing (3700*0.992=3674.4)
+            ]
+        ]
         bt = DCABacktester(
             order_config=order_config,
             trailing_config=TrailingStopConfig(
@@ -445,9 +465,15 @@ class TestBacktester:
             stop_loss_pct=Decimal("10.0"),
             max_position_cost=Decimal("5000"),
         )
-        prices = [Decimal(str(p)) for p in [
-            3100, 3000, 2900, 2780,  # Below SL (3100*0.9=2790)
-        ]]
+        prices = [
+            Decimal(str(p))
+            for p in [
+                3100,
+                3000,
+                2900,
+                2780,  # Below SL (3100*0.9=2790)
+            ]
+        ]
         bt = DCABacktester(
             order_config=no_so_config,
             trailing_config=TrailingStopConfig(enabled=False),
@@ -459,10 +485,19 @@ class TestBacktester:
 
     def test_backtester_safety_orders_fill(self, order_config):
         """Safety orders fill as price drops."""
-        prices = [Decimal(str(p)) for p in [
-            3100, 3030, 2960, 2890,  # SO1, SO2, SO3 triggers
-            3000, 3100, 3200, 3300,  # Recovery past TP
-        ]]
+        prices = [
+            Decimal(str(p))
+            for p in [
+                3100,
+                3030,
+                2960,
+                2890,  # SO1, SO2, SO3 triggers
+                3000,
+                3100,
+                3200,
+                3300,  # Recovery past TP
+            ]
+        ]
         bt = DCABacktester(
             order_config=order_config,
             trailing_config=TrailingStopConfig(enabled=False),
@@ -475,10 +510,17 @@ class TestBacktester:
         """Multiple sequential deals."""
         # Deal 1: opens at 3100, TP at 3100*1.03=3193, exits at 3200
         # Deal 2: opens at 3250 (next price after exit), TP at 3250*1.03=3347.5, exits at 3400
-        prices = [Decimal(str(p)) for p in [
-            3100, 3150, 3200,  # Deal 1 TP at 3200
-            3250, 3300, 3400,  # Deal 2 TP at 3400
-        ]]
+        prices = [
+            Decimal(str(p))
+            for p in [
+                3100,
+                3150,
+                3200,  # Deal 1 TP at 3200
+                3250,
+                3300,
+                3400,  # Deal 2 TP at 3400
+            ]
+        ]
         bt = DCABacktester(
             order_config=order_config,
             trailing_config=TrailingStopConfig(enabled=False),
@@ -488,10 +530,17 @@ class TestBacktester:
 
     def test_backtest_result_metrics(self, order_config):
         """BacktestResult computes metrics correctly."""
-        prices = [Decimal(str(p)) for p in [
-            3100, 3200, 3300,  # TP
-            3100, 3200, 3300,  # TP
-        ]]
+        prices = [
+            Decimal(str(p))
+            for p in [
+                3100,
+                3200,
+                3300,  # TP
+                3100,
+                3200,
+                3300,  # TP
+            ]
+        ]
         bt = DCABacktester(
             order_config=order_config,
             trailing_config=TrailingStopConfig(enabled=False),
@@ -512,10 +561,19 @@ class TestBacktester:
     def test_compare_strategies(self, order_config):
         """Compare Fixed TP vs Trailing Stop."""
         # Price rises well above TP then drops
-        prices = [Decimal(str(p)) for p in [
-            3100, 3200, 3300, 3400, 3500, 3600, 3700,
-            3650,  # Trailing stop trigger
-        ]]
+        prices = [
+            Decimal(str(p))
+            for p in [
+                3100,
+                3200,
+                3300,
+                3400,
+                3500,
+                3600,
+                3700,
+                3650,  # Trailing stop trigger
+            ]
+        ]
         results = compare_strategies(
             prices=prices,
             order_config=order_config,
@@ -545,13 +603,18 @@ class TestBacktester:
 
     def test_backtest_result_all_wins(self):
         """Profit factor with all winning trades."""
-        result = BacktestResult(trades=[
-            BacktestTrade(
-                entry_price=Decimal("100"), exit_price=Decimal("110"),
-                exit_reason="take_profit", safety_orders_filled=0,
-                profit=Decimal("10"), profit_pct=Decimal("10"),
-                total_cost=Decimal("100"),
-            ),
-        ])
+        result = BacktestResult(
+            trades=[
+                BacktestTrade(
+                    entry_price=Decimal("100"),
+                    exit_price=Decimal("110"),
+                    exit_reason="take_profit",
+                    safety_orders_filled=0,
+                    profit=Decimal("10"),
+                    profit_pct=Decimal("10"),
+                    total_cost=Decimal("100"),
+                ),
+            ]
+        )
         assert result.profit_factor == Decimal("999")
         assert result.losing_trades == 0

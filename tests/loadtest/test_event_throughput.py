@@ -4,11 +4,9 @@ Event system throughput testing — TradingEvent creation/serialization + broadc
 Tests validate event pipeline performance under high volume.
 """
 
-import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from starlette.websockets import WebSocketState
 
 from bot.orchestrator.events import EventType, TradingEvent
@@ -92,7 +90,9 @@ class TestEventThroughput:
 
         total_sends = 100 * 1000
         assert elapsed < 10.0, f"100×1000 broadcast took {elapsed:.2f}s"
-        print(f"\n  100 sub × 1000 msg ({total_sends:,} sends): {elapsed:.2f}s ({total_sends/elapsed:,.0f} sends/s)")
+        print(
+            f"\n  100 sub × 1000 msg ({total_sends:,} sends): {elapsed:.2f}s ({total_sends/elapsed:,.0f} sends/s)"
+        )
 
     async def test_channel_broadcast_50ch_100msg(self):
         """50 channels × 10 subscribers × 100 messages — correct routing."""
@@ -116,10 +116,12 @@ class TestEventThroughput:
         # Each socket in each channel should receive exactly 100 messages
         for ch_name, sockets in channel_sockets.items():
             for ws in sockets:
-                assert ws.send_text.call_count == 100, (
-                    f"{ch_name}: expected 100 calls, got {ws.send_text.call_count}"
-                )
+                assert (
+                    ws.send_text.call_count == 100
+                ), f"{ch_name}: expected 100 calls, got {ws.send_text.call_count}"
 
         total_sends = 50 * 10 * 100  # 50,000
         assert elapsed < 10.0, f"50ch×100msg broadcast took {elapsed:.2f}s"
-        print(f"\n  50 ch × 10 sub × 100 msg ({total_sends:,} sends): {elapsed:.2f}s ({total_sends/elapsed:,.0f} sends/s)")
+        print(
+            f"\n  50 ch × 10 sub × 100 msg ({total_sends:,} sends): {elapsed:.2f}s ({total_sends/elapsed:,.0f} sends/s)"
+        )

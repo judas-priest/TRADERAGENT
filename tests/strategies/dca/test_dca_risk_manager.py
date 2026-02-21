@@ -17,7 +17,6 @@ from bot.strategies.dca.dca_risk_manager import (
     RiskCheckResult,
 )
 
-
 # =========================================================================
 # Fixtures
 # =========================================================================
@@ -167,20 +166,30 @@ class TestRiskCheckResult:
 class TestDealStopLoss:
     def test_no_stop_loss(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("3000"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("3000"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
         )
         result = manager.check_deal_stop_loss(deal)
         assert result.is_safe  # ~3.2% < 10%
 
     def test_stop_loss_triggered(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("2750"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("2750"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
         )
         result = manager.check_deal_stop_loss(deal)
         assert result.action == DCARiskAction.CLOSE_DEAL
@@ -188,10 +197,15 @@ class TestDealStopLoss:
 
     def test_stop_loss_warning(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("2880"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("2880"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
         )
         result = manager.check_deal_stop_loss(deal)
         assert result.is_safe
@@ -201,10 +215,15 @@ class TestDealStopLoss:
         cfg = DCARiskConfig(deal_stop_loss_from_average=True, deal_stop_loss_pct=Decimal("10.0"))
         mgr = DCARiskManager(cfg)
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3000"), current_price=Decimal("2680"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.33"),
-            safety_orders_filled=1, max_safety_orders=5,
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3000"),
+            current_price=Decimal("2680"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.33"),
+            safety_orders_filled=1,
+            max_safety_orders=5,
         )
         result = mgr.check_deal_stop_loss(deal)
         # (3000-2680)/3000 = 10.7% > 10% — triggered
@@ -219,33 +238,51 @@ class TestDealStopLoss:
 class TestDealDrawdown:
     def test_no_drawdown(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("3200"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
-            unrealized_pnl=Decimal("32"), unrealized_pnl_pct=Decimal("3.2"),
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("3200"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
+            unrealized_pnl=Decimal("32"),
+            unrealized_pnl_pct=Decimal("3.2"),
         )
         result = manager.check_deal_drawdown(deal)
         assert result.is_safe
 
     def test_drawdown_exceeded(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("2600"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
-            unrealized_pnl=Decimal("-160"), unrealized_pnl_pct=Decimal("-16.0"),
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("2600"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
+            unrealized_pnl=Decimal("-160"),
+            unrealized_pnl_pct=Decimal("-16.0"),
         )
         result = manager.check_deal_drawdown(deal)
         assert result.action == DCARiskAction.CLOSE_DEAL
 
     def test_drawdown_warning(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("2750"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
-            unrealized_pnl=Decimal("-112"), unrealized_pnl_pct=Decimal("-11.2"),
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("2750"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
+            unrealized_pnl=Decimal("-112"),
+            unrealized_pnl_pct=Decimal("-11.2"),
         )
         result = manager.check_deal_drawdown(deal)
         assert result.is_safe
@@ -397,10 +434,14 @@ class TestTotalExposure:
     def test_exceeded(self, manager):
         deals = [
             DealRiskState(
-                deal_id=f"D{i}", symbol="BTC",
-                entry_price=Decimal("3100"), average_entry_price=Decimal("3100"),
-                current_price=Decimal("3000"), total_cost=Decimal("6000"),
-                total_volume=Decimal("2.0"), safety_orders_filled=0,
+                deal_id=f"D{i}",
+                symbol="BTC",
+                entry_price=Decimal("3100"),
+                average_entry_price=Decimal("3100"),
+                current_price=Decimal("3000"),
+                total_cost=Decimal("6000"),
+                total_volume=Decimal("2.0"),
+                safety_orders_filled=0,
                 max_safety_orders=5,
             )
             for i in range(3)
@@ -412,10 +453,14 @@ class TestTotalExposure:
     def test_warning(self, manager):
         deals = [
             DealRiskState(
-                deal_id="D1", symbol="BTC",
-                entry_price=Decimal("3100"), average_entry_price=Decimal("3100"),
-                current_price=Decimal("3000"), total_cost=Decimal("13000"),
-                total_volume=Decimal("4.0"), safety_orders_filled=0,
+                deal_id="D1",
+                symbol="BTC",
+                entry_price=Decimal("3100"),
+                average_entry_price=Decimal("3100"),
+                current_price=Decimal("3000"),
+                total_cost=Decimal("13000"),
+                total_volume=Decimal("4.0"),
+                safety_orders_filled=0,
                 max_safety_orders=5,
             )
         ]
@@ -555,11 +600,17 @@ class TestEvaluateRisk:
 
     def test_deal_stop_loss_triggers(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("2700"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
-            unrealized_pnl=Decimal("-128"), unrealized_pnl_pct=Decimal("-12.9"),
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("2700"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
+            unrealized_pnl=Decimal("-128"),
+            unrealized_pnl_pct=Decimal("-12.9"),
         )
         state = PortfolioRiskState(
             active_deals=[deal],
@@ -573,10 +624,15 @@ class TestEvaluateRisk:
 
     def test_portfolio_drawdown_overrides(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("3000"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("3000"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
         )
         state = PortfolioRiskState(
             active_deals=[deal],
@@ -590,11 +646,17 @@ class TestEvaluateRisk:
 
     def test_warnings_collected(self, manager):
         deal = DealRiskState(
-            deal_id="D1", symbol="BTC", entry_price=Decimal("3100"),
-            average_entry_price=Decimal("3100"), current_price=Decimal("2880"),
-            total_cost=Decimal("1000"), total_volume=Decimal("0.32"),
-            safety_orders_filled=0, max_safety_orders=5,
-            unrealized_pnl=Decimal("-70"), unrealized_pnl_pct=Decimal("-7.1"),
+            deal_id="D1",
+            symbol="BTC",
+            entry_price=Decimal("3100"),
+            average_entry_price=Decimal("3100"),
+            current_price=Decimal("2880"),
+            total_cost=Decimal("1000"),
+            total_volume=Decimal("0.32"),
+            safety_orders_filled=0,
+            max_safety_orders=5,
+            unrealized_pnl=Decimal("-70"),
+            unrealized_pnl_pct=Decimal("-7.1"),
         )
         state = PortfolioRiskState(
             active_deals=[deal],

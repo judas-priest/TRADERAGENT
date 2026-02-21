@@ -14,14 +14,11 @@ from decimal import Decimal
 import numpy as np
 import pandas as pd
 import yaml
-
 from grid_backtester.engine import (
     GridBacktestConfig,
     GridBacktestResult,
     GridBacktestSystem,
 )
-from grid_backtester.core import GridSpacing
-
 
 # =============================================================================
 # Helpers
@@ -43,14 +40,16 @@ def make_candles(
         close = prev + (target - prev) * 0.3
         high = close + abs(rng.normal(0, spread * 0.1))
         low = close - abs(rng.normal(0, spread * 0.1))
-        rows.append({
-            "timestamp": f"2025-01-01T{i:04d}",
-            "open": prev,
-            "high": max(high, prev, close),
-            "low": min(low, prev, close),
-            "close": close,
-            "volume": rng.uniform(100, 1000),
-        })
+        rows.append(
+            {
+                "timestamp": f"2025-01-01T{i:04d}",
+                "open": prev,
+                "high": max(high, prev, close),
+                "low": min(low, prev, close),
+                "close": close,
+                "volume": rng.uniform(100, 1000),
+            }
+        )
         prev = close
     return pd.DataFrame(rows)
 
@@ -70,14 +69,16 @@ def make_volatile_candles(n: int = 200, seed: int = 42) -> pd.DataFrame:
         close = prev * (1 + change)
         high = close * (1 + abs(rng.normal(0, vol / 2)))
         low = close * (1 - abs(rng.normal(0, vol / 2)))
-        rows.append({
-            "timestamp": f"2025-01-01T{i:04d}",
-            "open": prev,
-            "high": max(high, prev, close),
-            "low": min(low, prev, close),
-            "close": close,
-            "volume": rng.uniform(100, 1000),
-        })
+        rows.append(
+            {
+                "timestamp": f"2025-01-01T{i:04d}",
+                "open": prev,
+                "high": max(high, prev, close),
+                "low": min(low, prev, close),
+                "close": close,
+                "volume": rng.uniform(100, 1000),
+            }
+        )
         prev = close
     return pd.DataFrame(rows)
 

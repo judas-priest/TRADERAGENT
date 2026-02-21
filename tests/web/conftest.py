@@ -46,31 +46,33 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 def mock_orchestrator():
     """Create a mock BotOrchestrator with real orchestrator field names."""
     orch = MagicMock()
-    orch.get_status = AsyncMock(return_value={
-        "bot_name": "test_bot",
-        "strategy": "grid",
-        "symbol": "BTC/USDT",
-        "state": "running",
-        "current_price": "50000",
-        "dry_run": False,
-        "grid": {
-            "buy_count": 21,
-            "sell_count": 21,
-            "total_profit": 1234.56,
-            "active_orders": 5,
-        },
-        "trend_follower": {
-            "active_positions": 2,
-            "statistics": {
-                "risk_metrics": {
-                    "total_trades": 0,
-                    "win_rate": 0.65,
-                    "total_pnl": 0,
-                }
+    orch.get_status = AsyncMock(
+        return_value={
+            "bot_name": "test_bot",
+            "strategy": "grid",
+            "symbol": "BTC/USDT",
+            "state": "running",
+            "current_price": "50000",
+            "dry_run": False,
+            "grid": {
+                "buy_count": 21,
+                "sell_count": 21,
+                "total_profit": 1234.56,
+                "active_orders": 5,
             },
-        },
-        "config": {"name": "test_bot"},
-    })
+            "trend_follower": {
+                "active_positions": 2,
+                "statistics": {
+                    "risk_metrics": {
+                        "total_trades": 0,
+                        "win_rate": 0.65,
+                        "total_pnl": 0,
+                    }
+                },
+            },
+            "config": {"name": "test_bot"},
+        }
+    )
     orch.start = AsyncMock()
     orch.stop = AsyncMock()
     orch.pause = AsyncMock()

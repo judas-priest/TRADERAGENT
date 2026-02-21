@@ -8,7 +8,6 @@ analyze → signal → open → update → close pipeline with real OHLCV data.
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -19,7 +18,6 @@ from bot.strategies.base import (
     BaseSignal,
     BaseStrategy,
     ExitReason,
-    PositionInfo,
     SignalDirection,
     StrategyPerformance,
 )
@@ -27,7 +25,6 @@ from bot.strategies.dca_adapter import DCAAdapter
 from bot.strategies.grid_adapter import GridAdapter
 from bot.strategies.smc_adapter import SMCStrategyAdapter
 from bot.strategies.trend_follower_adapter import TrendFollowerAdapter
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -59,9 +56,7 @@ def _make_ohlcv(
     )
 
 
-def _make_dip_data(
-    n: int = 100, base: float = 45000.0, dip_pct: float = 0.04
-) -> pd.DataFrame:
+def _make_dip_data(n: int = 100, base: float = 45000.0, dip_pct: float = 0.04) -> pd.DataFrame:
     """Generate data with a clear price dip from recent high for DCA entry.
 
     Creates a flat-to-rising section for most of the data, then a sharp drop
@@ -502,7 +497,14 @@ class TestTrendFollowerAdapterE2E:
         result = adapter.analyze_market(df)
         assert isinstance(result, BaseMarketAnalysis)
         assert result.strategy_type == "trend_follower"
-        assert result.trend in ("bullish_trend", "bearish_trend", "sideways", "unknown", "bullish", "bearish")
+        assert result.trend in (
+            "bullish_trend",
+            "bearish_trend",
+            "sideways",
+            "unknown",
+            "bullish",
+            "bearish",
+        )
 
     def test_generate_signal_returns_none_or_signal(self):
         adapter = TrendFollowerAdapter()
@@ -547,23 +549,21 @@ class TestCrossAdapterConsistency:
         df = _make_ohlcv(n=200)
         for adapter in adapters:
             result = adapter.analyze_market(df)
-            assert isinstance(result, BaseMarketAnalysis), (
-                f"{adapter.get_strategy_name()} did not return BaseMarketAnalysis"
-            )
+            assert isinstance(
+                result, BaseMarketAnalysis
+            ), f"{adapter.get_strategy_name()} did not return BaseMarketAnalysis"
 
     def test_all_return_strategy_performance(self, adapters):
         for adapter in adapters:
             perf = adapter.get_performance()
-            assert isinstance(perf, StrategyPerformance), (
-                f"{adapter.get_strategy_name()} did not return StrategyPerformance"
-            )
+            assert isinstance(
+                perf, StrategyPerformance
+            ), f"{adapter.get_strategy_name()} did not return StrategyPerformance"
 
     def test_all_return_position_info_list(self, adapters):
         for adapter in adapters:
             positions = adapter.get_active_positions()
-            assert isinstance(positions, list), (
-                f"{adapter.get_strategy_name()} did not return list"
-            )
+            assert isinstance(positions, list), f"{adapter.get_strategy_name()} did not return list"
 
     def test_all_have_get_status(self, adapters):
         for adapter in adapters:
@@ -597,13 +597,13 @@ class TestCrossAdapterConsistency:
 
         for adapter in adapters:
             pos_id = adapter.open_position(signal, Decimal("100"))
-            assert len(adapter.get_active_positions()) == 1, (
-                f"{adapter.get_strategy_name()} failed open_position"
-            )
+            assert (
+                len(adapter.get_active_positions()) == 1
+            ), f"{adapter.get_strategy_name()} failed open_position"
             adapter.close_position(pos_id, ExitReason.TAKE_PROFIT, Decimal("46000"))
-            assert len(adapter.get_active_positions()) == 0, (
-                f"{adapter.get_strategy_name()} failed close_position"
-            )
-            assert adapter.get_performance().total_trades == 1, (
-                f"{adapter.get_strategy_name()} failed performance tracking"
-            )
+            assert (
+                len(adapter.get_active_positions()) == 0
+            ), f"{adapter.get_strategy_name()} failed close_position"
+            assert (
+                adapter.get_performance().total_trades == 1
+            ), f"{adapter.get_strategy_name()} failed performance tracking"

@@ -20,7 +20,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
 
-from bot.database.models import Base, Bot, ExchangeCredential, Order, Trade
+from bot.database.models import Base, Bot, ExchangeCredential
 from bot.strategies.base import BaseSignal, SignalDirection
 from web.backend.app import create_app
 from web.backend.auth.models import User, UserSession  # noqa: F401 — ensure tables exist

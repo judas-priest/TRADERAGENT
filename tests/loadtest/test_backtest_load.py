@@ -15,6 +15,7 @@ from httpx import AsyncClient
 def reset_backtest_state():
     """Clear backtest jobs between tests."""
     from web.backend.api.v1 import backtesting
+
     backtesting._jobs.clear()
     yield
     backtesting._jobs.clear()
@@ -40,7 +41,10 @@ class TestBacktestingUnderLoad:
         """Submit 10 backtest jobs concurrently — all should get 202."""
         start = time.perf_counter()
         responses = await asyncio.gather(
-            *[auth_client.post("/api/v1/backtesting/run", json=_backtest_payload(i)) for i in range(10)]
+            *[
+                auth_client.post("/api/v1/backtesting/run", json=_backtest_payload(i))
+                for i in range(10)
+            ]
         )
         elapsed = time.perf_counter() - start
 
@@ -57,8 +61,8 @@ class TestBacktestingUnderLoad:
 
     async def test_semaphore_limits_concurrency(self, auth_client: AsyncClient):
         """5 jobs with semaphore(2) — verify max 2 run simultaneously."""
-        from unittest.mock import patch
         import time as time_mod
+        from unittest.mock import patch
 
         concurrent_count = 0
         max_concurrent = 0
@@ -70,6 +74,7 @@ class TestBacktestingUnderLoad:
             nonlocal concurrent_count, max_concurrent
             # Use a threading-compatible approach
             import threading
+
             with threading.Lock():
                 concurrent_count += 1
                 if concurrent_count > max_concurrent:
@@ -79,9 +84,14 @@ class TestBacktestingUnderLoad:
                 concurrent_count -= 1
             return {"total_return_pct": 10.0, "sharpe_ratio": 1.0}
 
-        with patch("web.backend.api.v1.backtesting._run_grid_backtest_offline", side_effect=tracked_run):
+        with patch(
+            "web.backend.api.v1.backtesting._run_grid_backtest_offline", side_effect=tracked_run
+        ):
             responses = await asyncio.gather(
-                *[auth_client.post("/api/v1/backtesting/run", json=_backtest_payload(i)) for i in range(5)]
+                *[
+                    auth_client.post("/api/v1/backtesting/run", json=_backtest_payload(i))
+                    for i in range(5)
+                ]
             )
 
         # Wait for background tasks to complete

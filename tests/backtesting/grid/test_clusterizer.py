@@ -12,16 +12,13 @@ Tests cover:
 import numpy as np
 import pandas as pd
 import pytest
-
-from grid_backtester.engine import (
-    CoinClusterizer,
-    CLUSTER_PRESETS,
-    CoinCluster,
-    CoinProfile,
-    ClusterPreset,
-)
 from grid_backtester.core import GridSpacing
-
+from grid_backtester.engine import (
+    ClusterPreset,
+    CoinCluster,
+    CoinClusterizer,
+    CoinProfile,
+)
 
 # =============================================================================
 # Helpers
@@ -33,16 +30,20 @@ def make_stable_candles(n: int = 100, center: float = 1.0, noise: float = 0.001)
     rng = np.random.RandomState(42)
     rows = []
     prev = center
-    for i in range(n):
+    for _i in range(n):
         change = rng.normal(0, noise)
         close = prev * (1 + change)
         high = close * (1 + abs(rng.normal(0, noise / 2)))
         low = close * (1 - abs(rng.normal(0, noise / 2)))
-        rows.append({
-            "open": prev, "high": max(high, prev, close),
-            "low": min(low, prev, close), "close": close,
-            "volume": rng.uniform(1e6, 5e6),
-        })
+        rows.append(
+            {
+                "open": prev,
+                "high": max(high, prev, close),
+                "low": min(low, prev, close),
+                "close": close,
+                "volume": rng.uniform(1e6, 5e6),
+            }
+        )
         prev = close
     return pd.DataFrame(rows)
 
@@ -52,16 +53,20 @@ def make_blue_chip_candles(n: int = 100, center: float = 45000.0) -> pd.DataFram
     rng = np.random.RandomState(42)
     rows = []
     prev = center
-    for i in range(n):
+    for _i in range(n):
         change = rng.normal(0, 0.008)  # ~0.8% per candle
         close = prev * (1 + change)
         high = close * (1 + abs(rng.normal(0, 0.004)))
         low = close * (1 - abs(rng.normal(0, 0.004)))
-        rows.append({
-            "open": prev, "high": max(high, prev, close),
-            "low": min(low, prev, close), "close": close,
-            "volume": rng.uniform(100, 1000),
-        })
+        rows.append(
+            {
+                "open": prev,
+                "high": max(high, prev, close),
+                "low": min(low, prev, close),
+                "close": close,
+                "volume": rng.uniform(100, 1000),
+            }
+        )
         prev = close
     return pd.DataFrame(rows)
 
@@ -71,16 +76,20 @@ def make_mid_cap_candles(n: int = 100, center: float = 150.0) -> pd.DataFrame:
     rng = np.random.RandomState(42)
     rows = []
     prev = center
-    for i in range(n):
+    for _i in range(n):
         change = rng.normal(0, 0.025)  # ~2.5% per candle
         close = prev * (1 + change)
         high = close * (1 + abs(rng.normal(0, 0.012)))
         low = close * (1 - abs(rng.normal(0, 0.012)))
-        rows.append({
-            "open": prev, "high": max(high, prev, close),
-            "low": min(low, prev, close), "close": close,
-            "volume": rng.uniform(50000, 200000),
-        })
+        rows.append(
+            {
+                "open": prev,
+                "high": max(high, prev, close),
+                "low": min(low, prev, close),
+                "close": close,
+                "volume": rng.uniform(50000, 200000),
+            }
+        )
         prev = close
     return pd.DataFrame(rows)
 
@@ -90,16 +99,20 @@ def make_meme_candles(n: int = 100, center: float = 50.0) -> pd.DataFrame:
     rng = np.random.RandomState(42)
     rows = []
     prev = center
-    for i in range(n):
+    for _i in range(n):
         change = rng.normal(0, 0.07)  # ~7% per candle
         close = max(prev * (1 + change), 1.0)
         high = close * (1 + abs(rng.normal(0, 0.04)))
         low = close * (1 - abs(rng.normal(0, 0.04)))
-        rows.append({
-            "open": prev, "high": max(high, prev, close),
-            "low": min(low, prev, close), "close": close,
-            "volume": rng.uniform(1e8, 5e8),
-        })
+        rows.append(
+            {
+                "open": prev,
+                "high": max(high, prev, close),
+                "low": min(low, prev, close),
+                "close": close,
+                "volume": rng.uniform(1e8, 5e8),
+            }
+        )
         prev = close
     return pd.DataFrame(rows)
 
@@ -231,9 +244,9 @@ class TestCoinClusterizer:
     def test_insufficient_data_raises(self):
         """Less than 2 candles raises ValueError."""
         clusterizer = CoinClusterizer()
-        bad_df = pd.DataFrame({
-            "open": [1], "high": [2], "low": [0.5], "close": [1.5], "volume": [100]
-        })
+        bad_df = pd.DataFrame(
+            {"open": [1], "high": [2], "low": [0.5], "close": [1.5], "volume": [100]}
+        )
 
         with pytest.raises(ValueError, match="at least 2"):
             clusterizer.classify("TEST", bad_df)

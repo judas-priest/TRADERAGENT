@@ -17,7 +17,6 @@ import sys
 import time
 from datetime import datetime, timezone
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch
 
 import numpy as np
 import pandas as pd
@@ -27,13 +26,11 @@ from bot.strategies.base import (
     BaseSignal,
     ExitReason,
     SignalDirection,
-    StrategyPerformance,
 )
 from bot.strategies.dca_adapter import DCAAdapter
 from bot.strategies.grid_adapter import GridAdapter
 from bot.strategies.smc_adapter import SMCStrategyAdapter
 from bot.strategies.trend_follower_adapter import TrendFollowerAdapter
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -218,9 +215,9 @@ class TestMemoryStability:
         gc.collect()
         base_size = sys.getsizeof(adapter._positions) + sys.getsizeof(adapter._closed_trades)
 
-        for cycle in range(5):
+        for _cycle in range(5):
             # Open and close many positions
-            for i in range(50):
+            for _i in range(50):
                 pos_id = adapter.open_position(_make_signal(), Decimal("50"))
                 adapter.close_position(pos_id, ExitReason.TAKE_PROFIT, Decimal("46000"))
             # Reset clears everything
@@ -229,14 +226,14 @@ class TestMemoryStability:
 
         final_size = sys.getsizeof(adapter._positions) + sys.getsizeof(adapter._closed_trades)
         # After reset, memory should be back to baseline
-        assert final_size <= base_size * 2, (
-            f"Memory grew from {base_size} to {final_size} after 5 reset cycles"
-        )
+        assert (
+            final_size <= base_size * 2
+        ), f"Memory grew from {base_size} to {final_size} after 5 reset cycles"
 
     def test_closed_trades_accumulate(self):
         """Closed trades should accumulate (expected behavior), verify it's bounded."""
         adapter = GridAdapter()
-        for i in range(200):
+        for _i in range(200):
             pos_id = adapter.open_position(_make_signal(), Decimal("50"))
             adapter.close_position(pos_id, ExitReason.TAKE_PROFIT, Decimal("46000"))
 
@@ -297,6 +294,7 @@ class TestDatabaseUnderLoad:
         try:
             from sqlalchemy import select
             from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
             from bot.database.models import Base, Bot, ExchangeCredential, Order
         except ImportError:
             pytest.skip("aiosqlite not available")
@@ -305,6 +303,7 @@ class TestDatabaseUnderLoad:
         async with engine.begin() as conn:
             # Map BigInteger → Integer for SQLite
             from sqlalchemy import BigInteger, Integer
+
             for table in Base.metadata.tables.values():
                 for column in table.columns:
                     if isinstance(column.type, BigInteger):
@@ -359,9 +358,7 @@ class TestDatabaseUnderLoad:
 
             # Read them back
             async with session_factory() as session:
-                result = await session.execute(
-                    select(Order).where(Order.bot_id == bot_id)
-                )
+                result = await session.execute(select(Order).where(Order.bot_id == bot_id))
                 orders = result.scalars().all()
                 assert len(orders) == 100
 

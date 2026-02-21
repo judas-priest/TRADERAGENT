@@ -1,15 +1,12 @@
 """Tests for MetricsExporter — Prometheus metrics HTTP endpoint."""
 
-import pytest
 from aiohttp import web
-from aiohttp.test_utils import AioHTTPTestCase, TestClient, TestServer
+from aiohttp.test_utils import TestClient, TestServer
 
 from bot.monitoring.metrics_exporter import (
     METRIC_DEFINITIONS,
-    MetricValue,
     MetricsExporter,
 )
-
 
 # =============================================================================
 # Unit Tests (no HTTP server)

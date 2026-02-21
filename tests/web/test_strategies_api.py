@@ -51,16 +51,19 @@ async def test_list_templates_empty(auth_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_create_template(auth_client: AsyncClient):
-    resp = await auth_client.post("/api/v1/strategies/templates", json={
-        "name": "Conservative Grid",
-        "description": "Low-risk grid strategy",
-        "strategy_type": "grid",
-        "config_json": '{"grid_levels": 10}',
-        "risk_level": "low",
-        "min_deposit": "100.00",
-        "expected_pnl_pct": "5.0",
-        "recommended_pairs": ["BTC/USDT"],
-    })
+    resp = await auth_client.post(
+        "/api/v1/strategies/templates",
+        json={
+            "name": "Conservative Grid",
+            "description": "Low-risk grid strategy",
+            "strategy_type": "grid",
+            "config_json": '{"grid_levels": 10}',
+            "risk_level": "low",
+            "min_deposit": "100.00",
+            "expected_pnl_pct": "5.0",
+            "recommended_pairs": ["BTC/USDT"],
+        },
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert data["name"] == "Conservative Grid"
@@ -71,14 +74,17 @@ async def test_create_template(auth_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_template(auth_client: AsyncClient):
     # Create first
-    create_resp = await auth_client.post("/api/v1/strategies/templates", json={
-        "name": "DCA Strategy",
-        "description": "DCA bot",
-        "strategy_type": "dca",
-        "config_json": "{}",
-        "risk_level": "medium",
-        "min_deposit": "500.00",
-    })
+    create_resp = await auth_client.post(
+        "/api/v1/strategies/templates",
+        json={
+            "name": "DCA Strategy",
+            "description": "DCA bot",
+            "strategy_type": "dca",
+            "config_json": "{}",
+            "risk_level": "medium",
+            "min_deposit": "500.00",
+        },
+    )
     assert create_resp.status_code == 201
     template_id = create_resp.json()["id"]
 
@@ -97,34 +103,43 @@ async def test_get_template_not_found(auth_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_copy_strategy(auth_client: AsyncClient):
     # Create template
-    create_resp = await auth_client.post("/api/v1/strategies/templates", json={
-        "name": "Copy Test",
-        "description": "For copy testing",
-        "strategy_type": "grid",
-        "config_json": "{}",
-        "risk_level": "low",
-        "min_deposit": "100.00",
-    })
+    create_resp = await auth_client.post(
+        "/api/v1/strategies/templates",
+        json={
+            "name": "Copy Test",
+            "description": "For copy testing",
+            "strategy_type": "grid",
+            "config_json": "{}",
+            "risk_level": "low",
+            "min_deposit": "100.00",
+        },
+    )
     assert create_resp.status_code == 201
     template_id = create_resp.json()["id"]
 
     # Copy
-    resp = await auth_client.post("/api/v1/strategies/copy", json={
-        "template_id": template_id,
-        "bot_name": "my-copy-bot",
-        "symbol": "ETH/USDT",
-        "deposit_amount": "1000.00",
-    })
+    resp = await auth_client.post(
+        "/api/v1/strategies/copy",
+        json={
+            "template_id": template_id,
+            "bot_name": "my-copy-bot",
+            "symbol": "ETH/USDT",
+            "deposit_amount": "1000.00",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["bot_name"] == "my-copy-bot"
 
 
 @pytest.mark.asyncio
 async def test_copy_nonexistent_template(auth_client: AsyncClient):
-    resp = await auth_client.post("/api/v1/strategies/copy", json={
-        "template_id": 99999,
-        "bot_name": "bot",
-        "symbol": "BTC/USDT",
-        "deposit_amount": "500.00",
-    })
+    resp = await auth_client.post(
+        "/api/v1/strategies/copy",
+        json={
+            "template_id": 99999,
+            "bot_name": "bot",
+            "symbol": "BTC/USDT",
+            "deposit_amount": "500.00",
+        },
+    )
     assert resp.status_code == 404

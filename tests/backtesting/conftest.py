@@ -8,4 +8,6 @@ _project_root = str(Path(__file__).resolve().parents[2])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "services" / "backtesting" / "src"))
+sys.path.insert(
+    0, str(Path(__file__).resolve().parent.parent.parent / "services" / "backtesting" / "src")
+)

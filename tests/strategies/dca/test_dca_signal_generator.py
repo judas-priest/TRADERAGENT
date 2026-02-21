@@ -11,14 +11,12 @@ import pytest
 
 from bot.strategies.dca.dca_signal_generator import (
     ConditionCategory,
-    ConditionResult,
     DCASignalConfig,
     DCASignalGenerator,
     MarketState,
     SignalResult,
     TrendDirection,
 )
-
 
 # =========================================================================
 # Fixtures

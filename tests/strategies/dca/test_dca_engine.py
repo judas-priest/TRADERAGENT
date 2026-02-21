@@ -4,26 +4,22 @@ Tests signal-controlled deal opening, false signal filters,
 risk integration, trailing stop monitoring, and full lifecycle.
 """
 
-from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 
 from bot.strategies.dca.dca_engine import (
     DCAEngine,
-    DealExitSignal,
-    EngineAction,
     FalseSignalFilter,
 )
+from bot.strategies.dca.dca_position_manager import DCAOrderConfig
+from bot.strategies.dca.dca_risk_manager import DCARiskConfig
 from bot.strategies.dca.dca_signal_generator import (
     DCASignalConfig,
     MarketState,
     TrendDirection,
 )
-from bot.strategies.dca.dca_position_manager import DCAOrderConfig
-from bot.strategies.dca.dca_risk_manager import DCARiskConfig
 from bot.strategies.dca.dca_trailing_stop import TrailingStopConfig, TrailingStopType
-
 
 # =========================================================================
 # Fixtures
@@ -166,7 +162,9 @@ class TestSignalControlledEntry:
 
 
 class TestFalseSignalFilter:
-    def test_confirmation_count(self, signal_config, order_config, risk_config, trailing_config, good_signal_state):
+    def test_confirmation_count(
+        self, signal_config, order_config, risk_config, trailing_config, good_signal_state
+    ):
         engine = DCAEngine(
             symbol="BTC/USDT",
             signal_config=signal_config,
@@ -177,14 +175,20 @@ class TestFalseSignalFilter:
         )
 
         # First 2 signals should be filtered
-        r1 = engine.on_price_update(good_signal_state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        r1 = engine.on_price_update(
+            good_signal_state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
         assert r1.should_open_deal is False
 
-        r2 = engine.on_price_update(good_signal_state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        r2 = engine.on_price_update(
+            good_signal_state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
         assert r2.should_open_deal is False
 
         # Third signal passes
-        r3 = engine.on_price_update(good_signal_state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        r3 = engine.on_price_update(
+            good_signal_state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
         assert r3.should_open_deal is True
 
     def test_price_spike_filter(self, engine, good_signal_state):
@@ -250,15 +254,21 @@ class TestActiveDealMonitoring:
 
         # Price rises → activate trailing
         state = MarketState(current_price=Decimal("3200"))
-        engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
 
         # New high
         state = MarketState(current_price=Decimal("3500"))
-        engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
 
         # Drop below stop (3500 * 0.992 = 3472)
         state = MarketState(current_price=Decimal("3470"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
 
         assert len(action.deals_to_close) == 1
         assert action.deals_to_close[0].deal_id == deal.id
@@ -269,7 +279,9 @@ class TestActiveDealMonitoring:
 
         # Price drops to SL (3100 * 0.90 = 2790)
         state = MarketState(current_price=Decimal("2780"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
 
         assert len(action.deals_to_close) == 1
         assert action.deals_to_close[0].reason == "stop_loss"
@@ -283,7 +295,9 @@ class TestActiveDealMonitoring:
 
         # TP at 3100 * 1.03 = 3193
         state = MarketState(current_price=Decimal("3200"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
 
         assert len(action.deals_to_close) == 1
         assert action.deals_to_close[0].reason == "take_profit"
@@ -293,7 +307,9 @@ class TestActiveDealMonitoring:
 
         # SO1 at 3100 * 0.98 = 3038
         state = MarketState(current_price=Decimal("3030"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
 
         assert len(action.safety_order_triggers) == 1
         assert action.safety_order_triggers[0] == (deal.id, 1)
@@ -302,7 +318,9 @@ class TestActiveDealMonitoring:
         engine.open_deal(Decimal("3100"))
 
         state = MarketState(current_price=Decimal("3100"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
 
         assert len(action.deals_to_close) == 0
         assert len(action.safety_order_triggers) == 0
@@ -377,12 +395,16 @@ class TestFullIntegration:
         # Step 3: Price rises
         for price in [3150, 3200, 3300, 3400, 3500]:
             state = MarketState(current_price=Decimal(str(price)))
-            action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+            action = engine.on_price_update(
+                state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+            )
             assert len(action.deals_to_close) == 0  # Not triggered yet
 
         # Step 4: Price drops to trailing stop (3500*0.992=3472)
         state = MarketState(current_price=Decimal("3470"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
         assert len(action.deals_to_close) == 1
         assert action.deals_to_close[0].reason == "trailing_stop"
 
@@ -402,13 +424,17 @@ class TestFullIntegration:
 
         # Step 2: Price drops → trigger SO
         state = MarketState(current_price=Decimal("3030"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
         assert len(action.safety_order_triggers) == 1
         engine.fill_safety_order(deal.id, 1, Decimal("3030"))
 
         # Step 3: Price drops more → trigger SO2
         state = MarketState(current_price=Decimal("2960"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
         assert len(action.safety_order_triggers) == 1
         engine.fill_safety_order(deal.id, 2, Decimal("2960"))
 
@@ -417,12 +443,16 @@ class TestFullIntegration:
         avg = deal.average_entry_price
         for price in [3000, 3100, 3200, 3300]:
             state = MarketState(current_price=Decimal(str(price)))
-            engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+            engine.on_price_update(
+                state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+            )
 
         # Step 5: Price drops → trailing stop
         # highest is 3300, stop = 3300*0.992 = 3273.6
         state = MarketState(current_price=Decimal("3270"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
         assert len(action.deals_to_close) == 1
 
         result = engine.close_deal(deal.id, Decimal("3270"), "trailing_stop")
@@ -434,7 +464,9 @@ class TestFullIntegration:
 
         # d2 hits stop loss (50000 * 0.9 = 45000)
         state = MarketState(current_price=Decimal("44000"))
-        action = engine.on_price_update(state, available_balance=Decimal("5000"), total_balance=Decimal("10000"))
+        action = engine.on_price_update(
+            state, available_balance=Decimal("5000"), total_balance=Decimal("10000")
+        )
 
         # d2 should have SL, d1 also has SL (3100*0.9=2790, 44000>2790 but we need to check)
         # Actually d1 SL = 2790, current=44000 > 2790 so d1 is fine

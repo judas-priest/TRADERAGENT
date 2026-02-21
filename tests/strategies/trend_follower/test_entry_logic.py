@@ -3,11 +3,10 @@ Tests for EntryLogicAnalyzer — entry signals for LONG/SHORT positions.
 """
 
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from bot.strategies.trend_follower.entry_logic import (
     EntryLogicAnalyzer,
@@ -215,7 +214,11 @@ class TestSidewaysEntry:
 
         # Mock RSI series where prev < 30 and current >= 30
         rsi_series = pd.Series([28.0, 32.0], index=df.index[-2:])
-        with patch.object(ma, "_calculate_rsi", return_value=pd.concat([pd.Series([50.0] * 98, index=df.index[:98]), rsi_series])):
+        with patch.object(
+            ma,
+            "_calculate_rsi",
+            return_value=pd.concat([pd.Series([50.0] * 98, index=df.index[:98]), rsi_series]),
+        ):
             signal = ela._analyze_sideways_entry(df, conditions, True)
             if signal is not None:
                 assert signal.signal_type == SignalType.LONG

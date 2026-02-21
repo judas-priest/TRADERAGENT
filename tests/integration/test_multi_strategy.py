@@ -10,22 +10,18 @@ from decimal import Decimal
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from bot.strategies.base import (
     BaseMarketAnalysis,
     BaseSignal,
     BaseStrategy,
     ExitReason,
-    PositionInfo,
     SignalDirection,
-    StrategyPerformance,
 )
 from bot.strategies.dca_adapter import DCAAdapter
 from bot.strategies.grid_adapter import GridAdapter
 from bot.strategies.smc_adapter import SMCStrategyAdapter
 from bot.strategies.trend_follower_adapter import TrendFollowerAdapter
-
 
 # ---------------------------------------------------------------------------
 # Helpers

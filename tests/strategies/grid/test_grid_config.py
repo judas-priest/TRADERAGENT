@@ -3,14 +3,12 @@
 Tests volatility presets, YAML serialization, and config-to-component mapping.
 """
 
-import tempfile
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 import yaml
 
-from bot.strategies.grid.grid_calculator import GridConfig, GridSpacing
+from bot.strategies.grid.grid_calculator import GridSpacing
 from bot.strategies.grid.grid_config import (
     VOLATILITY_PRESETS,
     GridRiskSchema,
@@ -18,7 +16,6 @@ from bot.strategies.grid.grid_config import (
     VolatilityMode,
 )
 from bot.strategies.grid.grid_risk_manager import GridRiskConfig
-
 
 # =========================================================================
 # Volatility Presets Tests

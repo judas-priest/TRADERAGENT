@@ -2,13 +2,11 @@
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from bot.orchestrator.market_regime import (
     MarketRegime,
     MarketRegimeDetector,
     RecommendedStrategy,
-    RegimeAnalysis,
 )
 
 
@@ -210,9 +208,7 @@ class TestMarketRegimeDetector:
     def test_atr_calculation(self):
         """Test ATR calculation helper."""
         df = _make_sideways(n=50)
-        atr = MarketRegimeDetector._calculate_atr(
-            df["high"], df["low"], df["close"], 14
-        )
+        atr = MarketRegimeDetector._calculate_atr(df["high"], df["low"], df["close"], 14)
         assert len(atr) == 50
         assert atr.iloc[-1] > 0
 
@@ -261,9 +257,7 @@ class TestADXCalculation:
     def test_adx_low_in_sideways(self):
         """ADX should be relatively low in sideways market."""
         df = _make_sideways(n=100, amplitude=3)
-        adx, _, _ = MarketRegimeDetector._calculate_adx(
-            df["high"], df["low"], df["close"], 14
-        )
+        adx, _, _ = MarketRegimeDetector._calculate_adx(df["high"], df["low"], df["close"], 14)
         last_adx = adx.iloc[-1]
         # Sideways markets typically have lower ADX
         assert last_adx < 40
@@ -274,8 +268,8 @@ class TestBollingerBands:
 
     def test_bb_returns_four_series(self):
         df = _make_sideways(n=50)
-        bb_upper, bb_middle, bb_lower, bb_width = (
-            MarketRegimeDetector._calculate_bollinger_bands(df["close"], 20, 2.0)
+        bb_upper, bb_middle, bb_lower, bb_width = MarketRegimeDetector._calculate_bollinger_bands(
+            df["close"], 20, 2.0
         )
         assert len(bb_upper) == 50
         assert len(bb_middle) == 50
@@ -285,8 +279,8 @@ class TestBollingerBands:
     def test_bb_band_ordering(self):
         """Upper > middle > lower for valid data."""
         df = _make_sideways(n=50)
-        bb_upper, bb_middle, bb_lower, _ = (
-            MarketRegimeDetector._calculate_bollinger_bands(df["close"], 20, 2.0)
+        bb_upper, bb_middle, bb_lower, _ = MarketRegimeDetector._calculate_bollinger_bands(
+            df["close"], 20, 2.0
         )
         # Check last non-NaN values
         idx = -1
@@ -295,9 +289,7 @@ class TestBollingerBands:
     def test_bb_width_positive(self):
         """BB width percentage should be positive."""
         df = _make_sideways(n=50)
-        _, _, _, bb_width = MarketRegimeDetector._calculate_bollinger_bands(
-            df["close"], 20, 2.0
-        )
+        _, _, _, bb_width = MarketRegimeDetector._calculate_bollinger_bands(df["close"], 20, 2.0)
         last_width = bb_width.iloc[-1]
         assert last_width > 0
 
@@ -321,18 +313,14 @@ class TestVolumeRatio:
 
     def test_volume_ratio_returns_two_series(self):
         df = _make_trending_up(n=50)
-        avg_vol, vol_ratio = MarketRegimeDetector._calculate_volume_ratio(
-            df["volume"], 20
-        )
+        avg_vol, vol_ratio = MarketRegimeDetector._calculate_volume_ratio(df["volume"], 20)
         assert len(avg_vol) == 50
         assert len(vol_ratio) == 50
 
     def test_volume_ratio_positive(self):
         """Volume ratio should be positive."""
         df = _make_trending_up(n=50)
-        _, vol_ratio = MarketRegimeDetector._calculate_volume_ratio(
-            df["volume"], 20
-        )
+        _, vol_ratio = MarketRegimeDetector._calculate_volume_ratio(df["volume"], 20)
         last_ratio = vol_ratio.iloc[-1]
         assert last_ratio > 0
 
@@ -341,9 +329,7 @@ class TestVolumeRatio:
         # Create data with constant volume
         df = _make_sideways(n=50)
         df["volume"] = 1000.0  # Constant volume
-        _, vol_ratio = MarketRegimeDetector._calculate_volume_ratio(
-            df["volume"], 20
-        )
+        _, vol_ratio = MarketRegimeDetector._calculate_volume_ratio(df["volume"], 20)
         last_ratio = vol_ratio.iloc[-1]
         assert abs(last_ratio - 1.0) < 0.01
 

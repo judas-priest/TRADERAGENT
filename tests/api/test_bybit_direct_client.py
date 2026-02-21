@@ -4,9 +4,8 @@ Tests for ByBitDirectClient — V5 API client with mock HTTP responses.
 
 import hashlib
 import hmac
-import json
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -17,7 +16,6 @@ from bot.api.exceptions import (
     ExchangeNotAvailableError,
     InsufficientFundsError,
     InvalidOrderError,
-    NetworkError,
     RateLimitError,
 )
 
@@ -70,9 +68,7 @@ class TestSignature:
 
         # Verify manually
         payload = f"{timestamp}test_api_key{client.recv_window}{params}"
-        expected = hmac.new(
-            b"test_secret", payload.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
+        expected = hmac.new(b"test_secret", payload.encode("utf-8"), hashlib.sha256).hexdigest()
         assert sig == expected
 
     def test_build_headers(self):
@@ -167,12 +163,14 @@ class TestFetchBalance:
     async def test_fetch_balance_testnet(self):
         client = ByBitDirectClient(api_key="k", api_secret="s", testnet=True)
         mock_response = {
-            "list": [{
-                "coin": [
-                    {"coin": "USDT", "walletBalance": "10000", "availableToWithdraw": "9500"},
-                    {"coin": "BTC", "walletBalance": "0.5", "availableToWithdraw": "0.5"},
-                ]
-            }]
+            "list": [
+                {
+                    "coin": [
+                        {"coin": "USDT", "walletBalance": "10000", "availableToWithdraw": "9500"},
+                        {"coin": "BTC", "walletBalance": "0.5", "availableToWithdraw": "0.5"},
+                    ]
+                }
+            ]
         }
 
         with patch.object(client, "_request", new_callable=AsyncMock, return_value=mock_response):
@@ -186,15 +184,17 @@ class TestFetchTicker:
     async def test_fetch_ticker(self):
         client = ByBitDirectClient(api_key="k", api_secret="s")
         mock_response = {
-            "list": [{
-                "lastPrice": "45000.5",
-                "bid1Price": "44999.0",
-                "ask1Price": "45001.0",
-                "highPrice24h": "46000.0",
-                "lowPrice24h": "44000.0",
-                "volume24h": "50000.0",
-                "price24hPcnt": "0.025",
-            }]
+            "list": [
+                {
+                    "lastPrice": "45000.5",
+                    "bid1Price": "44999.0",
+                    "ask1Price": "45001.0",
+                    "highPrice24h": "46000.0",
+                    "lowPrice24h": "44000.0",
+                    "volume24h": "50000.0",
+                    "price24hPcnt": "0.025",
+                }
+            ]
         }
 
         with patch.object(client, "_request", new_callable=AsyncMock, return_value=mock_response):
@@ -265,19 +265,21 @@ class TestFetchOpenOrders:
     async def test_fetch_open_orders(self):
         client = ByBitDirectClient(api_key="k", api_secret="s")
         mock_response = {
-            "list": [{
-                "orderId": "123",
-                "orderLinkId": "link",
-                "symbol": "BTCUSDT",
-                "orderType": "Limit",
-                "side": "Buy",
-                "price": "45000",
-                "qty": "0.001",
-                "cumExecQty": "0",
-                "leavesQty": "0.001",
-                "orderStatus": "New",
-                "createdTime": "1700000000000",
-            }]
+            "list": [
+                {
+                    "orderId": "123",
+                    "orderLinkId": "link",
+                    "symbol": "BTCUSDT",
+                    "orderType": "Limit",
+                    "side": "Buy",
+                    "price": "45000",
+                    "qty": "0.001",
+                    "cumExecQty": "0",
+                    "leavesQty": "0.001",
+                    "orderStatus": "New",
+                    "createdTime": "1700000000000",
+                }
+            ]
         }
 
         with patch.object(client, "_request", new_callable=AsyncMock, return_value=mock_response):
@@ -292,14 +294,21 @@ class TestFetchMarkets:
     async def test_fetch_markets(self):
         client = ByBitDirectClient(api_key="k", api_secret="s")
         mock_response = {
-            "list": [{
-                "symbol": "BTCUSDT",
-                "baseCoin": "BTC",
-                "quoteCoin": "USDT",
-                "status": "Trading",
-                "lotSizeFilter": {"minOrderQty": "0.001", "maxOrderQty": "100", "basePrecision": "0.001", "minOrderAmt": "10"},
-                "priceFilter": {"minPrice": "0.01", "maxPrice": "1000000", "tickSize": "0.01"},
-            }]
+            "list": [
+                {
+                    "symbol": "BTCUSDT",
+                    "baseCoin": "BTC",
+                    "quoteCoin": "USDT",
+                    "status": "Trading",
+                    "lotSizeFilter": {
+                        "minOrderQty": "0.001",
+                        "maxOrderQty": "100",
+                        "basePrecision": "0.001",
+                        "minOrderAmt": "10",
+                    },
+                    "priceFilter": {"minPrice": "0.01", "maxPrice": "1000000", "tickSize": "0.01"},
+                }
+            ]
         }
 
         with patch.object(client, "_request", new_callable=AsyncMock, return_value=mock_response):

@@ -13,20 +13,16 @@ from decimal import Decimal
 
 import numpy as np
 import pandas as pd
-import pytest
-
+from grid_backtester.core import GridSpacing
 from grid_backtester.engine import (
     CLUSTER_PRESETS,
-    CoinCluster,
     ClusterPreset,
+    CoinCluster,
     GridBacktestConfig,
-    OptimizationObjective,
     GridOptimizationResult,
     GridOptimizer,
-    OptimizationTrial,
+    OptimizationObjective,
 )
-from grid_backtester.core import GridSpacing
-
 
 # =============================================================================
 # Helpers
@@ -48,14 +44,16 @@ def make_ranging_candles(
         close = prev + (target - prev) * 0.3
         high = close + abs(rng.normal(0, spread * 0.1))
         low = close - abs(rng.normal(0, spread * 0.1))
-        rows.append({
-            "timestamp": f"2025-01-01T{i:04d}",
-            "open": prev,
-            "high": max(high, prev, close),
-            "low": min(low, prev, close),
-            "close": close,
-            "volume": rng.uniform(100, 1000),
-        })
+        rows.append(
+            {
+                "timestamp": f"2025-01-01T{i:04d}",
+                "open": prev,
+                "high": max(high, prev, close),
+                "low": min(low, prev, close),
+                "close": close,
+                "volume": rng.uniform(100, 1000),
+            }
+        )
         prev = close
     return pd.DataFrame(rows)
 

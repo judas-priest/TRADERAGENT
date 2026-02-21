@@ -10,20 +10,19 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import BigInteger, Integer, event, select
+from sqlalchemy import BigInteger, Integer, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from bot.database.models import (
     Base,
     Bot,
     BotLog,
-    DCAHistory,
     ExchangeCredential,
     GridLevel,
     Order,
     Trade,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -141,7 +140,7 @@ class TestCredentialCRUD:
             api_secret_encrypted="y",
         )
         session.add(cred2)
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(IntegrityError):
             await session.flush()
 
 
@@ -261,9 +260,7 @@ class TestOrderCRUD:
 
         await session.flush()
 
-        result = await session.execute(
-            select(Order).where(Order.bot_id == bot.id)
-        )
+        result = await session.execute(select(Order).where(Order.bot_id == bot.id))
         orders = result.scalars().all()
         assert len(orders) == 5
 
@@ -350,9 +347,7 @@ class TestTradeCRUD:
         session.add_all([trade1, trade2])
         await session.flush()
 
-        result = await session.execute(
-            select(Trade).where(Trade.bot_id == bot.id)
-        )
+        result = await session.execute(select(Trade).where(Trade.bot_id == bot.id))
         trades = result.scalars().all()
         total_pnl = sum(t.profit for t in trades if t.profit)
         assert total_pnl == Decimal("5.00")
@@ -378,18 +373,14 @@ class TestGridLevelCRUD:
             session.add(level)
 
         await session.flush()
-        result = await session.execute(
-            select(GridLevel).where(GridLevel.bot_id == bot.id)
-        )
+        result = await session.execute(select(GridLevel).where(GridLevel.bot_id == bot.id))
         levels = result.scalars().all()
         assert len(levels) == 5
 
     async def test_deactivate_grid_level(self, session):
         cred = await _create_credential(session)
         bot = await _create_bot(session, cred)
-        level = GridLevel(
-            bot_id=bot.id, level=1, price=Decimal("44500"), is_active=True
-        )
+        level = GridLevel(bot_id=bot.id, level=1, price=Decimal("44500"), is_active=True)
         session.add(level)
         await session.flush()
 
@@ -397,9 +388,7 @@ class TestGridLevelCRUD:
         level.sell_order_id = "SELL-001"
         await session.flush()
 
-        result = await session.execute(
-            select(GridLevel).where(GridLevel.id == level.id)
-        )
+        result = await session.execute(select(GridLevel).where(GridLevel.id == level.id))
         fetched = result.scalar_one()
         assert fetched.is_active is False
         assert fetched.sell_order_id == "SELL-001"
@@ -423,9 +412,7 @@ class TestTradingWorkflow:
         # 2. Create grid levels
         prices = [Decimal("44000"), Decimal("44500"), Decimal("45000")]
         for i, price in enumerate(prices):
-            level = GridLevel(
-                bot_id=bot.id, level=i + 1, price=price, is_active=True
-            )
+            level = GridLevel(bot_id=bot.id, level=i + 1, price=price, is_active=True)
             session.add(level)
 
         # 3. Place buy orders at grid levels
@@ -446,9 +433,7 @@ class TestTradingWorkflow:
         await session.flush()
 
         # 4. Simulate: price drops, buy order at 44500 fills
-        result = await session.execute(
-            select(Order).where(Order.exchange_order_id == "BUY-2")
-        )
+        result = await session.execute(select(Order).where(Order.exchange_order_id == "BUY-2"))
         filled_order = result.scalar_one()
         filled_order.status = "closed"
         filled_order.filled = filled_order.amount
@@ -473,9 +458,7 @@ class TestTradingWorkflow:
 
         # Verify
         assert bot.total_trades == 1
-        result = await session.execute(
-            select(Trade).where(Trade.bot_id == bot.id)
-        )
+        result = await session.execute(select(Trade).where(Trade.bot_id == bot.id))
         trades = result.scalars().all()
         assert len(trades) == 1
         assert trades[0].price == Decimal("44500")
@@ -575,9 +558,7 @@ class TestTradingWorkflow:
         await session.flush()
 
         # Bot2 should still have 0 trades
-        result = await session.execute(
-            select(Trade).where(Trade.bot_id == bot2.id)
-        )
+        result = await session.execute(select(Trade).where(Trade.bot_id == bot2.id))
         bot2_trades = result.scalars().all()
         assert len(bot2_trades) == 0
         assert bot2.total_trades == 0
@@ -613,8 +594,6 @@ class TestBotLog:
             session.add(log)
         await session.flush()
 
-        result = await session.execute(
-            select(BotLog).where(BotLog.bot_id == bot.id)
-        )
+        result = await session.execute(select(BotLog).where(BotLog.bot_id == bot.id))
         logs = result.scalars().all()
         assert len(logs) == 4

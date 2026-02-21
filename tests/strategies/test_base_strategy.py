@@ -18,7 +18,6 @@ from bot.strategies.base import (
     StrategyPerformance,
 )
 
-
 # =========================================================================
 # Helpers
 # =========================================================================
@@ -33,14 +32,16 @@ def _make_ohlcv(close_prices: list[float], spread: float = 0.02) -> pd.DataFrame
     open_ = (close + np.roll(close, 1)) / 2
     open_[0] = close[0]
     volume = np.random.uniform(1000, 5000, n)
-    return pd.DataFrame({
-        "timestamp": pd.date_range("2026-01-01", periods=n, freq="1h"),
-        "open": open_,
-        "high": high,
-        "low": low,
-        "close": close,
-        "volume": volume,
-    })
+    return pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2026-01-01", periods=n, freq="1h"),
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        }
+    )
 
 
 class ConcreteStrategy(BaseStrategy):
@@ -65,9 +66,7 @@ class ConcreteStrategy(BaseStrategy):
             strategy_type="test",
         )
 
-    def generate_signal(
-        self, df: pd.DataFrame, current_balance: Decimal
-    ) -> Optional[BaseSignal]:
+    def generate_signal(self, df: pd.DataFrame, current_balance: Decimal) -> Optional[BaseSignal]:
         if len(df) < 5:
             return None
         return BaseSignal(
@@ -109,27 +108,31 @@ class ConcreteStrategy(BaseStrategy):
     ) -> None:
         pos = self._positions.pop(position_id, None)
         if pos:
-            self._trades.append({
-                "id": position_id,
-                "reason": exit_reason,
-                "exit_price": exit_price,
-            })
+            self._trades.append(
+                {
+                    "id": position_id,
+                    "reason": exit_reason,
+                    "exit_price": exit_price,
+                }
+            )
 
     def get_active_positions(self) -> list[PositionInfo]:
         result = []
         for pos_id, pos in self._positions.items():
-            result.append(PositionInfo(
-                position_id=pos_id,
-                direction=pos["signal"].direction,
-                entry_price=pos["entry_price"],
-                current_price=pos["current_price"],
-                size=pos["size"],
-                stop_loss=pos["signal"].stop_loss,
-                take_profit=pos["signal"].take_profit,
-                unrealized_pnl=Decimal("0"),
-                entry_time=datetime.now(timezone.utc),
-                strategy_type="test",
-            ))
+            result.append(
+                PositionInfo(
+                    position_id=pos_id,
+                    direction=pos["signal"].direction,
+                    entry_price=pos["entry_price"],
+                    current_price=pos["current_price"],
+                    size=pos["size"],
+                    stop_loss=pos["signal"].stop_loss,
+                    take_profit=pos["signal"].take_profit,
+                    unrealized_pnl=Decimal("0"),
+                    entry_time=datetime.now(timezone.utc),
+                    strategy_type="test",
+                )
+            )
         return result
 
     def get_performance(self) -> StrategyPerformance:
@@ -159,8 +162,15 @@ class TestSignalDirection:
 class TestExitReason:
     def test_all_values(self):
         expected = {
-            "take_profit", "stop_loss", "trailing_stop", "breakeven",
-            "partial_close", "manual", "signal_reversed", "risk_limit", "timeout",
+            "take_profit",
+            "stop_loss",
+            "trailing_stop",
+            "breakeven",
+            "partial_close",
+            "manual",
+            "signal_reversed",
+            "risk_limit",
+            "timeout",
         }
         actual = {e.value for e in ExitReason}
         assert actual == expected

@@ -3,7 +3,6 @@
 Uses mocked CCXT exchange to test client logic without real API calls.
 """
 
-import asyncio
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,7 +19,6 @@ from bot.api.exceptions import (
     RateLimitError,
 )
 from bot.api.exchange_client import ExchangeAPIClient
-
 
 # =========================================================================
 # Fixtures
@@ -148,9 +146,7 @@ class TestHealthCheck:
 
     @pytest.mark.asyncio
     async def test_health_check_failure(self, initialized_client):
-        initialized_client._exchange.fetch_time = AsyncMock(
-            side_effect=Exception("timeout")
-        )
+        initialized_client._exchange.fetch_time = AsyncMock(side_effect=Exception("timeout"))
         assert await initialized_client.health_check() is False
 
 
@@ -190,6 +186,7 @@ class TestRateLimiting:
 class TestExceptionMapping:
     def test_rate_limit_exceeded(self, client):
         import ccxt.pro as ccxtpro
+
         e = ccxtpro.RateLimitExceeded("too fast")
         result = client._map_ccxt_exception(e)
         assert isinstance(result, RateLimitError)
@@ -197,36 +194,42 @@ class TestExceptionMapping:
 
     def test_auth_error(self, client):
         import ccxt.pro as ccxtpro
+
         e = ccxtpro.AuthenticationError("bad key")
         result = client._map_ccxt_exception(e)
         assert isinstance(result, AuthenticationError)
 
     def test_insufficient_funds(self, client):
         import ccxt.pro as ccxtpro
+
         e = ccxtpro.InsufficientFunds("no funds")
         result = client._map_ccxt_exception(e)
         assert isinstance(result, InsufficientFundsError)
 
     def test_invalid_order(self, client):
         import ccxt.pro as ccxtpro
+
         e = ccxtpro.InvalidOrder("bad params")
         result = client._map_ccxt_exception(e)
         assert isinstance(result, InvalidOrderError)
 
     def test_order_not_found(self, client):
         import ccxt.pro as ccxtpro
+
         e = ccxtpro.OrderNotFound("not found")
         result = client._map_ccxt_exception(e)
         assert isinstance(result, OrderError)
 
     def test_network_error(self, client):
         import ccxt.pro as ccxtpro
+
         e = ccxtpro.NetworkError("timeout")
         result = client._map_ccxt_exception(e)
         assert isinstance(result, NetworkError)
 
     def test_exchange_not_available(self, client):
         import ccxt.pro as ccxtpro
+
         e = ccxtpro.ExchangeNotAvailable("maintenance")
         result = client._map_ccxt_exception(e)
         assert isinstance(result, ExchangeNotAvailableError)
@@ -323,9 +326,7 @@ class TestOrderManagement:
         initialized_client._exchange.create_market_order = AsyncMock(
             return_value={"id": "order-456", "status": "closed"}
         )
-        result = await initialized_client.create_market_order(
-            "BTC/USDT", "sell", Decimal("0.5")
-        )
+        result = await initialized_client.create_market_order("BTC/USDT", "sell", Decimal("0.5"))
         assert result["id"] == "order-456"
 
     @pytest.mark.asyncio
@@ -333,9 +334,7 @@ class TestOrderManagement:
         initialized_client._exchange.create_limit_order = AsyncMock(
             return_value={"id": "order-789", "type": "limit"}
         )
-        result = await initialized_client.create_order(
-            "BTC/USDT", "limit", "buy", 0.1, price=45000
-        )
+        result = await initialized_client.create_order("BTC/USDT", "limit", "buy", 0.1, price=45000)
         assert result["type"] == "limit"
 
     @pytest.mark.asyncio
@@ -343,9 +342,7 @@ class TestOrderManagement:
         initialized_client._exchange.create_market_order = AsyncMock(
             return_value={"id": "order-999", "type": "market"}
         )
-        result = await initialized_client.create_order(
-            "BTC/USDT", "market", "sell", 0.5
-        )
+        result = await initialized_client.create_order("BTC/USDT", "market", "sell", 0.5)
         assert result["type"] == "market"
 
     @pytest.mark.asyncio
@@ -390,9 +387,7 @@ class TestOrderManagement:
 
     @pytest.mark.asyncio
     async def test_set_leverage(self, initialized_client):
-        initialized_client._exchange.set_leverage = AsyncMock(
-            return_value={"leverage": 10}
-        )
+        initialized_client._exchange.set_leverage = AsyncMock(return_value={"leverage": 10})
         result = await initialized_client.set_leverage(10, "BTC/USDT")
         assert result["leverage"] == 10
 
@@ -466,9 +461,7 @@ class TestStatistics:
 
     @pytest.mark.asyncio
     async def test_stats_after_requests(self, initialized_client):
-        initialized_client._exchange.fetch_ticker = AsyncMock(
-            return_value={"last": 45000}
-        )
+        initialized_client._exchange.fetch_ticker = AsyncMock(return_value={"last": 45000})
         await initialized_client.fetch_ticker("BTC/USDT")
         await initialized_client.fetch_ticker("ETH/USDT")
 

@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from bot.database.models import Base, Bot, ExchangeCredential
@@ -110,9 +111,7 @@ class TestStrategy:
         session.add(strategy)
         session.commit()
 
-        result = session.execute(
-            select(Strategy).where(Strategy.strategy_id == "tf-eth-1")
-        )
+        result = session.execute(select(Strategy).where(Strategy.strategy_id == "tf-eth-1"))
         loaded = result.scalar_one()
         assert loaded.strategy_type == "trend_follower"
         assert loaded.state == "idle"
@@ -127,7 +126,7 @@ class TestStrategy:
             updated_at=datetime.now(timezone.utc),
         )
         session.add(dup)
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             session.flush()
         session.rollback()
 
@@ -330,7 +329,7 @@ class TestPosition:
             updated_at=datetime.now(timezone.utc),
         )
         session.add(pos2)
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             session.flush()
         session.rollback()
 

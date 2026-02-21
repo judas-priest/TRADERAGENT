@@ -8,14 +8,12 @@ from decimal import Decimal
 import pytest
 
 from bot.utils.capital_manager import (
+    DEFAULT_PHASES,
     CapitalManager,
     DeploymentPhase,
-    PhaseConfig,
     PhaseMetrics,
     ScalingDecision,
-    DEFAULT_PHASES,
 )
-
 
 # ===========================================================================
 # DeploymentPhase enum

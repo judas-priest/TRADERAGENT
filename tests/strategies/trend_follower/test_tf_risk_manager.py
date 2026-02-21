@@ -2,12 +2,10 @@
 Tests for Trend Follower RiskManager — position sizing, drawdown, daily limits.
 """
 
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
 from bot.strategies.trend_follower.entry_logic import EntrySignal, SignalType
 from bot.strategies.trend_follower.market_analyzer import (
@@ -18,7 +16,6 @@ from bot.strategies.trend_follower.market_analyzer import (
 from bot.strategies.trend_follower.risk_manager import (
     RiskManager,
     RiskMetrics,
-    TradeRecord,
 )
 
 

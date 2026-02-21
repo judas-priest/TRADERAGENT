@@ -1,14 +1,11 @@
 """Tests for AlertHandler — AlertManager webhook receiver."""
 
-import json
 from unittest.mock import AsyncMock
 
-import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
 from bot.monitoring.alert_handler import Alert, AlertHandler
-
 
 # =============================================================================
 # Alert Dataclass Tests
@@ -280,15 +277,17 @@ class TestAlertHandlerHTTP:
     async def test_history_endpoint(self):
         handler = AlertHandler()
         # Add some alerts to history
-        handler._add_to_history(Alert(
-            name="TestAlert",
-            status="firing",
-            severity="warning",
-            summary="Test",
-            description="",
-            starts_at="",
-            ends_at="",
-        ))
+        handler._add_to_history(
+            Alert(
+                name="TestAlert",
+                status="firing",
+                severity="warning",
+                summary="Test",
+                description="",
+                starts_at="",
+                ends_at="",
+            )
+        )
 
         app = web.Application()
         app.router.add_routes(handler.routes)

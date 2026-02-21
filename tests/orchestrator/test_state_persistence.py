@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from bot.core.dca_engine import DCAEngine, DCAPosition
-from bot.core.grid_engine import GridEngine, GridOrder, GridType
+from bot.core.dca_engine import DCAEngine
+from bot.core.grid_engine import GridEngine, GridOrder
 from bot.core.risk_manager import RiskManager
 from bot.database.models_state import BotStateSnapshot
 from bot.orchestrator.state_persistence import (
@@ -25,7 +25,6 @@ from bot.orchestrator.state_persistence import (
     serialize_risk_state,
     serialize_trend_state,
 )
-
 
 # ---------------------------------------------------------------------------
 # DecimalEncoder
@@ -231,7 +230,7 @@ class TestTrendSerialization:
 
 class TestHybridSerialization:
     def _make_strategy(self):
-        from bot.strategies.hybrid.hybrid_config import HybridConfig, HybridMode
+        from bot.strategies.hybrid.hybrid_config import HybridConfig
         from bot.strategies.hybrid.hybrid_strategy import HybridStrategy
 
         strategy = HybridStrategy(config=HybridConfig())
@@ -352,21 +351,23 @@ class TestOrchestratorStatePersistence:
             profit_per_grid=Decimal("0.01"),
         )
 
-        grid_data = json.dumps({
-            "active_orders": {
-                "order1": {
-                    "level": 0,
-                    "price": "41000",
-                    "amount": "0.002",
-                    "side": "buy",
-                    "order_id": "order1",
-                    "filled": False,
-                }
-            },
-            "total_profit": "10.5",
-            "buy_count": 2,
-            "sell_count": 1,
-        })
+        grid_data = json.dumps(
+            {
+                "active_orders": {
+                    "order1": {
+                        "level": 0,
+                        "price": "41000",
+                        "amount": "0.002",
+                        "side": "buy",
+                        "order_id": "order1",
+                        "filled": False,
+                    }
+                },
+                "total_profit": "10.5",
+                "buy_count": 2,
+                "sell_count": 1,
+            }
+        )
 
         snapshot = BotStateSnapshot(
             bot_name="test_bot",
@@ -434,12 +435,12 @@ class TestOrchestratorStatePersistence:
         orch.state.value = "running"
 
         # Patch to bypass actual state lock and stop logic
-        with patch.object(orch, 'save_state', new_callable=AsyncMock) as mock_save:
-            with patch.object(orch, '_cancel_all_orders', new_callable=AsyncMock):
-                with patch.object(orch, '_publish_event', new_callable=AsyncMock):
-                    with patch.object(orch, 'health_monitor') as mock_hm:
+        with patch.object(orch, "save_state", new_callable=AsyncMock) as mock_save:
+            with patch.object(orch, "_cancel_all_orders", new_callable=AsyncMock):
+                with patch.object(orch, "_publish_event", new_callable=AsyncMock):
+                    with patch.object(orch, "health_monitor") as mock_hm:
                         mock_hm.stop = AsyncMock()
-                        with patch.object(orch, 'strategy_registry') as mock_sr:
+                        with patch.object(orch, "strategy_registry") as mock_sr:
                             mock_sr.stop_all = AsyncMock()
                             # Direct call to stop (bypass state lock for test)
                             orch._running = True
@@ -449,6 +450,7 @@ class TestOrchestratorStatePersistence:
                             # Release lock manually
                             orch._state_lock = asyncio.Lock()
                             from bot.orchestrator.bot_orchestrator import BotState
+
                             orch.state = BotState.RUNNING
                             await orch.stop()
                             mock_save.assert_called_once()

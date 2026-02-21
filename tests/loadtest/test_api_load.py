@@ -7,7 +7,6 @@ Tests validate that the API handles concurrent load without errors or excessive 
 import asyncio
 import time
 
-import pytest
 from httpx import AsyncClient
 
 
@@ -17,9 +16,7 @@ class TestAPIEndpointLoad:
     async def test_concurrent_list_bots_50(self, auth_client: AsyncClient):
         """50 concurrent GET /api/v1/bots requests."""
         start = time.perf_counter()
-        responses = await asyncio.gather(
-            *[auth_client.get("/api/v1/bots") for _ in range(50)]
-        )
+        responses = await asyncio.gather(*[auth_client.get("/api/v1/bots") for _ in range(50)])
         elapsed = time.perf_counter() - start
 
         assert all(r.status_code == 200 for r in responses)
@@ -118,9 +115,7 @@ class TestAPIEndpointLoad:
     async def test_health_500_concurrent(self, client: AsyncClient):
         """500 concurrent GET /health (no auth required)."""
         start = time.perf_counter()
-        responses = await asyncio.gather(
-            *[client.get("/health") for _ in range(500)]
-        )
+        responses = await asyncio.gather(*[client.get("/health") for _ in range(500)])
         elapsed = time.perf_counter() - start
 
         assert all(r.status_code == 200 for r in responses)

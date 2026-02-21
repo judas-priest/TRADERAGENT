@@ -11,11 +11,9 @@ import time
 from datetime import datetime, timezone
 from decimal import Decimal
 
-import pytest
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.database.models import Bot, ExchangeCredential, Order, Trade
+from bot.database.models import Bot, Order, Trade
 
 
 class TestDatabaseUnderLoad:
@@ -87,30 +85,34 @@ class TestDatabaseUnderLoad:
         # Pre-seed some data
         async with db_session_factory() as session:
             for i in range(10):
-                session.add(Order(
-                    bot_id=bot_id,
-                    exchange_order_id=f"PRE-{i:04d}",
-                    symbol="BTCUSDT",
-                    order_type="limit",
-                    side="buy",
-                    price=Decimal("45000"),
-                    amount=Decimal("0.001"),
-                    status="open",
-                ))
+                session.add(
+                    Order(
+                        bot_id=bot_id,
+                        exchange_order_id=f"PRE-{i:04d}",
+                        symbol="BTCUSDT",
+                        order_type="limit",
+                        side="buy",
+                        price=Decimal("45000"),
+                        amount=Decimal("0.001"),
+                        status="open",
+                    )
+                )
             await session.commit()
 
         async def write_task(i: int):
             async with db_session_factory() as session:
-                session.add(Order(
-                    bot_id=bot_id,
-                    exchange_order_id=f"MIX-W-{i:04d}",
-                    symbol="BTCUSDT",
-                    order_type="limit",
-                    side="sell",
-                    price=Decimal("46000"),
-                    amount=Decimal("0.001"),
-                    status="open",
-                ))
+                session.add(
+                    Order(
+                        bot_id=bot_id,
+                        exchange_order_id=f"MIX-W-{i:04d}",
+                        symbol="BTCUSDT",
+                        order_type="limit",
+                        side="sell",
+                        price=Decimal("46000"),
+                        amount=Decimal("0.001"),
+                        status="open",
+                    )
+                )
                 await session.commit()
 
         async def read_task():
@@ -135,32 +137,36 @@ class TestDatabaseUnderLoad:
 
         async def write_order(i: int):
             async with db_session_factory() as session:
-                session.add(Order(
-                    bot_id=bot_id,
-                    exchange_order_id=f"BULK-O-{i:04d}",
-                    symbol="BTCUSDT",
-                    order_type="limit",
-                    side="buy",
-                    price=Decimal("45000"),
-                    amount=Decimal("0.001"),
-                    status="filled",
-                ))
+                session.add(
+                    Order(
+                        bot_id=bot_id,
+                        exchange_order_id=f"BULK-O-{i:04d}",
+                        symbol="BTCUSDT",
+                        order_type="limit",
+                        side="buy",
+                        price=Decimal("45000"),
+                        amount=Decimal("0.001"),
+                        status="filled",
+                    )
+                )
                 await session.commit()
 
         async def write_trade(i: int):
             async with db_session_factory() as session:
-                session.add(Trade(
-                    bot_id=bot_id,
-                    exchange_trade_id=f"BULK-T-{i:04d}",
-                    exchange_order_id=f"BULK-O-{i:04d}",
-                    symbol="BTCUSDT",
-                    side="buy",
-                    price=Decimal("45000"),
-                    amount=Decimal("0.001"),
-                    fee=Decimal("0.045"),
-                    fee_currency="USDT",
-                    executed_at=datetime.now(timezone.utc),
-                ))
+                session.add(
+                    Trade(
+                        bot_id=bot_id,
+                        exchange_trade_id=f"BULK-T-{i:04d}",
+                        exchange_order_id=f"BULK-O-{i:04d}",
+                        symbol="BTCUSDT",
+                        side="buy",
+                        price=Decimal("45000"),
+                        amount=Decimal("0.001"),
+                        fee=Decimal("0.045"),
+                        fee_currency="USDT",
+                        executed_at=datetime.now(timezone.utc),
+                    )
+                )
                 await session.commit()
 
         start = time.perf_counter()
@@ -172,12 +178,16 @@ class TestDatabaseUnderLoad:
 
         # Verify counts
         async with db_session_factory() as session:
-            order_count = (await session.execute(
-                select(func.count()).select_from(Order).where(Order.bot_id == bot_id)
-            )).scalar()
-            trade_count = (await session.execute(
-                select(func.count()).select_from(Trade).where(Trade.bot_id == bot_id)
-            )).scalar()
+            order_count = (
+                await session.execute(
+                    select(func.count()).select_from(Order).where(Order.bot_id == bot_id)
+                )
+            ).scalar()
+            trade_count = (
+                await session.execute(
+                    select(func.count()).select_from(Trade).where(Trade.bot_id == bot_id)
+                )
+            ).scalar()
 
         assert order_count == 100, f"Expected 100 orders, got {order_count}"
         assert trade_count == 100, f"Expected 100 trades, got {trade_count}"
@@ -190,9 +200,7 @@ class TestDatabaseUnderLoad:
 
         async def query_bot():
             async with db_session_factory() as session:
-                result = await session.execute(
-                    select(Bot).where(Bot.name == "load-bot")
-                )
+                result = await session.execute(select(Bot).where(Bot.name == "load-bot"))
                 bot = result.scalar_one_or_none()
                 assert bot is not None
                 return bot

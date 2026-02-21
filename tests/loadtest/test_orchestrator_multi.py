@@ -7,9 +7,6 @@ Tests real StrategyRegistry and StrategyInstance objects under concurrent pressu
 import asyncio
 import time
 from decimal import Decimal
-from unittest.mock import MagicMock
-
-import pytest
 
 from bot.orchestrator.strategy_registry import StrategyInstance, StrategyRegistry, StrategyState
 
@@ -91,7 +88,9 @@ class TestMultiBotOrchestration:
 
         assert len(reg.get_by_state(StrategyState.STOPPED)) == 50
         assert elapsed < 3.0, f"50 × 4 transitions took {elapsed:.2f}s"
-        print(f"\n  50 strategies × 4 transitions: {elapsed:.2f}s ({200/elapsed:.0f} transitions/s)")
+        print(
+            f"\n  50 strategies × 4 transitions: {elapsed:.2f}s ({200/elapsed:.0f} transitions/s)"
+        )
 
     def test_metrics_recording_under_load(self):
         """1000 record_trade() + record_signal() calls on a single strategy."""

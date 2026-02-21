@@ -12,7 +12,6 @@ import pytest
 from bot.orchestrator.bot_orchestrator import BotState
 from bot.telegram.bot import TelegramBot
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -44,14 +43,16 @@ def _make_mock_orchestrator(
     orch.stop = AsyncMock()
     orch.pause = AsyncMock()
     orch.resume = AsyncMock()
-    orch.get_status = MagicMock(return_value={
-        "state": state.value,
-        "symbol": symbol,
-        "strategy": strategy,
-        "active_positions": 0,
-        "total_trades": 5,
-        "total_pnl": "250.00",
-    })
+    orch.get_status = MagicMock(
+        return_value={
+            "state": state.value,
+            "symbol": symbol,
+            "strategy": strategy,
+            "active_positions": 0,
+            "total_trades": 5,
+            "total_pnl": "250.00",
+        }
+    )
     return orch
 
 
@@ -154,9 +155,7 @@ class TestListCommand:
 
     async def test_list_empty(self):
         with patch("bot.telegram.bot.Bot"):
-            empty_bot = TelegramBot(
-                token="fake", allowed_chat_ids=[12345], orchestrators={}
-            )
+            empty_bot = TelegramBot(token="fake", allowed_chat_ids=[12345], orchestrators={})
         msg = _make_mock_message(chat_id=12345)
         await empty_bot._cmd_list(msg)
         msg.answer.assert_called_once()
@@ -202,6 +201,6 @@ class TestStateEmoji:
             BotState.PAUSED: bot._get_state_emoji(BotState.PAUSED),
         }
         # Each state should have an emoji (non-empty string)
-        for state, emoji in emojis.items():
+        for _state, emoji in emojis.items():
             assert isinstance(emoji, str)
             assert len(emoji) > 0

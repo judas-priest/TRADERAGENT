@@ -36,19 +36,19 @@ class TestSMCConfigSchema:
         assert schema.max_positions == 5
 
     def test_swing_length_validation_min(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             SMCConfigSchema(swing_length=2)
 
     def test_swing_length_validation_max(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             SMCConfigSchema(swing_length=300)
 
     def test_max_positions_validation_min(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             SMCConfigSchema(max_positions=0)
 
     def test_max_positions_validation_max(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             SMCConfigSchema(max_positions=20)
 
     def test_timeframe_defaults(self):

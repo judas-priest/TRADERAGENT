@@ -12,21 +12,18 @@ Tests cover:
 - Edge cases (minimal candles, price outside grid)
 """
 
-import asyncio
 from decimal import Decimal
 
 import numpy as np
 import pandas as pd
 import pytest
-
+from grid_backtester.core import GridSpacing
 from grid_backtester.engine import (
     GridBacktestConfig,
     GridBacktestResult,
-    GridDirection,
     GridBacktestSimulator,
+    GridDirection,
 )
-from grid_backtester.core import GridSpacing
-
 
 # =============================================================================
 # Helpers
@@ -51,14 +48,16 @@ def make_candles(
         high = close * (1 + abs(rng.normal(0, volatility / 2)))
         low = close * (1 - abs(rng.normal(0, volatility / 2)))
         open_price = prices[i - 1] if i > 0 else close
-        rows.append({
-            "timestamp": f"2025-01-01T{i:04d}",
-            "open": open_price,
-            "high": max(high, open_price, close),
-            "low": min(low, open_price, close),
-            "close": close,
-            "volume": float(rng.uniform(100, 1000)),
-        })
+        rows.append(
+            {
+                "timestamp": f"2025-01-01T{i:04d}",
+                "open": open_price,
+                "high": max(high, open_price, close),
+                "low": min(low, open_price, close),
+                "close": close,
+                "volume": float(rng.uniform(100, 1000)),
+            }
+        )
 
     return pd.DataFrame(rows)
 
@@ -82,14 +81,16 @@ def make_ranging_candles(
         low = close - abs(rng.normal(0, spread * 0.1))
         open_price = prev_close
 
-        rows.append({
-            "timestamp": f"2025-01-01T{i:04d}",
-            "open": open_price,
-            "high": max(high, open_price, close),
-            "low": min(low, open_price, close),
-            "close": close,
-            "volume": float(rng.uniform(100, 1000)),
-        })
+        rows.append(
+            {
+                "timestamp": f"2025-01-01T{i:04d}",
+                "open": open_price,
+                "high": max(high, open_price, close),
+                "low": min(low, open_price, close),
+                "close": close,
+                "volume": float(rng.uniform(100, 1000)),
+            }
+        )
         prev_close = close
 
     return pd.DataFrame(rows)

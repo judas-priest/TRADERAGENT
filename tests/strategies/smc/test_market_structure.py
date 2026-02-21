@@ -10,19 +10,20 @@ Tests cover:
 - Edge cases and performance
 """
 
-import unittest
-from decimal import Decimal
-from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
 import time
+import unittest
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+import numpy as np
+import pandas as pd
 
 from bot.strategies.smc.market_structure import (
     MarketStructureAnalyzer,
-    TrendDirection,
     StructureBreak,
+    StructureEvent,
     SwingPoint,
-    StructureEvent
+    TrendDirection,
 )
 
 
@@ -83,13 +84,10 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
         low = np.minimum(open_price, close) - np.abs(np.random.randn(length) * 0.3)
         volume = np.random.randint(1000, 10000, length)
 
-        df = pd.DataFrame({
-            "open": open_price,
-            "high": high,
-            "low": low,
-            "close": close,
-            "volume": volume
-        }, index=timestamps)
+        df = pd.DataFrame(
+            {"open": open_price, "high": high, "low": low, "close": close, "volume": volume},
+            index=timestamps,
+        )
 
         return df
 
@@ -101,8 +99,9 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
         self.analyzer.analyze(df)
 
         # Should detect multiple swing highs
-        self.assertGreater(len(self.analyzer.swing_highs), 0, 
-                          "Should detect at least one swing high")
+        self.assertGreater(
+            len(self.analyzer.swing_highs), 0, "Should detect at least one swing high"
+        )
 
         # Verify swing high properties
         for swing in self.analyzer.swing_highs:
@@ -117,8 +116,7 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
         self.analyzer.analyze(df)
 
         # Should detect multiple swing lows
-        self.assertGreater(len(self.analyzer.swing_lows), 0,
-                          "Should detect at least one swing low")
+        self.assertGreater(len(self.analyzer.swing_lows), 0, "Should detect at least one swing low")
 
         # Verify swing low properties
         for swing in self.analyzer.swing_lows:
@@ -132,8 +130,11 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
         self.analyzer.analyze(df)
 
         # Should detect bullish trend
-        self.assertEqual(self.analyzer.current_trend, TrendDirection.BULLISH,
-                        "Should detect bullish trend in uptrending market")
+        self.assertEqual(
+            self.analyzer.current_trend,
+            TrendDirection.BULLISH,
+            "Should detect bullish trend in uptrending market",
+        )
 
     def test_downtrend_detection(self):
         """Test bearish trend detection"""
@@ -142,8 +143,11 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
         self.analyzer.analyze(df)
 
         # Should detect bearish trend
-        self.assertEqual(self.analyzer.current_trend, TrendDirection.BEARISH,
-                        "Should detect bearish trend in downtrending market")
+        self.assertEqual(
+            self.analyzer.current_trend,
+            TrendDirection.BEARISH,
+            "Should detect bearish trend in downtrending market",
+        )
 
     def test_ranging_market_detection(self):
         """Test ranging market detection"""
@@ -153,8 +157,10 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
 
         # Should detect ranging or have low confidence
         # (ranging markets can be tricky, so we just verify it completes)
-        self.assertIn(self.analyzer.current_trend, 
-                     [TrendDirection.BULLISH, TrendDirection.BEARISH, TrendDirection.RANGING])
+        self.assertIn(
+            self.analyzer.current_trend,
+            [TrendDirection.BULLISH, TrendDirection.BEARISH, TrendDirection.RANGING],
+        )
 
     def test_bos_detection_bullish(self):
         """Test Break of Structure detection in uptrend"""
@@ -164,8 +170,9 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
         self.analyzer.analyze(df)
 
         # Filter BOS events
-        bos_events = [e for e in self.analyzer.structure_events 
-                      if e.event_type == StructureBreak.BOS]
+        bos_events = [
+            e for e in self.analyzer.structure_events if e.event_type == StructureBreak.BOS
+        ]
 
         # In an uptrend, should have some BOS events
         # (may vary based on data, so we just check structure)
@@ -191,8 +198,9 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
         self.analyzer.analyze(df)
 
         # Should detect CHoCH events at trend reversal
-        choch_events = [e for e in self.analyzer.structure_events
-                       if e.event_type == StructureBreak.CHOCH]
+        choch_events = [
+            e for e in self.analyzer.structure_events if e.event_type == StructureBreak.CHOCH
+        ]
 
         # Structure is detected (may vary, so just verify structure)
         for event in choch_events:
@@ -300,8 +308,9 @@ class TestMarketStructureAnalyzer(unittest.TestCase):
         self.analyzer.analyze(df)
         elapsed_time = (time.time() - start_time) * 1000  # Convert to ms
 
-        self.assertLess(elapsed_time, 5000,
-                       f"Analysis took {elapsed_time:.2f}ms, should be < 5000ms")
+        self.assertLess(
+            elapsed_time, 5000, f"Analysis took {elapsed_time:.2f}ms, should be < 5000ms"
+        )
 
     def test_get_swings_df_returns_dataframe(self):
         """Test get_swings_df returns valid DataFrame after analysis"""
@@ -357,7 +366,7 @@ class TestSwingPoint(unittest.TestCase):
             price=Decimal("100.50"),
             timestamp=pd.Timestamp.now(),
             is_high=True,
-            strength=5
+            strength=5,
         )
 
         self.assertEqual(swing.index, 10)
@@ -376,7 +385,7 @@ class TestStructureEvent(unittest.TestCase):
             price=Decimal("100.00"),
             timestamp=pd.Timestamp.now(),
             is_high=True,
-            strength=5
+            strength=5,
         )
 
         event = StructureEvent(
@@ -385,7 +394,7 @@ class TestStructureEvent(unittest.TestCase):
             price=Decimal("105.00"),
             timestamp=pd.Timestamp.now(),
             previous_swing=swing,
-            current_trend=TrendDirection.BULLISH
+            current_trend=TrendDirection.BULLISH,
         )
 
         self.assertEqual(event.event_type, StructureBreak.BOS)

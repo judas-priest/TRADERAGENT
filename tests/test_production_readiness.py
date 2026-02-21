@@ -5,11 +5,8 @@ Tests for production readiness utilities: security audit and config validation.
 from decimal import Decimal
 from pathlib import Path
 
-import pytest
-
-from bot.utils.config_validator import ConfigValidator, ConfigValidationReport
+from bot.utils.config_validator import ConfigValidationReport, ConfigValidator
 from bot.utils.security_audit import SecurityAuditor, SecurityAuditReport
-
 
 # ===========================================================================
 # Security Audit
@@ -69,18 +66,20 @@ class TestSecurityAuditor:
     def test_report_critical_failures(self):
         report = SecurityAuditReport()
         from bot.utils.security_audit import AuditResult
-        report.results.append(AuditResult(
-            check_name="test", passed=False, severity="critical", message="fail"
-        ))
+
+        report.results.append(
+            AuditResult(check_name="test", passed=False, severity="critical", message="fail")
+        )
         assert not report.passed
         assert len(report.critical_failures) == 1
 
     def test_report_warnings(self):
         report = SecurityAuditReport()
         from bot.utils.security_audit import AuditResult
-        report.results.append(AuditResult(
-            check_name="test", passed=False, severity="warning", message="warn"
-        ))
+
+        report.results.append(
+            AuditResult(check_name="test", passed=False, severity="warning", message="warn")
+        )
         # Warnings don't affect passed status (only critical does)
         assert report.passed
         assert len(report.warnings) == 1
@@ -128,9 +127,7 @@ class TestConfigValidator:
 
     def test_grid_total_investment_fails(self):
         validator = ConfigValidator()
-        results = validator.validate_grid_config(
-            num_levels=50, amount_per_grid=Decimal("2000")
-        )
+        results = validator.validate_grid_config(num_levels=50, amount_per_grid=Decimal("2000"))
         check = next(r for r in results if r.check_name == "grid_total_investment")
         assert not check.passed
 

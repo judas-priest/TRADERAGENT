@@ -15,7 +15,6 @@ from bot.strategies.grid.grid_risk_manager import (
     TrendState,
 )
 
-
 # =========================================================================
 # Fixtures
 # =========================================================================
@@ -117,44 +116,32 @@ class TestRiskCheckResult:
 
 class TestOrderSizeValidation:
     def test_valid_order(self, manager):
-        result = manager.validate_order_size(
-            Decimal("500"), Decimal("3000"), 10
-        )
+        result = manager.validate_order_size(Decimal("500"), Decimal("3000"), 10)
         assert result.is_safe
         assert result.action == GridRiskAction.CONTINUE
 
     def test_order_exceeds_max_size(self, manager):
-        result = manager.validate_order_size(
-            Decimal("1500"), Decimal("3000"), 10
-        )
+        result = manager.validate_order_size(Decimal("1500"), Decimal("3000"), 10)
         assert not result.is_safe
         assert "exceeds max" in result.reasons[0]
 
     def test_exposure_exceeds_max(self, manager):
-        result = manager.validate_order_size(
-            Decimal("500"), Decimal("9800"), 10
-        )
+        result = manager.validate_order_size(Decimal("500"), Decimal("9800"), 10)
         assert not result.is_safe
         assert "Total exposure" in result.reasons[0]
 
     def test_max_open_orders(self, manager):
-        result = manager.validate_order_size(
-            Decimal("100"), Decimal("1000"), 20
-        )
+        result = manager.validate_order_size(Decimal("100"), Decimal("1000"), 20)
         assert not result.is_safe
         assert "Open orders" in result.reasons[0]
 
     def test_exposure_warning(self, manager):
-        result = manager.validate_order_size(
-            Decimal("100"), Decimal("8500"), 10
-        )
+        result = manager.validate_order_size(Decimal("100"), Decimal("8500"), 10)
         assert result.is_safe  # still within limits
         assert len(result.warnings) > 0
 
     def test_orders_warning(self, manager):
-        result = manager.validate_order_size(
-            Decimal("100"), Decimal("1000"), 17
-        )
+        result = manager.validate_order_size(Decimal("100"), Decimal("1000"), 17)
         assert result.is_safe
         assert any("Open orders" in w for w in result.warnings)
 
@@ -184,9 +171,7 @@ class TestGridStopLoss:
         assert result.action == GridRiskAction.STOP_LOSS
 
     def test_stop_loss_unrealized_loss(self, manager):
-        result = manager.check_grid_stop_loss(
-            Decimal("45000"), unrealized_pnl=Decimal("-600")
-        )
+        result = manager.check_grid_stop_loss(Decimal("45000"), unrealized_pnl=Decimal("-600"))
         assert result.action == GridRiskAction.STOP_LOSS
         assert "Unrealized loss" in result.reasons[0]
 
@@ -195,9 +180,7 @@ class TestGridStopLoss:
         assert result.is_safe  # no entry price means no check
 
     def test_explicit_entry_price(self, manager):
-        result = manager.check_grid_stop_loss(
-            Decimal("42000"), grid_entry_price=Decimal("45000")
-        )
+        result = manager.check_grid_stop_loss(Decimal("42000"), grid_entry_price=Decimal("45000"))
         # 3000/45000 ≈ 6.7% > 5%
         assert result.action == GridRiskAction.STOP_LOSS
 
@@ -280,15 +263,11 @@ class TestConsecutiveLosses:
 
 class TestTrendDetection:
     def test_ranging_market(self, manager):
-        result = manager.check_trend_suitability(
-            atr=Decimal("500"), price_move=Decimal("300")
-        )
+        result = manager.check_trend_suitability(atr=Decimal("500"), price_move=Decimal("300"))
         assert result.is_safe
 
     def test_strong_trend_atr(self, manager):
-        result = manager.check_trend_suitability(
-            atr=Decimal("500"), price_move=Decimal("1200")
-        )
+        result = manager.check_trend_suitability(atr=Decimal("500"), price_move=Decimal("1200"))
         assert result.action == GridRiskAction.DEACTIVATE
 
     def test_strong_trend_adx(self, manager):
@@ -306,40 +285,28 @@ class TestTrendDetection:
 
     def test_mild_trend_warning(self, manager):
         # 70% of threshold: 500*2*0.7 = 700
-        result = manager.check_trend_suitability(
-            atr=Decimal("500"), price_move=Decimal("750")
-        )
+        result = manager.check_trend_suitability(atr=Decimal("500"), price_move=Decimal("750"))
         assert result.is_safe
         assert len(result.warnings) > 0
 
     def test_classify_ranging(self, manager):
-        state = manager.classify_trend(
-            atr=Decimal("500"), price_move=Decimal("300")
-        )
+        state = manager.classify_trend(atr=Decimal("500"), price_move=Decimal("300"))
         assert state == TrendState.RANGING
 
     def test_classify_mild_trend(self, manager):
-        state = manager.classify_trend(
-            atr=Decimal("500"), price_move=Decimal("750")
-        )
+        state = manager.classify_trend(atr=Decimal("500"), price_move=Decimal("750"))
         assert state == TrendState.MILD_TREND
 
     def test_classify_strong_trend(self, manager):
-        state = manager.classify_trend(
-            atr=Decimal("500"), price_move=Decimal("1200")
-        )
+        state = manager.classify_trend(atr=Decimal("500"), price_move=Decimal("1200"))
         assert state == TrendState.STRONG_TREND
 
     def test_classify_strong_trend_adx(self, manager):
-        state = manager.classify_trend(
-            atr=Decimal("500"), price_move=Decimal("300"), adx=30.0
-        )
+        state = manager.classify_trend(atr=Decimal("500"), price_move=Decimal("300"), adx=30.0)
         assert state == TrendState.STRONG_TREND
 
     def test_classify_zero_atr(self, manager):
-        state = manager.classify_trend(
-            atr=Decimal("0"), price_move=Decimal("300")
-        )
+        state = manager.classify_trend(atr=Decimal("0"), price_move=Decimal("300"))
         assert state == TrendState.RANGING
 
 

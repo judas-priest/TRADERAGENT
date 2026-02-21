@@ -1,17 +1,13 @@
 """Tests for BackupManager — database backup and restore utilities."""
 
-import gzip
-import pytest
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from bot.database.backup import (
     BackupInfo,
     BackupManager,
     parse_database_url,
 )
-
 
 # =============================================================================
 # BackupInfo Tests

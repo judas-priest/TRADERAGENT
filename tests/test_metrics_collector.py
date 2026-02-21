@@ -1,6 +1,5 @@
 """Tests for MetricsCollector — bridge between orchestrators and MetricsExporter."""
 
-import asyncio
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
@@ -8,7 +7,6 @@ import pytest
 
 from bot.monitoring.metrics_collector import MetricsCollector
 from bot.monitoring.metrics_exporter import MetricsExporter
-
 
 # =============================================================================
 # Fixtures
@@ -29,17 +27,19 @@ def _make_orchestrator(
     orch.config.name = name
     orch.config.symbol = "BTC/USDT"
 
-    orch.get_status = AsyncMock(return_value={
-        "bot_name": name,
-        "symbol": "BTC/USDT",
-        "strategy": "grid",
-        "state": state,
-        "current_price": current_price,
-        "dry_run": True,
-        "version": "2.0",
-        "strategy_registry": {"total": 1, "active": 1},
-        "health": {"overall_status": "healthy"},
-    })
+    orch.get_status = AsyncMock(
+        return_value={
+            "bot_name": name,
+            "symbol": "BTC/USDT",
+            "strategy": "grid",
+            "state": state,
+            "current_price": current_price,
+            "dry_run": True,
+            "version": "2.0",
+            "strategy_registry": {"total": 1, "active": 1},
+            "health": {"overall_status": "healthy"},
+        }
+    )
 
     return orch
 
@@ -116,17 +116,19 @@ class TestCollectAll:
 
     async def test_collect_with_grid_status(self, exporter):
         orch = _make_orchestrator()
-        orch.get_status = AsyncMock(return_value={
-            "bot_name": "grid_bot",
-            "state": "running",
-            "current_price": "50000",
-            "strategy_registry": {"total": 1, "active": 1},
-            "health": {"overall_status": "healthy"},
-            "grid": {
-                "active_orders": 10,
-                "total_profit": "250.5",
-            },
-        })
+        orch.get_status = AsyncMock(
+            return_value={
+                "bot_name": "grid_bot",
+                "state": "running",
+                "current_price": "50000",
+                "strategy_registry": {"total": 1, "active": 1},
+                "health": {"overall_status": "healthy"},
+                "grid": {
+                    "active_orders": 10,
+                    "total_profit": "250.5",
+                },
+            }
+        )
         collector = MetricsCollector(
             exporter=exporter,
             orchestrators={"grid_bot": orch},
@@ -138,14 +140,16 @@ class TestCollectAll:
 
     async def test_collect_with_dca_status(self, exporter):
         orch = _make_orchestrator()
-        orch.get_status = AsyncMock(return_value={
-            "bot_name": "dca_bot",
-            "state": "running",
-            "current_price": "3000",
-            "strategy_registry": {"total": 1, "active": 1},
-            "health": {"overall_status": "healthy"},
-            "dca": {"has_position": True, "current_step": 3, "max_steps": 10},
-        })
+        orch.get_status = AsyncMock(
+            return_value={
+                "bot_name": "dca_bot",
+                "state": "running",
+                "current_price": "3000",
+                "strategy_registry": {"total": 1, "active": 1},
+                "health": {"overall_status": "healthy"},
+                "dca": {"has_position": True, "current_step": 3, "max_steps": 10},
+            }
+        )
         collector = MetricsCollector(
             exporter=exporter,
             orchestrators={"dca_bot": orch},
@@ -156,21 +160,23 @@ class TestCollectAll:
 
     async def test_collect_with_trend_follower(self, exporter):
         orch = _make_orchestrator()
-        orch.get_status = AsyncMock(return_value={
-            "bot_name": "tf_bot",
-            "state": "running",
-            "current_price": "50000",
-            "strategy_registry": {"total": 1, "active": 1},
-            "health": {"overall_status": "healthy"},
-            "trend_follower": {
-                "active_positions": 2,
-                "statistics": {
-                    "total_trades": 15,
-                    "win_rate": 0.6,
-                    "total_pnl": 1200.5,
+        orch.get_status = AsyncMock(
+            return_value={
+                "bot_name": "tf_bot",
+                "state": "running",
+                "current_price": "50000",
+                "strategy_registry": {"total": 1, "active": 1},
+                "health": {"overall_status": "healthy"},
+                "trend_follower": {
+                    "active_positions": 2,
+                    "statistics": {
+                        "total_trades": 15,
+                        "win_rate": 0.6,
+                        "total_pnl": 1200.5,
+                    },
                 },
-            },
-        })
+            }
+        )
         collector = MetricsCollector(
             exporter=exporter,
             orchestrators={"tf_bot": orch},
@@ -181,14 +187,16 @@ class TestCollectAll:
 
     async def test_collect_with_risk(self, exporter):
         orch = _make_orchestrator()
-        orch.get_status = AsyncMock(return_value={
-            "bot_name": "risk_bot",
-            "state": "running",
-            "current_price": "50000",
-            "strategy_registry": {"total": 1, "active": 1},
-            "health": {"overall_status": "healthy"},
-            "risk": {"drawdown": Decimal("0.05"), "pnl_percentage": Decimal("0.12")},
-        })
+        orch.get_status = AsyncMock(
+            return_value={
+                "bot_name": "risk_bot",
+                "state": "running",
+                "current_price": "50000",
+                "strategy_registry": {"total": 1, "active": 1},
+                "health": {"overall_status": "healthy"},
+                "risk": {"drawdown": Decimal("0.05"), "pnl_percentage": Decimal("0.12")},
+            }
+        )
         collector = MetricsCollector(
             exporter=exporter,
             orchestrators={"risk_bot": orch},

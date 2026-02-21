@@ -10,16 +10,12 @@ import pytest
 
 from bot.strategies.dca.dca_position_manager import (
     CloseResult,
-    DCADeal,
-    DCAOrder,
     DCAOrderConfig,
     DCAOrderStatus,
     DCAOrderType,
     DCAPositionManager,
     DealStatus,
-    SafetyOrderLevel,
 )
-
 
 # =========================================================================
 # Fixtures
@@ -97,7 +93,14 @@ class TestDCAOrderConfig:
     def test_total_required_capital(self, config):
         total = config.total_required_capital(Decimal("3100"))
         # base=100, SO1=150, SO2=225, SO3=337.5, SO4=506.25, SO5=759.375
-        expected = Decimal("100") + Decimal("150") + Decimal("225") + Decimal("337.5") + Decimal("506.25") + Decimal("759.375")
+        expected = (
+            Decimal("100")
+            + Decimal("150")
+            + Decimal("225")
+            + Decimal("337.5")
+            + Decimal("506.25")
+            + Decimal("759.375")
+        )
         assert total == expected
 
 
@@ -316,7 +319,9 @@ class TestCloseDeal:
         avg_entry = deal.average_entry_price
 
         # Close above average entry = profit
-        result = manager.close_deal(deal.id, exit_price=avg_entry + Decimal("100"), reason="take_profit")
+        result = manager.close_deal(
+            deal.id, exit_price=avg_entry + Decimal("100"), reason="take_profit"
+        )
         assert result.realized_profit > 0
 
     def test_close_records_sell_order(self, manager, deal):

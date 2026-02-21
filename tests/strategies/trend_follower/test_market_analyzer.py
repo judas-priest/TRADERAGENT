@@ -125,20 +125,33 @@ class TestMarketPhaseDetection:
         ma = MarketAnalyzer()
         result = ma.analyze(df)
         # Uptrend data should produce bullish or at least non-bearish
-        assert result.phase in (MarketPhase.BULLISH_TREND, MarketPhase.SIDEWAYS, MarketPhase.UNKNOWN)
+        assert result.phase in (
+            MarketPhase.BULLISH_TREND,
+            MarketPhase.SIDEWAYS,
+            MarketPhase.UNKNOWN,
+        )
 
     def test_downtrend_detected(self):
         df = _make_df(n=100, trend="down")
         ma = MarketAnalyzer()
         result = ma.analyze(df)
-        assert result.phase in (MarketPhase.BEARISH_TREND, MarketPhase.SIDEWAYS, MarketPhase.UNKNOWN)
+        assert result.phase in (
+            MarketPhase.BEARISH_TREND,
+            MarketPhase.SIDEWAYS,
+            MarketPhase.UNKNOWN,
+        )
 
     def test_sideways_detected(self):
         df = _make_df(n=100, trend="sideways")
         ma = MarketAnalyzer()
         result = ma.analyze(df)
         # Sideways data should produce sideways or unknown
-        assert result.phase in (MarketPhase.SIDEWAYS, MarketPhase.UNKNOWN, MarketPhase.BULLISH_TREND, MarketPhase.BEARISH_TREND)
+        assert result.phase in (
+            MarketPhase.SIDEWAYS,
+            MarketPhase.UNKNOWN,
+            MarketPhase.BULLISH_TREND,
+            MarketPhase.BEARISH_TREND,
+        )
 
 
 class TestTrendStrength:
@@ -154,13 +167,16 @@ class TestTrendStrength:
         rng = np.random.default_rng(42)
         dates = pd.date_range("2024-01-01", periods=100, freq="15min")
         closes = 45000 + np.cumsum(np.full(100, 50.0))
-        df = pd.DataFrame({
-            "open": closes - 5,
-            "high": closes + 10,
-            "low": closes - 10,
-            "close": closes,
-            "volume": rng.uniform(100, 1000, 100),
-        }, index=dates)
+        df = pd.DataFrame(
+            {
+                "open": closes - 5,
+                "high": closes + 10,
+                "low": closes - 10,
+                "close": closes,
+                "volume": rng.uniform(100, 1000, 100),
+            },
+            index=dates,
+        )
         ma = MarketAnalyzer()
         result = ma.analyze(df)
         if result.phase == MarketPhase.BULLISH_TREND:

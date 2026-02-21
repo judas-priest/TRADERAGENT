@@ -8,8 +8,6 @@ without connecting to any real exchange.
 import asyncio
 import time
 
-import pytest
-
 from bot.api.exchange_client import ExchangeAPIClient
 
 
@@ -55,9 +53,7 @@ class TestExchangeRateLimiting:
             client._on_rate_limit_hit()
 
         final = client._adaptive_interval
-        assert final > initial * 2, (
-            f"Interval didn't grow enough: {initial:.3f} → {final:.3f}"
-        )
+        assert final > initial * 2, f"Interval didn't grow enough: {initial:.3f} → {final:.3f}"
         print(f"\n  Adaptive backoff: {initial:.3f}s → {final:.3f}s after 5 hits")
 
     def test_adaptive_recovery_after_success(self):
@@ -74,13 +70,13 @@ class TestExchangeRateLimiting:
             client._on_request_success()
         recovered = client._adaptive_interval
 
-        assert recovered < inflated, (
-            f"Interval didn't recover: inflated={inflated:.3f}, recovered={recovered:.3f}"
-        )
+        assert (
+            recovered < inflated
+        ), f"Interval didn't recover: inflated={inflated:.3f}, recovered={recovered:.3f}"
         # Should approach min_request_interval
-        assert recovered <= client._min_request_interval * 2, (
-            f"Recovery too slow: {recovered:.3f} vs min {client._min_request_interval:.3f}"
-        )
+        assert (
+            recovered <= client._min_request_interval * 2
+        ), f"Recovery too slow: {recovered:.3f} vs min {client._min_request_interval:.3f}"
         print(f"\n  Recovery: inflated={inflated:.3f}s → recovered={recovered:.3f}s")
 
     async def test_concurrent_rate_limit_20(self):

@@ -34,11 +34,14 @@ async def test_get_notifications(auth_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_update_notifications(auth_client: AsyncClient):
-    resp = await auth_client.put("/api/v1/settings/notifications", json={
-        "notify_on_trade": False,
-        "notify_on_error": True,
-        "notify_on_alert": False,
-    })
+    resp = await auth_client.put(
+        "/api/v1/settings/notifications",
+        json={
+            "notify_on_trade": False,
+            "notify_on_error": True,
+            "notify_on_alert": False,
+        },
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["message"] == "Notifications updated"

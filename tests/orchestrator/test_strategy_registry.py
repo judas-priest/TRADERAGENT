@@ -1,21 +1,19 @@
 """Tests for StrategyRegistry and StrategyInstance."""
 
-import asyncio
 from decimal import Decimal
 
 import pytest
 
 from bot.orchestrator.strategy_registry import (
     StrategyInstance,
-    StrategyMetrics,
     StrategyRegistry,
     StrategyState,
 )
 
-
 # =========================================================================
 # StrategyInstance Tests
 # =========================================================================
+
 
 class TestStrategyInstance:
     """Tests for StrategyInstance state management."""
@@ -163,6 +161,7 @@ class TestStrategyInstance:
 # =========================================================================
 # StrategyRegistry Tests
 # =========================================================================
+
 
 class TestStrategyRegistry:
     """Tests for StrategyRegistry."""

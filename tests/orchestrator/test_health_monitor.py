@@ -1,8 +1,6 @@
 """Tests for HealthMonitor."""
 
-import asyncio
-from datetime import datetime, timezone, timedelta
-from decimal import Decimal
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -13,7 +11,6 @@ from bot.orchestrator.health_monitor import (
     HealthThresholds,
 )
 from bot.orchestrator.strategy_registry import (
-    StrategyInstance,
     StrategyRegistry,
     StrategyState,
 )

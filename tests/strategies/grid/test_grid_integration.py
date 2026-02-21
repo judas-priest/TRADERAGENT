@@ -9,14 +9,12 @@ Tests the full grid lifecycle with mock exchange:
 """
 
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from bot.strategies.grid.grid_calculator import (
     GridCalculator,
     GridConfig,
-    GridLevel,
     GridSpacing,
 )
 from bot.strategies.grid.grid_config import (
@@ -25,13 +23,11 @@ from bot.strategies.grid.grid_config import (
 )
 from bot.strategies.grid.grid_order_manager import (
     GridOrderManager,
-    OrderStatus,
 )
 from bot.strategies.grid.grid_risk_manager import (
     GridRiskAction,
     GridRiskManager,
 )
-
 
 # =========================================================================
 # Mock Exchange
@@ -45,9 +41,7 @@ class MockExchange:
         self._order_counter = 0
         self._orders: dict[str, dict] = {}
 
-    async def place_limit_order(
-        self, symbol: str, side: str, amount: float, price: float
-    ) -> dict:
+    async def place_limit_order(self, symbol: str, side: str, amount: float, price: float) -> dict:
         self._order_counter += 1
         order_id = f"MOCK-{self._order_counter:04d}"
         self._orders[order_id] = {
@@ -121,9 +115,7 @@ class TestGridFullLifecycle:
         # 4. Place orders (with risk check)
         for order in orders:
             quote_value = order.grid_level.price * order.grid_level.amount
-            risk_check = risk_mgr.validate_order_size(
-                quote_value, Decimal("0"), 0
-            )
+            risk_check = risk_mgr.validate_order_size(quote_value, Decimal("0"), 0)
             assert risk_check.is_safe
 
             result = await exchange.place_limit_order(
@@ -189,9 +181,7 @@ class TestGridFullLifecycle:
         orders = manager.calculate_initial_orders(grid_config, Decimal("3500"))
 
         # Verify geometric spacing
-        levels = GridCalculator.calculate_geometric_levels(
-            Decimal("4000"), Decimal("3000"), 10
-        )
+        levels = GridCalculator.calculate_geometric_levels(Decimal("4000"), Decimal("3000"), 10)
         pcts = GridCalculator.grid_spacing_pct(levels)
         # All percentage gaps should be approximately equal
         avg_pct = sum(pcts) / len(pcts)
@@ -227,15 +217,11 @@ class TestGridRiskIntegration:
         risk_mgr = GridRiskManager(config=config.to_risk_config())
 
         # Ranging — safe
-        result = risk_mgr.check_trend_suitability(
-            atr=Decimal("500"), price_move=Decimal("400")
-        )
+        result = risk_mgr.check_trend_suitability(atr=Decimal("500"), price_move=Decimal("400"))
         assert result.is_safe
 
         # Strong trend — deactivate
-        result = risk_mgr.check_trend_suitability(
-            atr=Decimal("500"), price_move=Decimal("1200")
-        )
+        result = risk_mgr.check_trend_suitability(atr=Decimal("500"), price_move=Decimal("1200"))
         assert result.action == GridRiskAction.DEACTIVATE
 
     def test_consecutive_losses_pause(self):
@@ -292,8 +278,10 @@ class TestGridRebalanceIntegration:
         orders = manager.calculate_initial_orders(config1, Decimal("45000"))
         for o in orders:
             result = await exchange.place_limit_order(
-                "BTC/USDT", o.grid_level.side,
-                float(o.grid_level.amount), float(o.grid_level.price),
+                "BTC/USDT",
+                o.grid_level.side,
+                float(o.grid_level.amount),
+                float(o.grid_level.price),
             )
             manager.register_exchange_order(o.id, result["id"])
 
@@ -319,8 +307,10 @@ class TestGridRebalanceIntegration:
         # Place new orders
         for o in new_orders:
             result = await exchange.place_limit_order(
-                "BTC/USDT", o.grid_level.side,
-                float(o.grid_level.amount), float(o.grid_level.price),
+                "BTC/USDT",
+                o.grid_level.side,
+                float(o.grid_level.amount),
+                float(o.grid_level.price),
             )
             manager.register_exchange_order(o.id, result["id"])
 
@@ -341,10 +331,10 @@ class TestATRGridIntegration:
         highs, lows, closes = [], [], []
         for i in range(30):
             h = Decimal(str(base + 300 + (i % 7) * 50))
-            l = Decimal(str(base - 300 - (i % 5) * 40))
+            low = Decimal(str(base - 300 - (i % 5) * 40))
             c = Decimal(str(base + (i % 9) * 30 - 120))
             highs.append(h)
-            lows.append(l)
+            lows.append(low)
             closes.append(c)
         return highs, lows, closes
 

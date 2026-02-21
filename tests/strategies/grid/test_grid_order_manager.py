@@ -9,12 +9,10 @@ import pytest
 
 from bot.strategies.grid.grid_calculator import GridConfig, GridLevel, GridSpacing
 from bot.strategies.grid.grid_order_manager import (
-    GridCycle,
     GridOrderManager,
     GridOrderState,
     OrderStatus,
 )
-
 
 # =========================================================================
 # Fixtures
@@ -217,18 +215,14 @@ class TestOrderFill:
         ex_id = self._place_order(initialized_manager, order)
 
         fill_price = Decimal("44000")
-        counter = initialized_manager.on_order_filled(
-            ex_id, fill_price, order.grid_level.amount
-        )
+        counter = initialized_manager.on_order_filled(ex_id, fill_price, order.grid_level.amount)
 
         # Counter sell price should be fill_price * 1.01 (1% profit)
         expected_price = (fill_price * Decimal("1.01")).quantize(Decimal("0.01"))
         assert counter.grid_level.price == expected_price
 
     def test_unknown_exchange_order_fill(self, initialized_manager):
-        result = initialized_manager.on_order_filled(
-            "UNKNOWN-ID", Decimal("45000"), Decimal("0.1")
-        )
+        result = initialized_manager.on_order_filled("UNKNOWN-ID", Decimal("45000"), Decimal("0.1"))
         assert result is None
 
     def test_partial_fill(self, initialized_manager):
@@ -272,9 +266,7 @@ class TestProfitTracking:
         # Fill buy at 44000
         buy_price = Decimal("44000")
         buy_amount = Decimal("0.002")
-        counter_sell = initialized_manager.on_order_filled(
-            buy_ex_id, buy_price, buy_amount
-        )
+        counter_sell = initialized_manager.on_order_filled(buy_ex_id, buy_price, buy_amount)
 
         # Now place and fill the counter sell
         sell_ex_id = self._place_order(initialized_manager, counter_sell)
@@ -347,9 +339,7 @@ class TestRebalancing:
             profit_per_grid=Decimal("0.01"),
         )
 
-        cancelled, new_orders = initialized_manager.rebalance(
-            new_config, Decimal("47000")
-        )
+        cancelled, new_orders = initialized_manager.rebalance(new_config, Decimal("47000"))
 
         assert len(cancelled) == initial_active
         assert len(new_orders) > 0
@@ -432,9 +422,7 @@ class TestStatistics:
 
     def test_stats_after_placement(self, initialized_manager):
         for order in list(initialized_manager.pending_orders):
-            initialized_manager.register_exchange_order(
-                order.id, f"EX-{order.id[:6]}"
-            )
+            initialized_manager.register_exchange_order(order.id, f"EX-{order.id[:6]}")
         stats = initialized_manager.get_statistics()
         assert stats["active_orders"] > 0
         assert stats["total_orders_placed"] > 0
@@ -479,9 +467,7 @@ class TestFullLifecycle:
         buy = buys[0]
         fill_price = buy.grid_level.price
         fill_amount = buy.grid_level.amount
-        counter_sell = manager.on_order_filled(
-            buy.exchange_order_id, fill_price, fill_amount
-        )
+        counter_sell = manager.on_order_filled(buy.exchange_order_id, fill_price, fill_amount)
         assert counter_sell is not None
         assert counter_sell.grid_level.side == "sell"
         assert manager._total_fills == 1

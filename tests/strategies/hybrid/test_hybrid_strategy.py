@@ -8,9 +8,7 @@ import pytest
 from bot.strategies.dca.dca_engine import DCAEngine
 from bot.strategies.dca.dca_signal_generator import MarketState
 from bot.strategies.grid.grid_risk_manager import (
-    GridRiskAction,
     GridRiskManager,
-    RiskCheckResult,
 )
 from bot.strategies.hybrid.hybrid_config import HybridConfig, HybridMode
 from bot.strategies.hybrid.hybrid_strategy import (
@@ -24,7 +22,6 @@ from bot.strategies.hybrid.market_regime_detector import (
     RegimeType,
     StrategyRecommendation,
 )
-
 
 # =============================================================================
 # Helpers
@@ -177,8 +174,11 @@ class TestHybridStrategy:
         )
 
         action = hybrid.evaluate(
-            state, atr=Decimal("50"), price_move=Decimal("100"),
-            adx=30.0, regime_result=regime,
+            state,
+            atr=Decimal("50"),
+            price_move=Decimal("100"),
+            adx=30.0,
+            regime_result=regime,
         )
 
         assert action.mode == HybridMode.DCA_ACTIVE
@@ -584,7 +584,7 @@ class TestHybridEdgeCases:
         )
         state = _make_market_state()
 
-        for i in range(5):
+        for _i in range(5):
             if hybrid.mode == HybridMode.GRID_ONLY:
                 hybrid.evaluate(
                     state,

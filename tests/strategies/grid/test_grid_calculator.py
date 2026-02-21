@@ -15,7 +15,6 @@ from bot.strategies.grid.grid_calculator import (
     GridSpacing,
 )
 
-
 # =========================================================================
 # GridConfig Tests
 # =========================================================================
@@ -86,9 +85,7 @@ class TestGridConfig:
 
 class TestGridLevel:
     def test_to_dict(self):
-        level = GridLevel(
-            index=0, price=Decimal("45000"), side="buy", amount=Decimal("0.002")
-        )
+        level = GridLevel(index=0, price=Decimal("45000"), side="buy", amount=Decimal("0.002"))
         d = level.to_dict()
         assert d["index"] == 0
         assert d["price"] == "45000"
@@ -103,46 +100,34 @@ class TestGridLevel:
 
 class TestArithmeticGrid:
     def test_basic_5_levels(self):
-        levels = GridCalculator.calculate_arithmetic_levels(
-            Decimal("50000"), Decimal("40000"), 5
-        )
+        levels = GridCalculator.calculate_arithmetic_levels(Decimal("50000"), Decimal("40000"), 5)
         assert len(levels) == 5
         assert levels[0] == Decimal("40000.00")
         assert levels[-1] == Decimal("50000.00")
 
     def test_even_spacing(self):
-        levels = GridCalculator.calculate_arithmetic_levels(
-            Decimal("50000"), Decimal("40000"), 11
-        )
+        levels = GridCalculator.calculate_arithmetic_levels(Decimal("50000"), Decimal("40000"), 11)
         # Step should be 1000
         for i in range(1, len(levels)):
             step = levels[i] - levels[i - 1]
             assert step == Decimal("1000.00")
 
     def test_2_levels(self):
-        levels = GridCalculator.calculate_arithmetic_levels(
-            Decimal("100"), Decimal("50"), 2
-        )
+        levels = GridCalculator.calculate_arithmetic_levels(Decimal("100"), Decimal("50"), 2)
         assert levels == [Decimal("50.00"), Decimal("100.00")]
 
     def test_sorted_ascending(self):
-        levels = GridCalculator.calculate_arithmetic_levels(
-            Decimal("1000"), Decimal("100"), 20
-        )
+        levels = GridCalculator.calculate_arithmetic_levels(Decimal("1000"), Decimal("100"), 20)
         for i in range(1, len(levels)):
             assert levels[i] > levels[i - 1]
 
     def test_invalid_levels_count(self):
         with pytest.raises(ValueError, match="num_levels must be at least 2"):
-            GridCalculator.calculate_arithmetic_levels(
-                Decimal("100"), Decimal("50"), 1
-            )
+            GridCalculator.calculate_arithmetic_levels(Decimal("100"), Decimal("50"), 1)
 
     def test_invalid_price_order(self):
         with pytest.raises(ValueError, match="upper_price must be greater"):
-            GridCalculator.calculate_arithmetic_levels(
-                Decimal("50"), Decimal("100"), 5
-            )
+            GridCalculator.calculate_arithmetic_levels(Decimal("50"), Decimal("100"), 5)
 
 
 # =========================================================================
@@ -152,18 +137,14 @@ class TestArithmeticGrid:
 
 class TestGeometricGrid:
     def test_basic_5_levels(self):
-        levels = GridCalculator.calculate_geometric_levels(
-            Decimal("50000"), Decimal("40000"), 5
-        )
+        levels = GridCalculator.calculate_geometric_levels(Decimal("50000"), Decimal("40000"), 5)
         assert len(levels) == 5
         assert levels[0] == Decimal("40000.00")
         # Last level should be approximately 50000
         assert abs(levels[-1] - Decimal("50000")) < Decimal("1")
 
     def test_constant_ratio(self):
-        levels = GridCalculator.calculate_geometric_levels(
-            Decimal("10000"), Decimal("1000"), 10
-        )
+        levels = GridCalculator.calculate_geometric_levels(Decimal("10000"), Decimal("1000"), 10)
         pcts = GridCalculator.grid_spacing_pct(levels)
         # All percentage gaps should be approximately equal
         avg_pct = sum(pcts) / len(pcts)
@@ -171,38 +152,28 @@ class TestGeometricGrid:
             assert abs(pct - avg_pct) < Decimal("0.5")
 
     def test_denser_at_lower_prices(self):
-        levels = GridCalculator.calculate_geometric_levels(
-            Decimal("10000"), Decimal("1000"), 10
-        )
+        levels = GridCalculator.calculate_geometric_levels(Decimal("10000"), Decimal("1000"), 10)
         # Absolute gaps should increase as price increases
         gaps = [levels[i] - levels[i - 1] for i in range(1, len(levels))]
         for i in range(1, len(gaps)):
             assert gaps[i] > gaps[i - 1]
 
     def test_sorted_ascending(self):
-        levels = GridCalculator.calculate_geometric_levels(
-            Decimal("50000"), Decimal("10000"), 20
-        )
+        levels = GridCalculator.calculate_geometric_levels(Decimal("50000"), Decimal("10000"), 20)
         for i in range(1, len(levels)):
             assert levels[i] > levels[i - 1]
 
     def test_invalid_zero_lower(self):
         with pytest.raises(ValueError, match="lower_price must be positive"):
-            GridCalculator.calculate_geometric_levels(
-                Decimal("100"), Decimal("0"), 5
-            )
+            GridCalculator.calculate_geometric_levels(Decimal("100"), Decimal("0"), 5)
 
     def test_invalid_negative_lower(self):
         with pytest.raises(ValueError, match="lower_price must be positive"):
-            GridCalculator.calculate_geometric_levels(
-                Decimal("100"), Decimal("-10"), 5
-            )
+            GridCalculator.calculate_geometric_levels(Decimal("100"), Decimal("-10"), 5)
 
     def test_invalid_levels_count(self):
         with pytest.raises(ValueError, match="num_levels must be at least 2"):
-            GridCalculator.calculate_geometric_levels(
-                Decimal("100"), Decimal("50"), 1
-            )
+            GridCalculator.calculate_geometric_levels(Decimal("100"), Decimal("50"), 1)
 
 
 # =========================================================================
@@ -215,27 +186,19 @@ class TestCalculateLevels:
         levels = GridCalculator.calculate_levels(
             Decimal("100"), Decimal("50"), 6, GridSpacing.ARITHMETIC
         )
-        expected = GridCalculator.calculate_arithmetic_levels(
-            Decimal("100"), Decimal("50"), 6
-        )
+        expected = GridCalculator.calculate_arithmetic_levels(Decimal("100"), Decimal("50"), 6)
         assert levels == expected
 
     def test_geometric_dispatch(self):
         levels = GridCalculator.calculate_levels(
             Decimal("100"), Decimal("50"), 6, GridSpacing.GEOMETRIC
         )
-        expected = GridCalculator.calculate_geometric_levels(
-            Decimal("100"), Decimal("50"), 6
-        )
+        expected = GridCalculator.calculate_geometric_levels(Decimal("100"), Decimal("50"), 6)
         assert levels == expected
 
     def test_default_is_arithmetic(self):
-        levels = GridCalculator.calculate_levels(
-            Decimal("100"), Decimal("50"), 6
-        )
-        expected = GridCalculator.calculate_arithmetic_levels(
-            Decimal("100"), Decimal("50"), 6
-        )
+        levels = GridCalculator.calculate_levels(Decimal("100"), Decimal("50"), 6)
+        expected = GridCalculator.calculate_arithmetic_levels(Decimal("100"), Decimal("50"), 6)
         assert levels == expected
 
 
@@ -248,18 +211,66 @@ class TestATRCalculation:
     @pytest.fixture
     def sample_price_data(self):
         """15 bars of sample OHLC data."""
-        highs = [Decimal(str(x)) for x in [
-            105, 108, 107, 110, 112, 109, 111, 115,
-            113, 116, 114, 118, 117, 120, 119,
-        ]]
-        lows = [Decimal(str(x)) for x in [
-            98, 100, 99, 103, 105, 102, 104, 108,
-            106, 109, 107, 111, 110, 113, 112,
-        ]]
-        closes = [Decimal(str(x)) for x in [
-            102, 106, 104, 108, 110, 106, 109, 113,
-            110, 114, 112, 116, 114, 118, 116,
-        ]]
+        highs = [
+            Decimal(str(x))
+            for x in [
+                105,
+                108,
+                107,
+                110,
+                112,
+                109,
+                111,
+                115,
+                113,
+                116,
+                114,
+                118,
+                117,
+                120,
+                119,
+            ]
+        ]
+        lows = [
+            Decimal(str(x))
+            for x in [
+                98,
+                100,
+                99,
+                103,
+                105,
+                102,
+                104,
+                108,
+                106,
+                109,
+                107,
+                111,
+                110,
+                113,
+                112,
+            ]
+        ]
+        closes = [
+            Decimal(str(x))
+            for x in [
+                102,
+                106,
+                104,
+                108,
+                110,
+                106,
+                109,
+                113,
+                110,
+                114,
+                112,
+                116,
+                114,
+                118,
+                116,
+            ]
+        ]
         return highs, lows, closes
 
     def test_basic_atr(self, sample_price_data):
@@ -333,21 +344,15 @@ class TestATRBounds:
 
     def test_invalid_atr(self):
         with pytest.raises(ValueError, match="atr must be positive"):
-            GridCalculator.adjust_bounds_by_atr(
-                Decimal("1000"), Decimal("0"), Decimal("3")
-            )
+            GridCalculator.adjust_bounds_by_atr(Decimal("1000"), Decimal("0"), Decimal("3"))
 
     def test_invalid_multiplier(self):
         with pytest.raises(ValueError, match="atr_multiplier must be positive"):
-            GridCalculator.adjust_bounds_by_atr(
-                Decimal("1000"), Decimal("50"), Decimal("0")
-            )
+            GridCalculator.adjust_bounds_by_atr(Decimal("1000"), Decimal("50"), Decimal("0"))
 
     def test_lower_bound_nonpositive(self):
         with pytest.raises(ValueError, match="non-positive"):
-            GridCalculator.adjust_bounds_by_atr(
-                Decimal("100"), Decimal("50"), Decimal("3")
-            )
+            GridCalculator.adjust_bounds_by_atr(Decimal("100"), Decimal("50"), Decimal("3"))
 
 
 # =========================================================================
@@ -357,11 +362,15 @@ class TestATRBounds:
 
 class TestGridOrders:
     def test_buy_below_sell_above(self):
-        levels = [Decimal("40000"), Decimal("42000"), Decimal("44000"),
-                  Decimal("46000"), Decimal("48000"), Decimal("50000")]
-        orders = GridCalculator.calculate_grid_orders(
-            levels, Decimal("45000"), Decimal("100")
-        )
+        levels = [
+            Decimal("40000"),
+            Decimal("42000"),
+            Decimal("44000"),
+            Decimal("46000"),
+            Decimal("48000"),
+            Decimal("50000"),
+        ]
+        orders = GridCalculator.calculate_grid_orders(levels, Decimal("45000"), Decimal("100"))
         buys = [o for o in orders if o.side == "buy"]
         sells = [o for o in orders if o.side == "sell"]
         assert len(buys) == 3  # 40000, 42000, 44000
@@ -372,11 +381,8 @@ class TestGridOrders:
             assert s.price >= Decimal("46000")
 
     def test_skip_current_price_level(self):
-        levels = [Decimal("90"), Decimal("95"), Decimal("100"),
-                  Decimal("105"), Decimal("110")]
-        orders = GridCalculator.calculate_grid_orders(
-            levels, Decimal("100"), Decimal("50")
-        )
+        levels = [Decimal("90"), Decimal("95"), Decimal("100"), Decimal("105"), Decimal("110")]
+        orders = GridCalculator.calculate_grid_orders(levels, Decimal("100"), Decimal("50"))
         prices = [o.price for o in orders]
         # Level at 100 should be skipped
         assert Decimal("100") not in prices
@@ -402,17 +408,13 @@ class TestGridOrders:
 
     def test_amounts_in_base_currency(self):
         levels = [Decimal("50000")]
-        orders = GridCalculator.calculate_grid_orders(
-            levels, Decimal("60000"), Decimal("100")
-        )
+        orders = GridCalculator.calculate_grid_orders(levels, Decimal("60000"), Decimal("100"))
         # Buy at 50000, amount = 100/50000 = 0.002
         assert orders[0].amount == Decimal("0.002")
 
     def test_empty_when_all_at_current(self):
         levels = [Decimal("100")]
-        orders = GridCalculator.calculate_grid_orders(
-            levels, Decimal("100"), Decimal("50")
-        )
+        orders = GridCalculator.calculate_grid_orders(levels, Decimal("100"), Decimal("50"))
         assert orders == []
 
 
@@ -431,7 +433,9 @@ class TestOptimalGridCount:
 
     def test_min_clamp(self):
         count = GridCalculator.optimal_grid_count(
-            Decimal("50000"), Decimal("40000"), Decimal("10000"),
+            Decimal("50000"),
+            Decimal("40000"),
+            Decimal("10000"),
             min_levels=5,
         )
         # (50000-40000)/10000 + 1 = 2, clamped to 5
@@ -439,7 +443,9 @@ class TestOptimalGridCount:
 
     def test_max_clamp(self):
         count = GridCalculator.optimal_grid_count(
-            Decimal("50000"), Decimal("40000"), Decimal("10"),
+            Decimal("50000"),
+            Decimal("40000"),
+            Decimal("10"),
             max_levels=50,
         )
         # (50000-40000)/10 + 1 = 1001, clamped to 50
@@ -447,15 +453,11 @@ class TestOptimalGridCount:
 
     def test_invalid_atr(self):
         with pytest.raises(ValueError, match="atr must be positive"):
-            GridCalculator.optimal_grid_count(
-                Decimal("100"), Decimal("50"), Decimal("0")
-            )
+            GridCalculator.optimal_grid_count(Decimal("100"), Decimal("50"), Decimal("0"))
 
     def test_invalid_prices(self):
         with pytest.raises(ValueError, match="upper_price must be greater"):
-            GridCalculator.optimal_grid_count(
-                Decimal("50"), Decimal("100"), Decimal("10")
-            )
+            GridCalculator.optimal_grid_count(Decimal("50"), Decimal("100"), Decimal("10"))
 
 
 # =========================================================================
@@ -518,10 +520,10 @@ class TestATRGrid:
         highs, lows, closes = [], [], []
         for i in range(20):
             h = Decimal(str(base + 200 + (i % 5) * 50))
-            l = Decimal(str(base - 200 - (i % 3) * 30))
+            low = Decimal(str(base - 200 - (i % 3) * 30))
             c = Decimal(str(base + (i % 7) * 20 - 60))
             highs.append(h)
-            lows.append(l)
+            lows.append(low)
             closes.append(c)
         return highs, lows, closes
 
@@ -571,9 +573,16 @@ class TestATRGrid:
             closes=closes,
         )
         expected_keys = {
-            "atr", "atr_period", "atr_multiplier", "upper_price",
-            "lower_price", "num_levels", "spacing", "total_orders",
-            "buy_orders", "sell_orders",
+            "atr",
+            "atr_period",
+            "atr_multiplier",
+            "upper_price",
+            "lower_price",
+            "num_levels",
+            "spacing",
+            "total_orders",
+            "buy_orders",
+            "sell_orders",
         }
         assert set(meta.keys()) == expected_keys
 
@@ -585,18 +594,14 @@ class TestATRGrid:
 
 class TestUtilities:
     def test_grid_spacing_pct_arithmetic(self):
-        levels = GridCalculator.calculate_arithmetic_levels(
-            Decimal("100"), Decimal("50"), 6
-        )
+        levels = GridCalculator.calculate_arithmetic_levels(Decimal("100"), Decimal("50"), 6)
         pcts = GridCalculator.grid_spacing_pct(levels)
         assert len(pcts) == 5
         # Arithmetic: pcts should decrease as price increases
         assert pcts[0] > pcts[-1]
 
     def test_grid_spacing_pct_geometric(self):
-        levels = GridCalculator.calculate_geometric_levels(
-            Decimal("10000"), Decimal("1000"), 10
-        )
+        levels = GridCalculator.calculate_geometric_levels(Decimal("10000"), Decimal("1000"), 10)
         pcts = GridCalculator.grid_spacing_pct(levels)
         # Geometric: all pcts should be approximately equal
         avg = sum(pcts) / len(pcts)

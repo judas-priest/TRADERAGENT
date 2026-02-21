@@ -13,11 +13,9 @@ from bot.strategies.hybrid.market_regime_detector import (
     MarketIndicators,
     MarketRegimeDetectorV2,
     RegimeConfig,
-    RegimeResult,
     RegimeType,
     StrategyRecommendation,
 )
-
 
 # =========================================================================
 # Fixtures
@@ -302,7 +300,9 @@ class TestRegimeChangeDetection:
         result = detector.evaluate(sideways_indicators)
         assert result.regime_changed is False
 
-    def test_regime_change_requires_confirmation(self, detector, sideways_indicators, downtrend_indicators):
+    def test_regime_change_requires_confirmation(
+        self, detector, sideways_indicators, downtrend_indicators
+    ):
         """Default confirmation_count=2 requires 2 consecutive evaluations."""
         # Establish sideways
         detector.evaluate(sideways_indicators)

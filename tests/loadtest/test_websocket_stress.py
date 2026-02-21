@@ -6,9 +6,8 @@ Tests the ConnectionManager directly with mock WebSocket objects.
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, PropertyMock
+from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from starlette.websockets import WebSocketState
 
 from web.backend.ws.manager import ConnectionManager

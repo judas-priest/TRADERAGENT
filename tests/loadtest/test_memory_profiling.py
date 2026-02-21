@@ -10,17 +10,13 @@ import tracemalloc
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
-import numpy as np
-import pandas as pd
-import pytest
 from starlette.websockets import WebSocketState
 
 from bot.orchestrator.events import EventType, TradingEvent
-from bot.strategies.base import BaseSignal, ExitReason, SignalDirection
+from bot.strategies.base import ExitReason
 from bot.strategies.smc_adapter import SMCStrategyAdapter
-from web.backend.ws.manager import ConnectionManager
-
 from tests.loadtest.conftest import make_ohlcv, make_signal
+from web.backend.ws.manager import ConnectionManager
 
 
 class TestMemoryProfiling:
@@ -123,8 +119,10 @@ class TestMemoryProfiling:
         # Note: MagicMock objects + structlog logging retain some memory (~80KB/connection)
         growth = disconnect_mb - baseline_mb
         assert growth < 100, f"Memory didn't return to baseline: grew {growth:.2f}MB"
-        print(f"\n  1000 WS connections: connect={connect_mb:.2f}MB, "
-              f"after disconnect={disconnect_mb:.2f}MB, baseline={baseline_mb:.2f}MB")
+        print(
+            f"\n  1000 WS connections: connect={connect_mb:.2f}MB, "
+            f"after disconnect={disconnect_mb:.2f}MB, baseline={baseline_mb:.2f}MB"
+        )
 
     def test_event_creation_50000(self):
         """Create 50,000 TradingEvent objects — measure peak memory."""
@@ -135,11 +133,13 @@ class TestMemoryProfiling:
         event_types = list(EventType)
         for i in range(50_000):
             et = event_types[i % len(event_types)]
-            events.append(TradingEvent.create(
-                event_type=et,
-                bot_name=f"bot_{i % 10}",
-                data={"price": "45000", "seq": i},
-            ))
+            events.append(
+                TradingEvent.create(
+                    event_type=et,
+                    bot_name=f"bot_{i % 10}",
+                    data={"price": "45000", "seq": i},
+                )
+            )
 
         gc.collect()
         _, peak = tracemalloc.get_traced_memory()

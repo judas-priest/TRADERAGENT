@@ -10,7 +10,6 @@ from bot.orchestrator.bot_orchestrator import BotState
 from bot.orchestrator.events import EventType, TradingEvent
 from bot.telegram.bot import TelegramBot
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -62,16 +61,18 @@ def _make_orchestrator(
     orch.resume = AsyncMock()
 
     # Status
-    orch.get_status = AsyncMock(return_value={
-        "bot_name": name,
-        "symbol": symbol,
-        "strategy": strategy,
-        "state": state.value,
-        "current_price": "50000",
-        "dry_run": True,
-        "version": "2.0",
-        "strategy_registry": {"total": 1, "active": 1},
-    })
+    orch.get_status = AsyncMock(
+        return_value={
+            "bot_name": name,
+            "symbol": symbol,
+            "strategy": strategy,
+            "state": state.value,
+            "current_price": "50000",
+            "dry_run": True,
+            "version": "2.0",
+            "strategy_registry": {"total": 1, "active": 1},
+        }
+    )
 
     # Strategy registry
     orch.strategy_registry = MagicMock()
@@ -184,7 +185,9 @@ class TestListCommand:
     async def test_list_empty(self):
         with patch("bot.telegram.bot.Bot"):
             tb = TelegramBot(
-                token="fake", allowed_chat_ids=[12345], orchestrators={},
+                token="fake",
+                allowed_chat_ids=[12345],
+                orchestrators={},
             )
         msg = _make_message("/list")
         await tb._cmd_list(msg)
@@ -281,9 +284,11 @@ class TestOrdersCommand:
 
     async def test_orders_with_data(self, bot):
         orch = bot.orchestrators["test_bot"]
-        orch.exchange.fetch_open_orders = AsyncMock(return_value=[
-            {"id": "123", "side": "buy", "price": 49000, "amount": 0.01},
-        ])
+        orch.exchange.fetch_open_orders = AsyncMock(
+            return_value=[
+                {"id": "123", "side": "buy", "price": 49000, "amount": 0.01},
+            ]
+        )
         msg = _make_message("/orders test_bot")
         await bot._cmd_orders(msg)
         text = msg.answer.call_args[0][0]
@@ -396,21 +401,23 @@ class TestReportCommand:
 
     async def test_report_with_risk(self, bot):
         orch = bot.orchestrators["test_bot"]
-        orch.get_status = AsyncMock(return_value={
-            "bot_name": "test_bot",
-            "symbol": "BTC/USDT",
-            "strategy": "grid",
-            "state": "running",
-            "current_price": "50000",
-            "dry_run": True,
-            "version": "2.0",
-            "strategy_registry": {"total": 1, "active": 1},
-            "risk": {
-                "drawdown": Decimal("0.05"),
-                "pnl_percentage": Decimal("0.12"),
-                "is_halted": False,
-            },
-        })
+        orch.get_status = AsyncMock(
+            return_value={
+                "bot_name": "test_bot",
+                "symbol": "BTC/USDT",
+                "strategy": "grid",
+                "state": "running",
+                "current_price": "50000",
+                "dry_run": True,
+                "version": "2.0",
+                "strategy_registry": {"total": 1, "active": 1},
+                "risk": {
+                    "drawdown": Decimal("0.05"),
+                    "pnl_percentage": Decimal("0.12"),
+                    "is_halted": False,
+                },
+            }
+        )
         msg = _make_message("/report test_bot")
         await bot._cmd_report(msg)
         text = msg.answer.call_args[0][0]
@@ -441,7 +448,8 @@ class TestSwitchStrategyCommand:
         orch = bot.orchestrators["test_bot"]
         orch.strategy_registry.stop_all.assert_called_once()
         orch.register_strategy.assert_called_once_with(
-            strategy_id="dca", strategy_type="dca",
+            strategy_id="dca",
+            strategy_type="dca",
         )
         orch.start_strategy.assert_called_once_with("dca")
         assert "switched" in msg.answer.call_args[0][0]
