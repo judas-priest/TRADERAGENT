@@ -12,6 +12,7 @@ from web.backend.schemas.bot import (
     PnLHistoryResponse,
     PnLResponse,
     PositionResponse,
+    TradeResponse,
 )
 
 
@@ -200,11 +201,21 @@ class BotService:
         except Exception:
             return []
 
-    async def update_bot(self, bot_name: str, data: dict) -> bool:
-        """Update bot configuration (dry_run and strategy params)."""
+    async def update_bot(self, bot_name: str, data: dict) -> str | bool:
+        """Update bot configuration (dry_run and strategy params).
+
+        Returns:
+            True on success, False if bot not found, "running" if bot is running.
+        """
         orch = self.orchestrators.get(bot_name)
         if not orch:
             return False
+        try:
+            status = await orch.get_status()
+            if status.get("state") in ("running", "starting"):
+                return "running"
+        except Exception:
+            pass
         config = orch.bot_config
         if "dry_run" in data and data["dry_run"] is not None:
             config.dry_run = data["dry_run"]
@@ -212,6 +223,58 @@ class BotService:
             if key in data and data[key] is not None:
                 setattr(config, key, data[key])
         return True
+
+    async def delete_bot(self, bot_name: str) -> str | bool:
+        """Delete a stopped bot from the orchestrators registry.
+
+        Returns:
+            True on success, False if bot not found, "running" if bot is running.
+        """
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return False
+        try:
+            status = await orch.get_status()
+            if status.get("state") in ("running", "starting"):
+                return "running"
+        except Exception:
+            pass
+        del self.orchestrators[bot_name]
+        return True
+
+    async def get_trades(self, bot_name: str, limit: int = 50) -> list[TradeResponse] | None:
+        """Get trade history for a bot from the database.
+
+        Returns None if the bot does not exist, empty list if no trades found.
+        """
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return None
+        try:
+            db_manager = getattr(orch, "db_manager", None)
+            if db_manager is None:
+                return []
+            from sqlalchemy import select
+
+            from bot.database.models import Bot, Trade
+
+            async with db_manager.session() as session:
+                bot_result = await session.execute(
+                    select(Bot).where(Bot.name == bot_name)
+                )
+                bot = bot_result.scalar_one_or_none()
+                if not bot:
+                    return []
+                trade_result = await session.execute(
+                    select(Trade)
+                    .where(Trade.bot_id == bot.id)
+                    .order_by(Trade.executed_at.desc())
+                    .limit(limit)
+                )
+                trades = trade_result.scalars().all()
+                return [TradeResponse.model_validate(t) for t in trades]
+        except Exception:
+            return []
 
     async def get_pnl_history(self, bot_name: str) -> PnLHistoryResponse | None:
         """Get time-series PnL data for sparkline chart."""

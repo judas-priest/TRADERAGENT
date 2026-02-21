@@ -146,3 +146,80 @@ async def test_dashboard_overview(auth_client: AsyncClient):
     assert data["total_bots"] == 1
     assert data["total_trades"] == 42
     assert len(data["bots"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_trades(auth_client: AsyncClient):
+    """Get trades should return a list (empty when no DB trades)."""
+    resp = await auth_client.get("/api/v1/bots/test_bot/trades")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_get_trades_not_found(auth_client: AsyncClient):
+    """Get trades for non-existent bot should return 404."""
+    resp = await auth_client.get("/api/v1/bots/nonexistent/trades")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_trades_limit_validation(auth_client: AsyncClient):
+    """Limit must be between 1 and 500."""
+    resp = await auth_client.get("/api/v1/bots/test_bot/trades?limit=501")
+    assert resp.status_code == 422
+
+    resp = await auth_client.get("/api/v1/bots/test_bot/trades?limit=0")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_bot_not_found(auth_client: AsyncClient):
+    """Delete non-existent bot should return 404."""
+    resp = await auth_client.delete("/api/v1/bots/nonexistent")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_running_bot_conflict(auth_client: AsyncClient, mock_orchestrator):
+    """Delete a running bot should return 409."""
+    resp = await auth_client.delete("/api/v1/bots/test_bot")
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_stopped_bot(auth_client: AsyncClient, mock_orchestrator):
+    """Delete a stopped bot should return 204."""
+    mock_orchestrator.get_status.return_value = {
+        "bot_name": "test_bot",
+        "strategy": "grid",
+        "symbol": "BTC/USDT",
+        "state": "stopped",
+        "dry_run": False,
+    }
+    resp = await auth_client.delete("/api/v1/bots/test_bot")
+    assert resp.status_code == 204
+    # Bot should now be gone
+    resp2 = await auth_client.get("/api/v1/bots/test_bot")
+    assert resp2.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_running_bot_conflict(auth_client: AsyncClient, mock_orchestrator):
+    """Update a running bot should return 409."""
+    resp = await auth_client.put("/api/v1/bots/test_bot", json={"dry_run": False})
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_stopped_bot(auth_client: AsyncClient, mock_orchestrator):
+    """Update a stopped bot should succeed."""
+    mock_orchestrator.get_status.return_value = {
+        "bot_name": "test_bot",
+        "strategy": "grid",
+        "symbol": "BTC/USDT",
+        "state": "stopped",
+        "dry_run": False,
+    }
+    resp = await auth_client.put("/api/v1/bots/test_bot", json={"dry_run": False})
+    assert resp.status_code == 200
