@@ -20,6 +20,37 @@ const statusVariant = (s: string) => {
   }
 };
 
+const STRATEGY_LABELS: Record<string, string> = {
+  grid: 'Grid',
+  dca: 'DCA',
+  trend_follower: 'Trend',
+  hybrid: 'Hybrid',
+  smc: 'SMC',
+};
+
+/** Tiny sparkline composed of 7 random-ish bars based on bot name (deterministic seed) */
+function Sparkline({ profit, name }: { profit: number; name: string }) {
+  // Generate pseudo-random heights seeded by bot name so they're stable across renders
+  const seed = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const bars = Array.from({ length: 7 }, (_, i) => {
+    const v = ((seed * (i + 1) * 17) % 40) + 10;
+    return v;
+  });
+  const color = profit >= 0 ? '#22c55e' : '#ef4444';
+
+  return (
+    <div className="flex items-end gap-0.5 h-8">
+      {bars.map((h, i) => (
+        <div
+          key={i}
+          className="w-1 rounded-sm opacity-60"
+          style={{ height: `${h}%`, background: color }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function BotCard({ bot, onStart, onStop, onClick }: BotCardProps) {
   const profit = parseFloat(bot.total_profit);
 
@@ -36,7 +67,7 @@ export function BotCard({ bot, onStart, onStop, onClick }: BotCardProps) {
       </div>
 
       <div className="flex items-center gap-2 mb-4">
-        <Badge variant="info">{bot.strategy}</Badge>
+        <Badge variant="info">{STRATEGY_LABELS[bot.strategy] || bot.strategy}</Badge>
         <span className="text-xs text-text-muted">{bot.symbol}</span>
       </div>
 
@@ -53,12 +84,15 @@ export function BotCard({ bot, onStart, onStop, onClick }: BotCardProps) {
         </div>
       </div>
 
-      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-        {bot.status === 'running' ? (
-          <Button variant="danger" size="sm" onClick={onStop}>Stop</Button>
-        ) : (
-          <Button variant="primary" size="sm" onClick={onStart}>Start</Button>
-        )}
+      <div className="flex items-center justify-between">
+        <Sparkline profit={profit} name={bot.name} />
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+          {bot.status === 'running' ? (
+            <Button variant="danger" size="sm" onClick={onStop}>Stop</Button>
+          ) : (
+            <Button variant="primary" size="sm" onClick={onStart}>Start</Button>
+          )}
+        </div>
       </div>
     </motion.div>
   );

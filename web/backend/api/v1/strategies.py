@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.config.schemas import (
     DCAConfig,
     GridConfig,
-    StrategyType,
     TrendFollowerConfig,
 )
 from bot.database.models import StrategyTemplate
@@ -155,6 +154,12 @@ async def list_strategy_types(
             name="trend_follower",
             description="Trend Follower — EMA/RSI based trend following",
             config_schema=TrendFollowerConfig.model_json_schema(),
+        ),
+        StrategyTypeInfo(
+            name="smc",
+            description="Smart Money Concepts — order blocks, fair value gaps, liquidity sweeps",
+            config_schema={},
+            coming_soon=True,
         ),
     ]
     return types

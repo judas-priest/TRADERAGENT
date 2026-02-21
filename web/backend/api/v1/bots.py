@@ -7,10 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from web.backend.auth.models import User
 from web.backend.dependencies import get_current_user, get_orchestrators
 from web.backend.schemas.bot import (
+    BotCreateRequest,
     BotListResponse,
     BotStatusResponse,
+    BotUpdateRequest,
     PnLResponse,
     PositionResponse,
+    TradeResponse,
 )
 from web.backend.schemas.common import SuccessResponse
 from web.backend.services.bot_service import BotService
@@ -133,3 +136,54 @@ async def get_pnl(
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
     return result
+
+
+@router.post("", response_model=SuccessResponse, status_code=status.HTTP_201_CREATED)
+async def create_bot(
+    data: BotCreateRequest,
+    _: User = Depends(get_current_user),
+    service: BotService = Depends(_get_bot_service),
+):
+    """Create a new bot configuration."""
+    success, message = await service.create_bot(data)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+    return SuccessResponse(message=message)
+
+
+@router.put("/{bot_name}", response_model=SuccessResponse)
+async def update_bot(
+    bot_name: str,
+    data: BotUpdateRequest,
+    _: User = Depends(get_current_user),
+    service: BotService = Depends(_get_bot_service),
+):
+    """Update bot configuration."""
+    success, message = await service.update_bot(bot_name, data)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
+    return SuccessResponse(message=message)
+
+
+@router.delete("/{bot_name}", response_model=SuccessResponse)
+async def delete_bot(
+    bot_name: str,
+    _: User = Depends(get_current_user),
+    service: BotService = Depends(_get_bot_service),
+):
+    """Delete a bot (must be stopped first)."""
+    success, message = await service.delete_bot(bot_name)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+    return SuccessResponse(message=message)
+
+
+@router.get("/{bot_name}/trades", response_model=list[TradeResponse])
+async def get_trades(
+    bot_name: str,
+    limit: int = Query(50, ge=1, le=500, description="Number of trades to return"),
+    _: User = Depends(get_current_user),
+    service: BotService = Depends(_get_bot_service),
+):
+    """Get trade history for a bot."""
+    return await service.get_trades(bot_name, limit=limit)

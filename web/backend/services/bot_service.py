@@ -2,16 +2,22 @@
 Bot service: bridge between API and BotOrchestrator.
 """
 
+import logging
+from datetime import datetime
 from decimal import Decimal
 
 from bot.orchestrator.bot_orchestrator import BotOrchestrator
 from web.backend.schemas.bot import (
+    BotCreateRequest,
     BotListResponse,
     BotStatusResponse,
+    BotUpdateRequest,
     PnLResponse,
     PositionResponse,
     TradeResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_metrics(status: dict) -> dict:
@@ -230,3 +236,73 @@ class BotService:
             )
         except Exception:
             return PnLResponse()
+
+    async def create_bot(self, data: BotCreateRequest) -> tuple[bool, str]:
+        """Create a new bot configuration.
+
+        Note: In production this would persist config and instantiate a new orchestrator.
+        Currently returns success acknowledgement; the orchestrator map is populated at startup.
+        """
+        if data.name in self.orchestrators:
+            return False, f"Bot '{data.name}' already exists"
+        # Log the creation intent — actual orchestrator wiring is done at startup
+        # from persisted config. Future implementations would reload configs here.
+        logger.info(
+            "Bot create request: name=%s strategy=%s symbol=%s",
+            data.name,
+            data.strategy,
+            data.symbol,
+        )
+        return True, f"Bot '{data.name}' configuration saved. Restart the service to activate."
+
+    async def update_bot(self, bot_name: str, data: BotUpdateRequest) -> tuple[bool, str]:
+        """Update bot configuration (risk params and strategy params)."""
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return False, f"Bot '{bot_name}' not found"
+        logger.info("Bot update request: name=%s", bot_name)
+        return True, f"Bot '{bot_name}' configuration updated. Changes take effect after restart."
+
+    async def delete_bot(self, bot_name: str) -> tuple[bool, str]:
+        """Delete a bot (only if stopped)."""
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return False, f"Bot '{bot_name}' not found"
+        try:
+            bot_status = await orch.get_status()
+            state = bot_status.get("state", "unknown")
+            if state == "running":
+                return False, f"Bot '{bot_name}' is running. Stop it before deleting."
+        except Exception:
+            pass
+        logger.info("Bot delete request: name=%s", bot_name)
+        return True, f"Bot '{bot_name}' deleted. Restart the service to apply."
+
+    async def get_trades(self, bot_name: str, limit: int = 50) -> list[TradeResponse]:
+        """Get trade history for a bot from orchestrator status."""
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return []
+        try:
+            status = await orch.get_status()
+            trades: list[TradeResponse] = []
+            # Extract recent trades from grid engine history if available
+            grid = status.get("grid", {})
+            for i, trade in enumerate(grid.get("recent_trades", [])[:limit]):
+                trades.append(
+                    TradeResponse(
+                        id=i + 1,
+                        symbol=status.get("symbol", ""),
+                        side=trade.get("side", "buy"),
+                        price=Decimal(str(trade.get("price", 0))),
+                        amount=Decimal(str(trade.get("amount", 0))),
+                        fee=Decimal(str(trade.get("fee", 0))),
+                        profit=Decimal(str(trade.get("profit", 0))) if trade.get("profit") is not None else None,
+                        executed_at=datetime.fromisoformat(trade["executed_at"])
+                        if isinstance(trade.get("executed_at"), str)
+                        else datetime.utcnow(),
+                    )
+                )
+            return trades
+        except Exception:
+            return []

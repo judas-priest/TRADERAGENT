@@ -5,6 +5,7 @@ import { Button } from '../components/common/Button';
 import { PageTransition } from '../components/common/PageTransition';
 import { SkeletonCard } from '../components/common/Skeleton';
 import { useToastStore } from '../components/common/Toast';
+import { CreateBotModal } from '../components/bots/CreateBotModal';
 import client from '../api/client';
 
 interface StrategyTemplate {
@@ -16,12 +17,14 @@ interface StrategyTemplate {
   min_deposit: string;
   expected_pnl_pct: string | null;
   copy_count: number;
+  config_json: string;
 }
 
 interface StrategyType {
   name: string;
   description: string;
   config_schema: Record<string, unknown>;
+  coming_soon: boolean;
 }
 
 export function Strategies() {
@@ -30,10 +33,15 @@ export function Strategies() {
   const [loading, setLoading] = useState(true);
   const toast = useToastStore((s) => s.add);
 
+  // Create bot modal state (pre-filled from template copy)
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [presetStrategy, setPresetStrategy] = useState<string | undefined>();
+  const [presetConfig, setPresetConfig] = useState<Record<string, unknown> | undefined>();
+
   useEffect(() => {
     Promise.all([
-      client.get('/api/v1/strategies/templates'),
-      client.get('/api/v1/strategies/types'),
+      client.get<StrategyTemplate[]>('/api/v1/strategies/templates'),
+      client.get<StrategyType[]>('/api/v1/strategies/types'),
     ]).then(([tRes, tyRes]) => {
       setTemplates(tRes.data);
       setTypes(tyRes.data);
@@ -55,11 +63,27 @@ export function Strategies() {
         template_id: templateId,
         bot_name: `${name}-copy`,
         symbol: 'BTCUSDT',
+        deposit_amount: '100',
       });
       toast(`Strategy "${name}" copied successfully`, 'success');
     } catch {
       toast('Failed to copy strategy', 'error');
     }
+  };
+
+  /** Open Create Bot modal pre-filled from a template */
+  const handleApplyToBot = (template: StrategyTemplate) => {
+    let parsedConfig: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(template.config_json);
+      // The config_json may contain the strategy-specific sub-key
+      parsedConfig = (parsed[template.strategy_type] as Record<string, unknown>) ?? parsed;
+    } catch {
+      // ignore parse errors
+    }
+    setPresetStrategy(template.strategy_type);
+    setPresetConfig(parsedConfig);
+    setCreateModalOpen(true);
   };
 
   if (loading) {
@@ -80,8 +104,20 @@ export function Strategies() {
       <Card title="Available Strategy Types" className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {types.map((t) => (
-            <div key={t.name} className="bg-background rounded-lg p-4 border border-border">
-              <h4 className="text-sm font-semibold text-text mb-1 capitalize">{t.name.replace('_', ' ')}</h4>
+            <div
+              key={t.name}
+              className={`bg-background rounded-lg p-4 border transition-colors ${
+                t.coming_soon
+                  ? 'border-border opacity-50'
+                  : 'border-border'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-sm font-semibold text-text capitalize">
+                  {t.name.replace(/_/g, ' ')}
+                </h4>
+                {t.coming_soon && <Badge variant="default">Coming Soon</Badge>}
+              </div>
               <p className="text-xs text-text-muted">{t.description}</p>
             </div>
           ))}
@@ -114,14 +150,34 @@ export function Strategies() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-text-muted">{t.copy_count} copies</span>
-                <Button size="sm" onClick={() => handleCopy(t.id, t.name)}>Copy Strategy</Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => handleCopy(t.id, t.name)}>
+                    Copy
+                  </Button>
+                  <Button size="sm" onClick={() => handleApplyToBot(t)}>
+                    Apply to Bot
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
         </div>
       )}
+
+      <CreateBotModal
+        open={createModalOpen}
+        onClose={() => {
+          setCreateModalOpen(false);
+          setPresetStrategy(undefined);
+          setPresetConfig(undefined);
+        }}
+        onCreated={() => {}}
+        strategyTypes={types}
+        presetStrategy={presetStrategy}
+        presetConfig={presetConfig}
+      />
     </PageTransition>
   );
 }
