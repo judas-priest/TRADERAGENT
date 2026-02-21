@@ -120,6 +120,10 @@ class BotOrchestrator:
         self._last_state_save: float = 0.0
         self._state_save_interval: float = 30.0  # seconds
 
+        # SMC analysis throttle (entry timeframe is M15 → analyze every 5 min)
+        self._smc_last_analysis: float = 0.0
+        self._smc_analysis_interval: float = 300.0  # 5 minutes
+
         # v2.0: Multi-strategy components
         self.strategy_registry = StrategyRegistry(max_strategies=10)
         self.market_regime_detector = MarketRegimeDetector()
@@ -961,17 +965,61 @@ class BotOrchestrator:
             raise
 
     async def _process_smc_logic(self) -> None:
-        """Process SMC strategy logic with multi-timeframe analysis."""
+        """Process SMC strategy logic: TP/SL every tick, analysis every 5 min."""
         if not self.smc_strategy or not self.current_price:
             return
 
         try:
+            # --- Quick TP/SL check on every iteration (no OHLCV needed) ---
+            exits = self.smc_strategy.update_positions(
+                self.current_price, pd.DataFrame()
+            )
+
+            for position_id, exit_reason in exits:
+                self.smc_strategy.close_position(
+                    position_id, exit_reason, self.current_price
+                )
+
+                if not self.config.dry_run:
+                    await self._execute_smc_exit(position_id, exit_reason)
+
+                await self._publish_event(
+                    EventType.ORDER_FILLED,
+                    {
+                        "strategy": "smc",
+                        "position_id": position_id,
+                        "exit_reason": exit_reason.value,
+                        "exit_price": str(self.current_price),
+                    },
+                )
+
+                logger.info(
+                    "smc_position_closed",
+                    position_id=position_id,
+                    exit_reason=exit_reason.value,
+                    exit_price=str(self.current_price),
+                )
+
+            # --- Full OHLCV analysis throttled to every _smc_analysis_interval ---
+            now = time.monotonic()
+            if now - self._smc_last_analysis < self._smc_analysis_interval:
+                return
+            self._smc_last_analysis = now
+
             # Fetch 4 timeframes of OHLCV data
             ohlcv_d1, ohlcv_h4, ohlcv_h1, ohlcv_m15 = await asyncio.gather(
-                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="1d", limit=200),
-                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="4h", limit=200),
-                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="1h", limit=200),
-                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="15m", limit=200),
+                self.exchange.fetch_ohlcv(
+                    symbol=self.config.symbol, timeframe="1d", limit=200
+                ),
+                self.exchange.fetch_ohlcv(
+                    symbol=self.config.symbol, timeframe="4h", limit=200
+                ),
+                self.exchange.fetch_ohlcv(
+                    symbol=self.config.symbol, timeframe="1h", limit=200
+                ),
+                self.exchange.fetch_ohlcv(
+                    symbol=self.config.symbol, timeframe="15m", limit=200
+                ),
             )
 
             # Convert each to DataFrame
@@ -991,7 +1039,7 @@ class BotOrchestrator:
 
             # 1. Analyze market (multi-timeframe)
             analysis = self.smc_strategy.analyze_market(df_d1, df_h4, df_h1, df_m15)
-            logger.debug(
+            logger.info(
                 "smc_market_analyzed",
                 trend=analysis.trend,
                 trend_strength=analysis.trend_strength,
@@ -1004,13 +1052,18 @@ class BotOrchestrator:
             if signal and self.state == BotState.RUNNING:
                 # Check max positions
                 active_positions = self.smc_strategy.get_active_positions()
-                max_positions = self.config.smc.max_positions if self.config.smc else 3
+                max_positions = (
+                    self.config.smc.max_positions if self.config.smc else 3
+                )
                 if len(active_positions) >= max_positions:
-                    logger.debug("smc_max_positions_reached", count=len(active_positions))
+                    logger.debug(
+                        "smc_max_positions_reached",
+                        count=len(active_positions),
+                    )
                 else:
                     # Calculate position size from signal
                     position_size = min(
-                        signal.entry_price * Decimal("0.1"),  # Default sizing
+                        signal.entry_price * Decimal("0.1"),
                         (
                             Decimal(str(self.config.smc.max_position_size))
                             if self.config.smc
@@ -1020,7 +1073,9 @@ class BotOrchestrator:
 
                     # Risk check
                     if self.risk_manager:
-                        current_position_value = sum(pos.size for pos in active_positions)
+                        current_position_value = sum(
+                            pos.size for pos in active_positions
+                        )
                         risk_check = self.risk_manager.check_trade(
                             position_size, current_position_value, balance
                         )
@@ -1032,10 +1087,10 @@ class BotOrchestrator:
                             signal = None
 
                     if signal:
-                        # Open position in adapter
-                        position_id = self.smc_strategy.open_position(signal, position_size)
+                        position_id = self.smc_strategy.open_position(
+                            signal, position_size
+                        )
 
-                        # Execute order on exchange
                         if not self.config.dry_run:
                             await self._execute_smc_entry(signal, position_size)
 
@@ -1060,35 +1115,6 @@ class BotOrchestrator:
                             entry_price=str(signal.entry_price),
                             size=str(position_size),
                         )
-
-            # 3. Update existing positions (check TP/SL)
-            exits = self.smc_strategy.update_positions(self.current_price, df_h1)
-
-            for position_id, exit_reason in exits:
-                # Close in adapter
-                self.smc_strategy.close_position(position_id, exit_reason, self.current_price)
-
-                # Execute on exchange
-                if not self.config.dry_run:
-                    # Get position info before it was closed
-                    await self._execute_smc_exit(position_id, exit_reason)
-
-                await self._publish_event(
-                    EventType.ORDER_FILLED,
-                    {
-                        "strategy": "smc",
-                        "position_id": position_id,
-                        "exit_reason": exit_reason.value,
-                        "exit_price": str(self.current_price),
-                    },
-                )
-
-                logger.info(
-                    "smc_position_closed",
-                    position_id=position_id,
-                    exit_reason=exit_reason.value,
-                    exit_price=str(self.current_price),
-                )
 
         except Exception as e:
             logger.error("smc_logic_error", error=str(e), exc_info=True)

@@ -183,7 +183,7 @@ bots:
 
   # =========================================================================
   # 5. BTC/USDT SMC (Smart Money Concepts) Strategy
-  # Manual start
+  # Auto-start in dry_run mode, analysis every 5 min
   # =========================================================================
   - version: 1
     name: demo_btc_smc
@@ -213,4 +213,4 @@ bots:
       enabled: false
 
     dry_run: true
-    auto_start: false
+    auto_start: true
