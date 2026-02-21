@@ -3,15 +3,15 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 21 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + **Lint Cleanup + Architecture v2.1 + Full Project Audit**
-**Pass Rate:** 100% (1508/1508 tests passing, 25 skipped)
-**Realnyy obem testov:** 1534 collected (posle lint cleanup)
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + **SMC Main Loop Fix (auto_start + 5-min throttle)**
+**Pass Rate:** 100% (1509/1509 tests passing, 25 skipped)
+**Realnyy obem testov:** 1534 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Multi-TF Backtesting:** 163 tests passing (bylo 31, +132 novyh — SHORT, M5, CSV, walk-forward)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `70de720` (docs: add ARCHITECTURE-TRADERAGENT v2.1.md)
-**Bot Status:** RUNNING (5 botov inicializirovany, SMC bot v dry_run rezhime)
+**Posledniy commit:** `da936e1` (fix: SMC bot main loop — auto_start + 5-min analysis throttle)
+**Bot Status:** RUNNING (5 botov, SMC bot ACTIVE v dry_run rezhime, analiz kazhdye 5 min)
 
 ---
 
@@ -25,6 +25,7 @@
 4. Sravnit server vs repo, razvernut izmeneniya
 5. Sozdat Architecture v2.1
 6. Obnovit GitHub Pages
+7. Fix SMC bot main loop — ne zapuskalsya iz-za auto_start: false + OHLCV bez throttle
 
 ### Rezultat
 
@@ -96,6 +97,23 @@
   - Podpis: 468 commits, 202 files, 60,891 LOC, 1,508 tests, Bybit Demo deployed
   - Strategy Marketplace: dobavleny SMC i Hybrid
 
+#### 7. SMC Main Loop Fix
+
+**Problema 1: `auto_start: false`**
+- Bot inicializirovalsya, no `start()` ne vyzyvalsya → `_main_loop` ne zapuskalsya → `_process_smc_logic()` nikogda ne vypolnyalas
+
+**Problema 2: OHLCV bez throttle**
+- Staryy kod vyzval polnyy analiz (D1+H4+H1+M15 × 200 svechey) kazhdyu 1 sek
+- Eto 800 svechey/sek — ubiystvo API rate limits
+
+**Fix:**
+- `auto_start: true` v `phase7_demo.yaml`
+- `_process_smc_logic()` razdelen na 2 chasti:
+  - TP/SL proverka — kazhdyu sekundu (bez OHLCV, tolko `current_price`)
+  - Polnyy OHLCV analiz — kazhdye 5 minut (`_smc_analysis_interval = 300`)
+- `smc_market_analyzed` log povyshen s debug do info
+- Proverenno na servere: analiz #1 v 20:58:41, #2 v 21:03:41 (rovno 5 min), 226 signalov, 0 oshibok
+
 ### Izmenennye Fayly
 
 | # | Fayl | Izmenenie |
@@ -103,6 +121,8 @@
 | 1 | `tests/` (64 fayla) | black + ruff lint cleanup |
 | 2 | `docs/ARCHITECTURE-TRADERAGENT v2.1.md` | Novyy fayl, 918 strok |
 | 3 | `docs/screenshots/index.html` | Obnovleny metriki i badgy |
+| 4 | `bot/orchestrator/bot_orchestrator.py` | SMC throttle: TP/SL kazhdyu sek, analiz kazhdye 5 min |
+| 5 | `configs/phase7_demo.yaml` | SMC bot: auto_start: true |
 
 ### Commits
 
@@ -111,6 +131,7 @@
 | `4d67d5e` | style: fix all ruff + black lint errors in tests/ (64 files) |
 | `70de720` | docs: add ARCHITECTURE-TRADERAGENT v2.1.md |
 | `fb87350` | docs: update GitHub Pages — aktualnye tsifry proekta |
+| `da936e1` | fix: SMC bot main loop — auto_start + 5-min analysis throttle |
 
 ---
 
@@ -1491,11 +1512,12 @@ docker compose up webui-backend webui-frontend
 ## Last Updated
 
 - **Date:** February 21, 2026
-- **Session:** 19 (Project Audit + Lint Cleanup + Architecture v2.1)
-- **Status:** 1508/1534 tests passing (100%), 25 skipped
-- **Total tests:** 1534 collected (posle lint cleanup)
-- **Last commit:** `70de720` (docs: add ARCHITECTURE-TRADERAGENT v2.1.md)
-- **Bot Status:** RUNNING (5 botov, SMC bot v dry_run rezhime)
+- **Session:** 19 (Project Audit + Lint Cleanup + Architecture v2.1 + SMC Main Loop Fix)
+- **Status:** 1509/1534 tests passing (100%), 25 skipped
+- **Total tests:** 1534 collected
+- **Last commit:** `da936e1` (fix: SMC bot main loop — auto_start + 5-min analysis throttle)
+- **Bot Status:** RUNNING (5 botov, SMC bot ACTIVE — auto_start, analiz kazhdye 5 min, dry_run)
+- **SMC Main Loop Fix:** auto_start: true, TP/SL kazhdyu sek, OHLCV analiz kazhdye 5 min, 0 oshibok
 - **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors) — **vse lintory chistye**
 - **Architecture v2.1:** COMPLETE — 918 strok, 20 razdelov, Mermaid diagrammy, SMC Pipeline, Multi-TF Backtesting
 - **Lint Cleanup:** COMPLETE — 64 fayla, 300+ ruff + 47 black errors fixed
@@ -1520,5 +1542,5 @@ docker compose up webui-backend webui-frontend
 - **Repository Cleanup:** COMPLETE — dca_grid_bot udalyon, docs reorganizovany, code quality fixes applied
 - **Open Issues:** 5 (#85, #90, #91, #97, #144)
 - **Open PRs:** 1 (#98)
-- **Next Action:** Zapusk SMC bota (live dry-run) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
+- **Next Action:** Monitoring SMC bota (nabor statistiki) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
 - **Co-Authored:** Claude Opus 4.6
