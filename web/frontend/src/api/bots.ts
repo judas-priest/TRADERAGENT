@@ -10,6 +10,30 @@ export interface BotListItem {
   active_positions: number;
 }
 
+export interface BotCreateRequest {
+  name: string;
+  symbol: string;
+  strategy: string;
+  exchange_id: string;
+  credentials_name: string;
+  dry_run: boolean;
+  risk_management: {
+    max_position_size: number;
+  };
+  grid?: Record<string, unknown>;
+  dca?: Record<string, unknown>;
+  trend_follower?: Record<string, unknown>;
+  smc?: Record<string, unknown>;
+}
+
+export interface BotCreateResponse {
+  name: string;
+  symbol: string;
+  strategy: string;
+  dry_run: boolean;
+  message: string;
+}
+
 export interface BotStatus {
   name: string;
   strategy: string;
@@ -45,6 +69,9 @@ export interface PnL {
 }
 
 export const botsApi = {
+  create: (data: BotCreateRequest) =>
+    client.post<BotCreateResponse>('/api/v1/bots', data),
+
   list: (params?: { strategy?: string; status?: string; symbol?: string }) =>
     client.get<BotListItem[]>('/api/v1/bots', { params }),
 

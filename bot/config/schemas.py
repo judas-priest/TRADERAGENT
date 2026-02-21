@@ -210,7 +210,9 @@ class SMCConfigSchema(BaseModel):
 
     # Timeframes
     trend_timeframe: str = Field(default="1d", description="Timeframe for global trend (D1)")
-    structure_timeframe: str = Field(default="4h", description="Timeframe for market structure (H4)")
+    structure_timeframe: str = Field(
+        default="4h", description="Timeframe for market structure (H4)"
+    )
     working_timeframe: str = Field(default="1h", description="Timeframe for confluence zones (H1)")
     entry_timeframe: str = Field(default="15m", description="Timeframe for entry signals (M15)")
 
