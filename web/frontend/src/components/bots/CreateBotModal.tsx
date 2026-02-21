@@ -31,6 +31,8 @@ interface CreateBotModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  presetStrategy?: string;
+  presetConfig?: Record<string, unknown>;
 }
 
 const STRATEGY_ICONS: Record<string, string> = {
@@ -179,7 +181,7 @@ function buildDefaultParams(schema: Record<string, unknown>): Record<string, unk
   return result;
 }
 
-export function CreateBotModal({ open, onClose, onCreated }: CreateBotModalProps) {
+export function CreateBotModal({ open, onClose, onCreated, presetStrategy, presetConfig }: CreateBotModalProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [strategies, setStrategies] = useState<StrategyType[]>([]);
   const [loadingStrategies, setLoadingStrategies] = useState(false);
@@ -197,15 +199,21 @@ export function CreateBotModal({ open, onClose, onCreated }: CreateBotModalProps
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setStep(1);
-      setSelectedStrategy(null);
       setBotName('');
       setSymbol('BTC/USDT');
       setExchange('binance');
       setDryRun(true);
-      setStrategyParams({});
+      if (presetStrategy) {
+        // Skip step 1 when a preset strategy is provided
+        setStep(2);
+        setStrategyParams(presetConfig ?? {});
+      } else {
+        setStep(1);
+        setSelectedStrategy(null);
+        setStrategyParams({});
+      }
     }
-  }, [open]);
+  }, [open, presetStrategy, presetConfig]);
 
   // Load strategies on mount
   useEffect(() => {
@@ -213,10 +221,23 @@ export function CreateBotModal({ open, onClose, onCreated }: CreateBotModalProps
     setLoadingStrategies(true);
     client
       .get<StrategyType[]>('/api/v1/strategies/types')
-      .then((res) => setStrategies(res.data))
+      .then((res) => {
+        setStrategies(res.data);
+        if (presetStrategy) {
+          const preset = res.data.find((s) => s.name === presetStrategy);
+          if (preset) {
+            setSelectedStrategy(preset);
+            // Merge preset config over schema defaults
+            setStrategyParams((prev) => ({
+              ...buildDefaultParams(preset.config_schema),
+              ...prev,
+            }));
+          }
+        }
+      })
       .catch(() => toast('Failed to load strategies', 'error'))
       .finally(() => setLoadingStrategies(false));
-  }, [open, toast]);
+  }, [open, presetStrategy, toast]);
 
   const handleSelectStrategy = (strategy: StrategyType) => {
     setSelectedStrategy(strategy);
@@ -225,8 +246,13 @@ export function CreateBotModal({ open, onClose, onCreated }: CreateBotModalProps
   };
 
   const handleBack = () => {
-    setStep(1);
-    setSelectedStrategy(null);
+    if (presetStrategy) {
+      // Close modal instead of going back when strategy was preset
+      onClose();
+    } else {
+      setStep(1);
+      setSelectedStrategy(null);
+    }
   };
 
   const handleParamChange = (key: string, value: unknown) => {
@@ -284,30 +310,32 @@ export function CreateBotModal({ open, onClose, onCreated }: CreateBotModalProps
       title={step === 1 ? 'Select Strategy' : 'Configure Bot'}
       maxWidth="max-w-2xl"
     >
-      {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-5">
-        {[1, 2].map((s) => (
-          <div key={s} className="flex items-center gap-2">
-            <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
-                step === s
-                  ? 'bg-primary text-white'
-                  : s < step
-                  ? 'bg-profit text-white'
-                  : 'bg-border text-text-muted'
-              }`}
-            >
-              {s < step ? '✓' : s}
+      {/* Step indicator — hidden when strategy is preset (step 1 is skipped) */}
+      {!presetStrategy && (
+        <div className="flex items-center gap-2 mb-5">
+          {[1, 2].map((s) => (
+            <div key={s} className="flex items-center gap-2">
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                  step === s
+                    ? 'bg-primary text-white'
+                    : s < step
+                    ? 'bg-profit text-white'
+                    : 'bg-border text-text-muted'
+                }`}
+              >
+                {s < step ? '✓' : s}
+              </div>
+              <span
+                className={`text-xs ${step === s ? 'text-text font-medium' : 'text-text-muted'}`}
+              >
+                {s === 1 ? 'Strategy' : 'Settings'}
+              </span>
+              {s < 2 && <div className="w-6 h-px bg-border mx-1" />}
             </div>
-            <span
-              className={`text-xs ${step === s ? 'text-text font-medium' : 'text-text-muted'}`}
-            >
-              {s === 1 ? 'Strategy' : 'Settings'}
-            </span>
-            {s < 2 && <div className="w-6 h-px bg-border mx-1" />}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Step 1: Strategy selection */}
       {step === 1 && (
@@ -412,7 +440,7 @@ export function CreateBotModal({ open, onClose, onCreated }: CreateBotModalProps
           {/* Actions */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
             <Button variant="ghost" onClick={handleBack}>
-              ← Back
+              {presetStrategy ? '← Cancel' : '← Back'}
             </Button>
             <Button onClick={handleCreate} disabled={submitting || !botName.trim()}>
               {submitting ? 'Creating…' : 'Create Bot'}
