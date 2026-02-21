@@ -2,11 +2,13 @@
 Bots API endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from web.backend.auth.models import User
 from web.backend.dependencies import get_current_user, get_orchestrators
 from web.backend.schemas.bot import (
+    BotCreateRequest,
+    BotCreateResponse,
     BotListResponse,
     BotStatusResponse,
     PnLResponse,
@@ -20,6 +22,66 @@ router = APIRouter(prefix="/api/v1/bots", tags=["bots"])
 
 def _get_bot_service(orchestrators: dict = Depends(get_orchestrators)) -> BotService:
     return BotService(orchestrators)
+
+
+@router.post("", response_model=BotCreateResponse, status_code=status.HTTP_201_CREATED)
+async def create_bot(
+    data: BotCreateRequest,
+    request: Request,
+    _: User = Depends(get_current_user),
+    orchestrators: dict = Depends(get_orchestrators),
+):
+    """Create a new bot."""
+    if data.name in orchestrators:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Bot '{data.name}' already exists",
+        )
+
+    from bot.config.schemas import BotConfig
+    from bot.config.schemas import ExchangeConfig as BotExchangeConfig
+
+    try:
+        bot_config = BotConfig(
+            name=data.name,
+            symbol=data.symbol,
+            strategy=data.strategy,
+            exchange=BotExchangeConfig(
+                exchange_id=data.exchange_id,
+                credentials_name=data.credentials_name,
+                sandbox=data.dry_run,
+            ),
+            grid=data.grid,
+            dca=data.dca,
+            trend_follower=data.trend_follower,
+            smc=data.smc,
+            risk_management=data.risk_management,
+            dry_run=data.dry_run,
+            auto_start=False,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    from bot.orchestrator.bot_orchestrator import BotOrchestrator
+
+    db_manager = request.app.state.db_manager
+    orch = BotOrchestrator(
+        bot_config=bot_config,
+        exchange_client=None,
+        db_manager=db_manager,
+    )
+    orchestrators[data.name] = orch
+
+    return BotCreateResponse(
+        name=data.name,
+        symbol=data.symbol,
+        strategy=str(data.strategy),
+        dry_run=data.dry_run,
+        message=f"Bot '{data.name}' created successfully",
+    )
 
 
 @router.get("", response_model=list[BotListResponse])

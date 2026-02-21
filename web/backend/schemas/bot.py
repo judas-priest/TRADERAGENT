@@ -9,9 +9,9 @@ from pydantic import BaseModel, Field
 
 from bot.config.schemas import (
     DCAConfig,
-    ExchangeConfig,
     GridConfig,
     RiskManagementConfig,
+    SMCConfigSchema,
     StrategyType,
     TrendFollowerConfig,
 )
@@ -23,13 +23,27 @@ class BotCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     symbol: str = Field(..., description="Trading pair (e.g., BTC/USDT)")
     strategy: StrategyType
-    exchange: ExchangeConfig
+    exchange_id: str = Field(default="binance", description="Exchange identifier")
+    credentials_name: str = Field(default="default", description="Name of stored credentials")
     grid: GridConfig | None = None
     dca: DCAConfig | None = None
     trend_follower: TrendFollowerConfig | None = None
-    risk_management: RiskManagementConfig
-    dry_run: bool = False
+    smc: SMCConfigSchema | None = None
+    risk_management: RiskManagementConfig = Field(
+        default_factory=lambda: RiskManagementConfig(max_position_size=Decimal("1000"))
+    )
+    dry_run: bool = True
     auto_start: bool = False
+
+
+class BotCreateResponse(BaseModel):
+    """Response after bot creation."""
+
+    name: str
+    symbol: str
+    strategy: str
+    dry_run: bool
+    message: str
 
 
 class BotUpdateRequest(BaseModel):
