@@ -8,6 +8,7 @@ import { Skeleton } from '../components/common/Skeleton';
 import { Toggle } from '../components/common/Toggle';
 import { useToastStore } from '../components/common/Toast';
 import { botsApi, type BotStatus, type BotUpdateRequest, type Position, type PnL } from '../api/bots';
+import { PnlChart } from '../components/common/PnlChart';
 import { WebSocketClient } from '../api/websocket';
 import client from '../api/client';
 
@@ -126,7 +127,7 @@ function DynamicField({
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ bot, positions, pnl }: { bot: BotStatus; positions: Position[]; pnl: PnL | null }) {
+function OverviewTab({ bot, botName, positions, pnl }: { bot: BotStatus; botName: string; positions: Position[]; pnl: PnL | null }) {
   const profit = parseFloat(String(bot.total_profit ?? 0));
 
   return (
@@ -153,13 +154,8 @@ function OverviewTab({ bot, positions, pnl }: { bot: BotStatus; positions: Posit
         </div>
       </div>
 
-      {/* PnL chart placeholder */}
-      <div className="bg-surface border border-border rounded-xl p-5">
-        <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-4">PnL Chart</p>
-        <div className="h-32 flex items-center justify-center rounded-lg bg-background border border-border/50">
-          <p className="text-xs text-text-muted">Chart coming soon</p>
-        </div>
-      </div>
+      {/* PnL chart */}
+      <PnlChart botName={botName} />
 
       {/* Active positions */}
       <div className="bg-surface border border-border rounded-xl p-5">
@@ -593,7 +589,7 @@ export function BotDetail() {
 
       {/* Tab content */}
       {activeTab === 'overview' && (
-        <OverviewTab bot={bot} positions={positions} pnl={pnl} />
+        <OverviewTab bot={bot} botName={bot.name} positions={positions} pnl={pnl} />
       )}
       {activeTab === 'settings' && (
         <SettingsTab bot={bot} onDeleted={() => navigate('/bots')} />

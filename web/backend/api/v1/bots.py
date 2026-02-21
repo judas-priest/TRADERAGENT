@@ -253,11 +253,12 @@ async def get_trades(
 @router.get("/{bot_name}/pnl/history", response_model=PnLHistoryResponse)
 async def get_pnl_history(
     bot_name: str,
+    period: str = Query(default="7d", description="Period: 1d, 7d, 30d, all"),
     _: User = Depends(get_current_user),
     service: BotService = Depends(_get_bot_service),
 ):
     """Get time-series PnL data for sparkline chart."""
-    result = await service.get_pnl_history(bot_name)
+    result = await service.get_pnl_history(bot_name, period=period)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
     return result

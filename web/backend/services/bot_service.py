@@ -276,8 +276,13 @@ class BotService:
         except Exception:
             return []
 
-    async def get_pnl_history(self, bot_name: str) -> PnLHistoryResponse | None:
-        """Get time-series PnL data for sparkline chart."""
+    async def get_pnl_history(self, bot_name: str, period: str = "7d") -> PnLHistoryResponse | None:
+        """Get time-series PnL data for sparkline chart.
+
+        Args:
+            bot_name: Name of the bot.
+            period: Time period for the history — one of "1d", "7d", "30d", "all".
+        """
         orch = self.orchestrators.get(bot_name)
         if not orch:
             return None
@@ -295,15 +300,28 @@ class BotService:
             total_profit = float(metrics["total_profit"])
             total_trades = metrics["total_trades"]
 
+            # Determine window in seconds based on requested period.
+            period_seconds: float | None
+            if period == "1d":
+                period_seconds = 86_400.0
+            elif period == "7d":
+                period_seconds = 7 * 86_400.0
+            elif period == "30d":
+                period_seconds = 30 * 86_400.0
+            else:
+                period_seconds = None  # "all" — no time restriction
+
             if total_trades > 0:
                 # Distribute profit evenly across N synthetic points in time.
-                n_points = min(total_trades, 20)
+                n_points = min(total_trades, 30)
                 now = time.time()
+                window = period_seconds if period_seconds is not None else n_points * 3600
+                interval = window / n_points
                 step = total_profit / n_points
                 cumulative = 0.0
                 for i in range(n_points):
                     cumulative += step
-                    ts = now - (n_points - i - 1) * 3600
+                    ts = now - (n_points - i - 1) * interval
                     points.append(PnLDataPoint(timestamp=ts, value=cumulative))
 
             return PnLHistoryResponse(points=points)

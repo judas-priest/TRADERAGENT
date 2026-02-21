@@ -133,6 +133,6 @@ export const botsApi = {
   getPnl: (name: string) =>
     client.get<PnL>(`/api/v1/bots/${name}/pnl`),
 
-  getPnlHistory: (name: string) =>
-    client.get<PnLHistory>(`/api/v1/bots/${name}/pnl/history`),
+  getPnlHistory: (name: string, period: string = '7d') =>
+    client.get<PnLHistory>(`/api/v1/bots/${name}/pnl/history`, { params: { period } }),
 };
