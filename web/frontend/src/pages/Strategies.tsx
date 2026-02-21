@@ -17,31 +17,28 @@ interface StrategyTemplate {
   min_deposit: string;
   expected_pnl_pct: string | null;
   copy_count: number;
-  config_json: string;
+  config_params?: Record<string, unknown>;
 }
 
 interface StrategyType {
   name: string;
   description: string;
   config_schema: Record<string, unknown>;
-  coming_soon: boolean;
 }
 
 export function Strategies() {
   const [templates, setTemplates] = useState<StrategyTemplate[]>([]);
   const [types, setTypes] = useState<StrategyType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [applyPresetStrategy, setApplyPresetStrategy] = useState<string | undefined>();
+  const [applyPresetConfig, setApplyPresetConfig] = useState<Record<string, unknown> | undefined>();
   const toast = useToastStore((s) => s.add);
-
-  // Create bot modal state (pre-filled from template copy)
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [presetStrategy, setPresetStrategy] = useState<string | undefined>();
-  const [presetConfig, setPresetConfig] = useState<Record<string, unknown> | undefined>();
 
   useEffect(() => {
     Promise.all([
-      client.get<StrategyTemplate[]>('/api/v1/strategies/templates'),
-      client.get<StrategyType[]>('/api/v1/strategies/types'),
+      client.get('/api/v1/strategies/templates'),
+      client.get('/api/v1/strategies/types'),
     ]).then(([tRes, tyRes]) => {
       setTemplates(tRes.data);
       setTypes(tyRes.data);
@@ -57,33 +54,10 @@ export function Strategies() {
     }
   };
 
-  const handleCopy = async (templateId: number, name: string) => {
-    try {
-      await client.post('/api/v1/strategies/copy', {
-        template_id: templateId,
-        bot_name: `${name}-copy`,
-        symbol: 'BTCUSDT',
-        deposit_amount: '100',
-      });
-      toast(`Strategy "${name}" copied successfully`, 'success');
-    } catch {
-      toast('Failed to copy strategy', 'error');
-    }
-  };
-
-  /** Open Create Bot modal pre-filled from a template */
-  const handleApplyToBot = (template: StrategyTemplate) => {
-    let parsedConfig: Record<string, unknown> = {};
-    try {
-      const parsed = JSON.parse(template.config_json);
-      // The config_json may contain the strategy-specific sub-key
-      parsedConfig = (parsed[template.strategy_type] as Record<string, unknown>) ?? parsed;
-    } catch {
-      // ignore parse errors
-    }
-    setPresetStrategy(template.strategy_type);
-    setPresetConfig(parsedConfig);
-    setCreateModalOpen(true);
+  const handleApply = (template: StrategyTemplate) => {
+    setApplyPresetStrategy(template.strategy_type);
+    setApplyPresetConfig(template.config_params ?? {});
+    setApplyModalOpen(true);
   };
 
   if (loading) {
@@ -104,19 +78,10 @@ export function Strategies() {
       <Card title="Available Strategy Types" className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {types.map((t) => (
-            <div
-              key={t.name}
-              className={`bg-background rounded-lg p-4 border transition-colors ${
-                t.coming_soon
-                  ? 'border-border opacity-50'
-                  : 'border-border'
-              }`}
-            >
+            <div key={t.name} className="relative bg-background rounded-lg p-4 border border-border">
               <div className="flex items-center justify-between mb-1">
-                <h4 className="text-sm font-semibold text-text capitalize">
-                  {t.name.replace(/_/g, ' ')}
-                </h4>
-                {t.coming_soon && <Badge variant="default">Coming Soon</Badge>}
+                <h4 className="text-sm font-semibold text-text capitalize">{t.name.replace('_', ' ')}</h4>
+                {t.name === 'smc' && <Badge variant="default">Coming Soon</Badge>}
               </div>
               <p className="text-xs text-text-muted">{t.description}</p>
             </div>
@@ -131,52 +96,47 @@ export function Strategies() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {templates.map((t) => (
-            <Card key={t.id}>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-text">{t.name}</h4>
-                <Badge variant={riskVariant(t.risk_level)}>{t.risk_level} risk</Badge>
-              </div>
-              <p className="text-xs text-text-muted mb-3">{t.description}</p>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div>
-                  <p className="text-xs text-text-muted">Min Deposit</p>
-                  <p className="text-sm font-semibold text-text">${t.min_deposit}</p>
+          {templates.map((t) => {
+            const isSmc = t.strategy_type === 'smc';
+            return (
+              <Card key={t.id}>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-text">{t.name}</h4>
+                  <Badge variant={riskVariant(t.risk_level)}>{t.risk_level} risk</Badge>
                 </div>
-                {t.expected_pnl_pct && (
+                <p className="text-xs text-text-muted mb-3">{t.description}</p>
+                <div className="grid grid-cols-2 gap-2 mb-3">
                   <div>
-                    <p className="text-xs text-text-muted">Expected PnL</p>
-                    <p className="text-sm font-semibold text-profit">+{t.expected_pnl_pct}%</p>
+                    <p className="text-xs text-text-muted">Min Deposit</p>
+                    <p className="text-sm font-semibold text-text">${t.min_deposit}</p>
                   </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-text-muted">{t.copy_count} copies</span>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => handleCopy(t.id, t.name)}>
-                    Copy
-                  </Button>
-                  <Button size="sm" onClick={() => handleApplyToBot(t)}>
-                    Apply to Bot
-                  </Button>
+                  {t.expected_pnl_pct && (
+                    <div>
+                      <p className="text-xs text-text-muted">Expected PnL</p>
+                      <p className="text-sm font-semibold text-profit">+{t.expected_pnl_pct}%</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </Card>
-          ))}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-muted">{t.copy_count} copies</span>
+                  {isSmc ? (
+                    <Badge variant="default">Coming Soon</Badge>
+                  ) : (
+                    <Button size="sm" onClick={() => handleApply(t)}>Apply to Bot</Button>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 
       <CreateBotModal
-        open={createModalOpen}
-        onClose={() => {
-          setCreateModalOpen(false);
-          setPresetStrategy(undefined);
-          setPresetConfig(undefined);
-        }}
-        onCreated={() => {}}
-        strategyTypes={types}
-        presetStrategy={presetStrategy}
-        presetConfig={presetConfig}
+        open={applyModalOpen}
+        onClose={() => setApplyModalOpen(false)}
+        onCreated={() => setApplyModalOpen(false)}
+        presetStrategy={applyPresetStrategy}
+        presetConfig={applyPresetConfig}
       />
     </PageTransition>
   );

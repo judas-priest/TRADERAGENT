@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.config.schemas import (
     DCAConfig,
     GridConfig,
+    SMCConfigSchema,
     TrendFollowerConfig,
 )
 from bot.database.models import StrategyTemplate
@@ -157,8 +158,8 @@ async def list_strategy_types(
         ),
         StrategyTypeInfo(
             name="smc",
-            description="Smart Money Concepts — order blocks, fair value gaps, liquidity sweeps",
-            config_schema={},
+            description="Smart Money Concepts — institutional order flow analysis",
+            config_schema=SMCConfigSchema.model_json_schema(),
             coming_soon=True,
         ),
     ]

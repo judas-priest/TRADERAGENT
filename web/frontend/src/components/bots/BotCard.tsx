@@ -1,12 +1,16 @@
 import { motion } from 'framer-motion';
-import type { BotListItem } from '../../api/bots';
+import type { BotListItem, PnLDataPoint } from '../../api/bots';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
+import { PnLSparkline } from './PnLSparkline';
 
 interface BotCardProps {
   bot: BotListItem;
+  pnlHistory?: PnLDataPoint[];
+  actionLoading?: boolean;
   onStart?: () => void;
   onStop?: () => void;
+  onDelete?: () => void;
   onClick?: () => void;
 }
 
@@ -20,38 +24,19 @@ const statusVariant = (s: string) => {
   }
 };
 
-const STRATEGY_LABELS: Record<string, string> = {
-  grid: 'Grid',
-  dca: 'DCA',
-  trend_follower: 'Trend',
-  hybrid: 'Hybrid',
-  smc: 'SMC',
+const strategyVariant = (s: string) => {
+  switch (s.toLowerCase()) {
+    case 'grid': return 'success' as const;
+    case 'dca': return 'warning' as const;
+    case 'trend_follower':
+    case 'trend': return 'info' as const;
+    case 'smc': return 'error' as const;
+    case 'hybrid': return 'default' as const;
+    default: return 'info' as const;
+  }
 };
 
-/** Tiny sparkline composed of 7 random-ish bars based on bot name (deterministic seed) */
-function Sparkline({ profit, name }: { profit: number; name: string }) {
-  // Generate pseudo-random heights seeded by bot name so they're stable across renders
-  const seed = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const bars = Array.from({ length: 7 }, (_, i) => {
-    const v = ((seed * (i + 1) * 17) % 40) + 10;
-    return v;
-  });
-  const color = profit >= 0 ? '#22c55e' : '#ef4444';
-
-  return (
-    <div className="flex items-end gap-0.5 h-8">
-      {bars.map((h, i) => (
-        <div
-          key={i}
-          className="w-1 rounded-sm opacity-60"
-          style={{ height: `${h}%`, background: color }}
-        />
-      ))}
-    </div>
-  );
-}
-
-export function BotCard({ bot, onStart, onStop, onClick }: BotCardProps) {
+export function BotCard({ bot, pnlHistory, actionLoading = false, onStart, onStop, onDelete, onClick }: BotCardProps) {
   const profit = parseFloat(bot.total_profit);
 
   return (
@@ -67,32 +52,43 @@ export function BotCard({ bot, onStart, onStop, onClick }: BotCardProps) {
       </div>
 
       <div className="flex items-center gap-2 mb-4">
-        <Badge variant="info">{STRATEGY_LABELS[bot.strategy] || bot.strategy}</Badge>
+        <Badge variant={strategyVariant(bot.strategy)}>{bot.strategy}</Badge>
         <span className="text-xs text-text-muted">{bot.symbol}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <p className="text-xs text-text-muted">PnL</p>
-          <p className={`text-sm font-semibold ${profit >= 0 ? 'text-profit' : 'text-loss'}`}>
-            {profit >= 0 ? '+' : ''}{profit.toFixed(2)}$
-          </p>
+      <div className="flex items-end justify-between mb-4">
+        <div className="grid grid-cols-2 gap-3 flex-1">
+          <div>
+            <p className="text-xs text-text-muted">PnL</p>
+            <p className={`text-sm font-semibold ${profit >= 0 ? 'text-profit' : 'text-loss'}`}>
+              {profit >= 0 ? '+' : ''}{profit.toFixed(2)}$
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-text-muted">Trades</p>
+            <p className="text-sm font-semibold text-text">{bot.total_trades}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-xs text-text-muted">Trades</p>
-          <p className="text-sm font-semibold text-text">{bot.total_trades}</p>
+        <div className="ml-3 flex-shrink-0">
+          <PnLSparkline points={pnlHistory ?? []} />
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <Sparkline profit={profit} name={bot.name} />
-        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          {bot.status === 'running' ? (
-            <Button variant="danger" size="sm" onClick={onStop}>Stop</Button>
-          ) : (
-            <Button variant="primary" size="sm" onClick={onStart}>Start</Button>
-          )}
-        </div>
+      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+        {bot.status === 'running' ? (
+          <Button variant="danger" size="sm" onClick={onStop} disabled={actionLoading}>
+            {actionLoading ? 'Stopping…' : 'Stop'}
+          </Button>
+        ) : (
+          <Button variant="primary" size="sm" onClick={onStart} disabled={actionLoading}>
+            {actionLoading ? 'Starting…' : 'Start'}
+          </Button>
+        )}
+        {onDelete && (
+          <Button variant="ghost" size="sm" onClick={onDelete} disabled={actionLoading}>
+            Delete
+          </Button>
+        )}
       </div>
     </motion.div>
   );

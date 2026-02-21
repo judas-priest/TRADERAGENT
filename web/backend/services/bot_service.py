@@ -2,22 +2,18 @@
 Bot service: bridge between API and BotOrchestrator.
 """
 
-import logging
-from datetime import datetime
 from decimal import Decimal
 
 from bot.orchestrator.bot_orchestrator import BotOrchestrator
 from web.backend.schemas.bot import (
-    BotCreateRequest,
     BotListResponse,
     BotStatusResponse,
-    BotUpdateRequest,
+    PnLDataPoint,
+    PnLHistoryResponse,
     PnLResponse,
     PositionResponse,
     TradeResponse,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _extract_metrics(status: dict) -> dict:
@@ -194,7 +190,9 @@ class BotService:
                         size=Decimal(str(dca.get("position_amount", 0))),
                         entry_price=Decimal(str(dca.get("average_entry_price", 0))),
                         current_price=(
-                            Decimal(status["current_price"]) if status.get("current_price") else None
+                            Decimal(status["current_price"])
+                            if status.get("current_price")
+                            else None
                         ),
                     )
                 )
@@ -202,6 +200,133 @@ class BotService:
             return positions
         except Exception:
             return []
+
+    async def update_bot(self, bot_name: str, data: dict) -> str | bool:
+        """Update bot configuration (dry_run and strategy params).
+
+        Returns:
+            True on success, False if bot not found, "running" if bot is running.
+        """
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return False
+        try:
+            status = await orch.get_status()
+            if status.get("state") in ("running", "starting"):
+                return "running"
+        except Exception:
+            pass
+        config = orch.bot_config
+        if "dry_run" in data and data["dry_run"] is not None:
+            config.dry_run = data["dry_run"]
+        for key in ("grid", "dca", "trend_follower", "risk_management"):
+            if key in data and data[key] is not None:
+                setattr(config, key, data[key])
+        return True
+
+    async def delete_bot(self, bot_name: str) -> str | bool:
+        """Delete a stopped bot from the orchestrators registry.
+
+        Returns:
+            True on success, False if bot not found, "running" if bot is running.
+        """
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return False
+        try:
+            status = await orch.get_status()
+            if status.get("state") in ("running", "starting"):
+                return "running"
+        except Exception:
+            pass
+        del self.orchestrators[bot_name]
+        return True
+
+    async def get_trades(self, bot_name: str, limit: int = 50) -> list[TradeResponse] | None:
+        """Get trade history for a bot from the database.
+
+        Returns None if the bot does not exist, empty list if no trades found.
+        """
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return None
+        try:
+            db_manager = getattr(orch, "db_manager", None)
+            if db_manager is None:
+                return []
+            from sqlalchemy import select
+
+            from bot.database.models import Bot, Trade
+
+            async with db_manager.session() as session:
+                bot_result = await session.execute(
+                    select(Bot).where(Bot.name == bot_name)
+                )
+                bot = bot_result.scalar_one_or_none()
+                if not bot:
+                    return []
+                trade_result = await session.execute(
+                    select(Trade)
+                    .where(Trade.bot_id == bot.id)
+                    .order_by(Trade.executed_at.desc())
+                    .limit(limit)
+                )
+                trades = trade_result.scalars().all()
+                return [TradeResponse.model_validate(t) for t in trades]
+        except Exception:
+            return []
+
+    async def get_pnl_history(self, bot_name: str, period: str = "7d") -> PnLHistoryResponse | None:
+        """Get time-series PnL data for sparkline chart.
+
+        Args:
+            bot_name: Name of the bot.
+            period: Time period for the history — one of "1d", "7d", "30d", "all".
+        """
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return None
+
+        try:
+            import time
+
+            status = await orch.get_status()
+            points: list[PnLDataPoint] = []
+
+            # Build cumulative PnL series from available strategy metrics.
+            # We generate synthetic time-series from aggregate stats since
+            # in-memory orchestrator does not persist per-trade timestamps.
+            metrics = _extract_metrics(status)
+            total_profit = float(metrics["total_profit"])
+            total_trades = metrics["total_trades"]
+
+            # Determine window in seconds based on requested period.
+            period_seconds: float | None
+            if period == "1d":
+                period_seconds = 86_400.0
+            elif period == "7d":
+                period_seconds = 7 * 86_400.0
+            elif period == "30d":
+                period_seconds = 30 * 86_400.0
+            else:
+                period_seconds = None  # "all" — no time restriction
+
+            if total_trades > 0:
+                # Distribute profit evenly across N synthetic points in time.
+                n_points = min(total_trades, 30)
+                now = time.time()
+                window = period_seconds if period_seconds is not None else n_points * 3600
+                interval = window / n_points
+                step = total_profit / n_points
+                cumulative = 0.0
+                for i in range(n_points):
+                    cumulative += step
+                    ts = now - (n_points - i - 1) * interval
+                    points.append(PnLDataPoint(timestamp=ts, value=cumulative))
+
+            return PnLHistoryResponse(points=points)
+        except Exception:
+            return PnLHistoryResponse()
 
     async def get_pnl(self, bot_name: str) -> PnLResponse | None:
         """Get PnL metrics for a bot."""
@@ -236,73 +361,3 @@ class BotService:
             )
         except Exception:
             return PnLResponse()
-
-    async def create_bot(self, data: BotCreateRequest) -> tuple[bool, str]:
-        """Create a new bot configuration.
-
-        Note: In production this would persist config and instantiate a new orchestrator.
-        Currently returns success acknowledgement; the orchestrator map is populated at startup.
-        """
-        if data.name in self.orchestrators:
-            return False, f"Bot '{data.name}' already exists"
-        # Log the creation intent — actual orchestrator wiring is done at startup
-        # from persisted config. Future implementations would reload configs here.
-        logger.info(
-            "Bot create request: name=%s strategy=%s symbol=%s",
-            data.name,
-            data.strategy,
-            data.symbol,
-        )
-        return True, f"Bot '{data.name}' configuration saved. Restart the service to activate."
-
-    async def update_bot(self, bot_name: str, data: BotUpdateRequest) -> tuple[bool, str]:
-        """Update bot configuration (risk params and strategy params)."""
-        orch = self.orchestrators.get(bot_name)
-        if not orch:
-            return False, f"Bot '{bot_name}' not found"
-        logger.info("Bot update request: name=%s", bot_name)
-        return True, f"Bot '{bot_name}' configuration updated. Changes take effect after restart."
-
-    async def delete_bot(self, bot_name: str) -> tuple[bool, str]:
-        """Delete a bot (only if stopped)."""
-        orch = self.orchestrators.get(bot_name)
-        if not orch:
-            return False, f"Bot '{bot_name}' not found"
-        try:
-            bot_status = await orch.get_status()
-            state = bot_status.get("state", "unknown")
-            if state == "running":
-                return False, f"Bot '{bot_name}' is running. Stop it before deleting."
-        except Exception:
-            pass
-        logger.info("Bot delete request: name=%s", bot_name)
-        return True, f"Bot '{bot_name}' deleted. Restart the service to apply."
-
-    async def get_trades(self, bot_name: str, limit: int = 50) -> list[TradeResponse]:
-        """Get trade history for a bot from orchestrator status."""
-        orch = self.orchestrators.get(bot_name)
-        if not orch:
-            return []
-        try:
-            status = await orch.get_status()
-            trades: list[TradeResponse] = []
-            # Extract recent trades from grid engine history if available
-            grid = status.get("grid", {})
-            for i, trade in enumerate(grid.get("recent_trades", [])[:limit]):
-                trades.append(
-                    TradeResponse(
-                        id=i + 1,
-                        symbol=status.get("symbol", ""),
-                        side=trade.get("side", "buy"),
-                        price=Decimal(str(trade.get("price", 0))),
-                        amount=Decimal(str(trade.get("amount", 0))),
-                        fee=Decimal(str(trade.get("fee", 0))),
-                        profit=Decimal(str(trade.get("profit", 0))) if trade.get("profit") is not None else None,
-                        executed_at=datetime.fromisoformat(trade["executed_at"])
-                        if isinstance(trade.get("executed_at"), str)
-                        else datetime.utcnow(),
-                    )
-                )
-            return trades
-        except Exception:
-            return []

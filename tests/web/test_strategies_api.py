@@ -17,14 +17,29 @@ async def test_list_strategy_types(auth_client: AsyncClient):
     resp = await auth_client.get("/api/v1/strategies/types")
     assert resp.status_code == 200
     types = resp.json()
-    assert len(types) == 3
+    assert len(types) == 4
     names = [t["name"] for t in types]
     assert "grid" in names
     assert "dca" in names
     assert "trend_follower" in names
+    assert "smc" in names
     for t in types:
         assert "config_schema" in t
         assert "description" in t
+        assert "coming_soon" in t
+
+
+@pytest.mark.asyncio
+async def test_strategy_types_coming_soon(auth_client: AsyncClient):
+    """SMC strategy should be marked as coming_soon."""
+    resp = await auth_client.get("/api/v1/strategies/types")
+    assert resp.status_code == 200
+    types = resp.json()
+    by_name = {t["name"]: t for t in types}
+    assert by_name["smc"]["coming_soon"] is True
+    assert by_name["grid"]["coming_soon"] is False
+    assert by_name["dca"]["coming_soon"] is False
+    assert by_name["trend_follower"]["coming_soon"] is False
 
 
 @pytest.mark.asyncio

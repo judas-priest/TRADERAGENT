@@ -37,9 +37,9 @@ redis>=5.0.0
 aiogram>=3.3.0
 
 # Data Analysis & Technical Indicators
-pandas>=2.2.2,<3.0.0
-numpy>=1.26.4
-smartmoneyconcepts>=0.0.22
+pandas>=2.1.0
+numpy>=1.24.0
+smartmoneyconcepts>=0.0.21
 
 # Encryption
 cryptography>=41.0.0

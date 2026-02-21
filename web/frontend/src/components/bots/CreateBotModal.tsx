@@ -1,333 +1,453 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
+import { Toggle } from '../common/Toggle';
+import { Skeleton } from '../common/Skeleton';
+import { botsApi, type BotCreateRequest } from '../../api/bots';
 import { useToastStore } from '../common/Toast';
-import { botsApi, type BotCreatePayload } from '../../api/bots';
+import client from '../../api/client';
 
 interface StrategyType {
   name: string;
   description: string;
   config_schema: Record<string, unknown>;
-  coming_soon: boolean;
+}
+
+interface SchemaProperty {
+  type?: string;
+  title?: string;
+  description?: string;
+  default?: unknown;
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+  enum?: string[];
 }
 
 interface CreateBotModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
-  strategyTypes: StrategyType[];
-  /** Pre-selected strategy name (e.g. from "Copy Template" flow) */
   presetStrategy?: string;
-  /** Pre-filled config values from a copied template */
   presetConfig?: Record<string, unknown>;
 }
 
-type Step = 'select-strategy' | 'configure';
+const STRATEGY_ICONS: Record<string, string> = {
+  grid: '⚡',
+  dca: '📉',
+  trend_follower: '📈',
+  smc: '🏦',
+};
 
-const STRATEGY_LABELS: Record<string, string> = {
-  grid: 'Grid Trading',
+const STRATEGY_DISPLAY_NAMES: Record<string, string> = {
+  grid: 'Grid',
   dca: 'DCA',
   trend_follower: 'Trend Follower',
   smc: 'SMC',
 };
 
-/** Render a JSON Schema property as a form field */
-function SchemaField({
-  fieldKey,
-  schema,
+function StrategyCard({
+  strategy,
+  selected,
+  disabled,
+  onClick,
+}: {
+  strategy: StrategyType;
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const displayName = STRATEGY_DISPLAY_NAMES[strategy.name] ?? strategy.name;
+  const icon = STRATEGY_ICONS[strategy.name] ?? '🤖';
+
+  return (
+    <motion.button
+      type="button"
+      whileHover={disabled ? {} : { scale: 1.02 }}
+      onClick={disabled ? undefined : onClick}
+      className={`relative w-full text-left p-4 rounded-xl border transition-colors ${
+        disabled
+          ? 'opacity-50 cursor-not-allowed border-border bg-surface'
+          : selected
+          ? 'border-primary bg-primary/10 cursor-pointer'
+          : 'border-border bg-surface hover:border-primary/50 cursor-pointer'
+      }`}
+    >
+      {disabled && (
+        <span className="absolute top-2 right-2">
+          <Badge variant="default">Soon</Badge>
+        </span>
+      )}
+      <div className="flex items-start gap-3">
+        <span className="text-2xl">{icon}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-text">{displayName}</p>
+          <p className="text-xs text-text-muted mt-0.5 leading-snug">{strategy.description}</p>
+        </div>
+      </div>
+    </motion.button>
+  );
+}
+
+function DynamicField({
+  name,
+  prop,
   value,
   onChange,
 }: {
-  fieldKey: string;
-  schema: Record<string, unknown>;
+  name: string;
+  prop: SchemaProperty;
   value: unknown;
-  onChange: (v: string) => void;
+  onChange: (v: unknown) => void;
 }) {
-  const label = (schema.title as string) || fieldKey.replace(/_/g, ' ');
-  const type = schema.type as string;
-  const description = schema.description as string | undefined;
-  const minimum = schema.minimum as number | undefined;
-  const maximum = schema.maximum as number | undefined;
-  const isBoolean = type === 'boolean';
+  const label = prop.title ?? name.replace(/_/g, ' ');
+  const description = prop.description;
 
-  if (isBoolean) {
+  if (prop.type === 'boolean') {
     return (
-      <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
-        <input
-          type="checkbox"
-          className="w-4 h-4 accent-primary"
-          checked={value === true || value === 'true'}
-          onChange={(e) => onChange(String(e.target.checked))}
-        />
-        <span>{label}</span>
-      </label>
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <p className="text-sm text-text capitalize">{label}</p>
+          {description && <p className="text-xs text-text-muted">{description}</p>}
+        </div>
+        <Toggle checked={Boolean(value)} onChange={onChange} />
+      </div>
     );
   }
+
+  if (prop.enum) {
+    return (
+      <div>
+        <label className="block text-xs text-text-muted mb-1 capitalize">{label}</label>
+        {description && <p className="text-xs text-text-muted mb-1">{description}</p>}
+        <select
+          value={String(value ?? '')}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary"
+        >
+          {prop.enum.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  const isNumeric = prop.type === 'number' || prop.type === 'integer';
+  const min = prop.minimum ?? prop.exclusiveMinimum;
+  const max = prop.maximum ?? prop.exclusiveMaximum;
 
   return (
     <div>
       <label className="block text-xs text-text-muted mb-1 capitalize">{label}</label>
+      {description && <p className="text-xs text-text-muted mb-1">{description}</p>}
       <input
-        type={type === 'integer' || type === 'number' ? 'number' : 'text'}
-        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
+        type={isNumeric ? 'number' : 'text'}
         value={String(value ?? '')}
-        min={minimum}
-        max={maximum}
-        onChange={(e) => onChange(e.target.value)}
+        min={min}
+        max={max}
+        step={prop.type === 'integer' ? 1 : 'any'}
+        onChange={(e) =>
+          onChange(isNumeric ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)
+        }
+        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary"
       />
-      {description && <p className="text-xs text-text-muted mt-0.5">{description}</p>}
     </div>
   );
 }
 
-/** Build default values from a JSON Schema */
-function buildDefaults(schema: Record<string, unknown>, preset?: Record<string, unknown>): Record<string, unknown> {
-  const props = (schema.properties as Record<string, Record<string, unknown>>) || {};
-  const defaults: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(props)) {
-    if (k === 'enabled') {
-      defaults[k] = preset?.[k] ?? (v.default ?? true);
+function buildDefaultParams(schema: Record<string, unknown>): Record<string, unknown> {
+  const properties = (schema.properties ?? {}) as Record<string, SchemaProperty>;
+  const result: Record<string, unknown> = {};
+  for (const [key, prop] of Object.entries(properties)) {
+    if (key === 'enabled') continue;
+    if (prop.default !== undefined) {
+      result[key] = prop.default;
+    } else if (prop.type === 'boolean') {
+      result[key] = false;
+    } else if (prop.type === 'integer') {
+      result[key] = prop.minimum ?? 0;
+    } else if (prop.type === 'number') {
+      result[key] = 0;
     } else {
-      defaults[k] = preset?.[k] ?? (v.default ?? '');
+      result[key] = '';
     }
   }
-  return defaults;
+  return result;
 }
 
-export function CreateBotModal({
-  open,
-  onClose,
-  onCreated,
-  strategyTypes,
-  presetStrategy,
-  presetConfig,
-}: CreateBotModalProps) {
+export function CreateBotModal({ open, onClose, onCreated, presetStrategy, presetConfig }: CreateBotModalProps) {
+  const [step, setStep] = useState<1 | 2>(1);
+  const [strategies, setStrategies] = useState<StrategyType[]>([]);
+  const [loadingStrategies, setLoadingStrategies] = useState(false);
+  const [selectedStrategy, setSelectedStrategy] = useState<StrategyType | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const toast = useToastStore((s) => s.add);
 
-  const [step, setStep] = useState<Step>(presetStrategy ? 'configure' : 'select-strategy');
-  const [selectedStrategy, setSelectedStrategy] = useState<StrategyType | null>(
-    presetStrategy ? (strategyTypes.find((t) => t.name === presetStrategy) ?? null) : null,
-  );
-
-  // Step 2 fields
+  // Step 2 form state
   const [botName, setBotName] = useState('');
   const [symbol, setSymbol] = useState('BTC/USDT');
-  const [exchangeId, setExchangeId] = useState('binance');
-  const [sandbox, setSandbox] = useState(true);
+  const [exchange, setExchange] = useState('binance');
   const [dryRun, setDryRun] = useState(true);
-  const [strategyConfig, setStrategyConfig] = useState<Record<string, unknown>>({});
-  const [submitting, setSubmitting] = useState(false);
+  const [strategyParams, setStrategyParams] = useState<Record<string, unknown>>({});
 
-  const handleSelectStrategy = (type: StrategyType) => {
-    setSelectedStrategy(type);
-    // Build initial config from schema defaults + preset
-    const defaults = buildDefaults(type.config_schema, presetConfig);
-    setStrategyConfig(defaults);
-    setStep('configure');
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setBotName('');
+      setSymbol('BTC/USDT');
+      setExchange('binance');
+      setDryRun(true);
+      if (presetStrategy) {
+        // Skip step 1 when a preset strategy is provided
+        setStep(2);
+        setStrategyParams(presetConfig ?? {});
+      } else {
+        setStep(1);
+        setSelectedStrategy(null);
+        setStrategyParams({});
+      }
+    }
+  }, [open, presetStrategy, presetConfig]);
+
+  // Load strategies on mount
+  useEffect(() => {
+    if (!open) return;
+    setLoadingStrategies(true);
+    client
+      .get<StrategyType[]>('/api/v1/strategies/types')
+      .then((res) => {
+        setStrategies(res.data);
+        if (presetStrategy) {
+          const preset = res.data.find((s) => s.name === presetStrategy);
+          if (preset) {
+            setSelectedStrategy(preset);
+            // Merge preset config over schema defaults
+            setStrategyParams((prev) => ({
+              ...buildDefaultParams(preset.config_schema),
+              ...prev,
+            }));
+          }
+        }
+      })
+      .catch(() => toast('Failed to load strategies', 'error'))
+      .finally(() => setLoadingStrategies(false));
+  }, [open, presetStrategy, toast]);
+
+  const handleSelectStrategy = (strategy: StrategyType) => {
+    setSelectedStrategy(strategy);
+    setStrategyParams(buildDefaultParams(strategy.config_schema));
+    setStep(2);
   };
 
   const handleBack = () => {
-    setStep('select-strategy');
-    setSelectedStrategy(null);
-    setStrategyConfig({});
+    if (presetStrategy) {
+      // Close modal instead of going back when strategy was preset
+      onClose();
+    } else {
+      setStep(1);
+      setSelectedStrategy(null);
+    }
   };
 
-  const handleClose = () => {
-    setStep(presetStrategy ? 'configure' : 'select-strategy');
-    setSelectedStrategy(null);
-    setStrategyConfig({});
-    setBotName('');
-    onClose();
+  const handleParamChange = (key: string, value: unknown) => {
+    setStrategyParams((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSubmit = async () => {
+  const handleCreate = async () => {
     if (!selectedStrategy) return;
     if (!botName.trim()) {
       toast('Bot name is required', 'error');
       return;
     }
-    if (!symbol.trim()) {
-      toast('Trading pair is required', 'error');
-      return;
-    }
 
     setSubmitting(true);
     try {
-      const payload: BotCreatePayload = {
+      const strategyKey = selectedStrategy.name as 'grid' | 'dca' | 'trend_follower' | 'smc';
+      const paramsWithEnabled = { enabled: true, ...strategyParams };
+
+      const payload: BotCreateRequest = {
         name: botName.trim(),
         symbol: symbol.trim(),
-        strategy: selectedStrategy.name,
-        exchange: {
-          exchange_id: exchangeId,
-          credentials_name: 'default',
-          sandbox,
-          rate_limit: true,
-        },
-        risk_management: {
-          max_position_size: '1000',
-          max_daily_loss: '100',
-          stop_loss_percentage: '5',
-        },
+        strategy: strategyKey,
+        exchange_id: exchange,
+        credentials_name: 'default',
         dry_run: dryRun,
-        auto_start: false,
+        risk_management: { max_position_size: 1000 },
+        [strategyKey]: paramsWithEnabled,
       };
-
-      // Attach strategy-specific config
-      if (selectedStrategy.name === 'grid') payload.grid = strategyConfig;
-      else if (selectedStrategy.name === 'dca') payload.dca = strategyConfig;
-      else if (selectedStrategy.name === 'trend_follower') payload.trend_follower = strategyConfig;
 
       await botsApi.create(payload);
       toast(`Bot "${botName}" created successfully`, 'success');
-      handleClose();
       onCreated();
+      onClose();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        'Failed to create bot';
-      toast(msg, 'error');
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast(detail ?? 'Failed to create bot', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const schemaProps =
-    (selectedStrategy?.config_schema?.properties as Record<string, Record<string, unknown>>) || {};
+  const schemaProperties = selectedStrategy
+    ? ((selectedStrategy.config_schema.properties ?? {}) as Record<string, SchemaProperty>)
+    : {};
+
+  const editableProperties = Object.entries(schemaProperties).filter(
+    ([key]) => key !== 'enabled',
+  );
 
   return (
     <Modal
       open={open}
-      onClose={handleClose}
-      title={step === 'select-strategy' ? 'Create Bot — Select Strategy' : 'Create Bot — Configure'}
-      maxWidth="max-w-lg"
+      onClose={onClose}
+      title={step === 1 ? 'Select Strategy' : 'Configure Bot'}
+      maxWidth="max-w-2xl"
     >
-      {step === 'select-strategy' && (
-        <div className="grid grid-cols-1 gap-3">
-          {strategyTypes.map((type) => (
-            <button
-              key={type.name}
-              disabled={type.coming_soon}
-              onClick={() => handleSelectStrategy(type)}
-              className={`text-left p-4 rounded-lg border transition-colors ${
-                type.coming_soon
-                  ? 'border-border bg-background opacity-50 cursor-not-allowed'
-                  : 'border-border bg-background hover:border-primary cursor-pointer'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-text">
-                  {STRATEGY_LABELS[type.name] || type.name}
-                </span>
-                {type.coming_soon && (
-                  <Badge variant="default">Coming Soon</Badge>
-                )}
+      {/* Step indicator — hidden when strategy is preset (step 1 is skipped) */}
+      {!presetStrategy && (
+        <div className="flex items-center gap-2 mb-5">
+          {[1, 2].map((s) => (
+            <div key={s} className="flex items-center gap-2">
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                  step === s
+                    ? 'bg-primary text-white'
+                    : s < step
+                    ? 'bg-profit text-white'
+                    : 'bg-border text-text-muted'
+                }`}
+              >
+                {s < step ? '✓' : s}
               </div>
-              <p className="text-xs text-text-muted">{type.description}</p>
-            </button>
+              <span
+                className={`text-xs ${step === s ? 'text-text font-medium' : 'text-text-muted'}`}
+              >
+                {s === 1 ? 'Strategy' : 'Settings'}
+              </span>
+              {s < 2 && <div className="w-6 h-px bg-border mx-1" />}
+            </div>
           ))}
         </div>
       )}
 
-      {step === 'configure' && selectedStrategy && (
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          {/* Basic fields */}
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Bot Name</label>
-            <input
-              type="text"
-              placeholder="my-grid-bot"
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
-              value={botName}
-              onChange={(e) => setBotName(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Trading Pair</label>
-            <input
-              type="text"
-              placeholder="BTC/USDT"
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Exchange</label>
-            <select
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
-              value={exchangeId}
-              onChange={(e) => setExchangeId(e.target.value)}
-            >
-              <option value="binance">Binance</option>
-              <option value="bybit">Bybit</option>
-              <option value="okx">OKX</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
-              <input
-                type="checkbox"
-                className="w-4 h-4 accent-primary"
-                checked={sandbox}
-                onChange={(e) => setSandbox(e.target.checked)}
-              />
-              <span>Sandbox / Testnet</span>
-            </label>
-            <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
-              <input
-                type="checkbox"
-                className="w-4 h-4 accent-primary"
-                checked={dryRun}
-                onChange={(e) => setDryRun(e.target.checked)}
-              />
-              <span>Dry Run</span>
-            </label>
-          </div>
-
-          {/* Dynamic strategy config */}
-          {Object.keys(schemaProps).length > 0 && (
-            <>
-              <hr className="border-border" />
-              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide">
-                {STRATEGY_LABELS[selectedStrategy.name] || selectedStrategy.name} Parameters
-              </p>
-              {Object.entries(schemaProps).map(([key, fieldSchema]) => (
-                <SchemaField
-                  key={key}
-                  fieldKey={key}
-                  schema={fieldSchema}
-                  value={strategyConfig[key]}
-                  onChange={(v) => setStrategyConfig((prev) => ({ ...prev, [key]: v }))}
+      {/* Step 1: Strategy selection */}
+      {step === 1 && (
+        <div>
+          {loadingStrategies ? (
+            <div className="grid grid-cols-2 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="p-4 rounded-xl border border-border bg-surface">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-20 mb-2" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-3/4 mt-1" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {strategies.map((strategy) => (
+                <StrategyCard
+                  key={strategy.name}
+                  strategy={strategy}
+                  selected={selectedStrategy?.name === strategy.name}
+                  disabled={strategy.name === 'smc'}
+                  onClick={() => handleSelectStrategy(strategy)}
                 />
               ))}
-            </>
+            </div>
           )}
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-6">
-        {step === 'configure' && !presetStrategy ? (
-          <Button variant="ghost" size="sm" onClick={handleBack}>
-            ← Back
-          </Button>
-        ) : (
-          <span />
-        )}
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={handleClose}>
-            Cancel
-          </Button>
-          {step === 'configure' && (
-            <Button variant="primary" size="sm" onClick={handleSubmit} disabled={submitting}>
+      {/* Step 2: Configuration */}
+      {step === 2 && selectedStrategy && (
+        <div className="space-y-4">
+          {/* Basic settings */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-text-muted mb-1">Bot Name</label>
+              <input
+                type="text"
+                value={botName}
+                onChange={(e) => setBotName(e.target.value)}
+                placeholder="my-grid-bot"
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">Trading Pair</label>
+              <input
+                type="text"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                placeholder="BTC/USDT"
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">Exchange</label>
+              <select
+                value={exchange}
+                onChange={(e) => setExchange(e.target.value)}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary"
+              >
+                <option value="binance">Binance</option>
+                <option value="bybit">Bybit</option>
+                <option value="okx">OKX</option>
+              </select>
+            </div>
+            <div className="flex items-center">
+              <Toggle
+                checked={dryRun}
+                onChange={setDryRun}
+                label="Dry Run (simulation)"
+              />
+            </div>
+          </div>
+
+          {/* Strategy-specific params */}
+          {editableProperties.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">
+                {STRATEGY_DISPLAY_NAMES[selectedStrategy.name] ?? selectedStrategy.name} Parameters
+              </p>
+              <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
+                {editableProperties.map(([key, prop]) => (
+                  <DynamicField
+                    key={key}
+                    name={key}
+                    prop={prop}
+                    value={strategyParams[key]}
+                    onChange={(v) => handleParamChange(key, v)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <Button variant="ghost" onClick={handleBack}>
+              {presetStrategy ? '← Cancel' : '← Back'}
+            </Button>
+            <Button onClick={handleCreate} disabled={submitting || !botName.trim()}>
               {submitting ? 'Creating…' : 'Create Bot'}
             </Button>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </Modal>
   );
 }

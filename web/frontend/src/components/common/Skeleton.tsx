@@ -29,15 +29,18 @@ export function SkeletonBotCard() {
         <Skeleton className="h-5 w-12 rounded-full" />
         <Skeleton className="h-3 w-20" />
       </div>
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <Skeleton className="h-3 w-8 mb-1" />
-          <Skeleton className="h-4 w-16" />
+      <div className="flex items-end justify-between mb-4">
+        <div className="grid grid-cols-2 gap-3 flex-1">
+          <div>
+            <Skeleton className="h-3 w-8 mb-1" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <div>
+            <Skeleton className="h-3 w-10 mb-1" />
+            <Skeleton className="h-4 w-10" />
+          </div>
         </div>
-        <div>
-          <Skeleton className="h-3 w-10 mb-1" />
-          <Skeleton className="h-4 w-10" />
-        </div>
+        <Skeleton className="ml-3 h-10 w-28 rounded" />
       </div>
       <Skeleton className="h-7 w-16 rounded-lg" />
     </div>

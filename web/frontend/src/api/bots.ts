@@ -10,6 +10,49 @@ export interface BotListItem {
   active_positions: number;
 }
 
+export interface BotCreateRequest {
+  name: string;
+  symbol: string;
+  strategy: string;
+  exchange_id: string;
+  credentials_name: string;
+  dry_run: boolean;
+  risk_management: {
+    max_position_size: number;
+  };
+  grid?: Record<string, unknown>;
+  dca?: Record<string, unknown>;
+  trend_follower?: Record<string, unknown>;
+  smc?: Record<string, unknown>;
+}
+
+export interface BotCreateResponse {
+  name: string;
+  symbol: string;
+  strategy: string;
+  dry_run: boolean;
+  message: string;
+}
+
+export interface BotUpdateRequest {
+  dry_run?: boolean;
+  risk_management?: { max_position_size: number };
+  grid?: Record<string, unknown>;
+  dca?: Record<string, unknown>;
+  trend_follower?: Record<string, unknown>;
+}
+
+export interface Trade {
+  id: number;
+  symbol: string;
+  side: string;
+  price: string;
+  amount: string;
+  fee: string;
+  profit: string | null;
+  executed_at: string;
+}
+
 export interface BotStatus {
   name: string;
   strategy: string;
@@ -44,62 +87,24 @@ export interface PnL {
   losing_trades: number;
 }
 
-export interface Trade {
-  id: number;
-  symbol: string;
-  side: string;
-  price: string;
-  amount: string;
-  fee: string;
-  profit: string | null;
-  executed_at: string;
+export interface PnLDataPoint {
+  timestamp: number;
+  value: number;
 }
 
-export interface BotCreatePayload {
-  name: string;
-  symbol: string;
-  strategy: string;
-  exchange: {
-    exchange_id: string;
-    credentials_name: string;
-    sandbox: boolean;
-    rate_limit: boolean;
-  };
-  grid?: Record<string, unknown>;
-  dca?: Record<string, unknown>;
-  trend_follower?: Record<string, unknown>;
-  risk_management: {
-    max_position_size: string;
-    max_daily_loss: string;
-    stop_loss_percentage: string;
-  };
-  dry_run: boolean;
-  auto_start: boolean;
-}
-
-export interface BotUpdatePayload {
-  dry_run?: boolean;
-  risk_management?: Record<string, unknown>;
-  grid?: Record<string, unknown>;
-  dca?: Record<string, unknown>;
-  trend_follower?: Record<string, unknown>;
+export interface PnLHistory {
+  points: PnLDataPoint[];
 }
 
 export const botsApi = {
+  create: (data: BotCreateRequest) =>
+    client.post<BotCreateResponse>('/api/v1/bots', data),
+
   list: (params?: { strategy?: string; status?: string; symbol?: string }) =>
     client.get<BotListItem[]>('/api/v1/bots', { params }),
 
   get: (name: string) =>
     client.get<BotStatus>(`/api/v1/bots/${name}`),
-
-  create: (data: BotCreatePayload) =>
-    client.post<{ message: string }>('/api/v1/bots', data),
-
-  update: (name: string, data: BotUpdatePayload) =>
-    client.put<{ message: string }>(`/api/v1/bots/${name}`, data),
-
-  delete: (name: string) =>
-    client.delete<{ message: string }>(`/api/v1/bots/${name}`),
 
   start: (name: string) =>
     client.post(`/api/v1/bots/${name}/start`),
@@ -119,9 +124,15 @@ export const botsApi = {
   getPositions: (name: string) =>
     client.get<Position[]>(`/api/v1/bots/${name}/positions`),
 
+  update: (name: string, data: BotUpdateRequest) =>
+    client.put(`/api/v1/bots/${name}`, data),
+
+  delete: (name: string) =>
+    client.delete(`/api/v1/bots/${name}`),
+
   getPnl: (name: string) =>
     client.get<PnL>(`/api/v1/bots/${name}/pnl`),
 
-  getTrades: (name: string, limit = 50) =>
-    client.get<Trade[]>(`/api/v1/bots/${name}/trades`, { params: { limit } }),
+  getPnlHistory: (name: string, period: string = '7d') =>
+    client.get<PnLHistory>(`/api/v1/bots/${name}/pnl/history`, { params: { period } }),
 };
