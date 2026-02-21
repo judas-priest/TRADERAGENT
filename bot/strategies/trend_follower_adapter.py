@@ -73,6 +73,8 @@ class TrendFollowerAdapter(BaseStrategy):
         )
         self._name = name
         self._config = config or TrendFollowerConfig()
+        self._initial_capital = initial_capital
+        self._log_trades = log_trades
         self._last_analysis: BaseMarketAnalysis | None = None
         self._last_df: pd.DataFrame | None = None
 
@@ -296,8 +298,13 @@ class TrendFollowerAdapter(BaseStrategy):
         )
 
     def reset(self) -> None:
-        """Reset underlying strategy state."""
+        """Reset underlying strategy state by recreating TrendFollowerStrategy."""
         self._pending_signal = None
         self._pending_metrics = None
         self._last_analysis = None
         self._last_df = None
+        self._strategy = TrendFollowerStrategy(
+            config=self._config,
+            initial_capital=self._initial_capital,
+            log_trades=self._log_trades,
+        )
