@@ -4,6 +4,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { Login } from '../pages/Login';
 import { Dashboard } from '../pages/Dashboard';
 import { Bots } from '../pages/Bots';
+import { BotDetail } from '../pages/BotDetail';
 import { Strategies } from '../pages/Strategies';
 import { Portfolio } from '../pages/Portfolio';
 import { Backtesting } from '../pages/Backtesting';
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
         children: [
           { path: '/', element: <Dashboard /> },
           { path: '/bots', element: <Bots /> },
+          { path: '/bots/:botName', element: <BotDetail /> },
           { path: '/strategies', element: <Strategies /> },
           { path: '/portfolio', element: <Portfolio /> },
           { path: '/backtesting', element: <Backtesting /> },

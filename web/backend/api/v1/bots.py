@@ -11,6 +11,7 @@ from web.backend.schemas.bot import (
     BotCreateResponse,
     BotListResponse,
     BotStatusResponse,
+    BotUpdateRequest,
     PnLResponse,
     PositionResponse,
 )
@@ -107,6 +108,20 @@ async def get_bot(
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
     return result
+
+
+@router.put("/{bot_name}", response_model=SuccessResponse)
+async def update_bot(
+    bot_name: str,
+    data: BotUpdateRequest,
+    _: User = Depends(get_current_user),
+    service: BotService = Depends(_get_bot_service),
+):
+    """Update bot configuration."""
+    success = await service.update_bot(bot_name, data.model_dump(exclude_none=True))
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
+    return SuccessResponse(message=f"Bot '{bot_name}' updated successfully")
 
 
 @router.post("/{bot_name}/start", response_model=SuccessResponse)

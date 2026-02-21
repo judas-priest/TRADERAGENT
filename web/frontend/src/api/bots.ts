@@ -34,6 +34,25 @@ export interface BotCreateResponse {
   message: string;
 }
 
+export interface BotUpdateRequest {
+  dry_run?: boolean;
+  risk_management?: { max_position_size: number };
+  grid?: Record<string, unknown>;
+  dca?: Record<string, unknown>;
+  trend_follower?: Record<string, unknown>;
+}
+
+export interface Trade {
+  id: number;
+  symbol: string;
+  side: string;
+  price: string;
+  amount: string;
+  fee: string;
+  profit: string | null;
+  executed_at: string;
+}
+
 export interface BotStatus {
   name: string;
   strategy: string;
@@ -95,6 +114,9 @@ export const botsApi = {
 
   getPositions: (name: string) =>
     client.get<Position[]>(`/api/v1/bots/${name}/positions`),
+
+  update: (name: string, data: BotUpdateRequest) =>
+    client.put(`/api/v1/bots/${name}`, data),
 
   getPnl: (name: string) =>
     client.get<PnL>(`/api/v1/bots/${name}/pnl`),

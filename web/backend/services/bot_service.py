@@ -10,7 +10,6 @@ from web.backend.schemas.bot import (
     BotStatusResponse,
     PnLResponse,
     PositionResponse,
-    TradeResponse,
 )
 
 
@@ -188,7 +187,9 @@ class BotService:
                         size=Decimal(str(dca.get("position_amount", 0))),
                         entry_price=Decimal(str(dca.get("average_entry_price", 0))),
                         current_price=(
-                            Decimal(status["current_price"]) if status.get("current_price") else None
+                            Decimal(status["current_price"])
+                            if status.get("current_price")
+                            else None
                         ),
                     )
                 )
@@ -196,6 +197,19 @@ class BotService:
             return positions
         except Exception:
             return []
+
+    async def update_bot(self, bot_name: str, data: dict) -> bool:
+        """Update bot configuration (dry_run and strategy params)."""
+        orch = self.orchestrators.get(bot_name)
+        if not orch:
+            return False
+        config = orch.bot_config
+        if "dry_run" in data and data["dry_run"] is not None:
+            config.dry_run = data["dry_run"]
+        for key in ("grid", "dca", "trend_follower", "risk_management"):
+            if key in data and data[key] is not None:
+                setattr(config, key, data[key])
+        return True
 
     async def get_pnl(self, bot_name: str) -> PnLResponse | None:
         """Get PnL metrics for a bot."""
