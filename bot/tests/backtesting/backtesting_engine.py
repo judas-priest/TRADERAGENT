@@ -51,6 +51,16 @@ class BacktestResult:
     trade_history: list[dict[str, Any]] = field(default_factory=list)
     equity_curve: list[dict[str, Any]] = field(default_factory=list)
 
+    # Regime tracking
+    regime_history: list[dict[str, Any]] = field(default_factory=list)
+    regime_changes: int = 0
+    regime_filter_blocks: int = 0
+
+    # Risk management tracking
+    risk_manager_blocks: int = 0
+    risk_halted: bool = False
+    risk_halt_reason: str | None = None
+
     def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary"""
         return {
@@ -86,6 +96,16 @@ class BacktestResult:
             },
             "trade_count": len(self.trade_history),
             "data_points": len(self.equity_curve),
+            "regime_tracking": {
+                "regime_history_count": len(self.regime_history),
+                "regime_changes": self.regime_changes,
+                "regime_filter_blocks": self.regime_filter_blocks,
+            },
+            "risk_management": {
+                "risk_manager_blocks": self.risk_manager_blocks,
+                "risk_halted": self.risk_halted,
+                "risk_halt_reason": self.risk_halt_reason,
+            },
         }
 
     def print_summary(self) -> None:
@@ -128,6 +148,15 @@ class BacktestResult:
             print("\nRisk Metrics:")
             for line in risk_lines:
                 print(line)
+        if self.regime_changes or self.regime_filter_blocks:
+            print("\nRegime Tracking:")
+            print(f"  Regime Changes:    {self.regime_changes}")
+            print(f"  Signals Blocked:   {self.regime_filter_blocks}")
+        if self.risk_manager_blocks or self.risk_halted:
+            print("\nRisk Management:")
+            print(f"  Trades Blocked:    {self.risk_manager_blocks}")
+            if self.risk_halted:
+                print(f"  HALTED: {self.risk_halt_reason}")
         print("=" * 70)
 
 

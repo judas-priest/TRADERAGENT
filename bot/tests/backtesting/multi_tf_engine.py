@@ -18,6 +18,14 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from bot.core.risk_manager import RiskManager
+from bot.orchestrator.market_regime import (
+    MarketRegime,
+    MarketRegimeDetector,
+    RecommendedStrategy,
+    RegimeAnalysis,
+)
+from bot.orchestrator.strategy_selector import DEFAULT_REGIME_STRATEGIES
 from bot.strategies.base import BaseStrategy, ExitReason, SignalDirection
 from bot.tests.backtesting.backtesting_engine import BacktestResult
 from bot.tests.backtesting.market_simulator import MarketSimulator
@@ -27,6 +35,12 @@ from bot.tests.backtesting.multi_tf_data_loader import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Build regime → allowed strategy types from the production mapping.
+REGIME_ALLOWED_STRATEGY_TYPES: dict[MarketRegime, set[str]] = {
+    regime: {sw.strategy_type for sw in weights}
+    for regime, weights in DEFAULT_REGIME_STRATEGIES.items()
+}
 
 
 @dataclass
@@ -41,6 +55,19 @@ class MultiTFBacktestConfig:
     risk_per_trade: Decimal = Decimal("0.02")
     max_position_pct: Decimal = Decimal("0.5")
     use_candle_sweep: bool = False
+
+    # Regime filtering (opt-in)
+    enable_regime_filter: bool = False
+    regime_check_interval: int = 12  # every N M5 bars (12 = every 1h)
+    regime_timeframe: str = "h1"  # which TF to use for regime detection
+
+    # Risk management (opt-in)
+    enable_risk_manager: bool = False
+    rm_max_position_size: Decimal = Decimal("5000")
+    rm_min_order_size: Decimal = Decimal("10")
+    rm_stop_loss_percentage: Decimal | None = None  # e.g. Decimal("0.1") = 10%
+    rm_max_daily_loss: Decimal | None = None  # e.g. Decimal("500")
+    rm_daily_loss_reset_bars: int = 288  # 288 M5 bars = 24h
 
 
 class MultiTimeframeBacktestEngine:
@@ -63,6 +90,16 @@ class MultiTimeframeBacktestEngine:
         self.data_loader = MultiTimeframeDataLoader()
         self._position_amounts: dict[str, Decimal] = {}
         self._position_directions: dict[str, SignalDirection] = {}
+
+        # Regime / risk state (initialized in run())
+        self._regime_detector: MarketRegimeDetector | None = None
+        self._risk_manager: RiskManager | None = None
+        self._current_regime: RegimeAnalysis | None = None
+
+        # Tracking counters
+        self._regime_history: list[dict[str, Any]] = []
+        self._regime_filter_blocks: int = 0
+        self._risk_manager_blocks: int = 0
 
     async def run(
         self,
@@ -88,6 +125,28 @@ class MultiTimeframeBacktestEngine:
             initial_balance_quote=self.config.initial_balance,
         )
 
+        # Initialize regime detector (opt-in)
+        if self.config.enable_regime_filter:
+            self._regime_detector = MarketRegimeDetector()
+        else:
+            self._regime_detector = None
+        self._current_regime = None
+        self._regime_history = []
+        self._regime_filter_blocks = 0
+
+        # Initialize risk manager (opt-in)
+        if self.config.enable_risk_manager:
+            self._risk_manager = RiskManager(
+                max_position_size=self.config.rm_max_position_size,
+                min_order_size=self.config.rm_min_order_size,
+                stop_loss_percentage=self.config.rm_stop_loss_percentage,
+                max_daily_loss=self.config.rm_max_daily_loss,
+            )
+            self._risk_manager.initialize_balance(self.config.initial_balance)
+        else:
+            self._risk_manager = None
+        self._risk_manager_blocks = 0
+
         # Run execution loop
         equity_curve, max_drawdown, capital_efficiency = await self._execute_loop(
             strategy, data, simulator
@@ -95,7 +154,7 @@ class MultiTimeframeBacktestEngine:
 
         # Build result — use the finest-resolution TF for time range
         base_df = data.m5
-        return self._build_result(
+        result = self._build_result(
             strategy_name=strategy.get_strategy_name(),
             simulator=simulator,
             equity_curve=equity_curve,
@@ -104,6 +163,17 @@ class MultiTimeframeBacktestEngine:
             end_time=base_df.index[-1].to_pydatetime(),
             capital_efficiency=capital_efficiency,
         )
+
+        # Enrich with regime/risk tracking data
+        result.regime_history = self._regime_history
+        result.regime_changes = self._count_regime_changes()
+        result.regime_filter_blocks = self._regime_filter_blocks
+        result.risk_manager_blocks = self._risk_manager_blocks
+        if self._risk_manager:
+            result.risk_halted = self._risk_manager.is_halted
+            result.risk_halt_reason = self._risk_manager.halt_reason
+
+        return result
 
     async def run_with_generated_data(
         self,
@@ -166,8 +236,25 @@ class MultiTimeframeBacktestEngine:
             else:
                 await simulator.set_price(current_price)
 
+            # Regime detection (opt-in, every N bars)
+            bars_since_warmup = i - self.config.warmup_bars
+            if self._regime_detector and bars_since_warmup % self.config.regime_check_interval == 0:
+                regime_df = {"h1": df_h1, "h4": df_h4, "d1": df_d1}.get(
+                    self.config.regime_timeframe, df_h1
+                )
+                if len(regime_df) >= 60:
+                    self._current_regime = self._regime_detector.analyze(regime_df)
+                    self._regime_history.append(
+                        {
+                            "bar": i,
+                            "regime": self._current_regime.regime.value,
+                            "confidence": self._current_regime.confidence,
+                            "recommended": self._current_regime.recommended_strategy.value,
+                        }
+                    )
+
             # Periodically analyze market — pass all 5 TFs
-            if (i - self.config.warmup_bars) % self.config.analyze_every_n == 0:
+            if bars_since_warmup % self.config.analyze_every_n == 0:
                 try:
                     strategy.analyze_market(df_d1, df_h4, df_h1, df_m15, df_m5)
                 except Exception as e:
@@ -197,13 +284,14 @@ class MultiTimeframeBacktestEngine:
 
             # Record equity curve
             portfolio_value = simulator.get_portfolio_value()
-            equity_curve.append(
-                {
-                    "timestamp": base_df.index[i].isoformat(),
-                    "price": float(current_price),
-                    "portfolio_value": float(portfolio_value),
-                }
-            )
+            ec_entry: dict[str, Any] = {
+                "timestamp": base_df.index[i].isoformat(),
+                "price": float(current_price),
+                "portfolio_value": float(portfolio_value),
+            }
+            if self._current_regime:
+                ec_entry["regime"] = self._current_regime.regime.value
+            equity_curve.append(ec_entry)
 
             # Track capital efficiency (base_value / portfolio_value)
             base_value = simulator.balance.base * current_price
@@ -219,6 +307,15 @@ class MultiTimeframeBacktestEngine:
                 if drawdown > max_drawdown:
                     max_drawdown = drawdown
 
+            # Risk manager balance update + halt check
+            if self._risk_manager:
+                self._risk_manager.update_balance(portfolio_value)
+                # Daily reset every N bars (simulates UTC midnight)
+                if bars_since_warmup > 0 and bars_since_warmup % self.config.rm_daily_loss_reset_bars == 0:
+                    self._risk_manager.reset_daily_loss()
+                if self._risk_manager.is_halted:
+                    break
+
             # Yield to event loop
             await asyncio.sleep(0)
 
@@ -233,6 +330,21 @@ class MultiTimeframeBacktestEngine:
         simulator: MarketSimulator,
     ) -> None:
         """Open position in strategy and place market order on simulator."""
+        # Regime filter: block signals if strategy type doesn't match current regime
+        if self._current_regime and self.config.enable_regime_filter:
+            recommended = self._current_regime.recommended_strategy
+            # HOLD and REDUCE_EXPOSURE block all new entries
+            if recommended in (RecommendedStrategy.HOLD, RecommendedStrategy.REDUCE_EXPOSURE):
+                self._regime_filter_blocks += 1
+                return
+            strategy_type = strategy.get_strategy_type()
+            allowed_types = REGIME_ALLOWED_STRATEGY_TYPES.get(
+                self._current_regime.regime, set()
+            )
+            if allowed_types and strategy_type not in allowed_types:
+                self._regime_filter_blocks += 1
+                return
+
         # Calculate position size
         balance = simulator.get_portfolio_value()
         position_size = self._calculate_position_size(signal, balance, current_price)
@@ -243,6 +355,20 @@ class MultiTimeframeBacktestEngine:
         cost = position_size * current_price
         if cost > simulator.balance.quote:
             return
+
+        # Risk manager gating
+        if self._risk_manager:
+            current_position_value = sum(
+                amt * current_price for amt in self._position_amounts.values()
+            )
+            risk_check = self._risk_manager.check_trade(
+                order_value=cost,
+                current_position=current_position_value,
+                available_balance=simulator.balance.quote,
+            )
+            if not risk_check:
+                self._risk_manager_blocks += 1
+                return
 
         try:
             # Open position in strategy
@@ -334,6 +460,14 @@ class MultiTimeframeBacktestEngine:
             return Decimal("0")
 
         return position_value / current_price
+
+    def _count_regime_changes(self) -> int:
+        """Count how many times the regime changed during the backtest."""
+        changes = 0
+        for i in range(1, len(self._regime_history)):
+            if self._regime_history[i]["regime"] != self._regime_history[i - 1]["regime"]:
+                changes += 1
+        return changes
 
     def _build_result(
         self,
