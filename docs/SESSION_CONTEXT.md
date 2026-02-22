@@ -3,7 +3,7 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 22 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + **RegimeClassifier + RiskManager integrated into Multi-TF Backtester**
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + RegimeClassifier + RiskManager integrated into Multi-TF Backtester + **Plan bektestirovaniya DCA+TF+SMC na VM-16-32 podgotovlen**
 **Pass Rate:** 100% (1551/1551 tests passing, 25 skipped)
 **Realnyy obem testov:** 1576 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
@@ -12,10 +12,84 @@
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
 **Posledniy commit:** `f431d31` (feat: integrate RegimeClassifier + RiskManager into multi-TF backtester)
 **Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE v dry_run rezhime)
+**Backtest Plan:** `docs/BACKTEST_PLAN_DCA_TF_SMC.md` — 5 faz, 48,400 bektestov, ~3 chasa na VM-16-32
 
 ---
 
-## Poslednyaya Sessiya (2026-02-22) - Session 21: RegimeClassifier + RiskManager v Multi-TF Backtester
+## Poslednyaya Sessiya (2026-02-22) - Session 22: Plan bektestirovaniya DCA + Trend Follower + SMC
+
+### Zadacha
+
+Podgotovit polnyy plan bektestirovaniya trekh strategiy (DCA, Trend Follower, SMC) cherez edinyy multi-TF dvizhok na vydelennoy VM (16 vCPU / 32 GB RAM / 100 GB SSD).
+
+### Analiz infrastruktury
+
+Provedyon audit dvuh sistem bektestirovaniya:
+
+| Sistema | Raspolozheniye | Strategii | Rezhimy |
+|---------|---------------|-----------|---------|
+| Bot layer | `bot/tests/backtesting/` | Vse (DCA, TF, SMC, Grid) | RegimeClassifier + RiskManager |
+| Service layer | `services/backtesting/` | Tolko Grid | Net |
+
+**Vyvod:** Dlya DCA + TF + SMC ispolzuyem **tolko bot layer** (`MultiTimeframeBacktestEngine`).
+Service layer ostavlyayem dlya Grid-spetsifichnyh zadach.
+
+Sistemy ne dublirovany — u kazhdoy svoya spetsializatsiya:
+- Bot layer: universalnyy multi-strategy engine + 6-regime filtering + risk management
+- Service layer: glubokaya Grid-logika (trailing, cycles, fill rate) + REST API + CoinClusterizer
+
+### Gotovnost strategiy
+
+| Adapter | Fayl | BaseStrategy | Napravleniya | Optimiziruemye parametry |
+|---------|------|-------------|-------------|--------------------------|
+| `DCAAdapter` | `bot/strategies/dca_adapter.py` (306 strok) | Da | LONG | price_deviation, safety_step, take_profit, max_safety_orders |
+| `TrendFollowerAdapter` | `bot/strategies/trend_follower_adapter.py` (310 strok) | Da | LONG+SHORT | ema_fast, ema_slow, volume_confirm, atr_filter |
+| `SMCStrategyAdapter` | `bot/strategies/smc_adapter.py` (308 strok) | Da | LONG+SHORT | swing_length, min_risk_reward, risk_per_trade, close_mitigation |
+
+### Plan bektestirovaniya (5 faz)
+
+| Faza | Opisaniye | Bektestov | Vremya | CPU | RAM |
+|------|-----------|-----------|--------|-----|-----|
+| 0 | Zagruzka M5 dannyh dlya 18 par (12 mes) | — | ~1 ch | 4 | 2 GB |
+| 1 | Baseline: 18 par × 3 strategii, default params | 54 | ~2 min | 14 | 4 GB |
+| 2 | Optimizatsiya: grid search + two-phase fine-tuning | 20,304 | ~15 min | 14 | 12 GB |
+| 3 | Regime-Aware: luchshie konfigi + RegimeClassifier + RiskManager | 54 | ~2 min | 14 | 4 GB |
+| 4 | Robastnost: Walk-Forward, Stress, Monte Carlo, Sensitivity | ~28,000 | ~50 min | 14 | 16 GB |
+| 5 | Otchyot: ranzhirovaniye, filtratsiya, capital allocation | — | ~30 min | 2 | 4 GB |
+| **Itogo** | | **~48,400** | **~3 chasa** | | |
+
+### Tselevye pary (18 sht, 3 tira)
+
+- **Blue Chips (5):** BTC, ETH, SOL, BNB, XRP
+- **Mid Caps (8):** DOGE, ADA, AVAX, LINK, DOT, MATIC, NEAR, APT
+- **Volatile (5):** PEPE, WIF, BONK, SUI, SEI
+
+### Kriterii uspekha
+
+| Metriks | Porog |
+|---------|-------|
+| Sharpe Ratio (regime-aware) | > 1.0 |
+| Max Drawdown | < 15% |
+| Win Rate | > 45% |
+| Walk-Forward Consistency | >= 0.6 |
+| Monte Carlo 95th DD | < 20% |
+
+### Novyy kod dlya realizatsii
+
+| # | Skript | Strok |
+|---|--------|-------|
+| 1 | `scripts/download_m5_data.py` — parallelnaya zagruzka M5 | ~150 |
+| 2 | `scripts/run_dca_tf_smc_pipeline.py` — edinyy pipeline fazy 1-5 | ~400 |
+| 3 | Adaptatsiya `ParameterOptimizer` — ProcessPoolExecutor | ~30 diff |
+| 4 | Regime routing report generator | ~100 |
+
+### Sohranonnye fayly
+
+- `docs/BACKTEST_PLAN_DCA_TF_SMC.md` — polnyy plan s detalizatsiyey (novyy)
+
+---
+
+## Predydushchaya Sessiya (2026-02-22) - Session 21: RegimeClassifier + RiskManager v Multi-TF Backtester
 
 ### Zadacha
 
