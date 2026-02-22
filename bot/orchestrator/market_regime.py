@@ -1,23 +1,33 @@
 """
-MarketRegimeDetector - Determines current market regime for strategy selection.
+MarketRegimeDetector v2.0 - 6-regime classifier with ADX hysteresis.
 
-Market Regimes:
-- TRENDING_BULLISH: Strong upward trend → DCA or Hybrid
-- TRENDING_BEARISH: Strong downward trend → DCA or Hybrid
-- SIDEWAYS/RANGING: Low volatility consolidation → Grid
-- HIGH_VOLATILITY: Extreme moves → Reduce exposure / pause
-- TRANSITIONING: Regime change in progress → Monitor
+Market Regimes (v2.0):
+- TIGHT_RANGE: ADX<18, ATR<1% → Grid (tight spreads)
+- WIDE_RANGE: ADX<18, ATR>=1% → Grid (wider spreads)
+- QUIET_TRANSITION: ADX 22-32, ATR<2% → Hold
+- VOLATILE_TRANSITION: ADX 22-32, ATR>=2% → Reduce exposure
+- BULL_TREND: ADX>32, EMA20>EMA50 → Trend follower / DCA
+- BEAR_TREND: ADX>32, EMA20<EMA50 → DCA
+
+ADX Hysteresis (prevents regime oscillation):
+- Enter trending: ADX must rise above 32
+- Exit trending: ADX must drop below 25
+- Enter ranging: ADX must drop below 18
+- Exit ranging: ADX must rise above 22
 
 Strategy Selection Logic (v2.0):
-- Sideways → Grid Engine
-- Trend + Low Confluence (<0.7) → DCA Engine
-- Trend + High Confluence (≥0.7) → Hybrid Mode (Grid + DCA)
+- TIGHT_RANGE / WIDE_RANGE → Grid Engine
+- BULL_TREND + High Confluence (≥0.7) → Hybrid Mode
+- BULL_TREND + Low Confluence → DCA Engine
+- BEAR_TREND → DCA Engine
+- QUIET_TRANSITION → Hold
+- VOLATILE_TRANSITION → Reduce exposure
 
-Indicators (v2.0 enhanced):
+Indicators:
 - EMA crossover (fast/slow) for trend direction
-- ADX for trend strength measurement
-- Bollinger Bands width for volatility/ranging detection
-- ATR for volatility measurement
+- ADX for trend strength with hysteresis thresholds
+- ATR % for volatility-based regime subdivision
+- Bollinger Bands width for volatility detection
 - RSI for momentum
 - Volume ratio for regime confirmation
 """
@@ -36,13 +46,14 @@ logger = get_logger(__name__)
 
 
 class MarketRegime(str, Enum):
-    """Detected market regime."""
+    """Detected market regime (v2.0 — 6 regimes with ADX hysteresis)."""
 
-    TRENDING_BULLISH = "trending_bullish"
-    TRENDING_BEARISH = "trending_bearish"
-    SIDEWAYS = "sideways"
-    HIGH_VOLATILITY = "high_volatility"
-    TRANSITIONING = "transitioning"
+    TIGHT_RANGE = "tight_range"  # ADX<18, ATR<1%
+    WIDE_RANGE = "wide_range"  # ADX<18, ATR>=1%
+    QUIET_TRANSITION = "quiet_transition"  # ADX 22-32, ATR<2%
+    VOLATILE_TRANSITION = "volatile_transition"  # ADX 22-32, ATR>=2%
+    BULL_TREND = "bull_trend"  # ADX>32, EMA20>EMA50
+    BEAR_TREND = "bear_trend"  # ADX>32, EMA20<EMA50
     UNKNOWN = "unknown"
 
 
@@ -157,6 +168,14 @@ class MarketRegimeDetector:
         self.confluence_threshold = confluence_threshold
         self.regime_history_size = regime_history_size
 
+        # ADX hysteresis thresholds (v2.0)
+        self.adx_enter_trending = 32.0
+        self.adx_exit_trending = 25.0
+        self.adx_enter_ranging = 18.0
+        self.adx_exit_ranging = 22.0
+        self.atr_wide_threshold = 1.0  # % — splits tight/wide range
+        self.atr_volatile_threshold = 2.0  # % — splits quiet/volatile transition
+
         self._last_analysis: RegimeAnalysis | None = None
         self._regime_history: list[RegimeAnalysis] = []
 
@@ -248,15 +267,14 @@ class MarketRegimeDetector:
         adx_factor = min(current_adx / 50.0, 1.0)
         trend_strength = ema_trend * (0.5 + 0.5 * adx_factor)
 
-        # Detect regime
+        # Detect regime (v2.0: state-dependent hysteresis)
+        current_regime = self._last_analysis.regime if self._last_analysis else None
         regime = self._classify_regime(
-            ema_divergence_pct=ema_divergence_pct,
-            volatility_percentile=vol_pctile,
-            rsi=current_rsi,
-            trend_strength=trend_strength,
             adx=current_adx,
-            bb_width_pct=current_bb_width,
-            volume_ratio=current_volume_ratio,
+            atr_pct=atr_pct,
+            ema_fast=current_ema_fast,
+            ema_slow=current_ema_slow,
+            current_regime=current_regime,
         )
 
         # Calculate confluence score
@@ -343,59 +361,69 @@ class MarketRegimeDetector:
 
     def _classify_regime(
         self,
-        ema_divergence_pct: float,
-        volatility_percentile: float,
-        rsi: float,
-        trend_strength: float,
         adx: float,
-        bb_width_pct: float,
-        volume_ratio: float,
+        atr_pct: float,
+        ema_fast: float,
+        ema_slow: float,
+        current_regime: MarketRegime | None,
     ) -> MarketRegime:
         """
-        Classify market regime based on indicators.
+        Classify market regime with ADX hysteresis (v2.0).
 
-        Priority:
-        1. High volatility (wide BB or vol percentile + volume spike)
-        2. Sideways (low ADX + narrow BB)
-        3. Trending (high ADX + EMA divergence direction)
-        4. Transitioning (conflicting signals)
+        State-dependent thresholds prevent oscillation:
+        - In TREND: ADX must drop below 25 to exit (not 32)
+        - In RANGE: ADX must rise above 22 to exit (not 18)
+        - In TRANSITION or None: standard thresholds (32 for trend, 18 for range)
+
+        Args:
+            adx: Current ADX value.
+            atr_pct: ATR as percentage of price.
+            ema_fast: Current fast EMA value.
+            ema_slow: Current slow EMA value.
+            current_regime: Previous regime for hysteresis (None on first call).
         """
-        # High volatility: wide BB bands or extreme ATR with volume spike
-        if bb_width_pct > 6.0 or (
-            volatility_percentile >= self.high_volatility_percentile and volume_ratio > 2.0
-        ):
-            return MarketRegime.HIGH_VOLATILITY
+        is_in_trend = current_regime in (MarketRegime.BULL_TREND, MarketRegime.BEAR_TREND)
+        is_in_range = current_regime in (MarketRegime.TIGHT_RANGE, MarketRegime.WIDE_RANGE)
 
-        abs_divergence = abs(ema_divergence_pct)
+        # Determine effective ADX thresholds based on current state
+        if is_in_trend:
+            # Stay in trend unless ADX drops below exit threshold
+            if adx >= self.adx_exit_trending:
+                return self._classify_trend(ema_fast, ema_slow)
+            # ADX dropped below exit — fall through to transition/range check
+        elif is_in_range:
+            # Stay in range unless ADX rises above exit threshold
+            if adx < self.adx_exit_ranging:
+                return self._classify_range(atr_pct)
+            # ADX rose above exit — fall through to transition/trend check
 
-        # Sideways: low ADX and narrow BB
-        if adx < 25.0 and bb_width_pct < 2.5:
-            if rsi > 70 or rsi < 30:
-                return MarketRegime.TRANSITIONING
-            return MarketRegime.SIDEWAYS
+        # Standard classification (no hysteresis state or state exited)
+        if adx >= self.adx_enter_trending:
+            return self._classify_trend(ema_fast, ema_slow)
 
-        # Trending: ADX confirms trend strength
-        if adx >= 25.0:
-            if ema_divergence_pct > self.trend_threshold:
-                if volume_ratio < 0.5:
-                    return MarketRegime.TRANSITIONING
-                return MarketRegime.TRENDING_BULLISH
-            elif ema_divergence_pct < -self.trend_threshold:
-                if volume_ratio < 0.5:
-                    return MarketRegime.TRANSITIONING
-                return MarketRegime.TRENDING_BEARISH
+        if adx < self.adx_enter_ranging:
+            return self._classify_range(atr_pct)
 
-        # Moderate ADX (20-25) with EMA trend — possible transition
-        if 20.0 <= adx < 25.0 and abs_divergence > self.trend_threshold:
-            return MarketRegime.TRANSITIONING
+        # Transition zone: ADX between ranging-exit (22) and trending-enter (32)
+        return self._classify_transition(atr_pct)
 
-        # Sideways fallback: low EMA divergence
-        if abs_divergence < self.trend_threshold:
-            if rsi > 70 or rsi < 30:
-                return MarketRegime.TRANSITIONING
-            return MarketRegime.SIDEWAYS
+    def _classify_trend(self, ema_fast: float, ema_slow: float) -> MarketRegime:
+        """Classify trend direction by EMA crossover."""
+        if ema_fast >= ema_slow:
+            return MarketRegime.BULL_TREND
+        return MarketRegime.BEAR_TREND
 
-        return MarketRegime.TRANSITIONING
+    def _classify_range(self, atr_pct: float) -> MarketRegime:
+        """Classify range type by ATR volatility."""
+        if atr_pct < self.atr_wide_threshold:
+            return MarketRegime.TIGHT_RANGE
+        return MarketRegime.WIDE_RANGE
+
+    def _classify_transition(self, atr_pct: float) -> MarketRegime:
+        """Classify transition type by ATR volatility."""
+        if atr_pct < self.atr_volatile_threshold:
+            return MarketRegime.QUIET_TRANSITION
+        return MarketRegime.VOLATILE_TRANSITION
 
     # =========================================================================
     # Confluence & Confidence
@@ -463,30 +491,32 @@ class MarketRegimeDetector:
         self, regime: MarketRegime, confluence_score: float, adx: float
     ) -> RecommendedStrategy:
         """
-        Recommend trading strategy based on regime, confluence, and ADX.
+        Recommend trading strategy based on regime (v2.0).
 
         Logic:
-        - Sideways → Grid
-        - Trend + Low Confluence (<threshold) → DCA
-        - Trend + High Confluence + moderate ADX (20-35) → Hybrid
-        - Trend + High Confluence + strong ADX (>35) → DCA (pure trend)
-        - High Volatility → Reduce exposure
+        - TIGHT_RANGE / WIDE_RANGE → Grid
+        - BULL_TREND + High Confluence (≥threshold) → Hybrid
+        - BULL_TREND + Low Confluence → DCA
+        - BEAR_TREND → DCA
+        - QUIET_TRANSITION → Hold
+        - VOLATILE_TRANSITION → Reduce exposure
         """
-        if regime == MarketRegime.HIGH_VOLATILITY:
-            return RecommendedStrategy.REDUCE_EXPOSURE
-
-        if regime == MarketRegime.SIDEWAYS:
+        if regime in (MarketRegime.TIGHT_RANGE, MarketRegime.WIDE_RANGE):
             return RecommendedStrategy.GRID
 
-        if regime in (MarketRegime.TRENDING_BULLISH, MarketRegime.TRENDING_BEARISH):
+        if regime == MarketRegime.BULL_TREND:
             if confluence_score >= self.confluence_threshold:
-                if 20.0 <= adx <= 35.0:
-                    return RecommendedStrategy.HYBRID
-                return RecommendedStrategy.DCA
+                return RecommendedStrategy.HYBRID
             return RecommendedStrategy.DCA
 
-        if regime == MarketRegime.TRANSITIONING:
+        if regime == MarketRegime.BEAR_TREND:
+            return RecommendedStrategy.DCA
+
+        if regime == MarketRegime.QUIET_TRANSITION:
             return RecommendedStrategy.HOLD
+
+        if regime == MarketRegime.VOLATILE_TRANSITION:
+            return RecommendedStrategy.REDUCE_EXPOSURE
 
         return RecommendedStrategy.HOLD
 
@@ -506,20 +536,20 @@ class MarketRegimeDetector:
         if regime == MarketRegime.UNKNOWN:
             return 0.0
 
-        if regime == MarketRegime.SIDEWAYS:
+        if regime in (MarketRegime.TIGHT_RANGE, MarketRegime.WIDE_RANGE):
             ema_conf = max(0.3, 1.0 - ema_divergence_pct / self.trend_threshold)
             adx_conf = max(0.0, 1.0 - adx / 25.0)
             return min(ema_conf * 0.6 + adx_conf * 0.4, 1.0)
 
-        if regime in (MarketRegime.TRENDING_BULLISH, MarketRegime.TRENDING_BEARISH):
+        if regime in (MarketRegime.BULL_TREND, MarketRegime.BEAR_TREND):
             trend_conf = min(0.5 + trend_strength * 0.5, 1.0)
             adx_conf = min(adx / 50.0, 1.0)
             return min(trend_conf * 0.6 + adx_conf * 0.4, 1.0)
 
-        if regime == MarketRegime.HIGH_VOLATILITY:
+        if regime == MarketRegime.VOLATILE_TRANSITION:
             return min(volatility_percentile / 100.0, 1.0)
 
-        return 0.5  # TRANSITIONING
+        return 0.5  # QUIET_TRANSITION
 
     # =========================================================================
     # Regime History Tracking

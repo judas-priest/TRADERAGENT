@@ -46,23 +46,28 @@ class StrategyWeight:
     priority: int  # Lower number = higher priority for signal conflicts
 
 
-# Default strategy weights per regime
+# Default strategy weights per regime (v2.0 — 6 regimes)
 DEFAULT_REGIME_STRATEGIES: dict[MarketRegime, list[StrategyWeight]] = {
-    MarketRegime.SIDEWAYS: [
+    MarketRegime.TIGHT_RANGE: [
         StrategyWeight(strategy_type="grid", weight=1.0, priority=1),
     ],
-    MarketRegime.TRENDING_BULLISH: [
-        StrategyWeight(strategy_type="dca", weight=0.7, priority=1),
-        StrategyWeight(strategy_type="trend_follower", weight=0.3, priority=2),
+    MarketRegime.WIDE_RANGE: [
+        StrategyWeight(strategy_type="grid", weight=1.0, priority=1),
     ],
-    MarketRegime.TRENDING_BEARISH: [
-        StrategyWeight(strategy_type="dca", weight=0.7, priority=1),
-        StrategyWeight(strategy_type="trend_follower", weight=0.3, priority=2),
+    MarketRegime.QUIET_TRANSITION: [
+        StrategyWeight(strategy_type="grid", weight=0.7, priority=1),
     ],
-    MarketRegime.HIGH_VOLATILITY: [
+    MarketRegime.VOLATILE_TRANSITION: [
         StrategyWeight(strategy_type="smc", weight=1.0, priority=1),
     ],
-    MarketRegime.TRANSITIONING: [],
+    MarketRegime.BULL_TREND: [
+        StrategyWeight(strategy_type="trend_follower", weight=0.7, priority=1),
+        StrategyWeight(strategy_type="dca", weight=0.3, priority=2),
+    ],
+    MarketRegime.BEAR_TREND: [
+        StrategyWeight(strategy_type="dca", weight=0.7, priority=1),
+        StrategyWeight(strategy_type="trend_follower", weight=0.3, priority=2),
+    ],
     MarketRegime.UNKNOWN: [],
 }
 

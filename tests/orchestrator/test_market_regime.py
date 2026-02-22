@@ -1,4 +1,4 @@
-"""Tests for MarketRegimeDetector."""
+"""Tests for MarketRegimeDetector v2.0 (6-regime classifier with ADX hysteresis)."""
 
 import numpy as np
 import pandas as pd
@@ -71,6 +71,15 @@ class TestMarketRegimeDetector:
         assert detector.volume_lookback == 20
         assert detector.regime_history_size == 10
 
+    def test_init_hysteresis_defaults(self):
+        detector = MarketRegimeDetector()
+        assert detector.adx_enter_trending == 32.0
+        assert detector.adx_exit_trending == 25.0
+        assert detector.adx_enter_ranging == 18.0
+        assert detector.adx_exit_ranging == 22.0
+        assert detector.atr_wide_threshold == 1.0
+        assert detector.atr_volatile_threshold == 2.0
+
     def test_init_custom(self):
         detector = MarketRegimeDetector(
             ema_fast=10,
@@ -104,9 +113,9 @@ class TestMarketRegimeDetector:
         result = detector.analyze(df)
 
         assert result.regime in (
-            MarketRegime.TRENDING_BULLISH,
-            MarketRegime.HIGH_VOLATILITY,
-            MarketRegime.TRANSITIONING,
+            MarketRegime.BULL_TREND,
+            MarketRegime.QUIET_TRANSITION,
+            MarketRegime.VOLATILE_TRANSITION,
         )
         assert result.trend_strength > 0
         assert result.confidence > 0.0
@@ -117,9 +126,9 @@ class TestMarketRegimeDetector:
         result = detector.analyze(df)
 
         assert result.regime in (
-            MarketRegime.TRENDING_BEARISH,
-            MarketRegime.HIGH_VOLATILITY,
-            MarketRegime.TRANSITIONING,
+            MarketRegime.BEAR_TREND,
+            MarketRegime.QUIET_TRANSITION,
+            MarketRegime.VOLATILE_TRANSITION,
         )
         assert result.trend_strength < 0
 
@@ -128,42 +137,45 @@ class TestMarketRegimeDetector:
         df = _make_sideways(n=100, amplitude=5)
         result = detector.analyze(df)
 
-        # Sideways with small amplitude should not be trending
+        # Sideways with small amplitude should be range or transition
         assert result.regime in (
-            MarketRegime.SIDEWAYS,
-            MarketRegime.TRANSITIONING,
+            MarketRegime.TIGHT_RANGE,
+            MarketRegime.WIDE_RANGE,
+            MarketRegime.QUIET_TRANSITION,
         )
 
-    def test_strategy_recommendation_grid_for_sideways(self):
-        """Sideways regime should recommend Grid strategy."""
+    def test_strategy_recommendation_grid_for_range(self):
+        """Range regime should recommend Grid strategy."""
         detector = MarketRegimeDetector(trend_threshold=0.5)
         df = _make_sideways(n=100, amplitude=3)
         result = detector.analyze(df)
 
-        if result.regime == MarketRegime.SIDEWAYS:
+        if result.regime in (MarketRegime.TIGHT_RANGE, MarketRegime.WIDE_RANGE):
             assert result.recommended_strategy == RecommendedStrategy.GRID
 
-    def test_strategy_recommendation_dca_for_trend(self):
-        """Trending regime with low confluence should recommend DCA."""
-        detector = MarketRegimeDetector(
-            trend_threshold=0.3,
-            confluence_threshold=0.9,  # High threshold to ensure DCA
-        )
-        df = _make_trending_up(n=100, step=10)
+    def test_strategy_recommendation_dca_for_bear_trend(self):
+        """Bear trend should recommend DCA."""
+        detector = MarketRegimeDetector(trend_threshold=0.3)
+        df = _make_trending_down(n=100, step=15)
         result = detector.analyze(df)
 
-        if result.regime == MarketRegime.TRENDING_BULLISH:
-            if result.confluence_score < 0.9:
-                assert result.recommended_strategy == RecommendedStrategy.DCA
+        if result.regime == MarketRegime.BEAR_TREND:
+            assert result.recommended_strategy == RecommendedStrategy.DCA
 
-    def test_strategy_recommendation_reduce_for_high_vol(self):
-        """High volatility should recommend reducing exposure."""
-        detector = MarketRegimeDetector(high_volatility_percentile=50.0)
-        df = _make_high_volatility(n=100)
-        result = detector.analyze(df)
+    def test_strategy_recommendation_reduce_for_volatile_transition(self):
+        """Volatile transition should recommend reducing exposure."""
+        detector = MarketRegimeDetector()
+        # Directly test the recommendation logic
+        regime = MarketRegime.VOLATILE_TRANSITION
+        recommended = detector._recommend_strategy(regime, 0.5, 25.0)
+        assert recommended == RecommendedStrategy.REDUCE_EXPOSURE
 
-        if result.regime == MarketRegime.HIGH_VOLATILITY:
-            assert result.recommended_strategy == RecommendedStrategy.REDUCE_EXPOSURE
+    def test_strategy_recommendation_hold_for_quiet_transition(self):
+        """Quiet transition should recommend hold."""
+        detector = MarketRegimeDetector()
+        regime = MarketRegime.QUIET_TRANSITION
+        recommended = detector._recommend_strategy(regime, 0.5, 25.0)
+        assert recommended == RecommendedStrategy.HOLD
 
     def test_confluence_score_range(self):
         detector = MarketRegimeDetector()
@@ -494,21 +506,21 @@ class TestEnhancedClassification:
         df = _make_trending_up(n=100, step=12)
         result = detector.analyze(df)
 
-        if result.regime == MarketRegime.TRENDING_BULLISH:
+        if result.regime == MarketRegime.BULL_TREND:
             assert result.adx > 20.0
             assert result.confidence > 0.3
 
-    def test_narrow_bb_indicates_sideways(self):
-        """Narrow BB in calm market should indicate sideways."""
+    def test_narrow_bb_indicates_range(self):
+        """Narrow BB in calm market should indicate range."""
         detector = MarketRegimeDetector()
         df = _make_sideways(n=100, amplitude=3)
         result = detector.analyze(df)
 
-        if result.regime == MarketRegime.SIDEWAYS:
+        if result.regime in (MarketRegime.TIGHT_RANGE, MarketRegime.WIDE_RANGE):
             assert result.bb_width_pct < 4.0
 
-    def test_wide_bb_indicates_high_volatility(self):
-        """Very wide BB should indicate high volatility."""
+    def test_wide_bb_in_volatile_data(self):
+        """Very wide BB should be present in high volatility data."""
         detector = MarketRegimeDetector()
         df = _make_high_volatility(n=100)
         result = detector.analyze(df)
@@ -525,8 +537,8 @@ class TestEnhancedClassification:
         assert result.volume_ratio > 0
         assert 0.0 <= result.confluence_score <= 1.0
 
-    def test_strategy_hybrid_with_moderate_adx(self):
-        """Trending with moderate ADX and high confluence should recommend HYBRID."""
+    def test_bull_trend_hybrid_with_high_confluence(self):
+        """Bull trend with high confluence should recommend HYBRID."""
         detector = MarketRegimeDetector(
             trend_threshold=0.3,
             confluence_threshold=0.3,  # Low threshold to ensure confluence passes
@@ -534,22 +546,173 @@ class TestEnhancedClassification:
         df = _make_trending_up(n=100, step=12)
         result = detector.analyze(df)
 
-        if result.regime in (MarketRegime.TRENDING_BULLISH, MarketRegime.TRENDING_BEARISH):
+        if result.regime == MarketRegime.BULL_TREND:
             if result.confluence_score >= 0.3:
-                if 20.0 <= result.adx <= 35.0:
-                    assert result.recommended_strategy == RecommendedStrategy.HYBRID
-                else:
-                    assert result.recommended_strategy == RecommendedStrategy.DCA
+                assert result.recommended_strategy == RecommendedStrategy.HYBRID
 
-    def test_strategy_dca_with_strong_adx(self):
-        """Trending with strong ADX (>35) should recommend DCA even with high confluence."""
-        detector = MarketRegimeDetector(
-            trend_threshold=0.3,
-            confluence_threshold=0.1,  # Very low to ensure confluence passes
-        )
-        df = _make_trending_up(n=100, step=20)
+    def test_bear_trend_always_dca(self):
+        """Bear trend should always recommend DCA regardless of confluence."""
+        detector = MarketRegimeDetector(trend_threshold=0.3)
+        df = _make_trending_down(n=100, step=15)
         result = detector.analyze(df)
 
-        if result.regime in (MarketRegime.TRENDING_BULLISH, MarketRegime.TRENDING_BEARISH):
-            if result.adx > 35.0 and result.confluence_score >= 0.1:
-                assert result.recommended_strategy == RecommendedStrategy.DCA
+        if result.regime == MarketRegime.BEAR_TREND:
+            assert result.recommended_strategy == RecommendedStrategy.DCA
+
+
+class TestClassifyRegimeUnit:
+    """Unit tests for _classify_regime with controlled inputs."""
+
+    def test_high_adx_bullish(self):
+        """ADX>32 with EMA fast > slow → BULL_TREND."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=40.0, atr_pct=1.5, ema_fast=3050.0, ema_slow=3000.0, current_regime=None
+        )
+        assert regime == MarketRegime.BULL_TREND
+
+    def test_high_adx_bearish(self):
+        """ADX>32 with EMA fast < slow → BEAR_TREND."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=40.0, atr_pct=1.5, ema_fast=2950.0, ema_slow=3000.0, current_regime=None
+        )
+        assert regime == MarketRegime.BEAR_TREND
+
+    def test_low_adx_tight_range(self):
+        """ADX<18 with ATR<1% → TIGHT_RANGE."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=15.0, atr_pct=0.5, ema_fast=3000.0, ema_slow=3000.0, current_regime=None
+        )
+        assert regime == MarketRegime.TIGHT_RANGE
+
+    def test_low_adx_wide_range(self):
+        """ADX<18 with ATR>=1% → WIDE_RANGE."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=15.0, atr_pct=1.5, ema_fast=3000.0, ema_slow=3000.0, current_regime=None
+        )
+        assert regime == MarketRegime.WIDE_RANGE
+
+    def test_mid_adx_quiet_transition(self):
+        """ADX between 18-32 with ATR<2% → QUIET_TRANSITION."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=25.0, atr_pct=1.0, ema_fast=3000.0, ema_slow=3000.0, current_regime=None
+        )
+        assert regime == MarketRegime.QUIET_TRANSITION
+
+    def test_mid_adx_volatile_transition(self):
+        """ADX between 18-32 with ATR>=2% → VOLATILE_TRANSITION."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=25.0, atr_pct=3.0, ema_fast=3000.0, ema_slow=3000.0, current_regime=None
+        )
+        assert regime == MarketRegime.VOLATILE_TRANSITION
+
+
+class TestADXHysteresis:
+    """Tests for ADX hysteresis — state-dependent threshold behavior."""
+
+    def test_stays_in_trend_with_moderate_adx(self):
+        """In trend: ADX=28 (between 25 and 32) should stay in trend."""
+        detector = MarketRegimeDetector()
+        # Currently in BULL_TREND, ADX=28 is above exit_trending (25)
+        regime = detector._classify_regime(
+            adx=28.0, atr_pct=1.5, ema_fast=3050.0, ema_slow=3000.0,
+            current_regime=MarketRegime.BULL_TREND,
+        )
+        assert regime == MarketRegime.BULL_TREND
+
+    def test_exits_trend_when_adx_drops_below_25(self):
+        """In trend: ADX=23 (below 25) should exit trend."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=23.0, atr_pct=1.0, ema_fast=3050.0, ema_slow=3000.0,
+            current_regime=MarketRegime.BULL_TREND,
+        )
+        # ADX 23 is between 18 and 32, so falls to transition zone
+        assert regime in (MarketRegime.QUIET_TRANSITION, MarketRegime.VOLATILE_TRANSITION)
+
+    def test_range_needs_adx_32_to_enter_trend(self):
+        """In range: ADX=28 should NOT enter trend (need 32)."""
+        detector = MarketRegimeDetector()
+        # Currently in TIGHT_RANGE, ADX=28 is above exit_ranging (22)
+        # so we exit range, but ADX<32 so we end up in transition
+        regime = detector._classify_regime(
+            adx=28.0, atr_pct=0.5, ema_fast=3050.0, ema_slow=3000.0,
+            current_regime=MarketRegime.TIGHT_RANGE,
+        )
+        assert regime in (MarketRegime.QUIET_TRANSITION, MarketRegime.VOLATILE_TRANSITION)
+
+    def test_range_stays_until_adx_above_22(self):
+        """In range: ADX=20 (below 22) should stay in range."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=20.0, atr_pct=0.5, ema_fast=3050.0, ema_slow=3000.0,
+            current_regime=MarketRegime.TIGHT_RANGE,
+        )
+        assert regime == MarketRegime.TIGHT_RANGE
+
+    def test_tight_vs_wide_range_split_by_atr(self):
+        """ATR threshold splits tight vs wide range."""
+        detector = MarketRegimeDetector()
+        tight = detector._classify_regime(
+            adx=15.0, atr_pct=0.5, ema_fast=3000.0, ema_slow=3000.0, current_regime=None,
+        )
+        wide = detector._classify_regime(
+            adx=15.0, atr_pct=1.5, ema_fast=3000.0, ema_slow=3000.0, current_regime=None,
+        )
+        assert tight == MarketRegime.TIGHT_RANGE
+        assert wide == MarketRegime.WIDE_RANGE
+
+    def test_quiet_vs_volatile_transition_split_by_atr(self):
+        """ATR threshold splits quiet vs volatile transition."""
+        detector = MarketRegimeDetector()
+        quiet = detector._classify_regime(
+            adx=25.0, atr_pct=1.0, ema_fast=3000.0, ema_slow=3000.0, current_regime=None,
+        )
+        volatile = detector._classify_regime(
+            adx=25.0, atr_pct=3.0, ema_fast=3000.0, ema_slow=3000.0, current_regime=None,
+        )
+        assert quiet == MarketRegime.QUIET_TRANSITION
+        assert volatile == MarketRegime.VOLATILE_TRANSITION
+
+    def test_bear_trend_stays_with_moderate_adx(self):
+        """In BEAR_TREND: ADX=27 should stay in bear trend."""
+        detector = MarketRegimeDetector()
+        regime = detector._classify_regime(
+            adx=27.0, atr_pct=1.5, ema_fast=2950.0, ema_slow=3000.0,
+            current_regime=MarketRegime.BEAR_TREND,
+        )
+        assert regime == MarketRegime.BEAR_TREND
+
+    def test_no_hysteresis_from_none(self):
+        """With current_regime=None, use standard thresholds."""
+        detector = MarketRegimeDetector()
+        # ADX=28 with no current regime → transition (not trend, need 32)
+        regime = detector._classify_regime(
+            adx=28.0, atr_pct=1.0, ema_fast=3050.0, ema_slow=3000.0, current_regime=None,
+        )
+        assert regime in (MarketRegime.QUIET_TRANSITION, MarketRegime.VOLATILE_TRANSITION)
+
+    def test_no_hysteresis_from_transition(self):
+        """From transition state, use standard thresholds."""
+        detector = MarketRegimeDetector()
+        # In QUIET_TRANSITION, ADX=28 → still transition (not trend)
+        regime = detector._classify_regime(
+            adx=28.0, atr_pct=1.0, ema_fast=3050.0, ema_slow=3000.0,
+            current_regime=MarketRegime.QUIET_TRANSITION,
+        )
+        assert regime in (MarketRegime.QUIET_TRANSITION, MarketRegime.VOLATILE_TRANSITION)
+
+    def test_range_to_trend_requires_32(self):
+        """From range, ADX must reach 32 to enter trend."""
+        detector = MarketRegimeDetector()
+        # ADX=33 from range → enters trend
+        regime = detector._classify_regime(
+            adx=33.0, atr_pct=1.0, ema_fast=3050.0, ema_slow=3000.0,
+            current_regime=MarketRegime.WIDE_RANGE,
+        )
+        assert regime == MarketRegime.BULL_TREND

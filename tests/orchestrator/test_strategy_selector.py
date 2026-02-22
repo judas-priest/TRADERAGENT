@@ -23,7 +23,7 @@ from bot.orchestrator.strategy_selector import (
 
 
 def _make_analysis(
-    regime: MarketRegime = MarketRegime.SIDEWAYS,
+    regime: MarketRegime = MarketRegime.TIGHT_RANGE,
     recommended: RecommendedStrategy = RecommendedStrategy.GRID,
     confidence: float = 0.8,
     regime_duration: int = 300,
@@ -71,26 +71,42 @@ class TestStrategyWeight:
 
 
 class TestDefaultRegimeStrategies:
-    """Tests for default regime-to-strategy mapping."""
+    """Tests for default regime-to-strategy mapping (v2.0)."""
 
-    def test_sideways_maps_to_grid(self):
-        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.SIDEWAYS]
+    def test_tight_range_maps_to_grid(self):
+        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.TIGHT_RANGE]
         assert len(weights) == 1
         assert weights[0].strategy_type == "grid"
 
-    def test_trending_bullish_maps_to_dca_and_trend(self):
-        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.TRENDING_BULLISH]
+    def test_wide_range_maps_to_grid(self):
+        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.WIDE_RANGE]
+        assert len(weights) == 1
+        assert weights[0].strategy_type == "grid"
+
+    def test_bull_trend_maps_to_trend_and_dca(self):
+        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.BULL_TREND]
+        types = {w.strategy_type for w in weights}
+        assert "trend_follower" in types
+        assert "dca" in types
+
+    def test_bear_trend_maps_to_dca_and_trend(self):
+        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.BEAR_TREND]
         types = {w.strategy_type for w in weights}
         assert "dca" in types
         assert "trend_follower" in types
 
-    def test_high_volatility_maps_to_smc(self):
-        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.HIGH_VOLATILITY]
+    def test_volatile_transition_maps_to_smc(self):
+        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.VOLATILE_TRANSITION]
         assert len(weights) == 1
         assert weights[0].strategy_type == "smc"
 
-    def test_transitioning_maps_to_nothing(self):
-        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.TRANSITIONING]
+    def test_quiet_transition_maps_to_grid(self):
+        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.QUIET_TRANSITION]
+        assert len(weights) == 1
+        assert weights[0].strategy_type == "grid"
+
+    def test_unknown_maps_to_nothing(self):
+        weights = DEFAULT_REGIME_STRATEGIES[MarketRegime.UNKNOWN]
         assert len(weights) == 0
 
     def test_hybrid_includes_grid_and_dca(self):
@@ -126,37 +142,52 @@ class TestSelectorInit:
 class TestSelectMethod:
     """Tests for StrategySelector.select()."""
 
-    def test_sideways_selects_grid(self):
+    def test_tight_range_selects_grid(self):
         registry = _make_registry_with_strategies()
         selector = StrategySelector(
             registry, transition_cooldown_seconds=0, min_regime_duration_seconds=0
         )
 
         analysis = _make_analysis(
-            regime=MarketRegime.SIDEWAYS,
+            regime=MarketRegime.TIGHT_RANGE,
             recommended=RecommendedStrategy.GRID,
         )
         result = selector.select(analysis)
 
-        assert result.regime == MarketRegime.SIDEWAYS
+        assert result.regime == MarketRegime.TIGHT_RANGE
         assert result.recommended == RecommendedStrategy.GRID
         start_types = {w.strategy_type for w in result.strategies_to_start}
         assert "grid" in start_types
 
-    def test_trending_selects_dca_and_trend(self):
+    def test_wide_range_selects_grid(self):
         registry = _make_registry_with_strategies()
         selector = StrategySelector(
             registry, transition_cooldown_seconds=0, min_regime_duration_seconds=0
         )
 
         analysis = _make_analysis(
-            regime=MarketRegime.TRENDING_BULLISH,
+            regime=MarketRegime.WIDE_RANGE,
+            recommended=RecommendedStrategy.GRID,
+        )
+        result = selector.select(analysis)
+
+        start_types = {w.strategy_type for w in result.strategies_to_start}
+        assert "grid" in start_types
+
+    def test_bull_trend_selects_trend_and_dca(self):
+        registry = _make_registry_with_strategies()
+        selector = StrategySelector(
+            registry, transition_cooldown_seconds=0, min_regime_duration_seconds=0
+        )
+
+        analysis = _make_analysis(
+            regime=MarketRegime.BULL_TREND,
             recommended=RecommendedStrategy.DCA,
         )
         result = selector.select(analysis)
 
         start_types = {w.strategy_type for w in result.strategies_to_start}
-        assert "dca" in start_types
+        assert "trend_follower" in start_types or "dca" in start_types
 
     def test_hybrid_selects_multiple(self):
         registry = _make_registry_with_strategies()
@@ -165,7 +196,7 @@ class TestSelectMethod:
         )
 
         analysis = _make_analysis(
-            regime=MarketRegime.TRENDING_BULLISH,
+            regime=MarketRegime.BULL_TREND,
             recommended=RecommendedStrategy.HYBRID,
         )
         result = selector.select(analysis)
@@ -184,7 +215,7 @@ class TestSelectMethod:
         await registry.start_strategy("grid-1")
 
         analysis = _make_analysis(
-            regime=MarketRegime.HIGH_VOLATILITY,
+            regime=MarketRegime.VOLATILE_TRANSITION,
             recommended=RecommendedStrategy.REDUCE_EXPOSURE,
         )
         result = selector.select(analysis)
@@ -201,9 +232,9 @@ class TestSelectMethod:
         # Activate grid
         await registry.start_strategy("grid-1")
 
-        # Detect sideways (grid should stay)
+        # Detect tight range (grid should stay)
         analysis = _make_analysis(
-            regime=MarketRegime.SIDEWAYS,
+            regime=MarketRegime.TIGHT_RANGE,
             recommended=RecommendedStrategy.GRID,
         )
         result = selector.select(analysis)
@@ -221,10 +252,10 @@ class TestSelectMethod:
         )
         # Simulate a recent transition
         selector._last_transition_time = datetime.now(timezone.utc)
-        selector._current_regime = MarketRegime.SIDEWAYS
+        selector._current_regime = MarketRegime.TIGHT_RANGE
 
         analysis = _make_analysis(
-            regime=MarketRegime.TRENDING_BULLISH,
+            regime=MarketRegime.BULL_TREND,
             recommended=RecommendedStrategy.DCA,
         )
         result = selector.select(analysis)
@@ -241,7 +272,7 @@ class TestSelectMethod:
         )
 
         analysis = _make_analysis(
-            regime=MarketRegime.TRENDING_BULLISH,
+            regime=MarketRegime.BULL_TREND,
             recommended=RecommendedStrategy.DCA,
             regime_duration=30,  # Too short
         )
@@ -259,7 +290,7 @@ class TestSelectMethod:
         )
 
         analysis = _make_analysis(
-            regime=MarketRegime.TRENDING_BULLISH,
+            regime=MarketRegime.BULL_TREND,
             recommended=RecommendedStrategy.DCA,
             confidence=0.1,  # Too low
         )
@@ -273,13 +304,13 @@ class TestSelectMethod:
         selector = StrategySelector(
             registry, transition_cooldown_seconds=0, min_regime_duration_seconds=0
         )
-        selector._current_regime = MarketRegime.SIDEWAYS
+        selector._current_regime = MarketRegime.TIGHT_RANGE
 
-        # Activate grid (matching sideways)
+        # Activate grid (matching tight range)
         await registry.start_strategy("grid-1")
 
         analysis = _make_analysis(
-            regime=MarketRegime.TRANSITIONING,
+            regime=MarketRegime.QUIET_TRANSITION,
             recommended=RecommendedStrategy.HOLD,
         )
         result = selector.select(analysis)
@@ -298,15 +329,15 @@ class TestExecuteTransition:
         )
 
         analysis = _make_analysis(
-            regime=MarketRegime.SIDEWAYS,
+            regime=MarketRegime.TIGHT_RANGE,
             recommended=RecommendedStrategy.GRID,
         )
         result = selector.select(analysis)
         record = await selector.execute_transition(result)
 
         assert record.state == TransitionState.COMPLETED
-        assert record.to_regime == MarketRegime.SIDEWAYS
-        assert selector.current_regime == MarketRegime.SIDEWAYS
+        assert record.to_regime == MarketRegime.TIGHT_RANGE
+        assert selector.current_regime == MarketRegime.TIGHT_RANGE
         assert selector.last_transition_time is not None
 
     async def test_transition_stops_old_starts_new(self):
@@ -317,11 +348,11 @@ class TestExecuteTransition:
 
         # Start with grid active
         await registry.start_strategy("grid-1")
-        selector._current_regime = MarketRegime.SIDEWAYS
+        selector._current_regime = MarketRegime.TIGHT_RANGE
 
-        # Switch to trending
+        # Switch to bull trend
         analysis = _make_analysis(
-            regime=MarketRegime.TRENDING_BULLISH,
+            regime=MarketRegime.BULL_TREND,
             recommended=RecommendedStrategy.DCA,
         )
         result = selector.select(analysis)
@@ -349,7 +380,7 @@ class TestExecuteTransition:
 
         assert len(selector.transition_history) == 1
         record = selector.transition_history[0]
-        assert record.to_regime == MarketRegime.SIDEWAYS
+        assert record.to_regime == MarketRegime.TIGHT_RANGE
         assert record.state == TransitionState.COMPLETED
 
     async def test_history_max_size(self):
@@ -388,16 +419,16 @@ class TestSignalConflictResolution:
     def test_higher_priority_wins(self):
         registry = StrategyRegistry()
         selector = StrategySelector(registry)
-        selector._current_regime = MarketRegime.TRENDING_BULLISH
+        selector._current_regime = MarketRegime.BULL_TREND
 
         signals = [
-            {"strategy_type": "trend_follower", "confidence": 0.9, "direction": "long"},
             {"strategy_type": "dca", "confidence": 0.7, "direction": "long"},
+            {"strategy_type": "trend_follower", "confidence": 0.9, "direction": "long"},
         ]
         winner = selector.resolve_signal_conflict(signals)
 
-        # DCA has priority 1, trend_follower has priority 2
-        assert winner["strategy_type"] == "dca"
+        # trend_follower has priority 1, dca has priority 2 in BULL_TREND
+        assert winner["strategy_type"] == "trend_follower"
 
     def test_confidence_breaks_ties(self):
         registry = StrategyRegistry()
@@ -420,14 +451,14 @@ class TestSelectionResult:
             strategies_to_start=[StrategyWeight("grid", 1.0, 1)],
             strategies_to_stop=["dca"],
             strategies_to_keep=["smc"],
-            regime=MarketRegime.SIDEWAYS,
+            regime=MarketRegime.TIGHT_RANGE,
             recommended=RecommendedStrategy.GRID,
             transition_needed=True,
             reason="Test reason",
         )
         d = result.to_dict()
 
-        assert d["regime"] == "sideways"
+        assert d["regime"] == "tight_range"
         assert d["recommended"] == "grid"
         assert d["transition_needed"] is True
         assert len(d["strategies_to_start"]) == 1
@@ -440,8 +471,8 @@ class TestTransitionRecord:
 
     def test_to_dict(self):
         record = TransitionRecord(
-            from_regime=MarketRegime.SIDEWAYS,
-            to_regime=MarketRegime.TRENDING_BULLISH,
+            from_regime=MarketRegime.TIGHT_RANGE,
+            to_regime=MarketRegime.BULL_TREND,
             from_strategies=["grid"],
             to_strategies=["dca", "trend_follower"],
             recommended=RecommendedStrategy.DCA,
@@ -450,8 +481,8 @@ class TestTransitionRecord:
         )
         d = record.to_dict()
 
-        assert d["from_regime"] == "sideways"
-        assert d["to_regime"] == "trending_bullish"
+        assert d["from_regime"] == "tight_range"
+        assert d["to_regime"] == "bull_trend"
         assert d["state"] == "completed"
         assert "grid" in d["from_strategies"]
 
@@ -480,6 +511,6 @@ class TestGetStatus:
         await selector.execute_transition(result)
 
         status = selector.get_status()
-        assert status["current_regime"] == "sideways"
+        assert status["current_regime"] == "tight_range"
         assert status["last_transition"] is not None
         assert status["history_count"] == 1
