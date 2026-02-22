@@ -3,19 +3,119 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 22 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + **6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED**
-**Pass Rate:** 100% (1530/1530 tests passing, 25 skipped)
-**Realnyy obem testov:** 1555 collected
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + **RegimeClassifier + RiskManager integrated into Multi-TF Backtester**
+**Pass Rate:** 100% (1551/1551 tests passing, 25 skipped)
+**Realnyy obem testov:** 1576 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
-**Multi-TF Backtesting:** 163 tests passing (bylo 31, +132 novyh — SHORT, M5, CSV, walk-forward)
+**Multi-TF Backtesting:** 184 tests passing (bylo 163, +21 novyh — regime filtering, risk management integration)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `7f99941` (feat: migrate to 6-regime RegimeClassifier v2.0 with ADX hysteresis)
+**Posledniy commit:** `f431d31` (feat: integrate RegimeClassifier + RiskManager into multi-TF backtester)
 **Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE v dry_run rezhime)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-22) - Session 20: 6-Regime RegimeClassifier v2.0 + Issue Cleanup
+## Poslednyaya Sessiya (2026-02-22) - Session 21: RegimeClassifier + RiskManager v Multi-TF Backtester
+
+### Zadacha
+
+Integratsiya RegimeClassifier i RiskManager v multi-strategy backtester (`multi_tf_engine.py`). Zhivoy bot (`bot_orchestrator.py`) ispolzuet oba komponenta, no bektester zapuskal strategii vslepuyu — rezultaty ne otrazhali prodakshn-povedeniye.
+
+### Problema
+
+1. **MarketRegimeDetector** klassifitsiruet rynok v 6 rezhimov kazhdye 60s, opredelyaet kakaya strategiya dolzhna byt aktivna. Bektester zapuskal odnu strategiyu ot nachala do kontsa.
+2. **RiskManager** validiruyeт kazhdyu sdelku protiv limitov pozitsiy, balansa, stop-loss portfelya, dnevnyh potyr. Bektester ne imel risk-gating — rezultaty mogli byt nerealistichno optimistichny.
+
+### Rezultat
+
+#### 1. MultiTFBacktestConfig — novye polya (opt-in)
+
+| Pole | Default | Opisaniye |
+|------|---------|-----------|
+| `enable_regime_filter` | `False` | Vklyuchit filtratsyiu po rezhimu |
+| `regime_check_interval` | `12` | Kazhdye N M5 barov (12 = kazhdyy chas) |
+| `regime_timeframe` | `"h1"` | TF dlya detektsii rezhima |
+| `enable_risk_manager` | `False` | Vklyuchit risk-menedzher |
+| `rm_max_position_size` | `5000` | Maks razmer pozitsii (quote) |
+| `rm_min_order_size` | `10` | Min razmer ordera (quote) |
+| `rm_stop_loss_percentage` | `None` | Stop-loss portfelya (napr. 0.1 = 10%) |
+| `rm_max_daily_loss` | `None` | Maks dnevnoy ubytok |
+| `rm_daily_loss_reset_bars` | `288` | 288 M5 barov = 24h |
+
+Obe fichi **opt-in** — sushchestvuyushchie testy i ispolzovaniye ne zatragivayutsya.
+
+#### 2. Regime Detection v tsikle bektesta
+
+- `MarketRegimeDetector` zapuskayetsya kazhdye N barov s nastroiyvaemym TF (h1/h4/d1)
+- Rezhim zapisyvayetsya v `regime_history` i v kazhdyu tochku equity curve
+- Mapping `REGIME_ALLOWED_STRATEGY_TYPES` postroyen iz prodakshn `DEFAULT_REGIME_STRATEGIES`
+
+#### 3. Filtratsiya signalov po rezhimu
+
+- `HOLD` / `REDUCE_EXPOSURE` rekomendatsii blokiruyut VSE novye vhody
+- Esli tip strategii ne v spiske razreshonnykh dlya tekushchego rezhima — signal blokiruyetsya
+- Primer: Grid (tip "grid") razreshon v TIGHT_RANGE/WIDE_RANGE, no ne v BULL_TREND
+
+#### 4. RiskManager gating
+
+- `RiskManager.check_trade()` proveryayet: razmer ordera ≥ min, pozitsiya ≤ max, balance dostatochnyy
+- `update_balance()` posle kazhdogo bara — otslezhivayet dnevnye poteri i stop-loss portfelya
+- Dnevnoy sbros kazhdye N barov (simuliruyeт UTC midnight)
+- Pri `is_halted` — tsikl bektesta preryvaetsya
+
+#### 5. BacktestResult — novye polya
+
+| Pole | Tip | Opisaniye |
+|------|-----|-----------|
+| `regime_history` | `list[dict]` | Istoriya rezhimov (bar, regime, confidence, recommended) |
+| `regime_changes` | `int` | Kolichestvo smeny rezhimov |
+| `regime_filter_blocks` | `int` | Signaly zablokirovannye filtrom rezhima |
+| `risk_manager_blocks` | `int` | Signaly zablokirovannye risk-menedzherom |
+| `risk_halted` | `bool` | Byl li bektest ostanovlen risk-menedzherom |
+| `risk_halt_reason` | `str | None` | Prichina ostanovki |
+
+Obnovleny `to_dict()` i `print_summary()` dlya novyh polyey.
+
+#### 6. Testy — 21 novyy test
+
+| Test | Opisaniye |
+|------|-----------|
+| `test_regime_detected_every_n_bars` | Rezhim detektiruyetsya periodicheski |
+| `test_blocks_wrong_strategy_type` | Grid blokiruyetsya v BULL_TREND |
+| `test_allows_matching_type` | DCA razreshona v BEAR_TREND |
+| `test_disabled_by_default` (regime) | Filtr vyklyuchon po umolchaniyu |
+| `test_hold_blocks_entries` | HOLD blokiruyet vse vhody |
+| `test_reduce_exposure_blocks_entries` | REDUCE_EXPOSURE blokiruyet vse vhody |
+| `test_blocks_large_position` | Pozitsiya > max blokiruyetsya |
+| `test_blocks_low_balance` | Nedostatochnyy balans blokiruyet |
+| `test_halts_on_stop_loss` | Bektest ostanavlivayetsya pri stop-loss |
+| `test_halts_on_daily_loss` | Bektest ostanavlivayetsya pri dnevnom limite |
+| `test_disabled_by_default` (risk) | Risk-menedzher vyklyuchon po umolchaniyu |
+| `test_both_enabled` | Obe fichi vmeste |
+| `test_regime_in_equity_curve` | Rezhim zapisyvayetsya v equity curve |
+| `test_fields_present` | Novye polya prisutstvuyut |
+| `test_fields_in_to_dict` | Novye polya v to_dict() |
+| `test_bull_trend_allows_*` | 6 testov mapping rezhim→strategiya |
+
+**Vse 21 test prohodyat.** Sushchestvuyushchie 54 multi-TF testa i 15 originalnykh backtesting testov — bez regressiy.
+
+### Izmenennye Fayly (3)
+
+| # | Fayl | Izmenenie |
+|---|------|-----------|
+| 1 | `bot/tests/backtesting/multi_tf_engine.py` | Importy RegimeDetector/RiskManager, REGIME_ALLOWED_STRATEGY_TYPES, novye polya konfiga, initsializatsiya v run(), regime detection v tsikle, regime filter + risk gating v _handle_signal_execution(), balance update + halt check, regime v equity curve, _count_regime_changes() |
+| 2 | `bot/tests/backtesting/backtesting_engine.py` | 6 novyh polyey BacktestResult, obnovleny to_dict() i print_summary() |
+| 3 | `bot/tests/backtesting/test_regime_risk_integration.py` | **NOVYY** — 21 integratsionnyy test |
+
+### Commits
+
+| Commit | Opisaniye |
+|--------|-----------|
+| `f431d31` | feat: integrate RegimeClassifier + RiskManager into multi-TF backtester |
+
+---
+
+## Predydushchaya Sessiya (2026-02-22) - Session 20: 6-Regime RegimeClassifier v2.0 + Issue Cleanup
 
 ### Zadacha
 
@@ -1298,6 +1398,16 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 21 (2026-02-22): RegimeClassifier + RiskManager v Multi-TF Backtester
+- Integratsiya MarketRegimeDetector i RiskManager v multi_tf_engine.py
+- Opt-in: enable_regime_filter i enable_risk_manager (po umolchaniyu vyklyucheny)
+- Regime detection kazhdye N barov, filtratsiya signalov po rezhimu→strategiya mapping
+- Risk gating: position limits, balance checks, stop-loss portfelya, dnevnye limity
+- BacktestResult obogashchyon: regime_history, regime_changes, regime_filter_blocks, risk_manager_blocks, risk_halted
+- 21 novyy integratsionnyy test, 54 sushchestvuyushchikh — bez regressiy
+- **Commit:** `f431d31`
+- **Status:** COMPLETE
+
 ### Sessiya 20 (2026-02-22): 6-Regime RegimeClassifier v2.0 + Issue Cleanup
 - Migratsiya MarketRegime: 5 rezhimov → 6 rezhimov s ADX gisterezisom
 - TIGHT_RANGE, WIDE_RANGE, QUIET_TRANSITION, VOLATILE_TRANSITION, BULL_TREND, BEAR_TREND
@@ -1515,7 +1625,8 @@ Phase 7.11: Conflict Analysis (16)    [##########] 100%
 Phase 7.12: Cross-Audit (+13=29)      [##########] 100%
 Phase 7.13: Repo Cleanup + CodeQual   [##########] 100%
 Phase 7.14: Multi-TF Backtester Prod  [##########] 100%
-Phase 7.15: 6-Regime Classifier v2.0  [##########] 100%  <- NEW!
+Phase 7.15: 6-Regime Classifier v2.0  [##########] 100%
+Phase 7.16: Regime+Risk in Backtester [##########] 100%  <- NEW!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -1620,10 +1731,10 @@ docker compose up webui-backend webui-frontend
 ## Last Updated
 
 - **Date:** February 22, 2026
-- **Session:** 20 (6-Regime RegimeClassifier v2.0 + Issue Cleanup)
-- **Status:** 1530/1555 tests passing (100%), 25 skipped
-- **Total tests:** 1555 collected
-- **Last commit:** `7f99941` (feat: migrate to 6-regime RegimeClassifier v2.0 with ADX hysteresis)
+- **Session:** 21 (RegimeClassifier + RiskManager v Multi-TF Backtester)
+- **Status:** 1551/1576 tests passing (100%), 25 skipped
+- **Total tests:** 1576 collected
+- **Last commit:** `f431d31` (feat: integrate RegimeClassifier + RiskManager into multi-TF backtester)
 - **Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE — dry_run)
 - **SMC Main Loop Fix:** auto_start: true, TP/SL kazhdyu sek, OHLCV analiz kazhdye 5 min, 0 oshibok
 - **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors) — **vse lintory chistye**
