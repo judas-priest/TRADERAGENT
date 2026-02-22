@@ -1,21 +1,109 @@
-# TRADERAGENT v2.0 - Session Context (Updated 2026-02-21)
+# TRADERAGENT v2.0 - Session Context (Updated 2026-02-22)
 
 ## Tekushchiy Status Proekta
 
-**Data:** 21 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + **SMC Main Loop Fix (auto_start + 5-min throttle)**
-**Pass Rate:** 100% (1509/1509 tests passing, 25 skipped)
-**Realnyy obem testov:** 1534 collected
+**Data:** 22 fevralya 2026
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + **6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED**
+**Pass Rate:** 100% (1530/1530 tests passing, 25 skipped)
+**Realnyy obem testov:** 1555 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Multi-TF Backtesting:** 163 tests passing (bylo 31, +132 novyh — SHORT, M5, CSV, walk-forward)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `da936e1` (fix: SMC bot main loop — auto_start + 5-min analysis throttle)
-**Bot Status:** RUNNING (5 botov, SMC bot ACTIVE v dry_run rezhime, analiz kazhdye 5 min)
+**Posledniy commit:** `7f99941` (feat: migrate to 6-regime RegimeClassifier v2.0 with ADX hysteresis)
+**Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE v dry_run rezhime)
 
 ---
 
-## Poslednyaya Sessiya (2026-02-21) - Session 19: Project Audit + Lint Cleanup + Architecture v2.1
+## Poslednyaya Sessiya (2026-02-22) - Session 20: 6-Regime RegimeClassifier v2.0 + Issue Cleanup
+
+### Zadacha
+
+1. Migratsiya MarketRegime enum s 5 rezhimov na 6 rezhimov s ADX-gisterezisom
+2. Obnovlenie strategy_selector.py dlya novyh rezhimov
+3. Obnovlenie i rasshirenie testov
+4. Deploy na server
+5. Zakrytie vypolnennyh issues (#274-#280)
+
+### Rezultat
+
+#### 1. 6-Regime RegimeClassifier v2.0
+
+**Starye rezhimy (5):** SIDEWAYS, TRENDING_BULLISH, TRENDING_BEARISH, HIGH_VOLATILITY, TRANSITIONING
+
+**Novye rezhimy (6):**
+
+| Rezhim | Uslovie | Strategiya |
+|--------|---------|------------|
+| TIGHT_RANGE | ADX<18, ATR<1% | Grid |
+| WIDE_RANGE | ADX<18, ATR≥1% | Grid |
+| QUIET_TRANSITION | ADX 22-32, ATR<2% | Hold |
+| VOLATILE_TRANSITION | ADX 22-32, ATR≥2% | Reduce exposure |
+| BULL_TREND | ADX>32, EMA20>EMA50 | Trend follower / Hybrid / DCA |
+| BEAR_TREND | ADX>32, EMA20<EMA50 | DCA |
+
+**ADX Gisterezis (predotvrashchaet ostsillvatsiyu):**
+- Vhod v trend: ADX dolzhen vyrasti vyshe 32
+- Vyhod iz trenda: ADX dolzhen upast nizhe 25
+- Vhod v range: ADX dolzhen upast nizhe 18
+- Vyhod iz range: ADX dolzhen vyrasti vyshe 22
+
+**Novye metody:** `_classify_trend()`, `_classify_range()`, `_classify_transition()`
+
+#### 2. Strategy Selector Update
+
+`DEFAULT_REGIME_STRATEGIES` obnovlen dlya 6 rezhimov:
+- TIGHT_RANGE / WIDE_RANGE → grid
+- BULL_TREND → trend_follower (0.7) + dca (0.3)
+- BEAR_TREND → dca (0.7) + trend_follower (0.3)
+- VOLATILE_TRANSITION → smc
+- QUIET_TRANSITION → grid (0.7)
+
+#### 3. Testy
+
+- 96 orchestrator testov prohodyat (market_regime + strategy_selector)
+- Dobavleny `TestClassifyRegimeUnit` (6 testov) — pryamye unit testy klassifikatsii
+- Dobavleny `TestADXHysteresis` (10 testov) — vse stsenarii gisterezisa
+- 143 hybrid/trend_follower testov — bez regressiy
+- **Polnyy suite: 1530 passed, 25 skipped**
+
+#### 4. Deploy
+
+- Merge v main (fast-forward), push, git pull na servere
+- `docker compose restart bot` — 5 botov inicializirovany
+- Logi podtverzhdayut novyy klassifikator: `regime=tight_range` pri ADX=14.22
+
+#### 5. Issue Cleanup
+
+Zakryty 7 issues (vse uzhe byli realizovany):
+- #274: Phase 1A — Sortino, Calmar, PF, CapEff polya v BacktestResult
+- #275: Phase 1B — Vychislenie metrik v engine
+- #276: Phase 1C — Stress Testing modul
+- #277: Phase 1D — Correlation-based param_impact
+- #278: Phase 1E — Obnovlenie rankings i HTML otchyotov
+- #279: Phase 2A — JSONL checkpoint dlya optimizatsii
+- #280: Phase 2B — SQLite Job Store
+
+Ostavlen otkrytym: #144 (vizualizatsiya bektestov — est SVG/HTML, net interaktivnyh grafikov)
+
+### Izmenennye Fayly
+
+| # | Fayl | Izmenenie |
+|---|------|-----------|
+| 1 | `bot/orchestrator/market_regime.py` | Novyy 6-rezhimnyy enum, ADX gisterezis, _classify_regime, _recommend_strategy, _calculate_confidence |
+| 2 | `bot/orchestrator/strategy_selector.py` | DEFAULT_REGIME_STRATEGIES dlya 6 rezhimov |
+| 3 | `tests/orchestrator/test_market_regime.py` | Obnovleny enum-znacheniya, +16 novyh testov (unit + gisterezis) |
+| 4 | `tests/orchestrator/test_strategy_selector.py` | Obnovleny enum-znacheniya, razdeleny testy |
+
+### Commits
+
+| Commit | Soobshchenie |
+|--------|-------------|
+| `7f99941` | feat: migrate to 6-regime RegimeClassifier v2.0 with ADX hysteresis |
+
+---
+
+## Predydushchaya Sessiya (2026-02-21) - Session 19: Project Audit + Lint Cleanup + Architecture v2.1
 
 ### Zadacha
 
@@ -1101,10 +1189,10 @@ Polnocennyy web-interfeys dlya TRADERAGENT: FastAPI backend + React frontend.
 
 ## Tekushchie Rezultaty Testirovaniya
 
-### Obshchiy: 1859/1884 PASSED (100%), 25 skipped
+### Obshchiy: 1530/1555 PASSED (100%), 25 skipped
 
-Realnoe kolichestvo testov v proekte — **1884** (ranee dokumentatsiya zanizhala do 510).
-Bez testnet: **1857 collected**, iz nih **1859 passed** (raznitsa — pytest dynamic parametrize).
+Realnoe kolichestvo testov v proekte — **1555** (ranee dokumentatsiya zanizhala do 510).
+Bez testnet: **1555 collected**, iz nih **1530 passed**, 25 skipped.
 
 ### Polnaya Razbivka po Direktoriyam
 
@@ -1209,6 +1297,25 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 ---
 
 ## Istoriya Sessiy
+
+### Sessiya 20 (2026-02-22): 6-Regime RegimeClassifier v2.0 + Issue Cleanup
+- Migratsiya MarketRegime: 5 rezhimov → 6 rezhimov s ADX gisterezisom
+- TIGHT_RANGE, WIDE_RANGE, QUIET_TRANSITION, VOLATILE_TRANSITION, BULL_TREND, BEAR_TREND
+- ADX gisterezis: enter trending 32 / exit 25, enter ranging 18 / exit 22
+- Strategy selector obnovlen dlya novyh rezhimov
+- +16 novyh testov (unit klassifikatsii + gisterezis), 1530 passed
+- Deploy na server: `regime=tight_range` pri ADX=14.22
+- Zakryty 7 issues (#274-#280), #144 ostavlen otkrytym
+- **Commit:** `7f99941`
+- **Status:** COMPLETE
+
+### Sessiya 19 (2026-02-21): Project Audit + Lint Cleanup + Architecture v2.1 + SMC Main Loop Fix
+- PR #258 zakryt (uzhe v main), polnyy audit proekta
+- Lint cleanup: 64 fayla (black + ruff), 18 ruchnyh fixov
+- Architecture v2.1 dokument (918 strok), GitHub Pages obnovlen
+- SMC main loop fix: auto_start + 5-min throttle
+- **Commits:** `ae7585e`, `da936e1`
+- **Status:** COMPLETE
 
 ### Sessiya 18 (2026-02-21): Multi-Strategy Backtester — Production-Ready
 - 3 baga ispravleny (await, CSV loading, TrendFollower.reset)
@@ -1407,7 +1514,8 @@ Phase 7.10: Backtesting Architecture  [##########] 100%
 Phase 7.11: Conflict Analysis (16)    [##########] 100%
 Phase 7.12: Cross-Audit (+13=29)      [##########] 100%
 Phase 7.13: Repo Cleanup + CodeQual   [##########] 100%
-Phase 7.14: Multi-TF Backtester Prod  [##########] 100%  <- NEW!
+Phase 7.14: Multi-TF Backtester Prod  [##########] 100%
+Phase 7.15: 6-Regime Classifier v2.0  [##########] 100%  <- NEW!
 Phase 8: Production Launch            [..........]   0%
 ```
 
@@ -1492,8 +1600,8 @@ docker compose up webui-backend webui-frontend
 
 ## Sleduyushchie Shagi
 
-1. **Realizatsiya v2.0 Algorithm:** Implementatsiya novyh moduley iz `TRADERAGENT_V2_ALGORITHM.md`:
-   - `bot/coordinator/` — MasterLoop, RegimeClassifier (s gisterezisom), StrategyRouter, CapitalAllocator, RiskAggregator, GracefulTransition
+1. **Realizatsiya v2.0 Algorithm (prodolzhenie):** RegimeClassifier v2.0 DONE. Sleduyushchie moduli iz `TRADERAGENT_V2_ALGORITHM.md`:
+   - `bot/coordinator/` — MasterLoop, StrategyRouter, CapitalAllocator, RiskAggregator, GracefulTransition
    - `bot/filters/smc_filter.py` — SMC Enhancement Layer s SignalType routing
    - `bot/models/signal.py` — Signal + SignalType enum
    - Udalenie HYBRID kak otdelnoy strategii
@@ -1511,12 +1619,12 @@ docker compose up webui-backend webui-frontend
 
 ## Last Updated
 
-- **Date:** February 21, 2026
-- **Session:** 19 (Project Audit + Lint Cleanup + Architecture v2.1 + SMC Main Loop Fix)
-- **Status:** 1509/1534 tests passing (100%), 25 skipped
-- **Total tests:** 1534 collected
-- **Last commit:** `da936e1` (fix: SMC bot main loop — auto_start + 5-min analysis throttle)
-- **Bot Status:** RUNNING (5 botov, SMC bot ACTIVE — auto_start, analiz kazhdye 5 min, dry_run)
+- **Date:** February 22, 2026
+- **Session:** 20 (6-Regime RegimeClassifier v2.0 + Issue Cleanup)
+- **Status:** 1530/1555 tests passing (100%), 25 skipped
+- **Total tests:** 1555 collected
+- **Last commit:** `7f99941` (feat: migrate to 6-regime RegimeClassifier v2.0 with ADX hysteresis)
+- **Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE — dry_run)
 - **SMC Main Loop Fix:** auto_start: true, TP/SL kazhdyu sek, OHLCV analiz kazhdye 5 min, 0 oshibok
 - **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors) — **vse lintory chistye**
 - **Architecture v2.1:** COMPLETE — 918 strok, 20 razdelov, Mermaid diagrammy, SMC Pipeline, Multi-TF Backtesting
