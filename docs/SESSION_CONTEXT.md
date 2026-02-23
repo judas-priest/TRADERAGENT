@@ -3,20 +3,114 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 23 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + RegimeClassifier + RiskManager integrated into Multi-TF Backtester + Plan bektestirovaniya DCA+TF+SMC na VM-16-32 podgotovlen + Accelerated Replay Framework + **Fix: otritsatelnyy base_balance pri grid init**
-**Pass Rate:** 100% (1260/1260 tests passing, 14 skipped, 1 pre-existing SMC failure)
-**Realnyy obem testov:** 1275 collected
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + RegimeClassifier + RiskManager integrated into Multi-TF Backtester + Plan bektestirovaniya DCA+TF+SMC na VM-16-32 podgotovlen + Accelerated Replay Framework + Fix: otritsatelnyy base_balance pri grid init + **Server Audit + SMC Bug Analysis + Multi-TF Verification**
+**Pass Rate:** 100% (1531/1531 tests passing, 25 skipped)
+**Realnyy obem testov:** 1556 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
-**Multi-TF Backtesting:** 184 tests passing (bylo 163, +21 novyh — regime filtering, risk management integration)
+**Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing (multi-TF engine + regime/risk + multi-strategy)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `1bdc54a` (fix: prevent negative base_balance by validating funds before order placement)
-**Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE v dry_run rezhime)
+**Posledniy commit:** `dbf073a` (docs: update SESSION_CONTEXT.md — Session 23)
+**Bot Status:** RUNNING (5 botov, regime=bear_trend pri ADX=37.96, SMC bot ACTIVE v dry_run rezhime — 4 baga obnaruzheny)
 **Backtest Plan:** `docs/BACKTEST_PLAN_DCA_TF_SMC.md` — 5 faz, 48,400 bektestov, ~3 chasa na VM-16-32
+**SMC Fix Plan:** `.claude/plans/zippy-snacking-boole.md` — 4 baga, 6 faylov, gotov k realizatsii
 
 ---
 
-## Poslednyaya Sessiya (2026-02-23) - Session 23: Fix otritsatelnogo base_balance pri grid init
+## Poslednyaya Sessiya (2026-02-23) - Session 24: Server Audit + SMC Bug Analysis + Multi-TF Verification
+
+### Zadacha
+
+1. Proverit status servera (185.233.200.13) protiv repozitoriya
+2. Proverit logi bota — nayti problemy
+3. Izuchit v2.0 Algorithm Modules — podrobnyy analiz gotovnosti
+4. Proverit rabotosposobnost sistemy multi-TF bektestirovaniya
+5. Podgotovit plan fiksov dlya obnaruzhennyh bagov
+
+### 1. Server Audit
+
+| Parametr | Znachenie |
+|----------|-----------|
+| Server commit | `ff6ed2b` (Session 21 docs) |
+| Local commit | `dbf073a` (Session 23 docs) |
+| Otstavanie | Neskolko docs-kommitov, bot/ kod aktualnyy |
+| Konteynery | bot (healthy, 23h), postgres (healthy, 12d), redis (healthy, 12d) |
+| Boty | 5 initializirovano, bot_count=5 |
+| Rezhim | **bear_trend** (ADX=37.96, confidence=0.75, trend_strength=-0.47) |
+| BTC tsena | ~$65,700 |
+| Balans | $99,998.19 (demo) |
+| Oshibki | 66 BadHttpMethod (vneshnie skanery), 1 DNS timeout (edinichnyy) |
+
+### 2. SMC Bot — 4 baga obnaruzheny
+
+#### Bug 1: Stale entry_price
+
+`entry_price=68016.1` povtoryaetsya kazhdye 5 minut uzhe neskolko chasov. Prichina: Order Block na etoy tsene ostaetsya ACTIVE, t.k. `confluence_zones.py:_update_zone_status()` ne invalidiruet zonu posle ispolzovaniya. Dublikat-detection (`ob.index == i`) proveryaet tolko index, ne tsenu. Signal deduplication otsutstvuyet v `smc_adapter.py:generate_signal()`.
+
+#### Bug 2: Dublikat smc_position_opened
+
+Kazhdaya pozitsiya logiruyetsya dvazhdy: v `smc_adapter.py:180` i v `bot_orchestrator.py:1111`. Oba loga identichnye.
+
+#### Bug 3: Instant TP v dry_run (~1 sekunda)
+
+SHORT pozitsiya otkryvayetsya po stale entry=68016.1, no tekushchaya tsena ~65700. Na sleduyushchem tike (1s) `update_positions()` vidit `current_price < take_profit` (65700 < 67038) → instant TP. PnL ~$160 za 1 sekundu — nerealistichno.
+
+#### Bug 4: Dublikat smc_position_closed
+
+Analogichno Bug 2: `smc_adapter.py:246` i `bot_orchestrator.py:996` logiruyut odno i to zhe zakrytie.
+
+#### Ostalnye 4 bota — net torgovoy aktivnosti
+
+Grid, DCA, Hybrid, Trend Follower — tolko `state_saved` kazhdye 30s. Prichina: rezhimnyy filtr ne integrirovan v main loop (regime recommendation ignoriruyetsya, strategii ne poluchayut komand "start/stop" ot StrategySelector).
+
+### 3. v2.0 Algorithm Modules — analiz gotovnosti
+
+| Modul | Status | LOC |
+|-------|--------|-----|
+| Bot Orchestrator | Realizovan (bazovyy loop) | 1,622 |
+| Strategy Selector (6 rezhimov) | Realizovan (no ne podklyuchon k main loop) | 469 |
+| Market Regime Detector v2.0 | Realizovan (ADX gisterezis) | 693 |
+| Capital Manager (fazovyy deploy) | Realizovan (3 fazy: 5%→25%→100%) | 322 |
+| Risk Manager (bazovyy) | Realizovan (per-trade only) | 384 |
+| **Master Loop (60s tsikl)** | **NE realizovan** (spec v TRADERAGENT_V2_ALGORITHM.md) | — |
+| **Dynamic CapitalAllocator** | **NE realizovan** (pair_weight × confidence × performance) | — |
+| **Risk Aggregator (3 urovnya)** | **NE realizovan** (per-trade → per-pair → portfolio) | — |
+| **Graceful Transition** | **NE realizovan** (LOCK → Cancel → Reconcile → Tight SL/TP → Close) | — |
+| **Emergency Halt (3 stadii)** | **NE realizovan** (cancel → close → operator) | — |
+| **SMC kak Filter** | **NE realizovan** (ENHANCED/NEUTRAL/REJECT verdicts) | — |
+| **Correlation Monitor** | **NE realizovan** (STRESS_MODE pri >60% korreliruyut) | — |
+
+### 4. Multi-TF Backtesting — polnaya verifikatsiya
+
+| Nabor testov | Kol-vo | Rezultat | Vremya |
+|---|---|---|---|
+| Multi-TF Engine | 54 | **54 passed** | 6:32 |
+| Regime + Risk Integration | 21 | **21 passed** | 6:56 |
+| Multi-Strategy (Grid+DCA+SMC+TF) | 31 | **31 passed** | 7:10 |
+| Grid Backtesting (service layer) | 39 | **39 passed** | 0:10 |
+| **Polnyy suite** | **1531** | **1531 passed, 25 skipped** | 6:33 |
+
+Provereno: data loader, resampling M5→D1, LONG+SHORT, intra-candle sweep, strategy comparison, regime filter, risk manager halt, optimizer, stress testing.
+
+### 5. Plan fiksov SMC (podgotovlen, ne realizovan)
+
+Fayl: `.claude/plans/zippy-snacking-boole.md`
+
+| Step | Izmeneniye | Fayl |
+|------|-----------|------|
+| 1 | Udalit dubli logov (opened/closed) | `bot_orchestrator.py` |
+| 2 | Zone death posle max_touches=2 | `confluence_zones.py` |
+| 3 | Ogranichit pattern scan do 3 poslednih svechey | `entry_signals.py` |
+| 4 | Signal dedup v adapter | `smc_adapter.py` |
+| 5 | dry_run price adjustment (entry→current) | `bot_orchestrator.py` |
+
+### Sohranonnye fayly
+
+- `.claude/plans/zippy-snacking-boole.md` — plan fiksov SMC bagov (novyy)
+
+---
+
+## Predydushchaya Sessiya (2026-02-23) - Session 23: Fix otritsatelnogo base_balance pri grid init
 
 ### Zadacha
 
