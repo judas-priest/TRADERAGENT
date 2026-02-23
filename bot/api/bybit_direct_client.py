@@ -40,6 +40,24 @@ from bot.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _normalize_order_status(bybit_status: str) -> str:
+    """Normalize Bybit orderStatus to CCXT-compatible values.
+
+    Bybit native  → CCXT normalized
+    "Filled"      → "closed"
+    "New"         → "open"
+    "PartiallyFilled" → "open"
+    "Cancelled"   → "cancelled"
+    "Rejected"    → "rejected"
+    """
+    status = bybit_status.lower()
+    if status == "filled":
+        return "closed"
+    if status in ("new", "partiallyfilled"):
+        return "open"
+    return status
+
+
 class ByBitDirectClient:
     """
     Direct ByBit V5 API Client with proper Demo Trading support.
@@ -483,7 +501,7 @@ class ByBitDirectClient:
                     "amount": float(order_data.get("qty", "0")),
                     "filled": float(order_data.get("cumExecQty", "0")),
                     "remaining": float(order_data.get("leavesQty", "0")),
-                    "status": order_data.get("orderStatus", "").lower(),
+                    "status": _normalize_order_status(order_data.get("orderStatus", "")),
                     "timestamp": int(order_data.get("createdTime", "0")),
                 }
             )
@@ -971,7 +989,7 @@ class ByBitDirectClient:
             "amount": float(order_data.get("qty", "0")),
             "filled": float(order_data.get("cumExecQty", "0")),
             "remaining": float(order_data.get("leavesQty", "0")),
-            "status": order_data.get("orderStatus", "").lower(),
+            "status": _normalize_order_status(order_data.get("orderStatus", "")),
             "timestamp": int(order_data.get("createdTime", "0")),
         }
 
@@ -1015,7 +1033,7 @@ class ByBitDirectClient:
                     "amount": float(order_data.get("qty", "0")),
                     "filled": float(order_data.get("cumExecQty", "0")),
                     "remaining": float(order_data.get("leavesQty", "0")),
-                    "status": order_data.get("orderStatus", "").lower(),
+                    "status": _normalize_order_status(order_data.get("orderStatus", "")),
                     "timestamp": int(order_data.get("createdTime", "0")),
                 }
             )
