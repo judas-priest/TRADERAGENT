@@ -1,22 +1,64 @@
-# TRADERAGENT v2.0 - Session Context (Updated 2026-02-22)
+# TRADERAGENT v2.0 - Session Context (Updated 2026-02-23)
 
 ## Tekushchiy Status Proekta
 
-**Data:** 22 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + RegimeClassifier + RiskManager integrated into Multi-TF Backtester + **Plan bektestirovaniya DCA+TF+SMC na VM-16-32 podgotovlen**
-**Pass Rate:** 100% (1551/1551 tests passing, 25 skipped)
-**Realnyy obem testov:** 1576 collected
+**Data:** 23 fevralya 2026
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + RegimeClassifier + RiskManager integrated into Multi-TF Backtester + Plan bektestirovaniya DCA+TF+SMC na VM-16-32 podgotovlen + Accelerated Replay Framework + **Fix: otritsatelnyy base_balance pri grid init**
+**Pass Rate:** 100% (1260/1260 tests passing, 14 skipped, 1 pre-existing SMC failure)
+**Realnyy obem testov:** 1275 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Multi-TF Backtesting:** 184 tests passing (bylo 163, +21 novyh — regime filtering, risk management integration)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `f431d31` (feat: integrate RegimeClassifier + RiskManager into multi-TF backtester)
+**Posledniy commit:** `1bdc54a` (fix: prevent negative base_balance by validating funds before order placement)
 **Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE v dry_run rezhime)
 **Backtest Plan:** `docs/BACKTEST_PLAN_DCA_TF_SMC.md` — 5 faz, 48,400 bektestov, ~3 chasa na VM-16-32
 
 ---
 
-## Poslednyaya Sessiya (2026-02-22) - Session 22: Plan bektestirovaniya DCA + Trend Follower + SMC
+## Poslednyaya Sessiya (2026-02-23) - Session 23: Fix otritsatelnogo base_balance pri grid init
+
+### Zadacha
+
+1-godichnyy accelerated replay (105k svechey) vyyavil **KRITICHESKIY** bag: `base_balance` uhodit v **-29.94 XRP** na sveche 100. Prichina: grid initializatsiya razmeshchaet sell ordery ne proveryaya, est li u bota dostatochno bazovogo aktiva. Na realnoy birzhe (Bybit) takie ordery byli by otkloneny s InsufficientFundsError. Mock birzha razreshala ih, obnazhaya defekt dizayna.
+
+### Resheniye (dvuhurovnevyy fix)
+
+**1. `bot/replay/replay_exchange.py` — validatsiya balansa v mock birzhe:**
+- `create_order()`: dobavlena proverka `InsufficientFunds` dlya market i limit orderov (buy: USDT, sell: bazovyy aktiv)
+- `fetch_balance()`: teper vozvrashchaet bazovyy aktiv (naprimer "XRP") v otvet, ne tolko USDT
+
+**2. `bot/orchestrator/bot_orchestrator.py` — filtratsiya neobespechennykh sell orderov:**
+- Posle `initialize_grid()` zapros tekushchego balansa i filtratsiya sell orderov prevyshayushchikh dostupnyy bazovyy balans
+- Buy ordery vsegda prokhodyat (ispolzuyut USDT)
+- Sell ordery otslezhivayut kumulyativnyy reserved base i propuskayutsya pri nedostatke
+- Logi: `grid_sell_skipped_insufficient_base` (warning), `grid_sell_orders_filtered` (info)
+- Sell ordery sozdayutsya pozdnee cherez `handle_order_filled()` kogda buy ordery priobretyut bazovyy aktiv
+
+### Pochemu NE menyal GridEngine
+
+GridEngine — chistyy strategicheskiy komponent, on vychislyaet optimalnye urovni. On NE dolzhen znat o balansakh birzhi. Orkestrator — pravilnoye mesto dlya filtratsii s uchetom balansa, t.k. on imeet dostup i k grid engine, i k birzhe.
+
+### Verifikatsiya
+
+- Replay 200 svechey: 0 CRITICAL anomaliy, `grid_sell_skipped_insufficient_base` v logakh
+- Testy: 1260 passed, 14 skipped, 1 pre-existing SMC failure (ne svyazan s fixom)
+
+### Izmenennyye fayly
+
+| Fayl | Izmeneniya |
+|------|-----------|
+| `bot/replay/replay_exchange.py` | +InsufficientFunds validatsiya v create_order(), +base asset v fetch_balance() |
+| `bot/orchestrator/bot_orchestrator.py` | +filtratsiya sell orderov pri grid init po dostupnomu base balance |
+
+### Commit
+
+- **Commit:** `1bdc54a` (fix: prevent negative base_balance by validating funds before order placement)
+- **Status:** COMPLETE
+
+---
+
+## Predydushchaya Sessiya (2026-02-22) - Session 22: Plan bektestirovaniya DCA + Trend Follower + SMC
 
 ### Zadacha
 
@@ -1472,6 +1514,22 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 
 ## Istoriya Sessiy
 
+### Sessiya 23 (2026-02-23): Fix otritsatelnogo base_balance pri grid init
+- KRITICHESKIY bag: base_balance uhodit v -29.94 XRP na sveche 100 iz-za sell orderov bez proverki balansa
+- ReplayExchangeClient: +InsufficientFunds validatsiya dlya market/limit orderov, fetch_balance() vozvrashchaet base asset
+- BotOrchestrator: filtratsiya neobespechennykh sell orderov pri grid init, logi skipped orderov
+- GridEngine ne tronuli — on chistyy strategicheskiy komponent, ne dolzhen znat o balansakh
+- Replay 200 svechey: 0 CRITICAL anomaliy, sell ordery korrektno propushcheny
+- **Commit:** `1bdc54a`
+- **Status:** COMPLETE
+
+### Sessiya 22 (2026-02-22): Plan bektestirovaniya DCA + Trend Follower + SMC
+- Podgotovlen polnyy plan bektestirovaniya 3 strategiy cherez multi-TF dvizhok
+- 5 faz, 48,400 bektestov, ~3 chasa na VM-16-32
+- 18 tselevyh par (3 tira: Blue Chips, Mid Caps, Volatile)
+- **Commit:** `cdf3db8`
+- **Status:** COMPLETE
+
 ### Sessiya 21 (2026-02-22): RegimeClassifier + RiskManager v Multi-TF Backtester
 - Integratsiya MarketRegimeDetector i RiskManager v multi_tf_engine.py
 - Opt-in: enable_regime_filter i enable_risk_manager (po umolchaniyu vyklyucheny)
@@ -1804,11 +1862,10 @@ docker compose up webui-backend webui-frontend
 
 ## Last Updated
 
-- **Date:** February 22, 2026
-- **Session:** 21 (RegimeClassifier + RiskManager v Multi-TF Backtester)
-- **Status:** 1551/1576 tests passing (100%), 25 skipped
-- **Total tests:** 1576 collected
-- **Last commit:** `f431d31` (feat: integrate RegimeClassifier + RiskManager into multi-TF backtester)
+- **Date:** February 23, 2026
+- **Session:** 23 (Fix otritsatelnogo base_balance pri grid init)
+- **Status:** 1260 tests passing, 14 skipped, 1 pre-existing SMC failure
+- **Last commit:** `1bdc54a` (fix: prevent negative base_balance by validating funds before order placement)
 - **Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE — dry_run)
 - **SMC Main Loop Fix:** auto_start: true, TP/SL kazhdyu sek, OHLCV analiz kazhdye 5 min, 0 oshibok
 - **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors) — **vse lintory chistye**
