@@ -32,6 +32,7 @@ import time
 import traceback
 import urllib.request
 import urllib.parse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -323,6 +324,48 @@ def result_to_dict(r: BacktestResult) -> dict[str, Any]:
     return r.to_dict()
 
 
+# ---------------------------------------------------------------------------
+# Parallel worker (runs in subprocess via ProcessPoolExecutor)
+# ---------------------------------------------------------------------------
+
+
+def _run_single_backtest(
+    data_dir: str, pair: str, strat_name: str, config_dict: dict[str, Any],
+) -> dict[str, Any]:
+    """Run one backtest in a subprocess. Returns serialisable result dict."""
+    import asyncio as _asyncio
+
+    try:
+        data = load_pair_data(data_dir, pair)
+        spec = STRATEGIES[strat_name]
+        params = config_dict.get("params") or spec["defaults"]
+        strategy = spec["factory"](params)
+
+        cfg = MultiTFBacktestConfig(**config_dict["engine_config"])
+        engine = MultiTimeframeBacktestEngine(config=cfg)
+        result = _asyncio.run(engine.run(strategy, data))
+        d = {
+            "ok": True,
+            "pair": pair,
+            "strategy": strat_name,
+            "result": result.to_dict(),
+            "return_pct": float(result.total_return_pct),
+            "sharpe": str(result.sharpe_ratio),
+            "trades": result.total_trades,
+        }
+        if hasattr(result, "regime_filter_blocks"):
+            d["regime_blocks"] = result.regime_filter_blocks
+            d["risk_blocks"] = result.risk_manager_blocks
+        return d
+    except Exception:
+        return {
+            "ok": False,
+            "pair": pair,
+            "strategy": strat_name,
+            "error": traceback.format_exc(),
+        }
+
+
 def save_json(data: Any, path: Path) -> None:
     """Write data as pretty-printed JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -359,9 +402,9 @@ def generate_sensitivity_ranges(
 async def phase1_baseline(
     pairs: list[str], data_dir: str, workers: int,
 ) -> dict[str, Any]:
-    """Phase 1: Baseline — run each strategy with default params on every pair."""
+    """Phase 1: Baseline — run each strategy with default params on every pair (parallel)."""
     logger.info("=" * 60)
-    logger.info("PHASE 1: Baseline (%d pairs × 3 strategies)", len(pairs))
+    logger.info("PHASE 1: Baseline (%d pairs × 3 strategies, %d workers)", len(pairs), workers)
     logger.info("=" * 60)
 
     results: dict[str, dict[str, Any]] = {}
@@ -369,41 +412,58 @@ async def phase1_baseline(
     ok_count = 0
     t0 = time.monotonic()
 
-    for i, pair in enumerate(pairs, 1):
-        try:
-            data = load_pair_data(data_dir, pair)
-        except Exception:
-            msg = traceback.format_exc()
-            logger.error("Failed to load data for %s:\n%s", pair, msg)
-            errors.append({"pair": pair, "strategy": "all", "error": "data_load", "traceback": msg})
-            continue
+    # Serialise engine config for subprocess pickling
+    engine_cfg = {
+        "initial_balance": BALANCE,
+        "warmup_bars": BASELINE_CONFIG.warmup_bars,
+        "lookback": BASELINE_CONFIG.lookback,
+        "analyze_every_n": BASELINE_CONFIG.analyze_every_n,
+        "risk_per_trade": BASELINE_CONFIG.risk_per_trade,
+        "enable_regime_filter": False,
+        "enable_risk_manager": False,
+    }
 
-        results[pair] = {}
-        for strat_name, spec in STRATEGIES.items():
-            try:
-                strategy = spec["factory"](spec["defaults"])
-                engine = MultiTimeframeBacktestEngine(config=BASELINE_CONFIG)
-                result = await engine.run(strategy, data)
-                results[pair][strat_name] = result_to_dict(result)
+    # Build task list: (pair, strategy_name)
+    tasks: list[tuple[str, str]] = []
+    for pair in pairs:
+        for strat_name in STRATEGIES:
+            tasks.append((pair, strat_name))
+
+    total = len(tasks)
+    done_count = 0
+
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(
+                _run_single_backtest, data_dir, pair, sname, {"engine_config": engine_cfg},
+            ): (pair, sname)
+            for pair, sname in tasks
+        }
+
+        for future in as_completed(futures):
+            done_count += 1
+            res = future.result()
+            pair = res["pair"]
+            sname = res["strategy"]
+
+            if res["ok"]:
+                results.setdefault(pair, {})[sname] = res["result"]
                 ok_count += 1
                 logger.info(
-                    "  %s / %s: return=%.2f%% sharpe=%s trades=%d",
-                    pair, strat_name,
-                    float(result.total_return_pct),
-                    result.sharpe_ratio,
-                    result.total_trades,
+                    "  [%d/%d] %s / %s: return=%.2f%% sharpe=%s trades=%d",
+                    done_count, total, pair, sname,
+                    res["return_pct"], res["sharpe"], res["trades"],
                 )
-            except Exception:
-                msg = traceback.format_exc()
-                logger.error("  %s / %s FAILED:\n%s", pair, strat_name, msg)
-                errors.append({"pair": pair, "strategy": strat_name, "error": str(sys.exc_info()[1]), "traceback": msg})
+            else:
+                logger.error("  [%d/%d] %s / %s FAILED:\n%s", done_count, total, pair, sname, res["error"])
+                errors.append({"pair": pair, "strategy": sname, "error": res["error"][:500]})
 
-        if i % 10 == 0 or i == len(pairs):
-            tg_send(f"Phase 1 progress: {i}/{len(pairs)} pairs ({ok_count} OK, {len(errors)} err)")
+            if done_count % 15 == 0 or done_count == total:
+                el = time.monotonic() - t0
+                tg_send(f"Phase 1: {done_count}/{total} ({ok_count} OK, {len(errors)} err, {el:.0f}s)")
 
     elapsed = time.monotonic() - t0
-    total = len(pairs) * len(STRATEGIES)
-    logger.info("Phase 1 done: %d/%d OK, %d errors", ok_count, total, len(errors))
+    logger.info("Phase 1 done: %d/%d OK, %d errors in %.0fs", ok_count, total, len(errors), elapsed)
     tg_send(f"✅ *Phase 1 done* ({elapsed:.0f}s)\n{ok_count}/{total} OK, {len(errors)} errors")
 
     save_json(results, RESULTS_DIR / "phase1_baseline.json")
@@ -493,11 +553,11 @@ async def phase2_optimization(
 
 
 async def phase3_regime(
-    pairs: list[str], data_dir: str, phase2: dict[str, Any],
+    pairs: list[str], data_dir: str, phase2: dict[str, Any], workers: int = 14,
 ) -> dict[str, Any]:
-    """Phase 3: Regime-aware — best params + regime filter + risk manager."""
+    """Phase 3: Regime-aware — best params + regime filter + risk manager (parallel)."""
     logger.info("=" * 60)
-    logger.info("PHASE 3: Regime-Aware (%d pairs × 3 strategies)", len(pairs))
+    logger.info("PHASE 3: Regime-Aware (%d pairs × 3 strategies, %d workers)", len(pairs), workers)
     logger.info("=" * 60)
 
     results: dict[str, dict[str, Any]] = {}
@@ -505,46 +565,65 @@ async def phase3_regime(
     ok_count = 0
     t0 = time.monotonic()
 
-    for i, pair in enumerate(pairs, 1):
-        try:
-            data = load_pair_data(data_dir, pair)
-        except Exception:
-            msg = traceback.format_exc()
-            logger.error("Failed to load data for %s:\n%s", pair, msg)
-            errors.append({"pair": pair, "strategy": "all", "error": "data_load", "traceback": msg})
-            continue
+    regime_cfg = {
+        "initial_balance": BALANCE,
+        "warmup_bars": REGIME_CONFIG.warmup_bars,
+        "lookback": REGIME_CONFIG.lookback,
+        "analyze_every_n": REGIME_CONFIG.analyze_every_n,
+        "risk_per_trade": REGIME_CONFIG.risk_per_trade,
+        "enable_regime_filter": True,
+        "regime_check_interval": REGIME_CONFIG.regime_check_interval,
+        "regime_timeframe": REGIME_CONFIG.regime_timeframe,
+        "enable_risk_manager": True,
+        "rm_max_position_size": REGIME_CONFIG.rm_max_position_size,
+        "rm_stop_loss_percentage": REGIME_CONFIG.rm_stop_loss_percentage,
+        "rm_max_daily_loss": REGIME_CONFIG.rm_max_daily_loss,
+    }
 
-        results[pair] = {}
-        for strat_name, spec in STRATEGIES.items():
-            try:
-                # Use best params from phase 2, fallback to defaults
-                p2_entry = (phase2.get(pair, {}).get(strat_name, {}))
-                params = p2_entry.get("best_params", spec["defaults"])
+    tasks: list[tuple[str, str, dict]] = []
+    for pair in pairs:
+        for strat_name in STRATEGIES:
+            p2_entry = phase2.get(pair, {}).get(strat_name, {})
+            params = p2_entry.get("best_params", STRATEGIES[strat_name]["defaults"])
+            tasks.append((pair, strat_name, params))
 
-                strategy = spec["factory"](params)
-                engine = MultiTimeframeBacktestEngine(config=REGIME_CONFIG)
-                result = await engine.run(strategy, data)
-                results[pair][strat_name] = result_to_dict(result)
+    total = len(tasks)
+    done_count = 0
+
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(
+                _run_single_backtest, data_dir, pair, sname,
+                {"engine_config": regime_cfg, "params": params},
+            ): (pair, sname)
+            for pair, sname, params in tasks
+        }
+
+        for future in as_completed(futures):
+            done_count += 1
+            res = future.result()
+            pair = res["pair"]
+            sname = res["strategy"]
+
+            if res["ok"]:
+                results.setdefault(pair, {})[sname] = res["result"]
                 ok_count += 1
                 logger.info(
-                    "  %s / %s: return=%.2f%% sharpe=%s regime_blocks=%d risk_blocks=%d",
-                    pair, strat_name,
-                    float(result.total_return_pct),
-                    result.sharpe_ratio,
-                    result.regime_filter_blocks,
-                    result.risk_manager_blocks,
+                    "  [%d/%d] %s / %s: return=%.2f%% sharpe=%s regime_blocks=%d risk_blocks=%d",
+                    done_count, total, pair, sname,
+                    res["return_pct"], res["sharpe"],
+                    res.get("regime_blocks", 0), res.get("risk_blocks", 0),
                 )
-            except Exception:
-                msg = traceback.format_exc()
-                logger.error("  %s / %s FAILED:\n%s", pair, strat_name, msg)
-                errors.append({"pair": pair, "strategy": strat_name, "error": str(sys.exc_info()[1]), "traceback": msg})
+            else:
+                logger.error("  [%d/%d] %s / %s FAILED:\n%s", done_count, total, pair, sname, res["error"])
+                errors.append({"pair": pair, "strategy": sname, "error": res["error"][:500]})
 
-        if i % 10 == 0 or i == len(pairs):
-            tg_send(f"Phase 3 progress: {i}/{len(pairs)} pairs ({ok_count} OK, {len(errors)} err)")
+            if done_count % 15 == 0 or done_count == total:
+                el = time.monotonic() - t0
+                tg_send(f"Phase 3: {done_count}/{total} ({ok_count} OK, {len(errors)} err, {el:.0f}s)")
 
     elapsed = time.monotonic() - t0
-    total = len(pairs) * len(STRATEGIES)
-    logger.info("Phase 3 done: %d/%d OK, %d errors", ok_count, total, len(errors))
+    logger.info("Phase 3 done: %d/%d OK, %d errors in %.0fs", ok_count, total, len(errors), elapsed)
     tg_send(f"✅ *Phase 3 done* ({elapsed:.0f}s)\n{ok_count}/{total} OK, {len(errors)} errors")
 
     save_json(results, RESULTS_DIR / "phase3_regime.json")
@@ -888,7 +967,7 @@ async def run_pipeline(args: argparse.Namespace) -> None:
         if phase2_data is None:
             logger.warning("Phase 2 results not available; using default params for Phase 3")
             phase2_data = {}
-        phase3_data = await phase3_regime(pairs, data_dir, phase2_data)
+        phase3_data = await phase3_regime(pairs, data_dir, phase2_data, workers)
 
     # --- Phase 4 ---
     if 4 in phases:
