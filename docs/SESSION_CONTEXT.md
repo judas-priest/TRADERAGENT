@@ -1,19 +1,143 @@
-# TRADERAGENT v2.0 - Session Context (Updated 2026-02-23)
+# TRADERAGENT v2.0 - Session Context (Updated 2026-02-24)
 
 ## Tekushchiy Status Proekta
 
-**Data:** 23 fevralya 2026
-**Status:** v2.0.0 Release + ... + **DCA+TF+SMC Pipeline RUNNING** + **SMC bugs FIXED** + **Pipeline Performance Optimized (Session 29)**
+**Data:** 24 fevralya 2026
+**Status:** v2.0.0 Release + ... + **SMC bugs FIXED** + **Pipeline Perf Optimized** + **ETH/SOL bots LAUNCHED (Session 30)**
 **Pass Rate:** 100% (1531/1531 tests passing, 25 skipped)
 **Realnyy obem testov:** 1556 collected
-**Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
-**Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing (multi-TF engine + regime/risk + multi-strategy)
+**Backtesting Service:** 174 tests passing
+**Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `134be4c` (perf: warmup_bars 60→100, analyze_every_n 12→24)
-**Bot Status:** RUNNING (5 botov na 185.233.200.13, SMC bagi ispravleny, status-normalizatsiya ispravlena)
-**Pipeline Status:** RUNNING na Yandex Cloud — Phase 1 DONE, Phase 2 IN PROGRESS (45 par × 3 strategii, **15 workers, CPU 93.7%**)
-**New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD) — Pipeline DEPLOYED + OPTIMIZED
+**Posledniy commit:** `7d3149d` (feat: enable ETH/USDT grid and SOL/USDT DCA bots + Scanner Bot roadmap)
+**Bot Status:** RUNNING — **3 aktivnykh bota** na 185.233.200.13: demo_btc_hybrid (hybrid), demo_eth_grid (grid), demo_sol_dca (dca), + demo_btc_smc (dry_run)
+**Pipeline Status:** Phase 1 DONE, Phase 2 IN PROGRESS na Yandex Cloud
+**New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD)
+
+---
+
+## Poslednyaya Sessiya (2026-02-24) - Session 30: Zapusk ETH/SOL botov + dokumentatsiya + Scanner Bot
+
+### Zadacha
+
+1. Otrazit vsyu rabotu sessii v repozitorii (docs refresh, bugfixes, SESSION_CONTEXT.md)
+2. Zapustit boты ETH/USDT (Grid) i SOL/USDT (DCA) na demo
+3. Dobavit kontseptsiyu Scanner Bot v ROADMAP.md
+4. Obnovit SESSION_CONTEXT.md
+
+### 1. Polnoe obnovlenie dokumentatsii (commit `15480e5`)
+
+Vse 6 faylov perepisany v sootvetstvii s realnym khodom koda:
+
+| Fayl | Chto izmeneno |
+|------|---------------|
+| `docs/STRATEGY_ALGORITHMS.md` | Hybrid: preduprezhdenie o razryve Regime→loop; SMC: stale filter 2%; Bybit status normalizatsiya tablichka |
+| `docs/v2/TROUBLESHOOTING.md` | +grid_order_not_filled (prichina i fiх); +SMC stale signals; +Bybit Demo Trading sektsiya; +Telegram fallback |
+| `docs/v2/USER_GUIDE.md` | 5 strategiy s parametrami; Bybit Demo setup; Docker; ispravleny env vars |
+| `docs/DEPLOYMENT.md` | Quick Start; Demo vs Testnet tablitsa; reset state; code sync instruktsiya |
+| `docs/ROADMAP.md` | Active Development s aktualnym statusom; Scanner Bot (Session 30); Known Gaps |
+| `docs/ARCHITECTURE.md` | Zagolovok 1531 testov; SMC bot v tablitse Phase 7.3; status-normalizatsiya; pipeline progress |
+
+### 2. Ispravleniya bagov (sessia 28, fakticheskie kommity)
+
+**Bag 1: `grid_order_not_filled` — beskonechnyy tsikl preduprezhdeny**
+
+- **Prichina:** `ByBitDirectClient` vozvrashchal nativnyy status Bybit `"filled"`, no orkestrator sravnival s CCXT-normalizovannym `"closed"`
+- **Fix (commit `b477fbf`):** Dobavlena `_normalize_order_status()` v `bot/api/bybit_direct_client.py`:
+  ```python
+  def _normalize_order_status(bybit_status: str) -> str:
+      status = bybit_status.lower()
+      if status == "filled":
+          return "closed"
+      if status in ("new", "partiallyfilled"):
+          return "open"
+      return status
+  ```
+  Primenyaetsya v `fetch_open_orders()`, `fetch_order()`, `fetch_closed_orders()`
+
+**Bag 2: SMC vsegda vozvrashchal trend="unknown"**
+
+- **Prichina:** `smc_adapter.py` chital klyuch `"trend"`, no `analyze_market()` vozvrashchayet `"current_trend"` (enum `TrendDirection`)
+- **Fix (commit `f06dc8c`):** Ispravlen klyuch + dobavlena obrabotka enum:
+  ```python
+  trend = analysis.get("current_trend", "unknown")
+  if hasattr(trend, "value"):
+      trend_str = trend.value.lower()
+  ```
+
+**Bag 3: SMC stale signals — mgnovennoye TP v dry_run**
+
+- **Prichina:** SMC keshiruyet zony Order Block mezhdu tsiklami analiza (kazhdye 300 s). Tsena ushla daleko, a entry_price byl staryy → TP srabatyvalo srazu
+- **Fix (commit `f06dc8c`):** Filtr stale-signalov v `bot_orchestrator.py`:
+  ```python
+  price_diff_pct = abs(signal.entry_price - self.current_price) / self.current_price
+  if price_diff_pct > Decimal("0.02"):
+      logger.warning("smc_signal_stale", ...)
+      signal = None
+  ```
+
+**Bag 4: Dublirovannye logi `smc_position_opened`**
+
+- Udalyon dublikat iz orkestratora (adapter uzhe logirayet)
+
+### 3. Zapusk ETH/USDT Grid i SOL/USDT DCA botov (commit `7d3149d`)
+
+**Problema:** Bot torgoval tolko na BTC/USDT (1 para). ETH i SOL boty byli nastroeny no idle (`auto_start: false`).
+
+**Izmenenie v `configs/phase7_demo.yaml`:**
+
+| Bot | Symbol | Strategiya | Izmenenie |
+|-----|--------|-----------|-----------|
+| demo_eth_grid | ETH/USDT | Grid $1870–$2150, 8 urovney | `auto_start: false` → `true` |
+| demo_sol_dca | SOL/USDT | DCA trigger 5%, 5 steps, TP 10% | `auto_start: false` → `true` |
+
+**Rezultat deплoya (185.233.200.13):**
+```
+22:13:29 bot_started bot_name=demo_eth_grid
+22:13:29 bot_started bot_name=demo_sol_dca
+22:13:59 state_saved bot_name=demo_eth_grid
+22:14:00 state_saved bot_name=demo_sol_dca
+```
+
+**Tekushchiye tseny:**
+- ETH: ~$1865 (chut nizhe nizhney granitsy grida $1870 — Grid budet zhdat vkhoda na otskoye)
+- SOL: ~$78.75 (DCA voydet pri padenii na 5% → ~$74.7)
+
+### 4. Scanner Bot v ROADMAP.md
+
+Dobavlen punkt 4 v razdel Active Development s kontseptsiyey "umnogo" vybora par:
+
+**Kontseptsiya Scanner Bot:**
+1. Kazhdye N minut skaniruyet spisok par
+2. Dlya kazhdoy para schitayet rezhim rynka (ADX, BB, EMA)
+3. Mapirovaniye: SIDEWAYS → Grid, DOWNTREND → DCA, UPTREND → Trend Follower
+4. Esli nayдена podkhodyashchaya situatsiya → zapuskayet nuzhnogo bota
+5. Esli situatsiya ukhudshilas → ostanaivlayet bota
+6. Kulдaun mezhdu zapuskami (zashchita ot thrashing)
+
+**Predposylka:** Snachala podklyuchit `MarketRegimeDetector → _main_loop()` (razryv #1 v ROADMAP)
+
+### 5. Tekushchee sostoyanie botov posle sessii
+
+| Bot | Symbol | Strategiya | Status | Primechaniye |
+|-----|--------|-----------|--------|--------------|
+| demo_btc_hybrid | BTC/USDT | Hybrid (Grid+DCA) | ✅ RUNNING | Grid 6 orderov, DCA 2 steps open |
+| demo_eth_grid | ETH/USDT | Grid | ✅ RUNNING | Tsena ~$1865, nizhe grida $1870–$2150 |
+| demo_sol_dca | SOL/USDT | DCA | ✅ RUNNING | Zhdet padeniya 5% ot $78.75 |
+| demo_btc_trend | BTC/USDT | Trend Follower | ⏸ IDLE | auto_start: false |
+| demo_btc_smc | BTC/USDT | SMC | ✅ RUNNING | dry_run: true, stale filter rabotat |
+
+**Rezhim rynka (BTC):** bear_trend, ADX=38.77, recommended=DCA *(ne podklyucheno k main_loop)*
+
+### Kommity sessii
+
+| Commit | Opisanie |
+|--------|----------|
+| `b477fbf` | fix: bybit status normalization (filled→closed) at source |
+| `f06dc8c` | fix: SMC stale filter + wrong trend key + duplicate logs |
+| `15480e5` | docs: full documentation refresh — align with actual code behavior |
+| `7d3149d` | feat: enable ETH/USDT grid and SOL/USDT DCA bots + Scanner Bot roadmap |
 
 ---
 
@@ -2428,54 +2552,36 @@ docker compose up webui-backend webui-frontend
 
 ## Sleduyushchie Shagi
 
-1. **Realizatsiya v2.0 Algorithm (prodolzhenie):** RegimeClassifier v2.0 DONE. Sleduyushchie moduli iz `TRADERAGENT_V2_ALGORITHM.md`:
-   - `bot/coordinator/` — MasterLoop, StrategyRouter, CapitalAllocator, RiskAggregator, GracefulTransition
-   - `bot/filters/smc_filter.py` — SMC Enhancement Layer s SignalType routing
-   - `bot/models/signal.py` — Signal + SignalType enum
-   - Udalenie HYBRID kak otdelnoy strategii
-2. **Realizatsiya Unified Backtesting:** Implementatsiya moduley iz `BACKTESTING_SYSTEM_ARCHITECTURE.md`:
-   - `bot/backtesting/core/` — UniversalSimulator, SimulatedExchange (committed capital)
-   - `bot/backtesting/adapters/` — Grid, DCA, Trend adaptery + SMC Filter
-   - `bot/backtesting/multi/` — MultiStrategyBacktest, PortfolioBacktest
-   - `bot/backtesting/optimization/` — MultiStrategyOptimizer (meta-params)
-3. **Batch bektesting:** 45 par na servere cherez Docker — ispolzovat korotkie okna (3-6 mes)
-4. **Grid Backtesting Integration:** Podklyuchit k Web UI (zamenit zaglushku), integrirovat s HistoricalDataProvider
-5. **Phase 8:** Production launch (security audit, gradual capital 5% → 25% → 100%)
-6. **Web UI:** Lightweight-charts integration (equity curves, price charts)
+1. **Monitoring ETH/SOL botov:** demo_eth_grid i demo_sol_dca tol'ko zapushcheny — sledit' za pervymi orderami
+2. **Podklyuchit' MarketRegimeDetector → _main_loop():** Razryv #1 v ROADMAP — rezhim obnaruzhen, no Hybrid vsegda zapuskayet Grid+DCA odnovremenno
+3. **Scanner Bot:** Realizovat' posle fixa Regime→loop: periodichesskoe skanirovanie par, avtomaticheskiy start/stop botov po rezhimu rynka
+4. **Analiz rezul'tatov pipeline:** Posle zaversheniya Phases 2-5 — ranzhirovat' pary po Sharpe, eksportirovat' optimal'nye parametry v configs
+5. **SMC live trading:** Perevesti demo_btc_smc iz dry_run: true → false posle validatsii pipeline
+6. **Web UI:** Lightweight-charts (equity curves, trade markers), polnye formy sozdaniya botov
 
 ---
 
 ## Last Updated
 
-- **Date:** February 23, 2026
-- **Session:** 23 (Fix otritsatelnogo base_balance pri grid init)
-- **Status:** 1260 tests passing, 14 skipped, 1 pre-existing SMC failure
-- **Last commit:** `1bdc54a` (fix: prevent negative base_balance by validating funds before order placement)
-- **Bot Status:** RUNNING (5 botov, regime=tight_range pri ADX=14.22, SMC bot ACTIVE — dry_run)
-- **SMC Main Loop Fix:** auto_start: true, TP/SL kazhdyu sek, OHLCV analiz kazhdye 5 min, 0 oshibok
-- **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors) — **vse lintory chistye**
-- **Architecture v2.1:** COMPLETE — 918 strok, 20 razdelov, Mermaid diagrammy, SMC Pipeline, Multi-TF Backtesting
-- **Lint Cleanup:** COMPLETE — 64 fayla, 300+ ruff + 47 black errors fixed
-- **PR #258:** CLOSED (vse fixy uzhe v main cherez PR #273)
-- **Multi-TF Backtester:** PRODUCTION-READY — SHORT, M5, CSV, CLI runner, 163 tests, PR #273 merged, 9 issues closed
-- **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1322 strok, 29 konfliktov ustraneny)
+- **Date:** February 24, 2026
+- **Session:** 30 (Zapusk ETH/SOL botov + docs refresh + Scanner Bot roadmap)
+- **Status:** 1531 tests passing (100%), 25 skipped
+- **Last commit:** `7d3149d` (feat: enable ETH/USDT grid and SOL/USDT DCA bots + Scanner Bot roadmap)
+- **Bot Status:** RUNNING — 3 aktivnykh bota: demo_btc_hybrid, demo_eth_grid, demo_sol_dca + demo_btc_smc (dry_run)
+- **Active Bugs Fixed (Session 28-30):** bybit status normalization, SMC trend key, SMC stale filter
+- **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
+- **Pipeline Status:** Phase 1 DONE (135/135, 85 min), Phase 2 IN PROGRESS na Yandex Cloud
+- **Scanner Bot:** Kontseptsiya dobavlena v ROADMAP.md (Active Development #4)
+- **Docs Refresh:** 6 faylov obnovleny (ARCHITECTURE, STRATEGY_ALGORITHMS, USER_GUIDE, DEPLOYMENT, TROUBLESHOOTING, ROADMAP)
+- **Multi-TF Backtester:** PRODUCTION-READY — SHORT, M5, CSV, CLI runner, 163 tests, PR #273 merged
+- **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1322 strok)
 - **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1676 strok)
-- **Conflict Analysis:** Session 12: 16 + Session 13: 13 = **29 konfliktov** ustraneny
-- **SMC Integration:** smartmoneyconcepts library integrated (swing/BOS/CHoCH/OB/FVG/Liquidity), merged to main
-- **SMC Standalone Strategy:** DEPLOYED — 7 faylov, +659 strok, adaptive swing_length, BotOrchestrator integration, 26 testov
-- **Timezone Bug Fix:** periodic_state_save_failed resolved — `.replace(tzinfo=None)` for asyncpg compatibility
-- **Backtesting Service:** 174 tests (bylo 169, +5 novyh), 5 bug fixes applied
-- **Shared Core Refactoring:** COMPLETE — eliminatsiya dublikatov, re-export shims, IGridExchange Protocol
-- **Grid Backtesting:** COMPLETE (39 tests, 4 phases) — polnaya sovmestimost s prodakshn
-- **State Persistence:** COMPLETE (#237) — save/load/reconcile + timezone bug fixed
-- **Phase 7.4:** Load/Stress Testing — COMPLETE (40 tests)
+- **SMC Integration:** smartmoneyconcepts library integrated, SMC Standalone Strategy DEPLOYED
+- **State Persistence:** COMPLETE (#237) — save/load/reconcile + timezone fix
+- **Phase 7.4:** Load/Stress Testing COMPLETE (40 tests, 1599 req/s)
 - **Web UI Dashboard:** COMPLETE (PR #221 merged)
-- **Phase 7.3:** Bybit Demo Trading — DEPLOYED (currently stopped)
-- **Server:** 185.233.200.13 (Docker, RUNNING — 5 botov)
-- **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed to server
-- **GitHub Pages:** UPDATED — 468 commits, 1,508 tests, 5 Strategies, Bybit Demo deployed
-- **Repository Cleanup:** COMPLETE — dca_grid_bot udalyon, docs reorganizovany, code quality fixes applied
+- **Server:** 185.233.200.13 (Docker, RUNNING — 4 bota aktivnykh)
+- **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed
 - **Open Issues:** 5 (#85, #90, #91, #97, #144)
-- **Open PRs:** 1 (#98)
-- **Next Action:** Monitoring SMC bota (nabor statistiki) → Realizatsiya v2.0 algorithm moduley → Unified Backtesting → Batch 45 par → Production
-- **Co-Authored:** Claude Opus 4.6
+- **Next Action:** Monitoring ETH/SOL botov → Podklyuchit' Regime→loop → Scanner Bot → Pipeline results
+- **Co-Authored:** Claude Sonnet 4.6
