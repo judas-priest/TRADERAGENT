@@ -30,6 +30,8 @@ import re
 import sys
 import time
 import traceback
+import urllib.request
+import urllib.parse
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -71,6 +73,50 @@ BALANCE = Decimal("10000")
 
 # Global error collector — all errors across all phases
 ALL_ERRORS: list[dict[str, Any]] = []
+
+# ---------------------------------------------------------------------------
+# Telegram notifications
+# ---------------------------------------------------------------------------
+
+# Load from .env file in project root (simple key=value parsing)
+_dotenv_path = PROJECT_ROOT / ".env"
+_dotenv: dict[str, str] = {}
+if _dotenv_path.exists():
+    for _line in _dotenv_path.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            _dotenv[_k.strip()] = _v.strip()
+
+TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or _dotenv.get("TELEGRAM_BOT_TOKEN", "")
+TG_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or _dotenv.get("TELEGRAM_CHAT_ID", "")
+
+
+def tg_send(text: str) -> None:
+    """Send a message to Telegram. Silently ignores errors."""
+    if not TG_TOKEN or not TG_CHAT_ID:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        data = urllib.parse.urlencode({
+            "chat_id": TG_CHAT_ID,
+            "text": text,
+            "parse_mode": "Markdown",
+        }).encode()
+        req = urllib.request.Request(url, data=data, method="POST")
+        urllib.request.urlopen(req, timeout=10)
+    except Exception:
+        # Fallback: retry without parse_mode (Markdown can fail on special chars)
+        try:
+            data = urllib.parse.urlencode({
+                "chat_id": TG_CHAT_ID,
+                "text": text,
+            }).encode()
+            req = urllib.request.Request(url, data=data, method="POST")
+            urllib.request.urlopen(req, timeout=10)
+        except Exception:
+            pass
+
 
 BASELINE_CONFIG = MultiTFBacktestConfig(
     initial_balance=BALANCE,
@@ -304,8 +350,9 @@ async def phase1_baseline(
     results: dict[str, dict[str, Any]] = {}
     errors: list[dict[str, Any]] = []
     ok_count = 0
+    t0 = time.monotonic()
 
-    for pair in pairs:
+    for i, pair in enumerate(pairs, 1):
         try:
             data = load_pair_data(data_dir, pair)
         except Exception:
@@ -334,8 +381,13 @@ async def phase1_baseline(
                 logger.error("  %s / %s FAILED:\n%s", pair, strat_name, msg)
                 errors.append({"pair": pair, "strategy": strat_name, "error": str(sys.exc_info()[1]), "traceback": msg})
 
+        if i % 10 == 0 or i == len(pairs):
+            tg_send(f"Phase 1 progress: {i}/{len(pairs)} pairs ({ok_count} OK, {len(errors)} err)")
+
+    elapsed = time.monotonic() - t0
     total = len(pairs) * len(STRATEGIES)
     logger.info("Phase 1 done: %d/%d OK, %d errors", ok_count, total, len(errors))
+    tg_send(f"✅ *Phase 1 done* ({elapsed:.0f}s)\n{ok_count}/{total} OK, {len(errors)} errors")
 
     save_json(results, RESULTS_DIR / "phase1_baseline.json")
     if errors:
@@ -358,6 +410,7 @@ async def phase2_optimization(
     best_params: dict[str, dict[str, Any]] = {}
     errors: list[dict[str, Any]] = []
     ok_count = 0
+    t_phase = time.monotonic()
 
     opt_config = OptimizationConfig(
         objective="total_return_pct",
@@ -366,7 +419,7 @@ async def phase2_optimization(
     )
     optimizer = ParameterOptimizer(config=opt_config)
 
-    for pair in pairs:
+    for i, pair in enumerate(pairs, 1):
         try:
             data = load_pair_data(data_dir, pair)
         except Exception:
@@ -403,8 +456,14 @@ async def phase2_optimization(
                 logger.error("  %s / %s OPT FAILED:\n%s", pair, strat_name, msg)
                 errors.append({"pair": pair, "strategy": strat_name, "error": str(sys.exc_info()[1]), "traceback": msg})
 
+        if i % 5 == 0 or i == len(pairs):
+            el = time.monotonic() - t_phase
+            tg_send(f"Phase 2 progress: {i}/{len(pairs)} pairs ({ok_count} OK, {len(errors)} err, {el:.0f}s)")
+
+    elapsed_total = time.monotonic() - t_phase
     total = len(pairs) * len(STRATEGIES)
     logger.info("Phase 2 done: %d/%d OK, %d errors", ok_count, total, len(errors))
+    tg_send(f"✅ *Phase 2 done* ({elapsed_total:.0f}s)\n{ok_count}/{total} OK, {len(errors)} errors")
 
     save_json(best_params, RESULTS_DIR / "phase2_optimization.json")
     if errors:
@@ -427,8 +486,9 @@ async def phase3_regime(
     results: dict[str, dict[str, Any]] = {}
     errors: list[dict[str, Any]] = []
     ok_count = 0
+    t0 = time.monotonic()
 
-    for pair in pairs:
+    for i, pair in enumerate(pairs, 1):
         try:
             data = load_pair_data(data_dir, pair)
         except Exception:
@@ -462,8 +522,13 @@ async def phase3_regime(
                 logger.error("  %s / %s FAILED:\n%s", pair, strat_name, msg)
                 errors.append({"pair": pair, "strategy": strat_name, "error": str(sys.exc_info()[1]), "traceback": msg})
 
+        if i % 10 == 0 or i == len(pairs):
+            tg_send(f"Phase 3 progress: {i}/{len(pairs)} pairs ({ok_count} OK, {len(errors)} err)")
+
+    elapsed = time.monotonic() - t0
     total = len(pairs) * len(STRATEGIES)
     logger.info("Phase 3 done: %d/%d OK, %d errors", ok_count, total, len(errors))
+    tg_send(f"✅ *Phase 3 done* ({elapsed:.0f}s)\n{ok_count}/{total} OK, {len(errors)} errors")
 
     save_json(results, RESULTS_DIR / "phase3_regime.json")
     if errors:
@@ -486,6 +551,7 @@ async def phase4_robustness(
     robustness: dict[str, dict[str, Any]] = {}
     errors: list[dict[str, Any]] = []
     ok_count = 0
+    t0 = time.monotonic()
 
     wf_cfg = WalkForwardConfig(n_splits=5, train_pct=0.7, backtest_config=BASELINE_CONFIG)
     wf = WalkForwardAnalysis(config=wf_cfg)
@@ -493,7 +559,7 @@ async def phase4_robustness(
     mc = MonteCarloSimulation(config=MonteCarloConfig(n_simulations=500))
     sa = SensitivityAnalysis()
 
-    for pair in pairs:
+    for i, pair in enumerate(pairs, 1):
         try:
             data = load_pair_data(data_dir, pair)
         except Exception:
@@ -591,8 +657,14 @@ async def phase4_robustness(
             robustness[pair][strat_name] = entry
             ok_count += 1
 
+        if i % 5 == 0 or i == len(pairs):
+            el = time.monotonic() - t0
+            tg_send(f"Phase 4 progress: {i}/{len(pairs)} pairs ({ok_count} OK, {len(errors)} err, {el:.0f}s)")
+
+    elapsed = time.monotonic() - t0
     total = len(pairs) * len(STRATEGIES)
     logger.info("Phase 4 done: %d/%d OK, %d errors", ok_count, total, len(errors))
+    tg_send(f"✅ *Phase 4 done* ({elapsed:.0f}s)\n{ok_count}/{total} OK, {len(errors)} errors")
 
     save_json(robustness, RESULTS_DIR / "phase4_robustness.json")
     if errors:
@@ -690,11 +762,23 @@ def phase5_report(
     logger.info("Final ranking: %d entries, %d accepted, %d rejected", total, accepted, total - accepted)
     logger.info("Regime routing table: %d pairs covered", len(routing))
 
+    # Build top-5 summary for Telegram
+    top_lines: list[str] = []
     for pair, info in routing.items():
         logger.info(
             "  %s → %s (Sharpe=%.2f, Return=%.2f%%)",
             pair, info["strategy"], info["sharpe"], info["return_pct"],
         )
+        if len(top_lines) < 5:
+            top_lines.append(f"  {pair} → {info['strategy']} (Sharpe={info['sharpe']:.2f})")
+
+    top_str = "\n".join(top_lines) if top_lines else "  (none)"
+    tg_send(
+        f"✅ *Phase 5 — Final Report*\n"
+        f"Total: {total}, Accepted: {accepted}, Rejected: {total - accepted}\n"
+        f"Pairs covered: {len(routing)}\n\n"
+        f"Top results:\n{top_str}"
+    )
 
     # Save outputs
     report = {
@@ -735,6 +819,7 @@ async def run_pipeline(args: argparse.Namespace) -> None:
 
     logger.info("Pipeline starting: %d pairs, %d workers", len(pairs), workers)
     logger.info("Pairs: %s", ", ".join(pairs))
+    tg_send(f"🚀 *Pipeline started*\nPairs: {len(pairs)}, Workers: {workers}\nPhases: {phases if args.phase else 'all (1-5)'}")
 
     # Determine which phases to run
     if args.phase:
@@ -805,6 +890,12 @@ async def run_pipeline(args: argparse.Namespace) -> None:
     # --- Save consolidated error log ---
     _save_error_summary(elapsed)
 
+    mins = elapsed / 60
+    tg_send(
+        f"🏁 *Pipeline finished* ({mins:.1f} min)\n"
+        f"Total errors: {len(ALL_ERRORS)}"
+    )
+
 
 def _save_error_summary(elapsed: float) -> None:
     """Save consolidated error log across all phases."""
@@ -873,11 +964,13 @@ def main() -> None:
         asyncio.run(run_pipeline(args))
     except KeyboardInterrupt:
         logger.warning("Pipeline interrupted by user (Ctrl+C)")
+        tg_send(f"⚠️ *Pipeline interrupted* (Ctrl+C)\nErrors so far: {len(ALL_ERRORS)}")
         _save_error_summary(0)
         sys.exit(130)
     except Exception:
         msg = traceback.format_exc()
         logger.critical("SYSTEM CRASH:\n%s", msg)
+        short_err = str(sys.exc_info()[1])[:200]
         ALL_ERRORS.append({
             "phase": "system",
             "pair": "N/A",
@@ -885,6 +978,7 @@ def main() -> None:
             "error": str(sys.exc_info()[1]),
             "traceback": msg,
         })
+        tg_send(f"🔴 *SYSTEM CRASH*\n{short_err}")
         _save_error_summary(0)
         sys.exit(1)
 
