@@ -49,14 +49,14 @@ def _build_strategies(names: list[str], balance: Decimal) -> list:
 
     for name in names:
         if name == "grid":
-            from bot.strategies.grid_adapter import GridStrategyAdapter
+            from bot.strategies.grid_adapter import GridAdapter
 
-            strategies.append(GridStrategyAdapter(name="grid"))
+            strategies.append(GridAdapter(name="grid"))
 
         elif name == "dca":
-            from bot.strategies.dca_adapter import DCAStrategyAdapter
+            from bot.strategies.dca_adapter import DCAAdapter
 
-            strategies.append(DCAStrategyAdapter(name="dca"))
+            strategies.append(DCAAdapter(name="dca"))
 
         elif name == "trend_follower":
             from bot.strategies.trend_follower_adapter import TrendFollowerAdapter
