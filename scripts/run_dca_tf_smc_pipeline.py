@@ -66,6 +66,30 @@ from bot.tests.backtesting.stress_testing import StressTestConfig, StressTester
 from bot.tests.backtesting.walk_forward import WalkForwardAnalysis, WalkForwardConfig
 
 # ---------------------------------------------------------------------------
+# Suppress noisy SMC debug/info logging during backtesting.
+# SMC modules emit ~50 log lines per bar (patterns, signals, zones, etc.)
+# which creates 4+ GB of I/O and drastically slows down optimization.
+# ---------------------------------------------------------------------------
+for _mod in [
+    "bot.strategies.smc",
+    "bot.strategies.smc.entry_signals",
+    "bot.strategies.smc.market_structure",
+    "bot.strategies.smc.confluence_zones",
+    "bot.strategies.smc.position_manager",
+    "bot.strategies.smc.smc_strategy",
+]:
+    logging.getLogger(_mod).setLevel(logging.WARNING)
+
+# Also suppress structlog renderers that bypass stdlib logging
+try:
+    import structlog
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING),
+    )
+except Exception:
+    pass
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
@@ -329,11 +353,28 @@ def result_to_dict(r: BacktestResult) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def _suppress_smc_logging() -> None:
+    """Suppress noisy SMC debug logging inside subprocess workers."""
+    import logging as _logging
+    for _mod in [
+        "bot.strategies.smc", "bot.strategies.smc.entry_signals",
+        "bot.strategies.smc.market_structure", "bot.strategies.smc.confluence_zones",
+        "bot.strategies.smc.position_manager", "bot.strategies.smc.smc_strategy",
+    ]:
+        _logging.getLogger(_mod).setLevel(_logging.WARNING)
+    try:
+        import structlog as _sl
+        _sl.configure(wrapper_class=_sl.make_filtering_bound_logger(_logging.WARNING))
+    except Exception:
+        pass
+
+
 def _run_single_optimization(
     data_dir: str, pair: str, strat_name: str,
 ) -> dict[str, Any]:
     """Run two-phase optimization for one pair+strategy in a subprocess."""
     import asyncio as _asyncio
+    _suppress_smc_logging()
 
     try:
         data = load_pair_data(data_dir, pair)
@@ -379,6 +420,7 @@ def _run_single_backtest(
 ) -> dict[str, Any]:
     """Run one backtest in a subprocess. Returns serialisable result dict."""
     import asyncio as _asyncio
+    _suppress_smc_logging()
 
     try:
         data = load_pair_data(data_dir, pair)
