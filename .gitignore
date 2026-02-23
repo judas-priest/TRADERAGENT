@@ -76,6 +76,13 @@ alembic.ini
 
 # Historical data CSV files
 data/historical/*.csv
+# Cached OHLCV candle data (large, re-downloadable)
+data/*_5m.json
+data/*_1m.json
+data/*_15m.json
+data/*_1h.json
+data/*_4h.json
+data/*_1d.json
 
 # CI/Build artifacts
 .ci-trigger
