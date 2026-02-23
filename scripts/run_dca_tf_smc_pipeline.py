@@ -149,9 +149,9 @@ def tg_send(text: str) -> None:
 
 BASELINE_CONFIG = MultiTFBacktestConfig(
     initial_balance=BALANCE,
-    warmup_bars=60,
+    warmup_bars=100,
     lookback=100,
-    analyze_every_n=12,
+    analyze_every_n=24,
     risk_per_trade=Decimal("0.02"),
     enable_regime_filter=False,
     enable_risk_manager=False,
@@ -159,9 +159,9 @@ BASELINE_CONFIG = MultiTFBacktestConfig(
 
 REGIME_CONFIG = MultiTFBacktestConfig(
     initial_balance=BALANCE,
-    warmup_bars=60,
+    warmup_bars=100,
     lookback=100,
-    analyze_every_n=12,
+    analyze_every_n=24,
     risk_per_trade=Decimal("0.02"),
     enable_regime_filter=True,
     regime_check_interval=12,
