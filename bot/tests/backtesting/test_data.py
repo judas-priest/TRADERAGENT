@@ -126,9 +126,10 @@ class HistoricalDataProvider:
         """
         Load historical data from CSV file.
 
-        Supports two CSV formats:
+        Supports CSV formats:
         1. timestamp (ISO datetime),open,high,low,close,volume
         2. timestamp (Unix ms),datetime,open,high,low,close,volume
+        3. Open time (Unix ms),open,high,low,close,volume  (Binance)
         """
         import csv
 
@@ -137,9 +138,15 @@ class HistoricalDataProvider:
         with open(filepath) as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Parse timestamp: prefer 'datetime' column, fallback to 'timestamp'
+                # Parse timestamp: prefer 'datetime', then 'timestamp', then 'Open time'
                 if "datetime" in row and row["datetime"]:
                     ts = datetime.fromisoformat(row["datetime"])
+                elif "Open time" in row:
+                    raw_ts = row["Open time"]
+                    try:
+                        ts = datetime.fromisoformat(raw_ts)
+                    except ValueError:
+                        ts = datetime.utcfromtimestamp(int(raw_ts) / 1000)
                 else:
                     raw_ts = row["timestamp"]
                     try:
