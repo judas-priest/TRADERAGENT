@@ -10,7 +10,7 @@
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing (multi-TF engine + regime/risk + multi-strategy)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `e3b834c` (docs: add Multi-TF backtest reports — BTC/USDT 14d synthetic)
+**Posledniy commit:** `5374a2d` (docs: update SESSION_CONTEXT.md — Session 25)
 **Bot Status:** RUNNING (5 botov, regime=bear_trend pri ADX=37.96, SMC bot ACTIVE v dry_run rezhime — 4 baga obnaruzheny)
 **Backtest Plan:** `docs/BACKTEST_PLAN_DCA_TF_SMC.md` — 5 faz, 48,400 bektestov, ~3 chasa na VM-16-32
 **SMC Fix Plan:** `.claude/plans/zippy-snacking-boole.md` — 4 baga, 6 faylov, gotov k realizatsii
@@ -18,7 +18,82 @@
 
 ---
 
-## Poslednyaya Sessiya (2026-02-23) - Session 25: Multi-TF Backtester — Deploy na novyy server
+## Poslednyaya Sessiya (2026-02-23) - Session 26: Obzor proekta + proverka logov + podgotovka k sleduyushchemu etapu
+
+### Zadacha
+
+1. Prochitat SESSION_CONTEXT.md i sprosit polzovatelya nad chem rabotat dalshe
+2. Podrobnyy analiz v2.0 Algorithm Modules — 7 nerealizovannykh moduley
+3. Proverka statusa servera (185.233.200.13) protiv repozitoriya
+4. Proverka logov bota — podtverzhdenie 4 SMC bagov
+5. Popytka fiksit SMC bagi (polzovatel otlozhil: "otlozhim zadachu na potom")
+6. Obzor plana bektestirovaniya (BACKTEST_PLAN_DCA_TF_SMC.md)
+7. Verifikatsiya rabotosposobnosti multi-TF sistemy testirovaniya
+8. Obnovlenie SESSION_CONTEXT.md, commit, push, sinkhronizatsiya servera, perezapusk bota
+
+### 1. Analiz v2.0 Algorithm Modules
+
+Podrobno izucheny 7 nerealizovannykh moduley iz `TRADERAGENT_V2_ALGORITHM.md`:
+
+| # | Modul | Opisaniye | Slozhnost |
+|---|-------|-----------|-----------|
+| 1 | **Master Loop (60s tsikl)** | Tsentralnyy koordinator: regime→allocate→execute→risk | Vysokaya (zamena tekushchego loop v orchestrator) |
+| 2 | **Dynamic CapitalAllocator** | pair_weight × confidence × performance scoring | Srednyaya (~200 LOC) |
+| 3 | **Risk Aggregator (3 urovnya)** | per-trade → per-pair → portfolio risk limits | Srednyaya-Vysokaya (~300 LOC) |
+| 4 | **Graceful Transition** | LOCK → Cancel → Reconcile → Tight SL/TP → Close | Vysokaya (state machine, reconciliation) |
+| 5 | **Emergency Halt (3 stadii)** | cancel_new → close_all → notify_operator | Nizkaya (~100 LOC) |
+| 6 | **SMC kak Filter** | ENHANCED/NEUTRAL/REJECT verdicts dlya drugikh strategiy | Srednyaya (~200 LOC) |
+| 7 | **Correlation Monitor** | Pearson 30d po 18 param, STRESS_MODE pri >60% | Nizkaya-Srednyaya (~150 LOC) |
+
+**Vyvod:** Sushchestvuyushchiy kod pokryvayet bazovuyu infrastrukturu (loop, regime, risk per-trade), no 7 moduley nuzhen dlya polnoy v2.0 specifikatsii.
+
+### 2. Proverka servera
+
+Server (185.233.200.13) byl na `ff6ed2b` — otstal na neskolko docs-commitov. Bot kod aktualnyy. Sinkhronizirovan cherez `git stash && git pull && git stash pop` (lokalnyye izmeneniya: grid bounds, timezone fix). Bot perezapushchen, zdorovyy start.
+
+### 3. SMC bagi — podtverzhdenie
+
+Logi podtverdili te zhe 4 baga chto i v Session 24:
+- **Stale entry_price=68016.1** — povtoryayetsya kazhdye 5 min
+- **Dublikat smc_position_opened** — adapter + orchestrator
+- **Instant TP (~1s)** — SHORT entry=68016 pri tsene ~65700
+- **Dublikat smc_position_closed** — adapter + orchestrator
+- Ostalnye 4 bota — tolko state_saved, net torgovoy aktivnosti
+
+### 4. SMC fix plan
+
+Voshyol v plan mode, podgotovil 5-shagovy plan fiksov (`.claude/plans/zippy-snacking-boole.md`). Polzovatel otlozhil: "otlozhim zadachu na potom".
+
+### 5. Verifikatsiya multi-TF
+
+| Nabor testov | Kol-vo | Rezultat |
+|---|---|---|
+| Multi-TF Engine | 54 | 54 passed |
+| Regime + Risk | 21 | 21 passed |
+| Multi-Strategy | 31 | 31 passed |
+| Grid Backtesting | 39 | 39 passed |
+| **Polnyy suite** | **1531** | **1531 passed, 25 skipped** |
+
+Sistema gotova k bolshomu bektestу.
+
+### 6. Kommity sessii
+
+| Commit | Opisaniye |
+|--------|-----------|
+| `18fbfd2` | docs: update SESSION_CONTEXT.md — Session 24 |
+
+### 7. Otkrytye zadachi (prioritet)
+
+| # | Zadacha | Status | Plan |
+|---|---------|--------|------|
+| 1 | **Fix 4 SMC baga** | Otlozhena polzovatelem | `.claude/plans/zippy-snacking-boole.md` |
+| 2 | **Bolshoy bektest (48,400 zapuskov)** | Gotov k startu | `docs/BACKTEST_PLAN_DCA_TF_SMC.md` |
+| 3 | **Skripty bektesta** | Ne napisany | `download_m5_data.py` + `run_dca_tf_smc_pipeline.py` |
+| 4 | **v2.0 Algorithm Modules (7 sht)** | Ne realizovany | `TRADERAGENT_V2_ALGORITHM.md` |
+
+---
+
+## Predydushchaya Sessiya (2026-02-23) - Session 25: Multi-TF Backtester — Deploy na novyy server
 
 ### Zadacha
 
@@ -112,7 +187,7 @@ python scripts/run_multi_strategy_backtest.py --symbol BTC_USDT --days 14 --tren
 
 ---
 
-## Predydushchaya Sessiya (2026-02-23) - Session 24: Server Audit + SMC Bug Analysis + Multi-TF Verification
+## Session 24 (2026-02-23): Server Audit + SMC Bug Analysis + Multi-TF Verification
 
 ### Zadacha
 
@@ -205,7 +280,7 @@ Fayl: `.claude/plans/zippy-snacking-boole.md`
 
 ---
 
-## Predydushchaya Sessiya (2026-02-23) - Session 23: Fix otritsatelnogo base_balance pri grid init
+## Session 23 (2026-02-23): Fix otritsatelnogo base_balance pri grid init
 
 ### Zadacha
 
