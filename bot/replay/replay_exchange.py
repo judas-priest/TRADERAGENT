@@ -208,9 +208,10 @@ class ReplayExchangeClient:
     async def fetch_balance(self) -> dict[str, Any]:
         self._request_count += 1
         total = self._free_balance + self._used_balance
+        base = self._symbol.split("/")[0]  # e.g. "XRP"
         return {
-            "free": {"USDT": float(self._free_balance)},
-            "total": {"USDT": float(total)},
+            "free": {"USDT": float(self._free_balance), base: float(self._base_balance)},
+            "total": {"USDT": float(total), base: float(self._base_balance)},
             "used": {"USDT": float(self._used_balance)},
         }
 
@@ -252,9 +253,17 @@ class ReplayExchangeClient:
             fee = cost * self._fee_rate
 
             if side.lower() == "buy":
+                if self._free_balance < cost + fee:
+                    raise Exception(
+                        f"InsufficientFunds: need {cost + fee} USDT, have {self._free_balance}"
+                    )
                 self._free_balance -= (cost + fee)
                 self._base_balance += amount_d
             else:
+                if self._base_balance < amount_d:
+                    raise Exception(
+                        f"InsufficientFunds: need {amount_d} base, have {self._base_balance}"
+                    )
                 self._base_balance -= amount_d
                 self._free_balance += (cost - fee)
 
@@ -292,9 +301,17 @@ class ReplayExchangeClient:
 
             # Reserve funds
             if side.lower() == "buy":
+                if self._free_balance < cost:
+                    raise Exception(
+                        f"InsufficientFunds: need {cost} USDT, have {self._free_balance}"
+                    )
                 self._free_balance -= cost
                 self._used_balance += cost
             else:
+                if self._base_balance < amount_d:
+                    raise Exception(
+                        f"InsufficientFunds: need {amount_d} base, have {self._base_balance}"
+                    )
                 self._base_balance -= amount_d
 
             order = {

@@ -329,19 +329,48 @@ class BotOrchestrator:
                     # Fresh start — initialize grid if enabled
                     if self.grid_engine:
                         grid_orders = self.grid_engine.initialize_grid(self.current_price)
+
+                        # Filter out sell orders we can't back with available base balance
+                        balance = await self.exchange.fetch_balance()
+                        base_symbol = self.config.symbol.split("/")[0]
+                        available_base = Decimal(str(balance.get("free", {}).get(base_symbol, 0)))
+
+                        backed_orders = []
+                        reserved_base = Decimal("0")
+                        for order in grid_orders:
+                            if order.side == "sell":
+                                if reserved_base + order.amount > available_base:
+                                    logger.warning(
+                                        "grid_sell_skipped_insufficient_base",
+                                        price=str(order.price),
+                                        amount=str(order.amount),
+                                        available=str(available_base - reserved_base),
+                                    )
+                                    continue
+                                reserved_base += order.amount
+                            backed_orders.append(order)
+
+                        if len(backed_orders) < len(grid_orders):
+                            logger.info(
+                                "grid_sell_orders_filtered",
+                                total=len(grid_orders),
+                                placed=len(backed_orders),
+                                skipped=len(grid_orders) - len(backed_orders),
+                            )
+
                         logger.info(
                             "grid_initialized",
-                            order_count=len(grid_orders),
+                            order_count=len(backed_orders),
                         )
 
                         # Place grid orders on exchange (if not dry run)
                         if not self.config.dry_run:
-                            await self._place_grid_orders(grid_orders)
+                            await self._place_grid_orders(backed_orders)
 
                         await self._publish_event(
                             EventType.GRID_INITIALIZED,
                             {
-                                "order_count": len(grid_orders),
+                                "order_count": len(backed_orders),
                                 "current_price": str(self.current_price),
                             },
                         )
