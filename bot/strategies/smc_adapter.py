@@ -108,10 +108,12 @@ class SMCStrategyAdapter(BaseStrategy):
         # SMCStrategy.analyze_market expects 4 DFs (d1, h4, h1, m15)
         analysis = self._strategy.analyze_market(df_d1, df_h4, df_h1, df_m15)
 
-        trend = analysis.get("trend", "unknown")
+        trend = analysis.get("current_trend", "unknown")
         trend_str = "unknown"
         if isinstance(trend, str):
             trend_str = trend.lower()
+        elif hasattr(trend, "value"):
+            trend_str = trend.value.lower()
 
         self._last_analysis = BaseMarketAnalysis(
             trend=trend_str,

@@ -1115,6 +1115,18 @@ class BotOrchestrator:
                             )
                             signal = None
 
+                    if signal and self.current_price:
+                        # Reject stale signals: entry price too far from current price
+                        price_diff_pct = abs(signal.entry_price - self.current_price) / self.current_price
+                        if price_diff_pct > Decimal("0.02"):
+                            logger.warning(
+                                "smc_signal_stale",
+                                entry_price=str(signal.entry_price),
+                                current_price=str(self.current_price),
+                                diff_pct=f"{float(price_diff_pct) * 100:.1f}%",
+                            )
+                            signal = None
+
                     if signal:
                         position_id = self.smc_strategy.open_position(
                             signal, position_size
@@ -1135,14 +1147,6 @@ class BotOrchestrator:
                                 "sl": str(signal.stop_loss),
                                 "confidence": signal.confidence,
                             },
-                        )
-
-                        logger.info(
-                            "smc_position_opened",
-                            position_id=position_id,
-                            direction=signal.direction.value,
-                            entry_price=str(signal.entry_price),
-                            size=str(position_size),
                         )
 
         except Exception as e:
