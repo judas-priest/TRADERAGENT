@@ -329,6 +329,51 @@ def result_to_dict(r: BacktestResult) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def _run_single_optimization(
+    data_dir: str, pair: str, strat_name: str,
+) -> dict[str, Any]:
+    """Run two-phase optimization for one pair+strategy in a subprocess."""
+    import asyncio as _asyncio
+
+    try:
+        data = load_pair_data(data_dir, pair)
+        spec = STRATEGIES[strat_name]
+
+        opt_config = OptimizationConfig(
+            objective="total_return_pct",
+            higher_is_better=True,
+            backtest_config=BASELINE_CONFIG,
+        )
+        optimizer = ParameterOptimizer(config=opt_config)
+
+        t0 = time.monotonic()
+        opt_result = _asyncio.run(optimizer.two_phase_optimize(
+            strategy_factory=spec["factory"],
+            param_grid=spec["grid"],
+            data=data,
+            max_workers=1,  # single-threaded inside subprocess
+        ))
+        elapsed = time.monotonic() - t0
+
+        return {
+            "ok": True,
+            "pair": pair,
+            "strategy": strat_name,
+            "best_params": opt_result.best_params,
+            "best_objective": opt_result.best_objective,
+            "total_trials": len(opt_result.all_trials),
+            "result": opt_result.best_result.to_dict(),
+            "elapsed": elapsed,
+        }
+    except Exception:
+        return {
+            "ok": False,
+            "pair": pair,
+            "strategy": strat_name,
+            "error": traceback.format_exc(),
+        }
+
+
 def _run_single_backtest(
     data_dir: str, pair: str, strat_name: str, config_dict: dict[str, Any],
 ) -> dict[str, Any]:
@@ -479,9 +524,9 @@ async def phase1_baseline(
 async def phase2_optimization(
     pairs: list[str], data_dir: str, workers: int,
 ) -> dict[str, Any]:
-    """Phase 2: Parameter optimisation — two-phase grid search per pair per strategy."""
+    """Phase 2: Parameter optimisation — parallel two-phase grid search."""
     logger.info("=" * 60)
-    logger.info("PHASE 2: Optimization (%d pairs × 3 strategies)", len(pairs))
+    logger.info("PHASE 2: Optimization (%d pairs × 3 strategies, %d workers)", len(pairs), workers)
     logger.info("=" * 60)
 
     best_params: dict[str, dict[str, Any]] = {}
@@ -489,57 +534,50 @@ async def phase2_optimization(
     ok_count = 0
     t_phase = time.monotonic()
 
-    opt_config = OptimizationConfig(
-        objective="total_return_pct",
-        higher_is_better=True,
-        backtest_config=BASELINE_CONFIG,
-    )
-    optimizer = ParameterOptimizer(config=opt_config)
+    # Build task list: each pair×strategy is an independent optimization job
+    tasks: list[tuple[str, str]] = []
+    for pair in pairs:
+        for strat_name in STRATEGIES:
+            tasks.append((pair, strat_name))
 
-    for i, pair in enumerate(pairs, 1):
-        try:
-            data = load_pair_data(data_dir, pair)
-        except Exception:
-            msg = traceback.format_exc()
-            logger.error("Failed to load data for %s:\n%s", pair, msg)
-            errors.append({"pair": pair, "strategy": "all", "error": "data_load", "traceback": msg})
-            continue
+    total = len(tasks)
+    done_count = 0
 
-        best_params[pair] = {}
-        for strat_name, spec in STRATEGIES.items():
-            try:
-                logger.info("  Optimising %s / %s ...", pair, strat_name)
-                t0 = time.monotonic()
-                opt_result = await optimizer.two_phase_optimize(
-                    strategy_factory=spec["factory"],
-                    param_grid=spec["grid"],
-                    data=data,
-                    max_workers=workers,
-                )
-                elapsed = time.monotonic() - t0
-                best_params[pair][strat_name] = {
-                    "best_params": opt_result.best_params,
-                    "best_objective": opt_result.best_objective,
-                    "total_trials": len(opt_result.all_trials),
-                    "result": result_to_dict(opt_result.best_result),
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(_run_single_optimization, data_dir, pair, sname): (pair, sname)
+            for pair, sname in tasks
+        }
+
+        for future in as_completed(futures):
+            done_count += 1
+            res = future.result()
+            pair = res["pair"]
+            sname = res["strategy"]
+
+            if res["ok"]:
+                best_params.setdefault(pair, {})[sname] = {
+                    "best_params": res["best_params"],
+                    "best_objective": res["best_objective"],
+                    "total_trials": res["total_trials"],
+                    "result": res["result"],
                 }
                 ok_count += 1
                 logger.info(
-                    "    best=%.2f%% (%d trials, %.1fs)",
-                    opt_result.best_objective, len(opt_result.all_trials), elapsed,
+                    "  [%d/%d] %s / %s: best=%.2f%% (%d trials, %.1fs)",
+                    done_count, total, pair, sname,
+                    res["best_objective"], res["total_trials"], res["elapsed"],
                 )
-            except Exception:
-                msg = traceback.format_exc()
-                logger.error("  %s / %s OPT FAILED:\n%s", pair, strat_name, msg)
-                errors.append({"pair": pair, "strategy": strat_name, "error": str(sys.exc_info()[1]), "traceback": msg})
+            else:
+                logger.error("  [%d/%d] %s / %s OPT FAILED:\n%s", done_count, total, pair, sname, res["error"])
+                errors.append({"pair": pair, "strategy": sname, "error": res["error"][:500]})
 
-        if i % 5 == 0 or i == len(pairs):
-            el = time.monotonic() - t_phase
-            tg_send(f"Phase 2 progress: {i}/{len(pairs)} pairs ({ok_count} OK, {len(errors)} err, {el:.0f}s)")
+            if done_count % 10 == 0 or done_count == total:
+                el = time.monotonic() - t_phase
+                tg_send(f"Phase 2: {done_count}/{total} ({ok_count} OK, {len(errors)} err, {el:.0f}s)")
 
     elapsed_total = time.monotonic() - t_phase
-    total = len(pairs) * len(STRATEGIES)
-    logger.info("Phase 2 done: %d/%d OK, %d errors", ok_count, total, len(errors))
+    logger.info("Phase 2 done: %d/%d OK, %d errors in %.0fs", ok_count, total, len(errors), elapsed_total)
     tg_send(f"✅ *Phase 2 done* ({elapsed_total:.0f}s)\n{ok_count}/{total} OK, {len(errors)} errors")
 
     save_json(best_params, RESULTS_DIR / "phase2_optimization.json")
