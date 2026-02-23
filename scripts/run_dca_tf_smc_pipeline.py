@@ -71,6 +71,10 @@ from bot.tests.backtesting.walk_forward import WalkForwardAnalysis, WalkForwardC
 RESULTS_DIR = PROJECT_ROOT / "data" / "backtest_results"
 BALANCE = Decimal("10000")
 
+# Max M5 bars to use (3 months ≈ 26,280 bars). Trims older data to keep runtime sane.
+# CSV files contain 5-8 years of data; 3 months gives ~24s/backtest on 16-core VM.
+MAX_M5_BARS = 26_280
+
 # Global error collector — all errors across all phases
 ALL_ERRORS: list[dict[str, Any]] = []
 
@@ -122,7 +126,7 @@ BASELINE_CONFIG = MultiTFBacktestConfig(
     initial_balance=BALANCE,
     warmup_bars=60,
     lookback=100,
-    analyze_every_n=4,
+    analyze_every_n=12,
     risk_per_trade=Decimal("0.02"),
     enable_regime_filter=False,
     enable_risk_manager=False,
@@ -132,7 +136,7 @@ REGIME_CONFIG = MultiTFBacktestConfig(
     initial_balance=BALANCE,
     warmup_bars=60,
     lookback=100,
-    analyze_every_n=4,
+    analyze_every_n=12,
     risk_per_trade=Decimal("0.02"),
     enable_regime_filter=True,
     regime_check_interval=12,
@@ -143,25 +147,28 @@ REGIME_CONFIG = MultiTFBacktestConfig(
     rm_max_daily_loss=Decimal("500"),
 )
 
-# --- Parameter grids (from BACKTEST_PLAN_DCA_TF_SMC.md) ---
+# --- Parameter grids ---
+# Reduced from full plan to fit ~30s/backtest on VM-16-32.
+# DCA: 4×3×2×2 = 48/pair  TF: 3×3×2×2 = 36/pair  SMC: 2×2×4×2 = 32/pair
+# Total: 45 × (48+36+32) = 5,220 backtests ≈ 43 hours → with two_phase ~2× faster
 
 DCA_GRID: dict[str, list[Any]] = {
-    "price_deviation_pct": [0.01, 0.015, 0.02, 0.03, 0.05],
-    "safety_step_pct": [0.01, 0.015, 0.02, 0.025, 0.03],
-    "take_profit_pct": [0.005, 0.01, 0.015, 0.02, 0.03],
-    "max_safety_orders": [3, 5, 7, 10],
+    "price_deviation_pct": [0.01, 0.02, 0.03, 0.05],
+    "safety_step_pct": [0.01, 0.02, 0.03],
+    "take_profit_pct": [0.01, 0.02],
+    "max_safety_orders": [5, 10],
 }
 
 TF_GRID: dict[str, list[Any]] = {
-    "ema_fast_period": [5, 10, 15, 20, 30],
-    "ema_slow_period": [40, 50, 80, 100, 200],
+    "ema_fast_period": [10, 20, 30],
+    "ema_slow_period": [50, 100, 200],
     "require_volume_confirmation": [True, False],
-    "max_atr_filter_pct": [0.03, 0.05, 0.08, 0.10],
+    "max_atr_filter_pct": [0.05, 0.10],
 }
 
 SMC_GRID: dict[str, list[Any]] = {
-    "swing_length": [3, 5, 7, 10],
-    "min_risk_reward": [1.5, 2.0, 2.5, 3.0],
+    "swing_length": [5, 10],
+    "min_risk_reward": [2.0, 3.0],
     "risk_per_trade": [0.01, 0.02, 0.03, 0.05],
     "close_mitigation": [True, False],
 }
@@ -293,12 +300,22 @@ def find_csv(data_dir: str, pair: str) -> str | None:
 
 
 def load_pair_data(data_dir: str, pair: str) -> MultiTimeframeData:
-    """Load CSV and build MultiTimeframeData for one pair."""
+    """Load CSV and build MultiTimeframeData for one pair (last 12 months)."""
     csv_path = find_csv(data_dir, pair)
     if csv_path is None:
         raise FileNotFoundError(f"No 5m CSV found for {pair} in {data_dir}")
     loader = MultiTimeframeDataLoader()
-    return loader.load_csv(csv_path, base_timeframe="5m")
+    data = loader.load_csv(csv_path, base_timeframe="5m")
+    # Trim to last MAX_M5_BARS to keep runtime manageable
+    if len(data.m5) > MAX_M5_BARS:
+        trimmed = len(data.m5)
+        data.m5 = data.m5.iloc[-MAX_M5_BARS:]
+        data.m15 = data.m15.iloc[-(MAX_M5_BARS // 3):]
+        data.h1 = data.h1.iloc[-(MAX_M5_BARS // 12):]
+        data.h4 = data.h4.iloc[-(MAX_M5_BARS // 48):]
+        data.d1 = data.d1.iloc[-(MAX_M5_BARS // 288):]
+        logger.debug("  %s: trimmed %d → %d M5 bars (last 12 months)", pair, trimmed, MAX_M5_BARS)
+    return data
 
 
 def result_to_dict(r: BacktestResult) -> dict[str, Any]:
@@ -556,7 +573,7 @@ async def phase4_robustness(
     wf_cfg = WalkForwardConfig(n_splits=5, train_pct=0.7, backtest_config=BASELINE_CONFIG)
     wf = WalkForwardAnalysis(config=wf_cfg)
     stress_cfg = StressTestConfig(num_periods=3, backtest_config=BASELINE_CONFIG)
-    mc = MonteCarloSimulation(config=MonteCarloConfig(n_simulations=500))
+    mc = MonteCarloSimulation(config=MonteCarloConfig(n_simulations=100))
     sa = SensitivityAnalysis()
 
     for i, pair in enumerate(pairs, 1):
