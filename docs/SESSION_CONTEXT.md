@@ -305,8 +305,30 @@ GridEngine — chistyy strategicheskiy komponent, on vychislyaet optimalnye urov
 
 ### Verifikatsiya
 
-- Replay 200 svechey: 0 CRITICAL anomaliy, `grid_sell_skipped_insufficient_base` v logakh
-- Testy: 1260 passed, 14 skipped, 1 pre-existing SMC failure (ne svyazan s fixom)
+**Replay 200 svechey (smoke test):**
+- 0 CRITICAL anomaliy, `grid_sell_skipped_insufficient_base` v logakh
+- 87 fills, 4 sell ordery propushcheny pri init (0 base na starte)
+
+**Replay 5,000 svechey (17.4 dney):**
+- 0 EXCEPTIONS, 0 CRITICAL
+- 139 WARNING (vse `orphaned_order` — ozhidaemye pri emergency stop)
+- 87 fills, balans: 8795 USDT + 522 XRP
+
+**Polnyy godovoy replay 105,000 svechey (364.6 dney):**
+
+| Metrika | Znachenie |
+|---------|-----------|
+| Svechey obrabotan | 67,163 / 105,000 (ostanovlen risk manager-om) |
+| Wall-clock time | 1457s (~24 min) |
+| API requests | 65,085 |
+| Total fills | 212 |
+| EXCEPTIONS | **0** |
+| CRITICAL anomaliy | **0** (bag polnostyu isravlen) |
+| WARNING anomaliy | 3,505 (vse `orphaned_order`) |
+| Finalnyy balans | 8,238 USDT + 698 XRP |
+| Prichina ostanovki | Portfolio stop-loss (20.11% loss) — risk manager srabotal korrektno |
+
+**Testy:** 1260 passed, 14 skipped, 1 pre-existing SMC failure (ne svyazan s fixom)
 
 ### Izmenennyye fayly
 
@@ -315,9 +337,13 @@ GridEngine — chistyy strategicheskiy komponent, on vychislyaet optimalnye urov
 | `bot/replay/replay_exchange.py` | +InsufficientFunds validatsiya v create_order(), +base asset v fetch_balance() |
 | `bot/orchestrator/bot_orchestrator.py` | +filtratsiya sell orderov pri grid init po dostupnomu base balance |
 
-### Commit
+### Kommity
 
-- **Commit:** `1bdc54a` (fix: prevent negative base_balance by validating funds before order placement)
+| Commit | Opisaniye |
+|--------|-----------|
+| `1bdc54a` | fix: prevent negative base_balance by validating funds before order placement |
+| `dbf073a` | docs: update SESSION_CONTEXT.md — Session 23 |
+
 - **Status:** COMPLETE
 
 ---
@@ -1783,8 +1809,8 @@ web/frontend/nginx.conf → SPA + API/WS proxy
 - ReplayExchangeClient: +InsufficientFunds validatsiya dlya market/limit orderov, fetch_balance() vozvrashchaet base asset
 - BotOrchestrator: filtratsiya neobespechennykh sell orderov pri grid init, logi skipped orderov
 - GridEngine ne tronuli — on chistyy strategicheskiy komponent, ne dolzhen znat o balansakh
-- Replay 200 svechey: 0 CRITICAL anomaliy, sell ordery korrektno propushcheny
-- **Commit:** `1bdc54a`
+- Polnyy godovoy replay (105k svechey): 0 EXCEPTIONS, 0 CRITICAL, 212 fills, 3505 WARNING (orphaned_order)
+- **Commits:** `1bdc54a`, `dbf073a`
 - **Status:** COMPLETE
 
 ### Sessiya 22 (2026-02-22): Plan bektestirovaniya DCA + Trend Follower + SMC
