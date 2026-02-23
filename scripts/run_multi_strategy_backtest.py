@@ -18,7 +18,9 @@ Usage:
 
 import argparse
 import asyncio
+import logging
 import sys
+import traceback
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -26,6 +28,37 @@ from pathlib import Path
 # Ensure project root is on sys.path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
+
+LOG_DIR = project_root / "logs"
+
+
+def _setup_logging(timestamp: str, symbol: str) -> Path:
+    """Configure logging to both console and file simultaneously."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    symbol_clean = symbol.replace("/", "_").replace(" ", "_")
+    log_path = LOG_DIR / f"backtest_{symbol_clean}_{timestamp}.log"
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    fmt = logging.Formatter(
+        "%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # File handler — DEBUG и выше (всё включая ошибки)
+    fh = logging.FileHandler(log_path, encoding="utf-8")
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(fmt)
+    root.addHandler(fh)
+
+    # Console handler — INFO и выше (не засорять терминал debug-логами)
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(fmt)
+    root.addHandler(ch)
+
+    return log_path
 
 from bot.tests.backtesting.multi_tf_data_loader import (  # noqa: E402
     MultiTimeframeDataLoader,
@@ -96,6 +129,10 @@ async def main() -> None:
     parser.add_argument(
         "--symbol", default="BTC_USDT", help="Trading pair (e.g. ETH_USDT)"
     )
+    parser.add_argument(
+        "--no-log-file", action="store_true",
+        help="Disable saving logs to file (print to console only)",
+    )
     parser.add_argument("--csv", default=None, help="Path to CSV file with OHLCV data")
     parser.add_argument(
         "--timeframe",
@@ -124,6 +161,16 @@ async def main() -> None:
 
     symbol = args.symbol.replace("_", "/")
     balance = Decimal(str(args.balance))
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Setup logging
+    log_path = None
+    if not args.no_log_file:
+        log_path = _setup_logging(timestamp, symbol)
+        print(f"Logging to: {log_path}")
+
+    logger = logging.getLogger(__name__)
+    logger.info("Backtest started — symbol=%s balance=%s", symbol, balance)
 
     # Load data
     loader = MultiTimeframeDataLoader()
@@ -175,12 +222,12 @@ async def main() -> None:
     # Print text report
     text_report = StrategyComparison.format_report(comp_result)
     print(text_report)
+    logger.info("Backtest results:\n%s", text_report)
 
     # Generate HTML reports
     gen = ReportGenerator()
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     symbol_clean = symbol.replace("/", "_")
 
     # Individual strategy reports
@@ -189,6 +236,7 @@ async def main() -> None:
         html = gen.generate(result)
         path = gen.save(html, REPORT_DIR / filename)
         print(f"  Report saved: {path}")
+        logger.info("HTML report saved: %s", path)
 
     # Comparison report
     if len(comp_result.results) > 1:
@@ -196,9 +244,22 @@ async def main() -> None:
         comp_html = gen.generate_comparison(comp_result)
         comp_path = gen.save(comp_html, REPORT_DIR / comp_filename)
         print(f"  Comparison report: {comp_path}")
+        logger.info("Comparison report saved: %s", comp_path)
 
+    logger.info("Backtest finished successfully")
+    if log_path:
+        print(f"\nFull log saved: {log_path}")
     print("\nDone.")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.getLogger(__name__).warning("Interrupted by user (Ctrl+C)")
+        sys.exit(0)
+    except Exception:
+        logging.getLogger(__name__).critical(
+            "Unhandled exception:\n%s", traceback.format_exc()
+        )
+        sys.exit(1)
