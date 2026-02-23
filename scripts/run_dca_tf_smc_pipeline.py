@@ -69,6 +69,9 @@ from bot.tests.backtesting.walk_forward import WalkForwardAnalysis, WalkForwardC
 RESULTS_DIR = PROJECT_ROOT / "data" / "backtest_results"
 BALANCE = Decimal("10000")
 
+# Global error collector — all errors across all phases
+ALL_ERRORS: list[dict[str, Any]] = []
+
 BASELINE_CONFIG = MultiTFBacktestConfig(
     initial_balance=BALANCE,
     warmup_bars=60,
@@ -337,6 +340,9 @@ async def phase1_baseline(
     save_json(results, RESULTS_DIR / "phase1_baseline.json")
     if errors:
         save_json(errors, RESULTS_DIR / "phase1_errors.json")
+    for e in errors:
+        e["phase"] = 1
+    ALL_ERRORS.extend(errors)
 
     return results
 
@@ -403,6 +409,9 @@ async def phase2_optimization(
     save_json(best_params, RESULTS_DIR / "phase2_optimization.json")
     if errors:
         save_json(errors, RESULTS_DIR / "phase2_errors.json")
+    for e in errors:
+        e.setdefault("phase", 2)
+    ALL_ERRORS.extend(errors)
 
     return best_params
 
@@ -459,6 +468,9 @@ async def phase3_regime(
     save_json(results, RESULTS_DIR / "phase3_regime.json")
     if errors:
         save_json(errors, RESULTS_DIR / "phase3_errors.json")
+    for e in errors:
+        e.setdefault("phase", 3)
+    ALL_ERRORS.extend(errors)
 
     return results
 
@@ -585,6 +597,9 @@ async def phase4_robustness(
     save_json(robustness, RESULTS_DIR / "phase4_robustness.json")
     if errors:
         save_json(errors, RESULTS_DIR / "phase4_errors.json")
+    for e in errors:
+        e.setdefault("phase", 4)
+    ALL_ERRORS.extend(errors)
 
     return robustness
 
@@ -787,6 +802,42 @@ async def run_pipeline(args: argparse.Namespace) -> None:
     elapsed = time.monotonic() - t_start
     logger.info("Pipeline complete in %.1f seconds (%.1f min)", elapsed, elapsed / 60)
 
+    # --- Save consolidated error log ---
+    _save_error_summary(elapsed)
+
+
+def _save_error_summary(elapsed: float) -> None:
+    """Save consolidated error log across all phases."""
+    summary = {
+        "generated_at": datetime.now().isoformat(),
+        "elapsed_seconds": round(elapsed, 1),
+        "total_errors": len(ALL_ERRORS),
+        "errors_by_phase": {},
+        "errors_by_pair": {},
+        "errors_by_strategy": {},
+        "errors": ALL_ERRORS,
+    }
+
+    # Aggregate counts
+    for e in ALL_ERRORS:
+        phase = str(e.get("phase", "unknown"))
+        pair = e.get("pair", "unknown")
+        strat = e.get("strategy", "unknown")
+        summary["errors_by_phase"][phase] = summary["errors_by_phase"].get(phase, 0) + 1
+        summary["errors_by_pair"][pair] = summary["errors_by_pair"].get(pair, 0) + 1
+        summary["errors_by_strategy"][strat] = summary["errors_by_strategy"].get(strat, 0) + 1
+
+    save_json(summary, RESULTS_DIR / "pipeline_errors.json")
+
+    if ALL_ERRORS:
+        logger.warning(
+            "TOTAL ERRORS: %d (by phase: %s)",
+            len(ALL_ERRORS),
+            summary["errors_by_phase"],
+        )
+    else:
+        logger.info("No errors across all phases")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -818,7 +869,24 @@ def main() -> None:
     log_path = setup_logging()
     logger.info("Log file: %s", log_path)
 
-    asyncio.run(run_pipeline(args))
+    try:
+        asyncio.run(run_pipeline(args))
+    except KeyboardInterrupt:
+        logger.warning("Pipeline interrupted by user (Ctrl+C)")
+        _save_error_summary(0)
+        sys.exit(130)
+    except Exception:
+        msg = traceback.format_exc()
+        logger.critical("SYSTEM CRASH:\n%s", msg)
+        ALL_ERRORS.append({
+            "phase": "system",
+            "pair": "N/A",
+            "strategy": "N/A",
+            "error": str(sys.exc_info()[1]),
+            "traceback": msg,
+        })
+        _save_error_summary(0)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
