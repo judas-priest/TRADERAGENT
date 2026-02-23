@@ -3,21 +3,101 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 23 fevralya 2026
-**Status:** v2.0.0 Release + ... + **Multi-TF Deployed on New Server (Yandex Cloud)** + **DCA+TF+SMC Pipeline WRITTEN & RUNNING** + **SMC bugs FIXED + Bybit status normalization FIXED**
+**Status:** v2.0.0 Release + ... + **DCA+TF+SMC Pipeline RUNNING** + **SMC bugs FIXED** + **Pipeline Performance Optimized (Session 29)**
 **Pass Rate:** 100% (1531/1531 tests passing, 25 skipped)
 **Realnyy obem testov:** 1556 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing (multi-TF engine + regime/risk + multi-strategy)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `b477fbf` (fix: normalize Bybit orderStatus to CCXT values at the source)
+**Posledniy commit:** `134be4c` (perf: warmup_bars 60→100, analyze_every_n 12→24)
 **Bot Status:** RUNNING (5 botov na 185.233.200.13, SMC bagi ispravleny, status-normalizatsiya ispravlena)
-**Pipeline Status:** RUNNING na Yandex Cloud — Phase 1 DONE (135/135, 0 errors, 85 min), Phase 2 IN PROGRESS (45 par × 3 strategii, 14 workers, CPU 88%)
-**New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD) — Pipeline DEPLOYED
+**Pipeline Status:** RUNNING na Yandex Cloud — Phase 1 DONE, Phase 2 IN PROGRESS (45 par × 3 strategii, **15 workers, CPU 93.7%**)
+**New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD) — Pipeline DEPLOYED + OPTIMIZED
 
 ---
 
-## Poslednyaya Sessiya (2026-02-23) - Session 28: Bug-hunting — grid fills, SMC bugs, root-fix status normalization
+## Poslednyaya Sessiya (2026-02-23) - Session 29: Pipeline monitoring + performance optimization
+
+### Zadacha
+
+1. Proverit status pipeline na Yandex Cloud servere
+2. Obnaruzhit i ispravit problemu s debug-logirovaniyem SMC
+3. Optimizirovat ispolzovaniye resursov servera
+4. Obnovit SESSION_CONTEXT.md
+
+### 1. Obnaruzhena problema: SMC debug-logirovanie
+
+**Problema:** Za 85 minut Phase 2 pipeline sgeneriroval **4.4 GB loga** (44 mln strok).
+SMC strategiya cherez structlog vyvodila ~50 debug-strok na kazhdyy bar:
+- `entry_signals.py` — `Bullish Pin Bar detected`, `Signal generated: SMCSignal(...)`
+- `market_structure.py` — `Trend determined`, swing points
+- `confluence_zones.py` — `OB invalidated`, `FVG filled`
+- `position_manager.py` — `Kelly sizing`, `Trailed SL`
+
+Eto sozdavalo massivnuyu I/O nagruzku i zamedlyalo vychisleniya.
+
+**Resheniye:** Podavleniye logirovaniya v pipeline:
+```python
+# V glavnom protsesse i v kazhdom subprocess-workere:
+logging.getLogger("bot.strategies.smc.*").setLevel(logging.WARNING)
+structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING))
+```
+
+**Rezultat:** Log umenshilsya v **10,000x** (4.4 GB → 180 KB za to zhe vremya).
+
+### 2. Analiz logov — 3 tipa povtoryayushchikhsya oshibok
+
+| Oshibka | Kolichestvo | Kritichnost |
+|---------|-------------|-------------|
+| `analyze_market: Insufficient data: need 50/100 candles` | 34,324 | Normalno — warmup period |
+| `Liquidity detection failed` | 3,202 | Izvestnyy SMC bag, ne blokiruyet |
+| `Insufficient quote balance` (raznitsa ~$0.13) | 22 | Minor — Decimal rounding, terya 1 sdelku iz soten |
+
+Ni odnoy kriticheskoy oshibki.
+
+### 3. Optimizatsiya resursov servera
+
+**Analiz:** CPU 87.5%, RAM 17%, Disk I/O ~0% — RAM i I/O massivno nedoispolzovany.
+
+Tri optimizatsii:
+
+| Parametr | Bylo | Stalo | Effekt |
+|----------|------|-------|--------|
+| `warmup_bars` | 60 | **100** | Ubral ~34K kholostykh vyzovov (SMC trebuyet 100 svechey) |
+| `analyze_every_n` | 12 | **24** | Vdvoye menshe vychisleniy na bektest |
+| Workers | 14 | **15** | +1 yadro, +7% throughput |
+
+**Rezultat:** CPU 87.5% → **93.7%**, ozhidayemoye uskoreniye ~50-60%.
+
+### 4. Tekushchiy status pipeline
+
+- Phase 1: DONE (135/135, 0 errors, 85 min)
+- Phase 2: IN PROGRESS (45 par × 3 strategii, 15 workers)
+- Load average: 15.00 (15 iz 16 yader @ 100%)
+- RAM: 4.7 / 31 GB (zapas ogromnyy)
+- Disk: 8.3 / 97 GB
+
+### 5. Kommity sessii
+
+| Commit | Opisaniye |
+|--------|-----------|
+| `ca6c414` | docs: update SESSION_CONTEXT.md — Session 27 |
+| `e1dffcb` | perf: suppress SMC debug logging in pipeline workers |
+| `134be4c` | perf: warmup_bars 60→100, analyze_every_n 12→24 |
+
+### 6. Otkrytye zadachi (prioritet)
+
+| # | Zadacha | Status | Plan |
+|---|---------|--------|------|
+| 1 | **Pipeline Phase 2-5** | V PROTSESSE (Phase 2, 15 workers, CPU 93.7%) | `scripts/run_dca_tf_smc_pipeline.py` |
+| 2 | **Podklyuchit MarketRegimeDetector k torgovle** | Otlozheno | Arxitekturnyy razryv |
+| 3 | **SMC bektest: 0 sdelok** | Chastichno ispravleno | Proverit posle pipeline |
+| 4 | **v2.0 Algorithm Modules (7 sht)** | Ne realizovany | `TRADERAGENT_V2_ALGORITHM.md` |
+
+---
+
+## Predydushchaya Sessiya (2026-02-23) - Session 28: Bug-hunting — grid fills, SMC bugs, root-fix status normalization
 
 ### Zadacha
 
