@@ -99,7 +99,7 @@ bots:
       enabled: false
 
     dry_run: false
-    auto_start: false  # Manual start
+    auto_start: true   # Auto-start
 
   # =========================================================================
   # 3. SOL/USDT DCA Strategy
@@ -133,7 +133,7 @@ bots:
       enabled: false
 
     dry_run: false
-    auto_start: false
+    auto_start: true   # Auto-start
 
   # =========================================================================
   # 4. BTC/USDT Trend Follower Strategy

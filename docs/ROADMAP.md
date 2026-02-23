@@ -75,6 +75,28 @@ After pipeline completes:
 - Build regime routing table (which strategy wins per market condition)
 - Export optimal parameters to live bot configs
 
+### 4. Scanner Bot 🟡 (Planned)
+
+**Goal:** Intelligent pair selection — automatically find and activate the best trading opportunities across all pairs without manual configuration.
+
+**Problem:** Currently each bot is statically bound to one pair. The bot does NOT automatically detect opportunities on other pairs. ETH/USDT and SOL/USDT bots were sitting idle with `auto_start: false` while market moved.
+
+**Concept:**
+1. Every N minutes (configurable, e.g. 15 min) scan a list of monitored pairs
+2. For each pair compute market regime: ADX, Bollinger Bands width, EMA trend direction
+3. Map regime to strategy: SIDEWAYS → Grid, DOWNTREND → DCA, UPTREND → Trend Follower
+4. If a suitable situation is found and no bot is active for that pair → start the appropriate bot
+5. If the situation deteriorates (regime changes, drawdown exceeds threshold) → pause or stop bot
+6. Maintain cooldown between starts to prevent thrashing
+
+**What needs to be built:**
+- `PairScanner` class: fetches OHLCV for N pairs, computes regime indicators
+- Integration with `BotOrchestrator`: dynamic bot creation/start/stop at runtime
+- Config: list of pairs to watch, thresholds per regime type, cooldown, max active bots
+- Telegram notifications: "Started Grid on ETH/USDT (regime: SIDEWAYS, ADX=18)"
+
+**Prerequisite:** Fix the `MarketRegimeDetector → _main_loop()` gap first (item 1 above).
+
 ---
 
 ## Roadmap v2.x (2026)
