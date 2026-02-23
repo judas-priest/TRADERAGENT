@@ -1,5 +1,9 @@
 # TRADERAGENT v2.0 Troubleshooting Guide
 
+> **Обновлено:** 2026-02-23 — добавлены секции по Bybit Demo Trading, нормализации статусов ордеров и SMC-багам
+
+---
+
 ## Connection Issues
 
 ### ByBit API Authentication Failed
@@ -9,9 +13,11 @@
 **Solutions**:
 1. Verify API key/secret are correct in `.env`
 2. For testnet: use `testnet=True` in client initialization
-3. For demo trading: the URL is `https://api-demo.bybit.com` (handled automatically)
+3. For demo trading: the URL is `https://api-demo.bybit.com` (handled automatically when `sandbox: true`)
 4. Check that API key permissions include trading
 5. Ensure system clock is synchronized (API uses timestamp-based signatures with 10s window)
+
+> ⚠️ **Demo vs Testnet**: `sandbox: true` in YAML config routes to `api-demo.bybit.com` via `ByBitDirectClient`. This is NOT the same as `testnet.bybit.com`. Demo uses production API keys; testnet requires separate keys.
 
 ### Rate Limit Exceeded
 
@@ -36,6 +42,17 @@
 
 ## Strategy Issues
 
+### Grid: `grid_order_not_filled` Warning Loop
+
+**Symptom**: Logs flooded with repeated warnings every ~2 seconds:
+```
+grid_order_not_filled order_id=xxx status=filled
+```
+
+**Root cause**: This was caused by `ByBitDirectClient` returning native Bybit status `"filled"` while the orchestrator compared against CCXT-normalized `"closed"`. **Fixed in commit `b477fbf`** — `_normalize_order_status()` now maps `"filled"` → `"closed"` at the source.
+
+**If you see this on an old version**: Update to latest and restart the bot.
+
 ### SMC Strategy Not Generating Signals
 
 **Possible causes**:
@@ -43,20 +60,63 @@
 2. **No confluence zones**: Market may not have active Order Blocks or Fair Value Gaps
 3. **Volume filter**: If `require_volume_confirmation=True`, low volume periods are filtered
 4. **Risk:Reward too high**: Lower `min_risk_reward` from 2.5 to 2.0 if signals are rare
+5. **Wrong trend detection** *(old bug, fixed)*: `SMCStrategy.analyze_market()` returns `"current_trend"` key (a `TrendDirection` enum). The adapter now correctly reads this key and calls `.value.lower()` on the enum. If you forked before **commit `f06dc8c`**, apply the fix manually.
+
+### SMC Signals Triggering Immediate TP (Stale Signals)
+
+**Symptom**: SMC opens positions that immediately hit take profit. Logs show hundreds of profitable trades in `dry_run` mode that don't correspond to real market movements.
+
+**Root cause**: SMC caches Order Block zones between analysis cycles (every 300 seconds). If the price moves significantly while the cache is stale, the signal's `entry_price` is far from current market price, and TP triggers on the very next price check.
+
+**Fix** *(commit `f06dc8c`)*: A 2% staleness filter was added in `bot_orchestrator.py`:
+```python
+price_diff_pct = abs(signal.entry_price - self.current_price) / self.current_price
+if price_diff_pct > Decimal("0.02"):
+    logger.warning("smc_signal_stale", ...)
+    signal = None
+```
+
+**If you see `smc_signal_stale` in logs**: This is normal — the bot is correctly rejecting stale signals. No action needed.
 
 ### Grid Strategy Accumulating Losses
 
 **Possible causes**:
 1. **Trending market**: Grid works best in ranges. Consider switching to SMC or Trend-Follower
-2. **Range too narrow**: Increase `grid_range_pct` to capture wider oscillations
-3. **Too many levels**: Reduce `num_levels` to concentrate capital
+2. **Range too narrow**: Increase grid range to capture wider oscillations
+3. **Too many levels**: Reduce `grid_levels` to concentrate capital
 
 ### DCA Safety Orders Not Triggering
 
 **Possible causes**:
 1. **Price not dropping enough**: Safety orders require specific price deviation thresholds
-2. **Max safety orders reached**: Check `max_safety_orders` limit
+2. **Max safety orders reached**: Check `max_steps` limit
 3. **Insufficient balance**: Each safety order needs available capital
+
+---
+
+## Bybit Demo Trading
+
+### Orders Not Placed / "Invalid instrument" Errors
+
+**Cause**: Demo trading (`api-demo.bybit.com`) only supports **linear (futures) contracts**, not spot.
+
+**Fix**: All symbols in `configs/phase7_demo.yaml` must be futures pairs:
+```yaml
+symbol: BTC/USDT  # ✅ linear futures
+# NOT: BTC/USDT:USDT or spot-only pairs
+```
+
+### CCXT `set_sandbox_mode` Does Not Work for Demo
+
+**Cause**: CCXT's `set_sandbox_mode(True)` routes to `testnet.bybit.com` — a completely different endpoint with separate API keys and balance.
+
+**Fix**: Use `ByBitDirectClient` (automatically selected when `exchange_id: bybit` and `sandbox: true`). This client connects directly to `api-demo.bybit.com` using your production API keys.
+
+### Demo Balance Shows 0 or Not Found
+
+1. Ensure your API keys are the **production** keys (not testnet keys)
+2. Check that demo account has been activated at `https://testnet.bybit.com` → Demo Trading
+3. Verify `credentials_name: bybit_demo` exists in the database with correct keys
 
 ---
 
@@ -84,6 +144,15 @@
    alembic upgrade head
    ```
 
+### State Not Restored on Restart
+
+**Symptom**: Bot starts fresh instead of resuming previous orders
+
+**Cause**: State is loaded from `bot_state_snapshots` table in PostgreSQL. Check:
+1. `DATABASE_URL` is set correctly
+2. Table exists: `SELECT * FROM bot_state_snapshots WHERE bot_name='demo_btc_hybrid';`
+3. Bot was not reset: `reset_state()` deletes the snapshot
+
 ---
 
 ## Telegram Bot Issues
@@ -95,6 +164,12 @@
 2. **Chat not authorized**: Ensure your chat ID is in `allowed_chat_ids`
 3. **Bot not started**: The event loop must be running for the bot to process messages
 4. **Webhook conflict**: If using webhooks elsewhere, clear them: `bot.delete_webhook()`
+
+### Markdown Parse Errors in Notifications
+
+**Symptom**: `BadRequest: can't parse entities` in logs, but notification is still sent
+
+**Behavior**: The bot automatically retries notification without `parse_mode` (plain text fallback). This is expected — check the notification still arrives.
 
 ### No Event Notifications
 
@@ -150,16 +225,15 @@ The system halts when critical errors occur or when manually stopped. To resume:
 python -m pytest -p no:pdb -v
 ```
 
-### Testnet Tests Skipped
+### Demo Smoke Tests Skipped
 
-**Symptom**: All testnet tests show `SKIPPED`
+**Symptom**: `tests/integration/test_demo_smoke.py` shows SKIPPED
 
-**Solution**: Set testnet credentials:
+**Solution**: Set the environment variable:
 ```bash
-export BYBIT_TESTNET_API_KEY=your_key
-export BYBIT_TESTNET_API_SECRET=your_secret
-python -m pytest tests/testnet/test_testnet_validation.py -p no:pdb -v
+DEMO_SMOKE_TEST=1 python -m pytest tests/integration/test_demo_smoke.py -v
 ```
+Also ensure `bybit_demo` credentials are present in the database.
 
 ### Import Errors
 
@@ -194,6 +268,9 @@ print(report.summary())
 for f in report.failures:
     print(f'FAIL: {f.message}')
 "
+
+# Validate demo config
+python scripts/validate_demo.py
 ```
 
 Both should show `overall_status: PASS` before going live.
@@ -204,4 +281,5 @@ Both should show `overall_status: PASS` before going live.
 
 - GitHub Issues: https://github.com/alekseymavai/TRADERAGENT/issues
 - Check logs: structured logging with `structlog` — search for `error` severity
-- Enable debug mode: `DEBUG=true` in `.env` (disable for production)
+- Enable debug mode: `log_level: DEBUG` in YAML config (disable for production)
+- Session history: `docs/SESSION_CONTEXT.md` — detailed log of all changes and fixes

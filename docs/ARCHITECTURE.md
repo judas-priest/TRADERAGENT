@@ -1,6 +1,6 @@
 # TRADERAGENT v2.0 — Architecture & Implementation Status
 
-**Updated:** 2026-02-17 | **Tests:** 1,441 passed (100%) | **Release:** v2.0.0 | **Demo Trading:** LIVE on Bybit | **Web UI:** COMPLETE | **State Persistence:** COMPLETE | **All Audit Bugs:** FIXED (12/12)
+**Updated:** 2026-02-23 | **Tests:** 1,531 passed (100%) | **Release:** v2.0.0 | **Demo Trading:** LIVE on Bybit | **Web UI:** COMPLETE | **State Persistence:** COMPLETE | **Audit Bugs:** FIXED (12/12 + 3 SMC + 1 status normalization)
 
 > Legend: `[DONE]` — implemented & tested | `[TODO]` — not started
 
@@ -283,16 +283,17 @@ graph TB
 Phase 1: Architecture Foundation      ██████████████████████████████ 100%
 Phase 2: Grid Trading Engine          ██████████████████████████████ 100%
 Phase 3: DCA Engine                   ██████████████████████████████ 100%
-Phase 4: Hybrid Strategy              ██████████████████████████████ 100%
+Phase 4: Hybrid Strategy              ██████████████████████████████ 100%  (regime→trading: TODO v2.1)
 Phase 5: Infrastructure & DevOps      ██████████████████████████████ 100%
 Phase 6: Advanced Backtesting         ██████████████████████████████ 100%
-Phase 7.1-7.2: Unit & Integration     ██████████████████████████████ 100%
-Phase 7.3: Demo Trading (Bybit)       ██████████████████████████████ 100%  DEPLOYED
+Phase 7.1-7.2: Unit & Integration     ██████████████████████████████ 100%  1,531 tests
+Phase 7.3: Demo Trading (Bybit)       ██████████████████████████████ 100%  DEPLOYED, 5 bots
 Phase 7.4: Load/Stress Testing        ██████████████████████████████ 100%  COMPLETE
-Phase 8: Production Readiness         ██████████████████████████████ 100%  12/12 BUGS FIXED
+Phase 8: Production Readiness         ██████████████████████████████ 100%  12/12 + 4 new bugs FIXED
 Web UI Dashboard                      ██████████████████████████████ 100%  COMPLETE
 Grid Backtesting System               ██████████████████████████████ 100%  COMPLETE
 State Persistence                     ██████████████████████████████ 100%  COMPLETE
+Multi-Symbol Pipeline (DCA+TF+SMC)    ████████████░░░░░░░░░░░░░░░░░░  40%  Phase 1 DONE, Phase 2 IN PROGRESS
 ```
 
 ---
@@ -405,18 +406,29 @@ web/frontend/src/
 
 | Bot | Symbol | Strategy | Amount/Order | Status |
 |-----|--------|----------|-------------|--------|
-| demo_btc_hybrid | BTC/USDT | Hybrid (Grid+DCA) | $150 (~0.002 BTC) | auto_start, orders placed & filled |
+| demo_btc_hybrid | BTC/USDT | Hybrid (Grid+DCA) | $150 (~0.002 BTC) | auto_start, dry_run:false |
 | demo_eth_grid | ETH/USDT | Grid | $30/grid | manual start |
 | demo_sol_dca | SOL/USDT | DCA | $20/step | manual start |
 | demo_btc_trend | BTC/USDT | Trend Follower | ATR-based | manual start |
+| demo_btc_smc | BTC/USDT | SMC | 2% risk/trade | auto_start, dry_run:true |
 
 **Key architectural decision:** CCXT `set_sandbox_mode(True)` routes to `testnet.bybit.com` (wrong endpoint, separate keys). `ByBitDirectClient` connects directly to `api-demo.bybit.com` using production API keys.
 
-**Bugs fixed during deployment:**
+**Bybit status normalization:** `ByBitDirectClient` normalizes native Bybit `orderStatus` to CCXT-compatible values via `_normalize_order_status()`:
+- `"Filled"` → `"closed"` | `"New"` / `"PartiallyFilled"` → `"open"`
+Applied in `fetch_open_orders()`, `fetch_order()`, `fetch_closed_orders()`.
+
+**Architectural gap — Hybrid strategy:** `MarketRegimeDetector` runs in `_regime_monitor_loop()` every 60s and publishes regime to Redis, but `_main_loop()` does NOT read regime recommendations. `HybridStrategy.evaluate()` is never called. Grid and DCA engines always run simultaneously. Planned fix: connect regime output to main loop in v2.1.
+
+**Bugs fixed during Session 27-28:**
 - `KeyError: 'take_profit_hit'` → `tp_triggered` (DCA engine key mismatch)
 - Grid qty=0 (USD→BTC conversion rounding to 0.000 with `Decimal("0.001")`)
 - Bybit "Qty invalid" (qty precision must match instrument's `basePrecision`)
 - Telegram Markdown parse errors (added plain-text fallback)
+- `grid_order_not_filled` warning loop (Bybit `"filled"` vs CCXT `"closed"`) — `a7f4e66`
+- SMC wrong trend key (`"trend"` → `"current_trend"`) — `f06dc8c`
+- SMC stale signal filter (>2% from current price) — `f06dc8c`
+- Bybit status normalization at source — `b477fbf`
 
 ---
 

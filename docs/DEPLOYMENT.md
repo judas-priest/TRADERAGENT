@@ -1,16 +1,18 @@
 # TRADERAGENT Bot - Deployment Guide
 
+> **Обновлено:** 2026-02-23 — добавлен Bybit Demo Trading, актуализированы конфиги
+
 Complete guide for deploying the TRADERAGENT trading bot to production.
 
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
+- [Quick Start (Demo Trading)](#quick-start-demo-trading)
 - [Detailed Setup](#detailed-setup)
-- [Configuration](#configuration)
+- [Bybit Demo Trading](#bybit-demo-trading)
 - [Deployment](#deployment)
 - [Monitoring](#monitoring)
-- [Troubleshooting](#troubleshooting)
+- [Maintenance](#maintenance)
 - [Security Best Practices](#security-best-practices)
 
 ## Prerequisites
@@ -19,23 +21,25 @@ Complete guide for deploying the TRADERAGENT trading bot to production.
 
 - **Docker** (>= 20.10) and **Docker Compose** (>= 2.0)
 - **Git** for cloning the repository
-- **Python 3.11+** (for local development)
+- **Python 3.12+** (for local development and scripts)
 
 ### Required Accounts
 
-1. **Exchange Account**: Binance, Bybit, OKX, or other CCXT-supported exchange
-2. **Telegram Bot**: Create via [@BotFather](https://t.me/botfather)
+1. **Bybit Account**: Production account at [bybit.com](https://bybit.com) (works for both live and demo trading)
+2. **Telegram Bot**: Create via [@BotFather](https://t.me/botfather) (optional but recommended)
 3. **Server**: VPS/VDS with at least 2GB RAM and 10GB storage
 
 ### System Requirements
 
 - **Minimum**: 2 CPU cores, 2GB RAM, 10GB storage
 - **Recommended**: 4 CPU cores, 4GB RAM, 20GB storage
-- **Operating System**: Ubuntu 20.04/22.04, Debian 11+, or any Linux with Docker support
+- **Operating System**: Ubuntu 20.04/22.04/24.04, Debian 11+, or any Linux with Docker support
 
-## Quick Start
+---
 
-For experienced users who want to deploy quickly:
+## Quick Start (Demo Trading)
+
+For users who want to start with paper trading (virtual funds on Bybit Demo):
 
 ```bash
 # 1. Clone repository
@@ -44,16 +48,25 @@ cd TRADERAGENT
 
 # 2. Configure environment
 cp .env.example .env
-nano .env  # Edit with your values
+nano .env  # Fill in: DATABASE_URL, ENCRYPTION_KEY, TELEGRAM_BOT_TOKEN
 
-# 3. Configure bot
-cp configs/example.yaml configs/production.yaml
-nano configs/production.yaml  # Edit with your trading parameters
+# 3. Start infrastructure
+docker compose up -d postgres redis
 
-# 4. Deploy
-chmod +x deploy.sh
-./deploy.sh
+# 4. Run database migrations
+docker compose run --rm bot python -m bot.database.migrations
+
+# 5. Validate demo config
+python scripts/validate_demo.py
+
+# 6. Start bot with demo config
+CONFIG_FILE=configs/phase7_demo.yaml docker compose up -d bot
+
+# 7. Check logs
+docker compose logs -f bot
 ```
+
+---
 
 ## Detailed Setup
 
@@ -64,13 +77,12 @@ git clone https://github.com/alekseymavai/TRADERAGENT.git
 cd TRADERAGENT
 ```
 
-### Step 2: Create Telegram Bot
+### Step 2: Create Telegram Bot (Optional)
 
 1. Open Telegram and search for [@BotFather](https://t.me/botfather)
-2. Send `/newbot` command
-3. Follow instructions to create your bot
-4. Save the **bot token** provided by BotFather
-5. Get your **chat ID** by sending a message to [@userinfobot](https://t.me/userinfobot)
+2. Send `/newbot` command and follow instructions
+3. Save the **bot token** provided by BotFather
+4. Get your **chat ID** by sending a message to [@userinfobot](https://t.me/userinfobot)
 
 ### Step 3: Environment Configuration
 
@@ -78,168 +90,170 @@ Create `.env` file from the example:
 
 ```bash
 cp .env.example .env
-```
-
-Edit `.env` with your values:
-
-```bash
 nano .env
 ```
 
 **Required Variables:**
 
 ```env
-# Database
-DB_USER=traderagent
-DB_PASSWORD=your_secure_password_here
-DB_NAME=traderagent
+# Database (required)
+DATABASE_URL=postgresql+asyncpg://traderagent:yourpassword@postgres:5432/traderagent
 
-# Telegram
+# Encryption key for API credentials (required)
+# Generate: python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"
+ENCRYPTION_KEY=your_generated_base64_key_here
+
+# Telegram (optional)
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_from_botfather
 TELEGRAM_ALLOWED_CHAT_IDS=your_chat_id_from_userinfobot
-
-# Security - Generate with: python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"
-ENCRYPTION_KEY=your_generated_base64_key_here
 
 # Logging
 LOG_LEVEL=INFO
 ```
 
-**Generate Encryption Key:**
-
-```bash
-python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"
-```
-
 ### Step 4: Bot Configuration
 
-Create bot configuration file:
+The main config for demo trading is `configs/phase7_demo.yaml`. For custom deployment, copy and edit:
 
 ```bash
-cp configs/example.yaml configs/production.yaml
+cp configs/phase7_demo.yaml configs/production.yaml
 nano configs/production.yaml
 ```
 
 **Key Configuration Sections:**
 
 ```yaml
-# Database URL (automatically set in Docker)
-database_url: postgresql+asyncpg://user:pass@postgres:5432/traderagent
-
-# Logging
-log_level: INFO
-
-# Encryption key (from .env)
+# Database
+database_url: ${DATABASE_URL}
 encryption_key: ${ENCRYPTION_KEY}
 
-# Bot configurations
 bots:
-  - name: my_grid_bot
+  - name: my_btc_bot
     symbol: BTC/USDT
-    strategy: grid  # or 'dca' or 'hybrid'
+    strategy: hybrid  # grid | dca | hybrid | trend_follower | smc
 
     exchange:
-      exchange_id: binance
-      credentials_name: binance_main
-      sandbox: true  # Start with testnet!
+      exchange_id: bybit
+      credentials_name: bybit_demo   # Name of credentials in DB
+      sandbox: true   # true = api-demo.bybit.com (Demo)
+      rate_limit: true
 
     grid:
       enabled: true
-      upper_price: "50000"
-      lower_price: "40000"
-      grid_levels: 10
-      amount_per_grid: "100"
-      profit_per_grid: "0.01"
+      upper_price: "69000"
+      lower_price: "62000"
+      grid_levels: 6
+      amount_per_grid: "150"
+      profit_per_grid: "0.012"
 
     risk_management:
-      max_position_size: "10000"
-      stop_loss_percentage: "0.15"
-      min_order_size: "10"
+      max_position_size: "3000"
+      stop_loss_percentage: "0.12"
+      max_daily_loss: "600"
+      min_order_size: "66"
 
-    dry_run: true  # Start in simulation mode!
-    auto_start: false  # Manual start recommended
+    dry_run: false   # false = real orders (virtual money on demo)
+    auto_start: true
 ```
-
-**⚠️ Important:** Always start with:
-- `sandbox: true` (testnet)
-- `dry_run: true` (simulation)
-- Small amounts
 
 ### Step 5: Exchange API Keys
 
-API keys should be stored encrypted in the database. For initial setup:
+API keys are stored **encrypted in PostgreSQL**, referenced by `credentials_name` in the YAML. They are **never** stored in `.env` or config files.
 
-1. Ensure `encryption_key` is set in `.env`
-2. Use the bot's credential management (after deployment)
-3. Or manually add to database with encryption
+To add credentials after the bot first starts:
+```bash
+# Via Telegram command: /set_credentials bybit_demo <api_key> <api_secret>
+# Or via the validate_demo.py script which checks credentials exist
+```
 
-**Never commit API keys to version control!**
+---
+
+## Bybit Demo Trading
+
+Demo trading uses **virtual funds** on `api-demo.bybit.com`. You get 100,000 USDT to trade with. Your **production API keys** work for demo — no separate testnet keys needed.
+
+### Why Demo, Not Testnet?
+
+| | Demo (`api-demo.bybit.com`) | Testnet (`testnet.bybit.com`) |
+|---|---|---|
+| API keys | **Production keys** | Separate testnet keys |
+| Balance | 100,000 USDT virtual | Separate testnet balance |
+| Instruments | Linear futures (same as live) | Testnet instruments |
+| CCXT sandbox | ❌ Routes to testnet (wrong!) | ✅ |
+| Our client | ✅ `ByBitDirectClient` auto-routes | ❌ |
+
+**CCXT `set_sandbox_mode(True)` is NOT used.** `ByBitDirectClient` connects directly to `api-demo.bybit.com` when `sandbox: true` in config.
+
+### Demo Constraints
+
+- Only **linear (futures) contracts** supported — no spot trading
+- Minimum order sizes apply (same as live): BTC ≥ 0.001 BTC (~$64), ETH ≥ 0.01 ETH (~$20)
+- Same API rate limits as production
+
+### Setup Steps
+
+1. Activate Demo Trading in your Bybit account
+2. Generate API keys (production account → API Management)
+3. Add permissions: Contract Trading (read + write)
+4. Store in database via Telegram or validate script
+5. Use `configs/phase7_demo.yaml` as-is or customize
+
+---
 
 ## Deployment
 
-### Automatic Deployment
-
-Use the deployment script:
+### Docker Compose (Recommended)
 
 ```bash
-chmod +x deploy.sh
-./deploy.sh
-```
-
-The script will:
-1. Check prerequisites (Docker, Docker Compose)
-2. Verify environment configuration
-3. Build Docker images
-4. Start database and Redis
-5. Run database migrations
-6. Start the trading bot
-7. Show status and logs
-
-### Manual Deployment
-
-If you prefer manual control:
-
-```bash
-# Build images
-docker-compose build
-
-# Start database and Redis
-docker-compose up -d postgres redis
-
-# Wait for services to be healthy
-sleep 10
-
-# Run migrations
-docker-compose run --rm migrations
-
-# Start bot
-docker-compose up -d bot
+# Start all services
+docker compose up -d
 
 # View logs
-docker-compose logs -f bot
+docker compose logs -f bot
+
+# Restart after code change (bot/ is volume-mounted — no rebuild needed)
+docker compose restart bot
+
+# Stop everything
+docker compose down
 ```
+
+**Services started:**
+- `bot` — Trading bot (Python)
+- `postgres` — PostgreSQL database
+- `redis` — Redis pub/sub
+- `webui-backend` — FastAPI dashboard backend
+- `webui-frontend` — React dashboard (nginx)
 
 ### Verify Deployment
 
-Check that all services are running:
-
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 Expected output:
 ```
-NAME                    STATUS
-traderagent-bot         Up (healthy)
-traderagent-postgres    Up (healthy)
-traderagent-redis       Up (healthy)
+NAME                     STATUS
+traderagent-bot          Up (healthy)
+traderagent-postgres     Up (healthy)
+traderagent-redis        Up (healthy)
 ```
 
-View bot logs:
+### Pre-deployment Validation
 
 ```bash
-docker-compose logs -f bot
+# Validate configuration and credentials
+python scripts/validate_demo.py
+
+# Security audit
+python -c "
+from bot.utils.security_audit import SecurityAuditor
+r = SecurityAuditor().run_full_audit()
+print(r.summary())
+"
 ```
+
+---
 
 ## Monitoring
 
@@ -247,18 +261,22 @@ docker-compose logs -f bot
 
 **Real-time logs:**
 ```bash
-docker-compose logs -f bot
+docker compose logs -f bot
 ```
 
 **Last 100 lines:**
 ```bash
-docker-compose logs --tail=100 bot
+docker compose logs --tail=100 bot
 ```
 
-**Specific service:**
+**Search for errors:**
 ```bash
-docker-compose logs -f postgres
-docker-compose logs -f redis
+docker compose logs bot 2>&1 | grep '"level":"error"'
+```
+
+**Search for warnings:**
+```bash
+docker compose logs bot 2>&1 | grep '"level":"warning"'
 ```
 
 ### Telegram Bot Commands
@@ -266,138 +284,69 @@ docker-compose logs -f redis
 Once deployed, use Telegram to manage your bot:
 
 **Control Commands:**
-- `/start` - Show help and available commands
-- `/list` - List all configured bots
-- `/status [bot_name]` - Show bot status
-- `/start_bot <name>` - Start a trading bot
-- `/stop_bot <name>` - Stop a trading bot
-- `/pause <name>` - Pause trading
-- `/resume <name>` - Resume trading
+- `/start` — Show help and available commands
+- `/list` — List all configured bots
+- `/status [bot_name]` — Show bot status and positions
+- `/start_bot <name>` — Start a trading bot
+- `/stop_bot <name>` — Stop a trading bot
+- `/pause <name>` — Pause trading
+- `/resume <name>` — Resume trading
 
 **Monitoring Commands:**
-- `/balance <name>` - View current balance
-- `/orders <name>` - View open orders
-- `/pnl <name>` - View profit and loss
+- `/balance <name>` — View current balance
+- `/orders <name>` — View open orders
+- `/pnl <name>` — View profit and loss
 
 ### Health Checks
 
-**Database health:**
 ```bash
-docker-compose exec postgres pg_isready
+docker compose exec postgres pg_isready
+docker compose exec redis redis-cli ping
+docker compose ps
 ```
 
-**Redis health:**
-```bash
-docker-compose exec redis redis-cli ping
-```
-
-**Bot health:**
-```bash
-docker-compose exec bot python -c "from bot.database.manager import DatabaseManager; import asyncio; asyncio.run(DatabaseManager('${DATABASE_URL}').health_check())"
-```
-
-### System Monitoring
-
-**Resource usage:**
-```bash
-docker stats
-```
-
-**Disk usage:**
-```bash
-du -sh /var/lib/docker/volumes
-```
+---
 
 ## Maintenance
 
 ### Update Bot
 
 ```bash
-# Pull latest changes
 git pull
+docker compose restart bot   # Volume-mounted bot/ — no rebuild needed
+# If dependencies changed:
+docker compose build bot && docker compose up -d bot
+```
 
-# Rebuild and restart
-docker-compose down
-docker-compose build
-docker-compose up -d
+### Sync Code to Remote Server
 
-# Run new migrations if any
-docker-compose run --rm migrations
+```bash
+tar czf /tmp/sync.tar.gz bot/ configs/ scripts/
+scp /tmp/sync.tar.gz user@server:/tmp/
+ssh user@server "cd /home/user/TRADERAGENT && tar xzf /tmp/sync.tar.gz && docker compose restart bot"
 ```
 
 ### Backup Database
 
 ```bash
 # Create backup
-docker-compose exec postgres pg_dump -U traderagent traderagent > backup_$(date +%Y%m%d_%H%M%S).sql
+docker compose exec postgres pg_dump -U traderagent traderagent > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Restore backup
-docker-compose exec -T postgres psql -U traderagent traderagent < backup_20240101_120000.sql
+docker compose exec -T postgres psql -U traderagent traderagent < backup_20260223_120000.sql
 ```
 
-### Stop Bot
+### Reset Bot State
 
+To make a bot start fresh (forget all saved orders and positions):
 ```bash
-# Stop all services
-docker-compose down
-
-# Stop but keep data
-docker-compose stop
-
-# Stop and remove all data (CAREFUL!)
-docker-compose down -v
+# Via Telegram: /reset_state <bot_name>
+# Or directly:
+docker compose exec postgres psql -U traderagent -c "DELETE FROM bot_state_snapshots WHERE bot_name='demo_btc_hybrid';"
+docker compose restart bot
 ```
 
-## Troubleshooting
-
-### Bot Won't Start
-
-**Check logs:**
-```bash
-docker-compose logs bot
-```
-
-**Common issues:**
-- Missing environment variables: Check `.env` file
-- Database connection: Ensure postgres is healthy
-- Configuration errors: Validate `production.yaml`
-
-### Database Connection Issues
-
-```bash
-# Check database is running
-docker-compose ps postgres
-
-# Check database logs
-docker-compose logs postgres
-
-# Test connection
-docker-compose exec postgres psql -U traderagent -d traderagent -c "SELECT 1;"
-```
-
-### Redis Connection Issues
-
-```bash
-# Check Redis is running
-docker-compose ps redis
-
-# Test connection
-docker-compose exec redis redis-cli ping
-```
-
-### Telegram Bot Not Responding
-
-1. Verify `TELEGRAM_BOT_TOKEN` in `.env`
-2. Check `TELEGRAM_ALLOWED_CHAT_IDS` includes your chat ID
-3. Ensure bot is running: `docker-compose ps bot`
-4. Check for errors in logs: `docker-compose logs bot | grep telegram`
-
-### Exchange API Errors
-
-- **Rate limit**: Reduce trading frequency
-- **Insufficient balance**: Check account balance
-- **Invalid API keys**: Verify credentials in configuration
-- **Sandbox mode**: Ensure `sandbox: true` for testing
+---
 
 ## Security Best Practices
 
@@ -408,98 +357,78 @@ docker-compose exec redis redis-cli ping
 - Rotate **encryption keys** periodically
 - Keep **Docker images updated**
 
-### 2. Network Security
+### 2. API Key Security
 
-- Use **firewall** to restrict access
-- **Disable** unnecessary ports
-- Use **VPN** or **SSH tunnel** for remote access
-- Enable **HTTPS** if exposing web interface
-
-### 3. API Key Security
-
-- Use **API key restrictions** on exchange:
-  - Restrict to trading only (no withdrawals)
+- Use **API key restrictions** on Bybit:
+  - Restrict to Contract Trading (no withdrawals)
   - Whitelist server IP if possible
-  - Set maximum order sizes
-- Store keys **encrypted** in database
-- Use **separate keys** for production/testing
+- Store keys **encrypted** in database (never in config files)
+- Use **separate keys** for demo/production
+
+### 3. Network Security
+
+- Use **firewall** to restrict access (only allow your IP for SSH)
+- **Disable** unnecessary ports
+- The Web UI dashboard runs on port 3000 — restrict access or use VPN
 
 ### 4. Operational Security
 
-- Start with **testnet/sandbox**
-- Use **dry_run: true** for testing
+- Start with **demo/dry_run** before using real funds
 - Start with **small amounts**
 - Monitor **closely** in first days
-- Set **stop-loss limits**
-- Enable **Telegram notifications**
+- Set **stop-loss limits** (`max_daily_loss` in config)
+- Enable **Telegram notifications** (`notifications.enabled: true`)
 
 ### 5. Regular Maintenance
 
 - **Update** dependencies regularly
 - **Backup** database weekly
-- **Review** logs daily
-- **Monitor** system resources
-- **Test** recovery procedures
+- **Review** logs daily: `docker compose logs --tail=200 bot`
+- **Monitor** system resources: `docker stats`
 
-## Advanced Configuration
+---
 
-### Custom Redis Configuration
+## Troubleshooting
 
-Edit `docker-compose.yml`:
+See [v2/TROUBLESHOOTING.md](v2/TROUBLESHOOTING.md) for detailed troubleshooting guide.
 
-```yaml
-redis:
-  command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+**Quick checks:**
+```bash
+# Bot won't start
+docker compose logs bot | tail -50
+
+# Database connection
+docker compose exec postgres psql -U traderagent -c "SELECT 1;"
+
+# Redis connection
+docker compose exec redis redis-cli ping
+
+# Check bot state in DB
+docker compose exec postgres psql -U traderagent -c "SELECT bot_name, saved_at FROM bot_state_snapshots;"
 ```
 
-### Multiple Bot Instances
-
-Add multiple bot configurations in `production.yaml`:
-
-```yaml
-bots:
-  - name: btc_grid
-    symbol: BTC/USDT
-    strategy: grid
-    # ... config ...
-
-  - name: eth_dca
-    symbol: ETH/USDT
-    strategy: dca
-    # ... config ...
-```
-
-### External Database
-
-To use external PostgreSQL:
-
-```yaml
-# In docker-compose.yml, remove postgres service
-# Update bot environment:
-environment:
-  DATABASE_URL: postgresql+asyncpg://user:pass@external-host:5432/db
-```
+---
 
 ## Support
 
-For issues and questions:
-
 - **GitHub Issues**: https://github.com/alekseymavai/TRADERAGENT/issues
-- **Documentation**: See README.md and bot/README.md
 - **Logs**: Always include logs when reporting issues
+- **Session History**: `docs/SESSION_CONTEXT.md` — detailed log of all changes
 
-## License
-
-Mozilla Public License 2.0
+---
 
 ## Disclaimer
 
 **⚠️ IMPORTANT:** This bot is for educational purposes. Trading cryptocurrencies involves substantial risk of loss. Always:
 
-- Start with testnet/sandbox
+- Start with demo/paper trading
 - Test thoroughly before using real funds
 - Never invest more than you can afford to lose
 - Monitor the bot regularly
 - Understand the strategies being used
 
 The authors are not responsible for any financial losses incurred through use of this software.
+
+---
+
+Mozilla Public License 2.0

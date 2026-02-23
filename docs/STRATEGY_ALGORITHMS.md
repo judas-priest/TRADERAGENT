@@ -1,6 +1,8 @@
 # TRADERAGENT: Алгоритмы работы стратегий
 
 > Описание алгоритма каждой стратегии после запуска: какие параметры мониторит, с чем сравнивает, какие сигналы и кому выдаёт.
+>
+> **Обновлено:** 2026-02-23 | Соответствует реальному поведению кода (не только дизайну)
 
 ---
 
@@ -15,6 +17,8 @@
 | **GridRiskManager** | Позиция, баланс, цена, ADX | `max_drawdown_pct` (10%), `max_position_size`, `stop_loss_pct` (5%), `ADX > 25` (трендовый рынок) | `CONTINUE` / `PAUSE` / `STOP_LOSS` / `DEACTIVATE` (если тренд обнаружен — сетка неэффективна) | → GridEngine (блокировка новых ордеров) |
 | **Price Monitor** | Текущая цена (каждые 5 сек) | Если Dynamic Grid и цена вышла за boundaries | **Rebalance**: отмена всех ордеров → пересчёт сетки → размещение новых | → Биржа, → Redis `GRID_REBALANCED` |
 | **State Persistence** | Состояние (каждые 30 сек) | — | Сохраняет snapshot в PostgreSQL | → БД `bot_state_snapshots` |
+
+> **Статус ордеров:** `ByBitDirectClient` возвращает CCXT-нормализованные статусы (`"closed"` вместо нативного Bybit `"filled"`). Нормализация происходит в `_normalize_order_status()` в `bot/api/bybit_direct_client.py`.
 
 **Ключевые параметры по умолчанию:**
 
@@ -149,15 +153,18 @@ Trailing: профит >= 750 → SL = price - 250
 
 ## 4. HYBRID (Гибридная стратегия)
 
-**Идея:** Автоматическое переключение между Grid и DCA в зависимости от рыночного режима.
+**Идея:** Grid и DCA работают одновременно. MarketRegimeDetector анализирует рынок и публикует рекомендации, но переключение стратегий через HybridStrategy.evaluate() в основном цикле **пока не реализовано** (архитектурный gap, запланирован к устранению).
+
+> ⚠️ **Реальное поведение (2026-02-23):** В `_main_loop()` всегда вызываются оба движка — `_process_grid_orders()` и `_process_dca_logic()` — независимо от режима рынка. `MarketRegimeDetector` запускается в отдельном цикле каждые 60 сек, определяет режим и публикует его в Redis, но `get_strategy_recommendation()` не читается в основном цикле. `HybridStrategy.evaluate()` существует, но не вызывается.
 
 | Компонент | Что мониторит | С чем сравнивает | Сигнал / Действие | Куда передаёт |
 |-----------|---------------|------------------|-------------------|---------------|
-| **MarketRegimeDetector** | ADX, ATR, EMA, Bollinger Bands (ширина), Volume | **SIDEWAYS**: `ADX < 25` + `range_score > 0.4`. **UPTREND/DOWNTREND**: `ADX >= 25` + `trend_score > 0.1`. **HIGH_VOLATILITY**: `BB_width > 6%` или `vol > 2× avg`. **TRANSITIONING**: промежуточное | Рекомендация стратегии: SIDEWAYS→GRID, DOWNTREND→DCA/HYBRID, UPTREND→TREND_FOLLOWER, HIGH_VOL→REDUCE_EXPOSURE | → HybridStrategy |
-| **HybridStrategy** | Текущий режим, ADX, ATR ratio | **Grid→DCA**: `ADX >= 25` + GridRisk вернул `DEACTIVATE` + cooldown (120 сек). **DCA→Grid**: `ADX < 20` + режим SIDEWAYS + все DCA-сделки закрыты + cooldown | `TransitionEvent` (from_mode, to_mode, reason) | → Orchestrator (переключение движков) |
-| **Regime Confirmation** | Повторение режима | 2 подтверждения подряд + минимум 300 сек в текущем режиме | Предотвращает «моргание» между режимами | → MarketRegimeDetector (внутренний) |
+| **MarketRegimeDetector** | ADX, ATR, EMA, Bollinger Bands (ширина), Volume | **SIDEWAYS**: `ADX < 25` + `range_score > 0.4`. **UPTREND/DOWNTREND**: `ADX >= 25` + `trend_score > 0.1`. **HIGH_VOLATILITY**: `BB_width > 6%` или `vol > 2× avg`. **TRANSITIONING**: промежуточное | Рекомендация стратегии + публикация в Redis | → Redis (не читается _main_loop) |
+| **GridEngine** | Ордера сетки | Исполнение по цене | Counter-orders | → Биржа (всегда активен) |
+| **DCAEngine** | Просадка от base_price | `trigger_percentage` (4%) | Safety orders, TP | → Биржа (всегда активен) |
+| **HybridStrategy** | Текущий режим | ADX, GridRisk | `TransitionEvent` (задумано) | → **не подключён** к оркестратору |
 
-**Классификация режимов:**
+**Классификация режимов (detector работает, но не влияет на торговлю):**
 
 | Режим | Условие | Рекомендуемая стратегия |
 |-------|---------|------------------------|
@@ -168,20 +175,6 @@ Trailing: профит >= 750 → SL = price - 250
 | DOWNTREND (strong) | `ADX > 35`, `trend < -0.1` | DCA |
 | HIGH_VOLATILITY | `BB_width > 6%` или `vol > 2× avg` | REDUCE_EXPOSURE |
 | TRANSITIONING | Промежуточное состояние | HOLD |
-
-**Распределение капитала:**
-
-| Компонент | Доля |
-|-----------|------|
-| Grid | 60% |
-| DCA | 30% |
-| Резерв | 10% |
-
-**Защита от ложных переключений:**
-- Минимум 2 последовательных подтверждения нового режима
-- Минимум 300 сек в текущем режиме перед сменой
-- Cooldown между переключениями: 120 сек
-- Минимальная длительность в Grid: 300 сек, в DCA: 600 сек
 
 ---
 
@@ -194,6 +187,7 @@ Trailing: профит >= 750 → SL = price - 250
 | **MarketStructure (H4)** | Swing Highs/Lows (5 свечей слева и справа) | **BOS** (Break of Structure): пробой хая/лоя ПО тренду → продолжение. **CHoCH** (Change of Character): пробой ПРОТИВ тренда → разворот. Тренд: `last_high > prev_high AND last_low > prev_low` = BULLISH | Определяет BULLISH / BEARISH / RANGING + список structure breaks | → ConfluenceZones |
 | **ConfluenceZones (H1)** | Order Blocks, Fair Value Gaps | **OB**: последняя свеча противоположного цвета перед structure break. **FVG**: gap между `candle[0].high` и `candle[2].low`. Зоны оцениваются по `strength_score` (0-100): timeframe bonus + volume + size + свежесть - касания | Список активных зон с координатами (high, low) и direction | → EntrySignals |
 | **EntrySignals (M15)** | Паттерны: Engulfing, Pin Bar, Inside Bar | **Engulfing**: тело поглощает предыдущее, quality >= 50. **Pin Bar**: фитиль > 60%, тело < 40%. **Inside Bar**: текущая внутри предыдущей. **+ Confluence**: паттерн в зоне OB/FVG. **+ R:R >= 2.5** | `SMCSignal` с `confidence` = 40% quality + 30% confluence + 20% trend alignment + 10% R:R bonus. Мин. >= 0.6 | → PositionManager |
+| **SMCAdapter** | Сигнал от EntrySignals | **Stale filter**: если `abs(entry_price - current_price) / current_price > 2%` — сигнал отклоняется | Актуальный сигнал → открытие позиции | → BotOrchestrator |
 | **PositionManager** | Текущая цена vs entry/SL/TP, MFE/MAE | **SL**: за стороной OB/паттерна. **TP**: `entry + (entry - SL) × R:R`. **Breakeven**: при 1:1 R:R → SL = entry. **Trailing**: от swing point + 0.5% буфер. **Kelly Criterion** (>= 10 сделок) | Ордера на вход/выход, размер позиции (2% или Kelly) | → Биржа, → Redis, → Telegram |
 
 **Мультитаймфреймовый анализ:**
@@ -214,6 +208,18 @@ confidence = 0.40 × pattern_quality     (качество паттерна, 0-1
            + 0.10 × rr_bonus            (бонус за R:R выше минимума)
 
 Минимальный порог: confidence >= 0.6
+```
+
+**Фильтр устаревших сигналов (stale signal filter):**
+
+```
+Если |signal.entry_price - current_price| / current_price > 2%:
+    → сигнал отклоняется (warning: smc_signal_stale)
+    → Order Block мог быть сформирован при другой цене
+
+Причина: SMC кэширует Order Blocks между итерациями.
+         При резком движении цены сигнал на вход уже неактуален,
+         и TP мог бы сработать сразу после открытия позиции.
 ```
 
 **Паттерны входа:**
@@ -249,13 +255,17 @@ kelly_f = (p × b - q) / b
     v
 BotOrchestrator._main_loop() --- каждые 1-5 сек
     |
-    |-> Стратегия.analyze_market(df)  ->  Индикаторы + Фаза рынка
-    |-> Стратегия.check_signal()      ->  Сигнал на вход
-    |-> Стратегия.update_positions()  ->  Выход / Trailing / Partial TP
+    |-> Grid:  _process_grid_orders()     ->  Проверка исполнения ордеров
+    |-> DCA:   _process_dca_logic()       ->  Проверка TP/SL/safety orders
+    |-> SMC:   _process_smc_logic()       ->  TP/SL каждую сек, OHLCV-анализ каждые 300 сек
+    |-> TF:    _process_trend_follower()  ->  Entry/exit signals
+    |
+    | (параллельно, каждые 60 сек)
+    |-> _regime_monitor_loop()  ->  MarketRegimeDetector  ->  Redis (не влияет на торговлю)
     |
     v
 +----------------+    +----------------+    +----------------+
-|  Биржа API     |    | Redis PubSub   |    |  PostgreSQL    |
+|  ByBit API     |    | Redis PubSub   |    |  PostgreSQL    |
 | (ордера)       |    | (события)      |    | (состояние)    |
 +----------------+    +-------+--------+    +----------------+
                               |
@@ -267,21 +277,37 @@ BotOrchestrator._main_loop() --- каждые 1-5 сек
 
 ---
 
+## Нормализация статусов ордеров
+
+`ByBitDirectClient` нормализует все статусы ордеров к CCXT-совместимым значениям:
+
+| Bybit (native) | CCXT (normalized) | Описание |
+|----------------|-------------------|----------|
+| `"Filled"` | `"closed"` | Ордер исполнен |
+| `"New"` | `"open"` | Ордер активен |
+| `"PartiallyFilled"` | `"open"` | Частично исполнен |
+| `"Cancelled"` | `"cancelled"` | Отменён |
+| `"Rejected"` | `"rejected"` | Отклонён |
+
+Функция `_normalize_order_status()` в `bot/api/bybit_direct_client.py` применяется в `fetch_open_orders()`, `fetch_order()`, `fetch_closed_orders()`.
+
+---
+
 ## Сводная таблица стратегий
 
 | Параметр | Grid | DCA | Trend Follower | Hybrid | SMC |
 |----------|------|-----|----------------|--------|-----|
-| **Тип рынка** | Боковик (range) | Нисходящий тренд | Любой тренд | Авто-переключение | Любой (институц.) |
+| **Тип рынка** | Боковик (range) | Нисходящий тренд | Любой тренд | Grid+DCA всегда | Любой (институц.) |
 | **Таймфреймы** | 1 | 1 | 1 | 1 | 4 (D1, H4, H1, M15) |
-| **Тип ордеров** | Limit | Market + Limit (SO) | Limit (вход), Market (выход) | Зависит от режима | Limit/Market |
+| **Тип ордеров** | Limit | Market + Limit (SO) | Limit (вход), Market (выход) | Limit + Market | Limit/Market |
 | **Ключевой индикатор** | ATR, цена | EMA, RSI, BB, Volume | EMA, ATR, RSI | ADX, BB width | Swing Points, OB, FVG |
-| **Вход** | Автоматический (сетка) | Confluence score >= 0.6 | Pullback/Breakout + volume | Делегирует Grid/DCA | Паттерн + зона + R:R >= 2.5 |
-| **Выход** | Counter-order (наценка) | TP / SL / Trailing | TP / SL / Trailing / Partial | Делегирует Grid/DCA | TP / SL / Trailing / Kelly |
-| **Риск-менеджмент** | Drawdown 10%, SL 5% | Daily loss $500, 5 consecutive | 1% risk, 20% exposure | 60/30/10 split | 2% risk, Kelly Criterion |
-| **Макс. позиций** | 25 ордеров | Max concurrent deals | 20 | Зависит от режима | 3 сигнала |
+| **Вход** | Автоматический (сетка) | Confluence score >= 0.6 | Pullback/Breakout + volume | Grid + DCA параллельно | Паттерн + зона + R:R >= 2.5 |
+| **Выход** | Counter-order (наценка) | TP / SL / Trailing | TP / SL / Trailing / Partial | Grid + DCA параллельно | TP / SL / Trailing / Kelly |
+| **Риск-менеджмент** | Drawdown 10%, SL 5% | Daily loss $500, 5 consecutive | 1% risk, 20% exposure | По каждому движку | 2% risk, Kelly Criterion |
+| **Макс. позиций** | 25 ордеров | Max concurrent deals | 20 | 25 + deals | 3 сигнала |
 
 ---
 
-*Документ сгенерирован на основе анализа исходного кода репозитория TRADERAGENT v2.0*
+*Документ отражает реальное поведение кода TRADERAGENT v2.0 по состоянию на 2026-02-23*
 
-*Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>*
+*Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>*

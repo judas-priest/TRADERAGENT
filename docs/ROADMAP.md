@@ -1,629 +1,177 @@
 # TRADERAGENT - Roadmap
 
-Strategic plan for future development of the TRADERAGENT trading bot.
+> **Обновлено:** 2026-02-23 | Текущая версия: v2.0.0 (Released)
 
-## Table of Contents
+---
 
-- [Version History](#version-history)
-- [v1.0.0 - Current Release](#v100---current-release-released)
-- [v2.0.0 - Web Interface & Multi-Account](#v200---web-interface--multi-account-q2-2026)
-- [v3.0.0 - Advanced Strategies & Signals](#v300---advanced-strategies--signals-q4-2026)
-- [v4.0.0 - Enterprise Features](#v400---enterprise-features-2027)
-- [Long-term Vision](#long-term-vision)
-- [Community Requests](#community-requests)
-- [Contributing to Roadmap](#contributing-to-roadmap)
+## Current Status
+
+**v2.0.0 — Released February 2026. Demo trading LIVE on Bybit.**
+
+- 5 strategies deployed: Grid, DCA, Hybrid, Trend Follower, SMC
+- 1,531 tests passing (100%)
+- Web UI Dashboard: 42 REST routes, 7 pages, JWT auth
+- Demo trading: `api-demo.bybit.com`, 5 bots running
+- Backtesting pipeline: DCA + TF + SMC on 45 pairs (running)
 
 ---
 
 ## Version History
 
-### Completed Stages
+### ✅ v1.0.0 — Core Platform (February 2026)
 
-✅ **Stage 1: Core Infrastructure (Completed)**
-- Database management (PostgreSQL + asyncpg)
-- Exchange API client (CCXT integration)
-- Configuration management (YAML + validation)
-- Logging system (structured logging)
-
-✅ **Stage 2: Trading Modules (Completed)**
 - Grid trading engine
 - DCA (Dollar Cost Averaging) engine
-- Risk management system
-- Event system for module coordination
-
-✅ **Stage 3: Integration & Orchestration (Completed)**
-- Bot orchestrator
-- Telegram bot interface
-- WebSocket support for real-time data
-- State persistence and recovery
-
-✅ **Stage 4: Testing & Deployment (Completed)**
-- Comprehensive unit tests (>100 tests)
-- Integration tests
-- Backtesting framework
-- Testnet testing suite
-- Docker deployment infrastructure
-- Monitoring stack (Prometheus + Grafana)
-
-✅ **Stage 5: Documentation (Completed)**
-- Comprehensive README
-- Configuration guide
-- Deployment guide
-- Testing guide
-- FAQ and troubleshooting
-- This roadmap
-
----
-
-## v1.0.0 - Current Release (Released)
-
-**Release Date:** February 2026
-
-### Features
-
-✅ **Trading Strategies**
-- Grid Trading (range-bound markets)
-- DCA (Dollar Cost Averaging)
 - Hybrid (Grid + DCA combined)
+- Risk management system
+- PostgreSQL + Redis + asyncio architecture
+- Telegram bot interface
+- Prometheus + Grafana monitoring
+- State persistence and recovery on restart
+- Docker deployment
 
-✅ **Exchange Support**
-- CCXT integration (150+ exchanges)
-- Testnet/sandbox mode
-- WebSocket real-time data
-- Rate limit management
+### ✅ v2.0.0 — Advanced Strategies + Web UI (February 2026)
 
-✅ **Risk Management**
-- Position size limits
-- Stop-loss support
-- Daily loss limits
-- Order size validation
-
-✅ **Infrastructure**
-- PostgreSQL database
-- Redis pub/sub
-- Async architecture
-- State recovery
-
-✅ **Monitoring & Alerts**
-- Prometheus metrics
-- Grafana dashboards
-- AlertManager integration
-- Telegram notifications
-
-✅ **Testing**
-- Unit tests (>100)
-- Integration tests
-- Backtesting framework
-- Testnet support
-
-✅ **Documentation**
-- Complete user guides
-- API documentation
-- Configuration examples
-- Troubleshooting guides
-
-### Known Limitations
-
-- No web UI (CLI and Telegram only)
-- Single exchange account per bot
-- Spot trading only (no futures/margin)
-- Manual strategy parameter tuning
-- Basic reporting
+- **SMC Strategy** (Smart Money Concepts): Order Blocks, FVG, BOS/CHoCH, multi-timeframe
+- **Trend Follower Strategy**: EMA crossover, ATR-based TP/SL, trailing stop
+- **Web UI Dashboard**: React + FastAPI, 7 pages, real-time WebSocket
+- **Grid Backtesting System**: coin clustering, two-phase optimization, 39 tests
+- **Multi-TF Backtesting**: DCA + TF + SMC on historical data, CSV support
+- **Bybit Demo Trading**: `api-demo.bybit.com` with production API keys
+- **State Persistence**: PostgreSQL snapshots + startup reconciliation
+- **Load Testing**: 40 stress tests, 1,599 req/s, no memory leaks
+- **Code Quality**: ruff + black + mypy, 100% pass rate
 
 ---
 
-## v2.0.0 - Web Interface & Multi-Account (Q2 2026)
+## Active Development (v2.1)
 
-**Target Release:** April-June 2026
+### 1. Adaptive Hybrid Strategy 🟡 (Planned)
 
-### 1. Web UI Dashboard
+**Goal:** Connect `MarketRegimeDetector` output to the main trading loop so the Hybrid strategy actually switches between Grid/DCA/etc based on market regime.
 
-**Goal:** Modern web interface for bot management and monitoring
+**Current state:** `MarketRegimeDetector` runs every 60s and publishes regime to Redis, but `HybridStrategy.evaluate()` is never called in `_main_loop()`. Grid and DCA always run simultaneously.
 
-**Features:**
-- 🔄 **Real-time Dashboard**
-  - Portfolio overview (total value, P&L, ROI)
-  - Active bots status
-  - Recent trades
-  - Open orders
-  - Performance charts
+**Plan:**
+- Read `get_strategy_recommendation()` in `_main_loop()`
+- When regime = SIDEWAYS → activate Grid only
+- When regime = DOWNTREND → activate DCA only
+- When regime = HIGH_VOLATILITY → reduce exposure, pause new entries
+- Maintain cooldowns and confirmation counts to prevent thrashing
 
-- 🔄 **Bot Management**
-  - Create/edit/delete bots via UI
-  - Start/stop/pause bots
-  - View bot logs
-  - Clone bot configurations
+### 2. Multi-Symbol Backtesting Pipeline Results 🟡 (In Progress)
 
-- 🔄 **Visual Strategy Builder**
-  - Drag-and-drop interface
-  - Grid parameters visualization
-  - DCA steps preview
-  - Backtest integration
-  - Parameter optimization suggestions
+**Current state:** Pipeline running on Yandex Cloud (16 CPU, 32GB RAM):
+- Phase 1 DONE: 135/135 baseline backtests, 0 errors, 85 min
+- Phase 2 IN PROGRESS: optimization (45 pairs × 3 strategies × 14 workers)
+- Phases 3-5 pending: regime-aware, robustness, final report
 
-- 🔄 **Advanced Analytics**
-  - Profit/loss breakdown by bot
-  - Performance comparison
-  - Win rate statistics
-  - Trade history analysis
-  - Heat maps and visualizations
+**Goal:** Identify top-performing pairs and optimal parameters per strategy.
 
-- 🔄 **Configuration Editor**
-  - Web-based YAML editor
-  - Syntax validation
-  - Parameter hints
-  - Template library
+### 3. Backtesting Results Analysis 🟡 (Planned)
 
-**Technology Stack:**
-- Frontend: React + TypeScript + TailwindCSS
-- Backend: FastAPI REST API
-- Real-time: WebSocket for live updates
-- Authentication: JWT tokens
-- Security: HTTPS, CORS, rate limiting
-
-### 2. Multi-Account Support
-
-**Goal:** Manage multiple exchange accounts from one bot instance
-
-**Features:**
-- 🔄 **Account Management**
-  - Add/remove multiple exchange accounts
-  - Different accounts per exchange
-  - Account grouping and tagging
-  - Balance aggregation
-
-- 🔄 **Per-Account Configuration**
-  - Independent risk limits per account
-  - Separate API keys management
-  - Account-specific strategies
-  - Cross-account analytics
-
-- 🔄 **Portfolio View**
-  - Aggregated portfolio value
-  - Per-account breakdown
-  - Asset allocation view
-  - Consolidated reporting
-
-- 🔄 **Account Risk Management**
-  - Per-account position limits
-  - Cross-account exposure tracking
-  - Account-level stop-losses
-  - Balance rebalancing suggestions
-
-### 3. Improved Backtesting
-
-**Goal:** Advanced backtesting through web UI
-
-**Features:**
-- 🔄 **Historical Data**
-  - Import from CSV
-  - Fetch from exchanges
-  - Data quality checks
-  - Multiple timeframes
-
-- 🔄 **Backtest Engine Enhancements**
-  - Slippage modeling
-  - Fee simulation
-  - Market impact simulation
-  - Walk-forward analysis
-
-- 🔄 **Optimization**
-  - Parameter sweep
-  - Grid search optimization
-  - Genetic algorithms
-  - Monte Carlo simulation
-
-- 🔄 **Results Visualization**
-  - Equity curve
-  - Drawdown chart
-  - Trade distribution
-  - Comparison reports
-
-### 4. Enhanced Reporting
-
-- 🔄 PDF report generation
-- 🔄 Email reports (daily/weekly/monthly)
-- 🔄 Tax reporting (trade exports)
-- 🔄 Performance attribution
-- 🔄 Custom report builder
-
-### Timeline
-
-```
-Q2 2026:
-├── April: Web UI foundation, authentication
-├── May: Bot management, real-time dashboard
-└── June: Multi-account, backtesting UI
-```
+After pipeline completes:
+- Rank pairs by Sharpe ratio, return, stability
+- Build regime routing table (which strategy wins per market condition)
+- Export optimal parameters to live bot configs
 
 ---
 
-## v3.0.0 - Advanced Strategies & Signals (Q4 2026)
+## Roadmap v2.x (2026)
 
-**Target Release:** October-December 2026
+### Strategy Improvements
 
-### 1. Additional Trading Strategies
+- **SMC position_manager.py fix**: Inconsistent `is_long` detection in `check_exit_conditions` (known bug, low priority while in dry_run)
+- **SMC live trading**: Switch `demo_btc_smc` from `dry_run: true` to `dry_run: false` after pipeline validation
+- **Grid dynamic rebalancing**: Auto-adjust grid boundaries when price moves outside range
 
-**Goal:** Expand strategy library beyond Grid and DCA
+### Backtesting & Analytics
 
-**Features:**
-- 🔄 **Martingale Strategy**
-  - Double-down on losses
-  - Configurable multiplier
-  - Max step protection
-  - Recovery target
+- **Backtest Results Visualization**: Equity curves, trade markers, drawdown charts in Web UI
+- **Walk-forward analysis**: Out-of-sample validation of optimized parameters
+- **Strategy comparison**: Side-by-side performance across pairs and timeframes
 
-- 🔄 **Fibonacci Retracement Strategy**
-  - Automatic Fibonacci level calculation
-  - Dynamic grid placement
-  - Trend identification
-  - Level breakout handling
+### Web UI Enhancements
 
-- 🔄 **Moving Average Strategies**
-  - MA crossover (Golden/Death cross)
-  - EMA trend following
-  - MA grid hybrid
-  - Multi-timeframe MA
+- **Lightweight-charts**: Real-time price charts with trade markers
+- **Full bot creation forms**: Create/edit bots without editing YAML
+- **Portfolio history**: Replace stub endpoints with real historical data
 
-- 🔄 **Arbitrage Strategy**
-  - Cross-exchange arbitrage
-  - Triangular arbitrage
-  - Statistical arbitrage
-  - Automated execution
+### Infrastructure
 
-- 🔄 **Mean Reversion Strategy**
-  - Bollinger Bands based
-  - RSI oversold/overbought
-  - Configurable entry/exit
-  - Multiple indicators support
-
-- 🔄 **Custom Strategy Builder**
-  - Python plugin system
-  - Strategy template library
-  - Indicator marketplace
-  - Community strategies
-
-### 2. TradingView Integration
-
-**Goal:** Import trading signals from TradingView
-
-**Features:**
-- 🔄 **Webhook Integration**
-  - Receive TradingView alerts
-  - Parse alert messages
-  - Execute orders based on signals
-  - Signal validation
-
-- 🔄 **Pine Script Support**
-  - Import Pine Script indicators
-  - Backtesting with TradingView data
-  - Strategy alerts integration
-  - Indicator synchronization
-
-- 🔄 **Signal Management**
-  - Signal history tracking
-  - Signal reliability scoring
-  - Multiple signal sources
-  - Signal conflict resolution
-
-- 🔄 **Alert Actions**
-  - Buy/sell signals
-  - Close position signals
-  - Modify order signals
-  - Custom actions
-
-### 3. Social Trading
-
-**Goal:** Enable copy trading and strategy sharing
-
-**Features:**
-- 🔄 **Copy Trading**
-  - Follow top traders
-  - Automatic order mirroring
-  - Risk-adjusted position sizing
-  - Stop copying conditions
-
-- 🔄 **Strategy Marketplace**
-  - Publish your strategies
-  - Browse community strategies
-  - Strategy ratings and reviews
-  - Purchase/subscribe to strategies
-
-- 🔄 **Performance Leaderboard**
-  - Top performers ranking
-  - Verified track records
-  - Risk-adjusted returns
-  - Strategy categories
-
-- 🔄 **Strategy Sharing**
-  - Export strategy config
-  - Import strategy config
-  - Version control
-  - Collaborative editing
-
-### 4. AI/ML Features
-
-**Goal:** Intelligent strategy optimization and prediction
-
-**Features:**
-- 🔄 **Price Prediction**
-  - LSTM neural networks
-  - Multi-timeframe analysis
-  - Confidence intervals
-  - Prediction validation
-
-- 🔄 **Auto-Parameter Optimization**
-  - ML-based parameter tuning
-  - Reinforcement learning
-  - Adaptive strategies
-  - Market regime detection
-
-- 🔄 **Sentiment Analysis**
-  - Social media sentiment
-  - News sentiment
-  - On-chain metrics
-  - Sentiment-based trading
-
-- 🔄 **Pattern Recognition**
-  - Chart pattern detection
-  - Candlestick patterns
-  - Support/resistance detection
-  - Trend line drawing
-
-### Timeline
-
-```
-Q4 2026:
-├── October: Additional strategies, TradingView integration
-├── November: Social trading, strategy marketplace
-└── December: AI/ML features, optimization
-```
+- **Alembic migrations**: Proper schema versioning instead of auto-create
+- **Multi-account support**: Multiple Bybit accounts per bot instance
 
 ---
 
-## v4.0.0 - Enterprise Features (2027)
+## Roadmap v3.0 (Q4 2026)
 
-**Target Release:** 2027
+### Additional Strategies
 
-### 1. Professional Trading Tools
+- **Fibonacci Retracement**: ALMIRBGCLOD strategy backtester (#85)
+- **Martingale**: Double-down on losses with configurable multiplier
+- **Mean Reversion**: Bollinger Bands + RSI oversold/overbought
 
-- 📅 **Futures/Margin Trading**
-  - Leverage support (1x-125x)
-  - Margin management
-  - Liquidation protection
-  - Funding rate optimization
+### TradingView Integration (#97)
 
-- 📅 **Advanced Order Types**
-  - OCO (One-Cancels-Other)
-  - Iceberg orders
-  - TWAP (Time-Weighted Average Price)
-  - VWAP (Volume-Weighted Average Price)
+- Webhook integration for TradingView alerts
+- Execute orders based on Pine Script signals
 
-- 📅 **Portfolio Management**
-  - Multi-asset portfolios
-  - Rebalancing strategies
-  - Asset allocation optimization
-  - Risk parity
+### AI/ML Features
 
-- 📅 **Market Making**
-  - Automated market making
-  - Liquidity provision
-  - Spread management
-  - Inventory management
-
-### 2. Institutional Features
-
-- 📅 **Multi-User Support**
-  - User roles and permissions
-  - Team collaboration
-  - Audit logs
-  - Compliance reporting
-
-- 📅 **API for Integration**
-  - REST API
-  - WebSocket API
-  - API rate limiting
-  - API documentation
-
-- 📅 **High Availability**
-  - Clustering support
-  - Failover mechanisms
-  - Load balancing
-  - Geographic redundancy
-
-- 📅 **Security Enhancements**
-  - 2FA (Two-Factor Authentication)
-  - Hardware wallet support
-  - IP whitelisting
-  - API key rotation
-
-### 3. Advanced Analytics
-
-- 📅 **Machine Learning Platform**
-  - Custom model training
-  - Model deployment
-  - A/B testing
-  - Performance monitoring
-
-- 📅 **Risk Analytics**
-  - Value at Risk (VaR)
-  - Conditional VaR
-  - Stress testing
-  - Scenario analysis
-
-- 📅 **Attribution Analysis**
-  - Return attribution
-  - Risk attribution
-  - Factor analysis
-  - Performance decomposition
+- Auto-parameter optimization using backtesting results
+- Market regime classification with ML model
+- Adaptive position sizing
 
 ---
 
-## Long-term Vision
+## Roadmap v4.0 (2027)
 
-### 5+ Year Goals
+### Enterprise Features
 
-**Mission:** Become the leading open-source cryptocurrency trading platform
-
-**Vision:**
-- 🌟 Support for all asset classes (crypto, stocks, forex, commodities)
-- 🌟 Mobile apps (iOS, Android)
-- 🌟 Cloud-hosted SaaS option
-- 🌟 Educational platform (trading courses, tutorials)
-- 🌟 Large community ecosystem (10,000+ users)
-- 🌟 Professional-grade performance (institutional adoption)
-
-### Technology Evolution
-
-- **Microservices Architecture**
-  - Independent scaling
-  - Service isolation
-  - Better fault tolerance
-
-- **Distributed Computing**
-  - Distributed backtesting
-  - Parallel strategy execution
-  - Big data analytics
-
-- **Blockchain Integration**
-  - On-chain trading (DEX support)
-  - Smart contract integration
-  - DeFi protocols
+- Multi-user support (roles, permissions)
+- Futures/Margin trading (leverage 1x-125x)
+- Advanced order types (OCO, TWAP, VWAP)
+- 2FA authentication
+- PDF report generation and email alerts
 
 ---
 
-## Community Requests
+## Known Architectural Gaps
 
-### Most Requested Features
-
-Based on community feedback, these features are under consideration:
-
-**High Priority:**
-1. ✅ Web UI (v2.0 planned)
-2. ✅ TradingView integration (v3.0 planned)
-3. Futures trading (v4.0 planned)
-4. Mobile app (long-term)
-5. More exchanges (ongoing)
-
-**Medium Priority:**
-- Desktop app (Electron)
-- Discord bot interface
-- Email notifications
-- SMS alerts
-- Webhook support
-
-**Low Priority:**
-- Voice notifications
-- Browser extension
-- Alexa/Google Home integration
-- Apple Watch app
-
-### Vote for Features
-
-You can influence the roadmap:
-1. Check [GitHub Issues](https://github.com/alekseymavai/TRADERAGENT/issues) for feature requests
-2. Upvote (👍) features you want
-3. Comment with use cases
-4. Create new feature requests
+| Gap | Description | Priority |
+|-----|-------------|----------|
+| **Regime → Trading** | `MarketRegimeDetector` output not connected to `_main_loop()` | Medium |
+| **SMC position_manager** | `check_exit_conditions` has inverted `is_long` logic | Low |
+| **Web UI portfolio history** | Portfolio history endpoints return stubs | Low |
 
 ---
 
-## Contributing to Roadmap
+## Completed Issues
 
-### How to Contribute
+All major audit bugs fixed. See `docs/SESSION_CONTEXT.md` for full history.
+
+Key fixes:
+- `b477fbf` — Bybit status normalization (`"filled"` → `"closed"`) at source
+- `f06dc8c` — SMC: stale signal filter, wrong trend key, duplicate logs
+- `a7f4e66` — Grid: handle Bybit native `"filled"` status
+- `a0f97ce` — State persistence + startup reconciliation
+- `5cf8f71` — 6 AttributeError crashes in BotOrchestrator
+
+---
+
+## Contributing
 
 **Submit Feature Requests:**
 1. Search existing [issues](https://github.com/alekseymavai/TRADERAGENT/issues)
 2. Create new issue with "Feature Request" template
 3. Describe the feature, use case, and benefits
-4. Include mockups/examples if applicable
-
-**Discuss in Community:**
-1. Join [GitHub Discussions](https://github.com/alekseymavai/TRADERAGENT/discussions)
-2. Share ideas and get feedback
-3. Collaborate on feature design
-4. Help prioritize features
 
 **Contribute Code:**
 1. Check "Help Wanted" issues
 2. Comment to claim an issue
 3. Fork, develop, and submit PR
-4. Follow contribution guidelines
-
-### Development Priorities
-
-Features are prioritized based on:
-1. **User Impact** - How many users benefit?
-2. **Effort** - Development time and complexity
-3. **Strategic Value** - Alignment with vision
-4. **Community Demand** - Upvotes and requests
-5. **Dependencies** - Prerequisites and blockers
 
 ---
 
-## Release Process
-
-### Version Numbering
-
-We follow [Semantic Versioning](https://semver.org/):
-- **Major (X.0.0)**: Breaking changes
-- **Minor (0.X.0)**: New features, backwards compatible
-- **Patch (0.0.X)**: Bug fixes
-
-### Release Cycle
-
-- **Major releases:** ~6-9 months
-- **Minor releases:** ~2-3 months
-- **Patch releases:** As needed (bug fixes)
-
-### Beta Program
-
-Want early access?
-- Join beta testing program
-- Test pre-release versions
-- Provide feedback
-- Report bugs
-- Email: [Coming soon]
-
----
-
-## Changelog
-
-### v1.0.0 (February 2026)
-- Initial release
-- Grid, DCA, and Hybrid strategies
-- Multi-exchange support via CCXT
-- Telegram bot interface
-- Comprehensive testing infrastructure
-- Monitoring stack (Prometheus + Grafana)
-- Full documentation
-
----
-
-## Stay Updated
-
-**Follow Development:**
-- ⭐ Star the repository
-- 👀 Watch for releases
-- 📰 Read release notes
-- 💬 Join discussions
-
-**Get Notified:**
-- Enable GitHub notifications
-- Subscribe to releases
-- Follow on social media (coming soon)
-- Join newsletter (coming soon)
-
----
-
-## Questions?
-
-- 📧 **Issues**: [GitHub Issues](https://github.com/alekseymavai/TRADERAGENT/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/alekseymavai/TRADERAGENT/discussions)
-- 📖 **Documentation**: [Full Documentation](https://github.com/alekseymavai/TRADERAGENT)
-
----
-
-**Note:** This roadmap is subject to change based on community feedback, technical constraints, and market conditions. Dates are estimates and may shift.
-
-**Last Updated:** February 2026
+**Last Updated:** February 2026 | **Next Review:** After Phase 2-5 pipeline completes
