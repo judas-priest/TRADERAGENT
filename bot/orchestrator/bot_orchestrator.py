@@ -1230,7 +1230,7 @@ class BotOrchestrator:
             risk_state=sp.serialize_risk_state(self.risk_manager),
             trend_state=sp.serialize_trend_state(self.trend_follower_strategy),
             hybrid_state=sp.serialize_hybrid_state(hybrid),
-            saved_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            saved_at=datetime.now(timezone.utc),
         )
         await self.db.save_state_snapshot(snapshot)
         logger.debug("state_saved", bot_name=self.config.name)
@@ -1276,7 +1276,21 @@ class BotOrchestrator:
         logger.info("reconcile_start", bot_name=self.config.name)
 
         # Grid: check which saved orders are still open on exchange
-        if self.grid_engine and self.grid_engine.active_orders:
+        if self.grid_engine and not self.grid_engine.active_orders and self.current_price:
+            # Grid state was loaded but has no orders — re-initialize
+            logger.info(
+                "grid_reinit_empty_state",
+                reason="loaded_state_has_no_orders",
+                current_price=str(self.current_price),
+            )
+            try:
+                grid_orders = self.grid_engine.initialize_grid(self.current_price)
+                if grid_orders and not self.config.dry_run:
+                    await self._place_grid_orders(grid_orders)
+                logger.info("grid_reinitialized", order_count=len(grid_orders) if grid_orders else 0)
+            except Exception as e:
+                logger.error("grid_reinit_failed", error=str(e))
+        elif self.grid_engine and self.grid_engine.active_orders:
             try:
                 exchange_orders = await self.exchange.fetch_open_orders(self.config.symbol)
                 exchange_ids = {o["id"] for o in exchange_orders}
@@ -1310,6 +1324,21 @@ class BotOrchestrator:
                     kept=len(self.grid_engine.active_orders),
                     orphaned=len(orphaned),
                 )
+
+                # Re-initialize grid if all orders were lost
+                if not self.grid_engine.active_orders and self.current_price:
+                    logger.info(
+                        "grid_reinit_after_reconcile",
+                        reason="all_orders_orphaned",
+                        current_price=str(self.current_price),
+                    )
+                    grid_orders = self.grid_engine.initialize_grid(self.current_price)
+                    if grid_orders and not self.config.dry_run:
+                        await self._place_grid_orders(grid_orders)
+                    logger.info(
+                        "grid_reinitialized",
+                        order_count=len(grid_orders) if grid_orders else 0,
+                    )
             except Exception as e:
                 logger.error("grid_reconcile_failed", error=str(e))
 

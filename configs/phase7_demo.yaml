@@ -2,12 +2,12 @@
 # Uses production API keys with api-demo.bybit.com (demo/paper trading)
 # ALL instruments must be linear (futures) - demo does NOT support spot
 #
-# Market prices as of Feb 16, 2026:
-#   BTC/USDT ~ $68,600
+# Market prices as of Feb 23, 2026:
+#   BTC/USDT ~ $65,600
 #   ETH/USDT ~ $2,013
 #   SOL/USDT ~ $88
 #
-# Date: February 2026
+# Date: February 2026 (updated Feb 23)
 
 # Database Configuration
 database_url: ${DATABASE_URL}
@@ -41,10 +41,10 @@ bots:
 
     grid:
       enabled: true
-      upper_price: "72000"    # +5% from ~$68,600
-      lower_price: "65000"    # -5% from ~$68,600
+      upper_price: "69000"    # +5% from ~$65,600
+      lower_price: "62000"    # -5.5% from ~$65,600
       grid_levels: 6
-      amount_per_grid: "150"  # $150 per grid (~0.002 BTC, min 0.001 BTC = ~$69)
+      amount_per_grid: "150"  # $150 per grid (~0.002 BTC, min 0.001 BTC = ~$66)
       profit_per_grid: "0.012" # 1.2% profit per grid
 
     dca:
@@ -58,7 +58,7 @@ bots:
       max_position_size: "3000"       # Max $3000 total position
       stop_loss_percentage: "0.12"    # 12% stop loss
       max_daily_loss: "600"           # Max $600 daily loss
-      min_order_size: "70"            # Min $70 per order (> 0.001 BTC)
+      min_order_size: "66"            # Min $66 per order (> 0.001 BTC)
 
     notifications:
       enabled: false

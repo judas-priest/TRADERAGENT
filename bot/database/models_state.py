@@ -25,8 +25,8 @@ class BotStateSnapshot(Base):
     trend_state: Mapped[str | None] = mapped_column(Text, nullable=True)
     hybrid_state: Mapped[str | None] = mapped_column(Text, nullable=True)
     saved_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
 
