@@ -3,21 +3,116 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 23 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + RegimeClassifier + RiskManager integrated into Multi-TF Backtester + Plan bektestirovaniya DCA+TF+SMC na VM-16-32 podgotovlen + Accelerated Replay Framework + Fix: otritsatelnyy base_balance pri grid init + **Server Audit + SMC Bug Analysis + Multi-TF Verification**
+**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + RegimeClassifier + RiskManager integrated into Multi-TF Backtester + Plan bektestirovaniya DCA+TF+SMC na VM-16-32 podgotovlen + Accelerated Replay Framework + Fix: otritsatelnyy base_balance pri grid init + Server Audit + SMC Bug Analysis + Multi-TF Verification + **Multi-TF Deployed on New Server (Yandex Cloud)**
 **Pass Rate:** 100% (1531/1531 tests passing, 25 skipped)
 **Realnyy obem testov:** 1556 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing (multi-TF engine + regime/risk + multi-strategy)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `dbf073a` (docs: update SESSION_CONTEXT.md — Session 23)
+**Posledniy commit:** `e3b834c` (docs: add Multi-TF backtest reports — BTC/USDT 14d synthetic)
 **Bot Status:** RUNNING (5 botov, regime=bear_trend pri ADX=37.96, SMC bot ACTIVE v dry_run rezhime — 4 baga obnaruzheny)
 **Backtest Plan:** `docs/BACKTEST_PLAN_DCA_TF_SMC.md` — 5 faz, 48,400 bektestov, ~3 chasa na VM-16-32
 **SMC Fix Plan:** `.claude/plans/zippy-snacking-boole.md` — 4 baga, 6 faylov, gotov k realizatsii
+**New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD) — Multi-TF Backtester DEPLOYED
 
 ---
 
-## Poslednyaya Sessiya (2026-02-23) - Session 24: Server Audit + SMC Bug Analysis + Multi-TF Verification
+## Poslednyaya Sessiya (2026-02-23) - Session 25: Multi-TF Backtester — Deploy na novyy server
+
+### Zadacha
+
+1. Razobrat arkhitekturu sistem bektestirovaniya — kakaya samaya "krutaya"
+2. Sozdat `deploy_backtest.sh` — avtomaticheskiy deploy Multi-TF na novyy server
+3. Razvernet Multi-TF Backtester na novom Yandex Cloud servere (158.160.187.253)
+4. Peredat 5.4 GB istoricheskikh dannykh s rabochego servera
+5. Verifikatsiya — zapusk bektesta, sokhranenie HTML-otchetov v repozitoriy
+
+### 1. Analiz sistem bektestirovaniya
+
+V proekte 3 sistemy bektestirovaniya:
+
+| Sistema | Gde | Zavisimost ot bota |
+|---------|-----|-------------------|
+| `services/backtesting/` | Grid Backtester (FastAPI, port 8100) | Tolko `bot/strategies/grid/` (5 faylov) |
+| `bot/tests/backtesting/` | **Multi-TF Engine** (M5→D1, 4 strategii) | Ves `bot/` kod |
+| `backtesting-module/` | TypeScript backtester | Polnostyu nezavisim |
+
+**Vybrana Multi-TF sistema** kak naibolee funktsionalnaya: 4 strategii (Grid/DCA/TF/SMC), 5 taymfreymov, RezhimFiltr, RiskManager, HTML-otchety.
+
+**Zavisimost ot infrastruktury:**
+- PostgreSQL: NE NUZHEN (SQLite ili sinthetika)
+- Redis: NE NUZHEN
+- API klyuchi birzhi: NE NUZHNY (net live-treyding)
+- Telegram: NE NUZHEN
+- Nuzhno: Python 3.12 + ves `bot/` kod + CSV istoricheskie dannye
+
+### 2. deploy_backtest.sh
+
+Sozdan i zakommichen: `deploy_backtest.sh` — 7 shagov, polnostyu avtomatizirovan.
+
+**Ispolzovaniye:**
+```bash
+curl -O https://raw.githubusercontent.com/alekseymavai/TRADERAGENT/main/deploy_backtest.sh
+bash deploy_backtest.sh
+```
+
+**7 shagov skripta:**
+1. Proverka OS, mesta na diske (≥10 GB), git, rsync
+2. Poisk Python 3.12/3.11/3.10 (ili avto-ustanovka cherez deadsnakes/ppa)
+3. `git clone` repozitoriya (ili `git pull` esli uzhe est)
+4. Sozdaniye `.venv` + `pip install -r requirements.txt`
+5. SSH-klyuch: proverka soedineniya s prodom, instrukttsiya po dobavleniyu esli ne rabotaet
+6. Peredacha dannykh: rsync (esli est na prodsервере) ili fallback na tar+ssh
+7. Proverochnye zapuski (sinthetika + realnyye dannye)
+
+**Fiksы v khode deploya:**
+- `python3.12-venv` ne byl ustanovlen na Ubuntu 24.04 — dobavlena auto-ustanovka
+- `rsync` otsutstvoval na prod-servere — dobavlen fallback na `tar+ssh`
+- Bag v skripte: `GridStrategyAdapter` → `GridAdapter`, `DCAStrategyAdapter` → `DCAAdapter`
+
+### 3. Deploy na novyy server
+
+| Parametr | Znachenie |
+|----------|-----------|
+| Provayider | Yandex Cloud |
+| IP | 158.160.187.253 |
+| OS | Ubuntu 24.04 LTS |
+| Resursy | 16 CPU / 32 GB RAM / 100 GB SSD |
+| Python | 3.12.3 |
+| Repozitoriy | `/home/ai-agent/TRADERAGENT` |
+| Istoricheskie dannye | `/home/ai-agent/TRADERAGENT/data/historical/` (451 fayl, 5.4 GB) |
+| SSH dostup (etot agent) | `ai-agent@158.160.187.253` (klyuch dobavlen v authorized_keys) |
+
+**Peredacha dannykh:** tar+ssh (rsync ne byl na prodsервере), ~5 minut dlya 5.4 GB.
+
+### 4. Rezultaty verifikatsionnogo zapuska
+
+```
+python scripts/run_multi_strategy_backtest.py --symbol BTC_USDT --days 14 --trend up --balance 10000
+```
+
+| Strategiya | Dokhodnost | Sdelok | Win% | Sharpe |
+|-----------|-----------|--------|------|--------|
+| Trend Follower | +2219% | 0 | — | 23.1 |
+| Grid | +1928% | 269 | 71% | 22.8 |
+| DCA | +1279% | 185 | 82% | 22.0 |
+| SMC | 0% | 0 | — | N/A |
+
+5 HTML-otchetov zakommicheno v `docs/backtesting-reports/html/`.
+
+### Kommity sessii
+
+| Commit | Opisaniye |
+|--------|-----------|
+| `f92e4d4` | feat: add deploy_backtest.sh |
+| `2b58144` | fix: fallback to tar+ssh when rsync not available |
+| `5255640` | fix: correct class names (GridAdapter, DCAAdapter) |
+| `e3b834c` | docs: add Multi-TF backtest HTML reports |
+
+---
+
+## Predydushchaya Sessiya (2026-02-23) - Session 24: Server Audit + SMC Bug Analysis + Multi-TF Verification
 
 ### Zadacha
 
