@@ -639,7 +639,7 @@ class BotOrchestrator:
                         logger.warning("fetch_order_failed", order_id=order_id)
                         continue
 
-                    if order_status != "closed":
+                    if order_status not in ("closed", "filled"):
                         logger.warning(
                             "grid_order_not_filled",
                             order_id=order_id,
@@ -1334,7 +1334,7 @@ class BotOrchestrator:
                         except Exception:
                             status = "unknown"
 
-                        if status == "closed":
+                        if status in ("closed", "filled"):
                             # Was filled while offline — handle it
                             grid_order = self.grid_engine.active_orders[order_id]
                             self.grid_engine.handle_order_filled(
