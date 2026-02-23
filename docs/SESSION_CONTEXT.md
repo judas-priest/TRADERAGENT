@@ -3,21 +3,134 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 23 fevralya 2026
-**Status:** v2.0.0 Release + ... + **Multi-TF Deployed on New Server (Yandex Cloud)** + **DCA+TF+SMC Pipeline WRITTEN & RUNNING**
+**Status:** v2.0.0 Release + ... + **Multi-TF Deployed on New Server (Yandex Cloud)** + **DCA+TF+SMC Pipeline WRITTEN & RUNNING** + **SMC bugs FIXED + Bybit status normalization FIXED**
 **Pass Rate:** 100% (1531/1531 tests passing, 25 skipped)
 **Realnyy obem testov:** 1556 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing (multi-TF engine + regime/risk + multi-strategy)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `77f5056` (perf: parallelize Phase 2 optimization with ProcessPoolExecutor)
-**Bot Status:** RUNNING (5 botov na 185.233.200.13, dry_run rezhim — 4 SMC baga ne ispravleny)
+**Posledniy commit:** `b477fbf` (fix: normalize Bybit orderStatus to CCXT values at the source)
+**Bot Status:** RUNNING (5 botov na 185.233.200.13, SMC bagi ispravleny, status-normalizatsiya ispravlena)
 **Pipeline Status:** RUNNING na Yandex Cloud — Phase 1 DONE (135/135, 0 errors, 85 min), Phase 2 IN PROGRESS (45 par × 3 strategii, 14 workers, CPU 88%)
 **New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD) — Pipeline DEPLOYED
 
 ---
 
-## Poslednyaya Sessiya (2026-02-23) - Session 27: Pipeline bektestirovaniya — razrabotka, optimizatsiya, zapusk
+## Poslednyaya Sessiya (2026-02-23) - Session 28: Bug-hunting — grid fills, SMC bugs, root-fix status normalization
+
+### Zadacha
+
+1. Proverit bota — nayti `grid_order_not_filled` warning loop
+2. Ispravit bagi v grid-processinge (2 mesta)
+3. Proverit est li analogichnyy bag v sisteme testirovaniya
+4. Proyasit tekushchuyu logiku torgovli (Hybrid = Grid + DCA vsegda parallel)
+5. Proyasit arxitekturnuyu problemu: MarketRegimeDetector ne vliyaet na torgovlyu
+6. Proverit logi na pribylnyye sdelki
+7. Proverit SMC strategiyu — nayti 4 baga
+8. Ispravit vse SMC bagi
+9. Obnaruzhit kornevuyu prichinu bagov (ByBit statuses) i ispravit na istochnike
+
+### 1. Bug: grid_order_not_filled (WARNING LOOP)
+
+**Problema:** V logakh — nepreryvnyy tsikl preduprezhdenii kazhdye ~2 sek:
+```
+grid_order_not_filled order_id=8fb3d389 status=filled
+grid_order_not_filled order_id=7a10d9ba status=filled
+```
+
+**Prichina:** `ByBitDirectClient.fetch_order()` vozvrashchal `"filled"` (nativnyy Bybit),
+a `bot_orchestrator.py:642` proveryal `order_status != "closed"` (CCXT-normalizovannoe).
+Ispravleno (kratkosrochnaya zatychka): `!= "closed"` → `not in ("closed", "filled")`.
+
+**Analogichnyy bag v rekonsiliatsii (restart):** `bot_orchestrator.py:1341`
+proveryal `status == "closed"` → teper `status in ("closed", "filled")`.
+
+### 2. Arxitekturnyy razryv: MarketRegimeDetector
+
+Obnaruzheno i sohraneno v pamyati dlya posleduyushchey sessii:
+- `_regime_monitor_loop()` zapuskaetsya kazhdye 60s, sobirayet rezhim, publikuyet v Redis
+- `_main_loop()` NIKOGDA ne chitayet rekommendatsiyu rezhima
+- `HybridStrategy.evaluate()` sushchestvuyet, no nikogda ne vyzyvayetsya
+- Torgovlya vsegda = Grid + DCA odnovremenno, rezhim ne vliyaet
+
+**Status:** Otlozheno, zaneseno v MEMORY.md kak "future task".
+
+### 3. Analiz SMC logov
+
+438 "pribylnykh" sdelok v dry_run — vse artefakty:
+- Signal generirovalsa ot ordernogo bloka na $68,016 (staroe BTC)
+- Tekushchaya tsena BTC ~$64,700
+- SHORT TP srabatyval mgnovenno pri kazhdoy pozitsii
+- Grid total_profit = 0 za vsyu istoriyu
+
+### 4. Fix SMC bagi (3 iz 4)
+
+**Bug 1 (smc_adapter.py):** Nepravilnyy klyuch slovarya
+```python
+# Bylo:
+trend = analysis.get("trend", "unknown")   # klyucha net → vsegda "unknown"
+# Stalo:
+trend = analysis.get("current_trend", "unknown")
+elif hasattr(trend, "value"):  # TrendDirection enum → .value.lower()
+    trend_str = trend.value.lower()
+```
+
+**Bug 2 (bot_orchestrator.py):** Ustarevshiy signal
+```python
+# Dobavlen filtr: esli entry_price otlichaetsya ot tekushchey ceny >2% — signal ignoriruyetsya
+price_diff_pct = abs(signal.entry_price - self.current_price) / self.current_price
+if price_diff_pct > Decimal("0.02"):
+    logger.warning("smc_signal_stale", ...)
+    signal = None
+```
+
+**Bug 3 (bot_orchestrator.py):** Dublirovannoe logirovanie
+- Udalena stroka `logger.info("smc_position_opened", ...)` v orkestratare
+- Adapter uzhe logiroval eto sobytie
+
+**Bug 4 (position_manager.py):** Nekonsistentnost `is_long` v `check_exit_conditions`
+- Ne ispravlen (minimal impact dlya dry_run)
+
+### 5. Kornevoy fix: normalizatsiya statusa v istochnike
+
+**Prichina vsekh "filled vs closed" bagov:**
+`ByBitDirectClient` vozvrashchal nativnyye Bybit-statusy, ne CCXT-normalizovannye.
+
+**Resheniye:** Dobavlena funktsiya `_normalize_order_status()` v `bybit_direct_client.py`:
+```python
+def _normalize_order_status(bybit_status: str) -> str:
+    status = bybit_status.lower()
+    if status == "filled":
+        return "closed"
+    if status in ("new", "partiallyfilled"):
+        return "open"
+    return status
+```
+
+Primenenena v 3 mestakh: `fetch_open_orders`, `fetch_order`, `fetch_closed_orders`.
+Obratno uprostit zatychki v orkestratare: `not in ("closed", "filled")` → `!= "closed"`.
+
+### 6. Kommity sessii
+
+| Commit | Opisaniye |
+|--------|-----------|
+| `a7f4e66` | fix: handle Bybit native 'filled' status in grid order processing |
+| `f06dc8c` | fix: fix SMC strategy bugs - stale signals, wrong trend key, duplicate logs |
+| `b477fbf` | fix: normalize Bybit orderStatus to CCXT values at the source |
+
+### 7. Otkrytye zadachi (prioritet)
+
+| # | Zadacha | Status | Plan |
+|---|---------|--------|------|
+| 1 | **Pipeline Phase 2-5** | V PROTSESSE (Phase 2 running, 14 workers) | `scripts/run_dca_tf_smc_pipeline.py` |
+| 2 | **Podklyuchit MarketRegimeDetector k torgovle** | Otlozheno | Arxitekturnyy razryv — HybridStrategy.evaluate() ne vyzyvayetsya |
+| 3 | **SMC bektest: 0 sdelok** | Chastichno ispravleno (bagi #1-3 ustraneny) | Proverit posle prodvizheniyas pipeline |
+| 4 | **v2.0 Algorithm Modules (7 sht)** | Ne realizovany | `TRADERAGENT_V2_ALGORITHM.md` |
+
+---
+
+## Predydushchaya Sessiya (2026-02-23) - Session 27: Pipeline bektestirovaniya — razrabotka, optimizatsiya, zapusk
 
 ### Zadacha
 
