@@ -256,21 +256,36 @@ if [[ "$SKIP_TRANSFER" != "true" ]]; then
     info "Размер данных на проде: ${BOLD}${PROD_SIZE}B${NC}"
     info "Целевая директория:     ${BOLD}${DATA_DIR}${NC}"
     echo ""
-    info "Начинаю передачу через rsync..."
-    info "(Прогресс-бар обновляется каждые несколько секунд)"
-    echo ""
+    # Проверяем наличие rsync на удалённом сервере
+    SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no"
+    REMOTE_HAS_RSYNC=$(ssh $SSH_OPTS "${PROD_SERVER}" "which rsync 2>/dev/null && echo yes || echo no")
 
-    rsync \
-        --archive \
-        --compress \
-        --human-readable \
-        --progress \
-        --stats \
-        --partial \
-        --timeout=60 \
-        -e "ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no" \
-        "${PROD_SERVER}:${PROD_DATA_PATH}" \
-        "${DATA_DIR}/"
+    if [[ "$REMOTE_HAS_RSYNC" == *"yes"* ]]; then
+        info "Начинаю передачу через rsync..."
+        info "(Прогресс-бар обновляется каждые несколько секунд)"
+        echo ""
+
+        rsync \
+            --archive \
+            --compress \
+            --human-readable \
+            --progress \
+            --stats \
+            --partial \
+            --timeout=60 \
+            -e "ssh $SSH_OPTS" \
+            "${PROD_SERVER}:${PROD_DATA_PATH}" \
+            "${DATA_DIR}/"
+    else
+        warn "rsync не найден на удалённом сервере — использую tar+ssh"
+        info "Передача 5.4 GB займёт несколько минут..."
+        echo ""
+
+        ssh $SSH_OPTS "${PROD_SERVER}" \
+            "tar czf - -C $(dirname ${PROD_DATA_PATH}) $(basename ${PROD_DATA_PATH})" \
+            | tar xzf - -C "$(dirname ${DATA_DIR})/" \
+            && log "Архив распакован"
+    fi
 
     TRANSFERRED=$(ls "$DATA_DIR" | wc -l)
     log "Перенос завершён: ${TRANSFERRED} файлов в ${DATA_DIR}"
