@@ -3,22 +3,124 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 23 fevralya 2026
-**Status:** v2.0.0 Release + Web UI Dashboard COMPLETE + Bybit Demo DEPLOYED + Phase 7.4 COMPLETE + Grid Backtesting COMPLETE + State Persistence COMPLETE + Full Test Audit COMPLETE + Historical Data Deployed + Shared Core Refactoring COMPLETE + XRP/USDT Backtest COMPLETE + Backtesting Service 5 Bug Fixes COMPLETE + v2.0 Algorithm Architecture COMPLETE + Unified Backtesting Architecture COMPLETE + Cross-Audit: 29 Conflicts Resolved + Load Test Thresholds Fixed + SMC smartmoneyconcepts Integration + Timezone Bug Fix + Bot Stopped & Positions Closed + Repository Cleanup + Code Quality Fixes + PR #245 Merged + SMC Standalone Strategy DEPLOYED + Multi-Strategy Backtester Production-Ready (PR #273 merged) + Lint Cleanup + Architecture v2.1 + Full Project Audit + SMC Main Loop Fix + 6-Regime RegimeClassifier v2.0 with ADX Hysteresis DEPLOYED + RegimeClassifier + RiskManager integrated into Multi-TF Backtester + Plan bektestirovaniya DCA+TF+SMC na VM-16-32 podgotovlen + Accelerated Replay Framework + Fix: otritsatelnyy base_balance pri grid init + Server Audit + SMC Bug Analysis + Multi-TF Verification + **Multi-TF Deployed on New Server (Yandex Cloud)**
+**Status:** v2.0.0 Release + ... + **Multi-TF Deployed on New Server (Yandex Cloud)** + **DCA+TF+SMC Pipeline WRITTEN & RUNNING**
 **Pass Rate:** 100% (1531/1531 tests passing, 25 skipped)
 **Realnyy obem testov:** 1556 collected
 **Backtesting Service:** 174 tests passing (bylo 169, +5 novyh)
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing (multi-TF engine + regime/risk + multi-strategy)
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `5374a2d` (docs: update SESSION_CONTEXT.md — Session 25)
-**Bot Status:** RUNNING (5 botov, regime=bear_trend pri ADX=37.96, SMC bot ACTIVE v dry_run rezhime — 4 baga obnaruzheny)
-**Backtest Plan:** `docs/BACKTEST_PLAN_DCA_TF_SMC.md` — 5 faz, 48,400 bektestov, ~3 chasa na VM-16-32
-**SMC Fix Plan:** `.claude/plans/zippy-snacking-boole.md` — 4 baga, 6 faylov, gotov k realizatsii
-**New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD) — Multi-TF Backtester DEPLOYED
+**Posledniy commit:** `77f5056` (perf: parallelize Phase 2 optimization with ProcessPoolExecutor)
+**Bot Status:** RUNNING (5 botov na 185.233.200.13, dry_run rezhim — 4 SMC baga ne ispravleny)
+**Pipeline Status:** RUNNING na Yandex Cloud — Phase 1 DONE (135/135, 0 errors, 85 min), Phase 2 IN PROGRESS (45 par × 3 strategii, 14 workers, CPU 88%)
+**New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD) — Pipeline DEPLOYED
 
 ---
 
-## Poslednyaya Sessiya (2026-02-23) - Session 26: Obzor proekta + proverka logov + podgotovka k sleduyushchemu etapu
+## Poslednyaya Sessiya (2026-02-23) - Session 27: Pipeline bektestirovaniya — razrabotka, optimizatsiya, zapusk
+
+### Zadacha
+
+1. Prochitat SESSION_CONTEXT.md, proverit status na novom servere
+2. Nayti i prochitat obnovlyonnyy plan bektestirovaniya
+3. Napisat pipeline skript i ispravit CSV loader
+4. Dobavit svodnyy log oshibok (pipeline_errors.json)
+5. Dobavit Telegram-uvedomleniya o progresse
+6. Optimizirovat runtime: trim dannyh, umenshit setki parametrov
+7. Parallelizirovat Fazy 1, 2, 3 cherez ProcessPoolExecutor
+8. Zapustit polnyy pipeline na Yandex Cloud
+
+### 1. CSV loader fix
+
+Fayl `bot/tests/backtesting/test_data.py` — metod `load_csv_data()`:
+- Dobavlena podderzhka kolonki "Open time" (format Binance) kak tretye dopustimoe imya
+- Sushchestvuyushchiye CSV fayly (45 par) ispolzuyut etot format
+- Minimalniy fix — 5 strok, vse sushchestvuyushchiye testy ne zatronuty
+
+### 2. Pipeline skript
+
+Napisal `scripts/run_dca_tf_smc_pipeline.py` (~900 strok):
+- 5 faz: Baseline → Optimization → Regime-Aware → Robustness → Report
+- Auto-obnaruzheniye par iz `*_5m.csv` faylov
+- CLI: `--phase`, `--start-phase`, `--symbols`, `--workers`, `--data-dir`
+- Fabrika strategiy: DCA, TrendFollower, SMC s parametrami iz plana
+- Error-resilient: log traceback per pair/strategy, prodolzhayet pipeline
+- JSON vykhod: phase1_baseline.json, phase2_optimization.json, phase3_regime.json, phase4_robustness.json, final_report.json, regime_routing_table.json
+
+### 3. Svodnyy log oshibok
+
+- `pipeline_errors.json` — vse oshibki vsekh faz v odnom fayle
+- Agregatsiya po faze, pare, strategii
+- Ctrl+C i sistemnye krashy — sohranyayutsya pered vykhodom
+
+### 4. Telegram-uvedomleniya
+
+- Start/finish kazhdoy fazy
+- Progress vnutri faz (kazhdye 10-15 zavershennykh bektestov)
+- Oshibki v realnom vremeni
+- Itogovaya svodka s top-5 rezultatami
+- Ctrl+C i system crash — uvedomleniye v Telegram
+- Ispolzuyet stdlib urllib (bez zavisimostey), chitayet token iz .env
+
+### 5. Optimizatsiya runtime
+
+**Problema:** CSV fayly soderzhali 500K-900K M5 svechey (5-8 let dannyh), plan rasschityval na 105K (12 mesyatsev).
+- Odin bektest na polnykh dannykh: >3 minut (timeout)
+- Odin bektest na 105K barah: >2 minut (vsyo eshchyo medlenno)
+
+**Resheniye:**
+- Trim dannyh do poslednikh 26,280 M5 barov (3 mesyatsa) → ~30s/bektest
+- `analyze_every_n` uvelichen s 4 do 12 (analiz raz v chas)
+- Setki parametrov umenusheny: DCA 500→48, TF 200→36, SMC 128→32 na paru
+- Monte Carlo s 500 do 100 simulyatsiy
+
+### 6. Parallelizatsiya
+
+**Problema:** Fazy 1, 2, 3 rabotali posledovatelno — 1 yadro iz 16 (6% CPU).
+
+**Resheniye:** `ProcessPoolExecutor` dlya vsekh tryokh faz:
+- Phase 1: 135 bektestov × 14 workerov → 85 min (vmesto ~7 chasov serial)
+- Phase 2: 135 optimizatsiy × 14 workerov → otsenivaetsya ~2 chasa (vmesto 12+ serial)
+- Phase 3: 135 bektestov × 14 workerov → analogichno Phase 1
+- CPU utilizatsiya: 87-88% (14 iz 16 yader), 12% idle — zapas est
+
+### 7. Rezultaty Phase 1 (Baseline)
+
+135/135 bektestov, 0 oshibok, 85 minut. Top-5:
+
+| Para | Strategiya | Return | Sharpe | Trades |
+|------|-----------|--------|--------|--------|
+| CHZUSDT | TF | **+20.00%** | 1.51 | 39 |
+| CHZUSDT | DCA | +10.05% | 1.12 | 85 |
+| BCHUSDT | DCA | +7.54% | 1.22 | 48 |
+| BCHUSDT | TF | +7.12% | 0.90 | 5 |
+| EOSUSDT | DCA | +6.81% | 0.84 | 131 |
+
+**SMC problema:** Bolshinstvo par — 0 sdelok. Podtverzhdayet bagi iz Session 26.
+
+### 8. Kommity sessii
+
+| Commit | Opisaniye |
+|--------|-----------|
+| `cb81929` | feat: add DCA+TF+SMC backtesting pipeline and Binance CSV support |
+| `8c8641e` | feat: add consolidated pipeline_errors.json error log |
+| `bf87733` | feat: add Telegram progress notifications to pipeline |
+| `985e585` | perf: trim data to 3 months, reduce param grids for realistic runtime |
+| `3c594b2` | perf: parallelize Phase 1 & 3 with ProcessPoolExecutor |
+| `77f5056` | perf: parallelize Phase 2 optimization with ProcessPoolExecutor |
+
+### 9. Otkrytye zadachi (prioritet)
+
+| # | Zadacha | Status | Plan |
+|---|---------|--------|------|
+| 1 | **Pipeline Phase 2-5** | V PROTSESSE (Phase 2 running, 14 workers) | `scripts/run_dca_tf_smc_pipeline.py` |
+| 2 | **Fix 4 SMC baga** | Otlozhena polzovatelem | `.claude/plans/zippy-snacking-boole.md` |
+| 3 | **SMC bektest: 0 sdelok** | Obnaruzheno v Phase 1 | Svyazano s bagami #2 |
+| 4 | **v2.0 Algorithm Modules (7 sht)** | Ne realizovany | `TRADERAGENT_V2_ALGORITHM.md` |
+
+---
+
+## Predydushchaya Sessiya (2026-02-23) - Session 26: Obzor proekta + proverka logov + podgotovka k sleduyushchemu etapu
 
 ### Zadacha
 
