@@ -1,18 +1,21 @@
-# TRADERAGENT - Autonomous DCA-Grid Trading Bot
+# TRADERAGENT - Algorithmic Trading Platform
 
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Tests: 1531 passing](https://img.shields.io/badge/tests-1531%20passing-brightgreen.svg)]()
+[![Version: 2.0.0](https://img.shields.io/badge/version-2.0.0-blue.svg)]()
 
-Автономный торговый бот для криптовалютных бирж с поддержкой стратегий Grid Trading, DCA (Dollar Cost Averaging) и Hybrid режима.
+Платформа алгоритмической торговли криптовалютами с 5 стратегиями, мульти-таймфреймовым анализом, веб-дашбордом и Telegram-управлением. 1,531 тест, 83K+ LOC, production-ready.
 
-Autonomous trading bot for cryptocurrency exchanges supporting Grid Trading, DCA (Dollar Cost Averaging), and Hybrid strategies.
+Algorithmic cryptocurrency trading platform with 5 strategies, multi-timeframe analysis, web dashboard and Telegram control. 1,531 tests, 83K+ LOC, production-ready.
 
 ---
 
 ## 📋 Table of Contents / Содержание
 
 - [Features / Возможности](#-features--возможности)
+- [Current Status / Текущее состояние](#-current-status--текущее-состояние)
 - [Web UI / Веб-интерфейс](#web-ui--веб-интерфейс)
 - [Architecture / Архитектура](#️-architecture--архитектура)
 - [Quick Start / Быстрый старт](#-quick-start--быстрый-старт)
@@ -29,6 +32,10 @@ Autonomous trading bot for cryptocurrency exchanges supporting Grid Trading, DCA
 - [License / Лицензия](#-license--лицензия)
 - [Disclaimer / Отказ от ответственности](#️-disclaimer--отказ-от-ответственности)
 
+**Project Documents / Документы проекта:**
+- [Analysis / Анализ проекта](docs/analysis.md) — сильные и слабые стороны, технический долг, оценка безопасности
+- [Development Plan / План развития](docs/plan.md) — 7 направлений, приоритизированные задачи, roadmap по фазам
+
 ---
 
 ## 🎯 Features / Возможности
@@ -39,7 +46,8 @@ Autonomous trading bot for cryptocurrency exchanges supporting Grid Trading, DCA
 - Grid Trading - сеточная торговля в заданном диапазоне
 - DCA (Dollar Cost Averaging) - усреднение позиции при просадках
 - Hybrid - комбинированная стратегия Grid + DCA
-- Trend-Follower - адаптивное следование за трендом с динамическими TP/SL
+- Trend Follower - адаптивное следование за трендом с динамическими TP/SL
+- SMC (Smart Money Concepts) - институциональный анализ с Order Blocks, FVG, BOS/CHoCH
 
 ✅ **Exchange Integration / Интеграция с биржами**
 - Поддержка всех бирж через CCXT (Binance, Bybit, OKX, и др.)
@@ -78,10 +86,37 @@ Autonomous trading bot for cryptocurrency exchanges supporting Grid Trading, DCA
 - Отчеты о состоянии портфеля
 
 ✅ **Testing Infrastructure / Инфраструктура тестирования**
-- Comprehensive unit tests (>100 tests)
-- Integration tests
-- Backtesting framework с реалистичной симуляцией
-- Testnet testing suite
+- 1,531 тест (100% pass rate): unit, integration, load, backtesting, e2e
+- Backtesting framework с multi-timeframe анализом и 5-фазным pipeline
+- Testnet testing suite (Bybit Demo Trading)
+- CI/CD: GitHub Actions (black + ruff + mypy + pytest + Docker + Trivy)
+
+---
+
+## Current Status / Текущее состояние
+
+> Version 2.0.0 | February 2026
+
+| Metric / Метрика | Value / Значение |
+|-------------------|------------------|
+| **Strategies / Стратегии** | 5 (Grid, DCA, Hybrid, Trend Follower, SMC) |
+| **Tests / Тесты** | 1,531 passing, 25 skipped (100% pass rate) |
+| **Codebase / Код** | 83,600+ LOC, 300+ files, 512 commits |
+| **Production Bots / Боты** | 3 active (BTC Hybrid, ETH Grid, SOL DCA) |
+| **Exchange / Биржа** | Bybit Demo Trading (api-demo.bybit.com) |
+| **Server / Сервер** | Ubuntu 24.04, Docker Compose (PostgreSQL + Redis + Bot) |
+
+**Active Bots / Активные боты:**
+- `demo_btc_hybrid` — BTC/USDT, Grid + DCA, auto-start
+- `demo_eth_grid` — ETH/USDT, Grid (6 open orders), auto-start
+- `demo_sol_dca` — SOL/USDT, DCA, auto-start
+- `demo_btc_smc` — BTC/USDT, SMC (dry_run), auto-start
+
+**Recent Updates / Последние обновления:**
+- Bybit order status normalization fix (`filled` → `closed`)
+- SMC stale signal 2% price threshold filter
+- Pipeline logging optimization (4.4 GB → 180 KB)
+- Multi-symbol backtesting pipeline (45 pairs, 3 strategies)
 
 ---
 
@@ -125,41 +160,49 @@ TRADERAGENT включает полноценный веб-интерфейс д
 ### High-Level Architecture / Высокоуровневая архитектура
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Bot Orchestrator                         │
-│         (Управление жизненным циклом ботов)                  │
-└────────────────┬────────────────────────────┬────────────────┘
-                 │                            │
-     ┌───────────▼──────────┐    ┌───────────▼──────────┐
-     │   Grid Engine        │    │    DCA Engine        │
-     │ (Сеточная торговля)  │    │   (Усреднение)       │
-     └───────────┬──────────┘    └───────────┬──────────┘
-                 │                            │
-                 └──────────┬─────────────────┘
-                            │
-              ┌─────────────▼─────────────┐
-              │    Risk Manager           │
-              │ (Управление рисками)      │
-              └─────────────┬─────────────┘
-                            │
-         ┌──────────────────┴──────────────────┐
-         │                                     │
-┌────────▼─────────┐              ┌───────────▼──────────┐
-│ Exchange Client  │              │  Database Manager    │
-│  (API биржи)     │              │   (PostgreSQL)       │
-└──────────────────┘              └──────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│              BotApplication (main.py)                  │
+│       Config + Database + Redis + Telegram             │
+└─────────────────────┬────────────────────────────────┘
+                      │
+┌─────────────────────▼────────────────────────────────┐
+│              BotOrchestrator (1,710 LOC)               │
+│  Main loop + Health Monitor + State Persistence        │
+├────────────────┬─────────────────────────────────────┤
+│ MarketRegime   │        Strategy Registry              │
+│ Detector       │  ┌──────┬──────┬──────┬──────┐       │
+│ (6 режимов)    │  │ Grid │ DCA  │ TF   │ SMC  │       │
+│                │  │      │      │      │      │       │
+│ TIGHT_RANGE    │  │ Buy/ │ Avg  │ EMA/ │ OB/  │       │
+│ WIDE_RANGE     │  │ Sell │ Down │ ATR/ │ FVG/ │       │
+│ BULL_TREND     │  │ Grid │ TP   │ RSI  │ BOS  │       │
+│ BEAR_TREND     │  └──┬───┴──┬───┴──┬───┴──┬───┘       │
+│ QUIET_TRANS    │     │      │      │      │            │
+│ VOLATILE_TRANS │     └──────┴──────┴──────┘            │
+└────────────────┴──────────────┬───────────────────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              │                 │                 │
+    ┌─────────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐
+    │  Risk Manager  │  │  Exchange   │  │  Database   │
+    │  (4 уровня)    │  │  Client     │  │  Manager    │
+    │  Global→Strat  │  │  CCXT +     │  │  PostgreSQL │
+    │  →Entry→Orch   │  │  ByBit V5   │  │  + Redis    │
+    └────────────────┘  └─────────────┘  └─────────────┘
 ```
 
 ### Key Components / Ключевые компоненты
 
-- **BotOrchestrator** - координация работы всех компонентов
-- **GridEngine** - реализация сеточной торговли
-- **DCAEngine** - реализация DCA стратегии
-- **RiskManager** - проверки и ограничения рисков
-- **ExchangeClient** - взаимодействие с биржей через CCXT
-- **DatabaseManager** - управление состоянием и историей
-- **ConfigManager** - загрузка и валидация конфигурации
-- **TelegramBot** - интерфейс управления и уведомлений
+- **BotOrchestrator** - координация всех компонентов, главный торговый цикл
+- **MarketRegimeDetector** - 6-режимный классификатор рынка с ADX-гистерезисом
+- **GridAdapter/DCAAdapter/TrendFollowerAdapter/SMCAdapter** - 5 стратегий с единым интерфейсом
+- **HybridStrategy** - комбинация Grid + DCA с адаптивным переключением
+- **RiskManager** - 4-уровневая система рисков (глобальный → стратегия → вход → оркестратор)
+- **ExchangeClient** - CCXT wrapper (150+ бирж) + ByBit Direct Client (Demo Trading)
+- **DatabaseManager** - PostgreSQL (async) + Alembic миграции + State Persistence
+- **ConfigManager** - YAML + Pydantic + hot reload через watchdog
+- **TelegramBot** - 15+ команд управления + real-time уведомления через Redis Pub/Sub
+- **Web UI** - FastAPI + React/TypeScript (JWT auth, WebSocket, 20+ endpoints)
 
 ---
 
@@ -1075,15 +1118,21 @@ if trend_signal.confidence > 0.7 and trend_signal.signal_type == 'long':
 
 ## 📚 Documentation / Документация
 
+### Project Analysis & Planning / Анализ и планирование
+
+- **[Project Analysis / Анализ проекта](docs/analysis.md)** — сильные и слабые стороны, технический долг, оценка безопасности и тестирования
+- **[Development Plan / План развития](docs/plan.md)** — 7 направлений развития, приоритизированные задачи, roadmap по фазам, KPI
+
 ### Core Documentation / Основная документация
 
-- 📘 [Configuration Guide / Руководство по конфигурации](docs/CONFIGURATION.md) - подробное описание всех параметров
-- 🚀 [Deployment Guide / Руководство по развертыванию](docs/DEPLOYMENT.md) - развертывание на VPS
-- 🧪 [Testing Guide / Руководство по тестированию](docs/TESTING.md) - запуск тестов и бэктестинга
-- 📊 [Monitoring Guide / Руководство по мониторингу](monitoring/README.md) - настройка Prometheus и Grafana
-- ❓ [FAQ / Часто задаваемые вопросы](docs/FAQ.md) - ответы на распространенные вопросы
-- 🐛 [Troubleshooting / Решение проблем](docs/TROUBLESHOOTING.md) - диагностика и устранение проблем
-- 🗺️ [Roadmap / План развития](docs/ROADMAP.md) - планы на будущие версии
+- [Configuration Guide / Руководство по конфигурации](docs/CONFIGURATION.md) - подробное описание всех параметров
+- [Deployment Guide / Руководство по развертыванию](docs/DEPLOYMENT.md) - развертывание на VPS
+- [Testing Guide / Руководство по тестированию](docs/TESTING.md) - запуск тестов и бэктестинга
+- [Monitoring Guide / Руководство по мониторингу](monitoring/README.md) - настройка Prometheus и Grafana
+- [FAQ / Часто задаваемые вопросы](docs/FAQ.md) - ответы на распространенные вопросы
+- [Troubleshooting / Решение проблем](docs/TROUBLESHOOTING.md) - диагностика и устранение проблем
+- [Roadmap / План развития](docs/ROADMAP.md) - планы на будущие версии
+- [Session Context / Контекст сессий](docs/SESSION_CONTEXT.md) - история разработки по сессиям
 
 ### Module Documentation / Документация модулей
 
@@ -1250,62 +1299,42 @@ docker-compose -f docker-compose.monitoring.yml up -d
 
 ## 🗺️ Roadmap / План развития
 
-### Current Version: v1.0.0
+### v1.0.0 — Core Platform (Released)
 
-✅ **Stage 1: Core Infrastructure** - Базовая инфраструктура
-✅ **Stage 2: Trading Modules** - Торговые модули (Grid, DCA, Risk Manager)
-✅ **Stage 3: Integration & Orchestration** - Интеграция и оркестрация
-✅ **Stage 4: Testing & Deployment** - Тестирование и развертывание
-✅ **Stage 5: Documentation** - Документация
+✅ **Stage 1:** Core Infrastructure — Database, Config, Logging
+✅ **Stage 2:** Trading Modules — Grid, DCA, Risk Manager
+✅ **Stage 3:** Integration & Orchestration — BotOrchestrator, Exchange Client
+✅ **Stage 4:** Testing & Deployment — pytest, Docker, CI/CD
+✅ **Stage 5:** Documentation — README, guides, inline docs
 
-### v2.0.0 - Web Interface & Multi-Account (Q2 2026)
+### v2.0.0 — Advanced Strategies & Web UI (Released February 2026)
 
-🔄 **Web UI Dashboard**
-- React/Vue веб-интерфейс
-- Real-time мониторинг портфеля
-- Визуальная настройка стратегий
-- Управление ботами через UI
-- Графики и аналитика
+✅ **Trend Follower Strategy** — EMA/ATR/RSI, adaptive TP/SL, trailing stop
+✅ **SMC Strategy** — Order Blocks, FVG, BOS/CHoCH, multi-timeframe (D1→M15)
+✅ **Market Regime Detector** — 6-regime classifier with ADX hysteresis
+✅ **Web UI** — React + FastAPI dashboard (JWT auth, WebSocket, 20+ endpoints)
+✅ **Backtesting Pipeline** — 5-phase multi-symbol framework (45 pairs, 3 strategies)
+✅ **Prometheus + Grafana** — 30+ metrics, AlertManager, critical/warning alerts
 
-🔄 **Multi-Account Support**
-- Управление несколькими биржевыми аккаунтами
-- Раздельная статистика по аккаунтам
-- Агрегированный портфель
-- Account-level risk management
+### v2.1 — Adaptive Trading & Scanner Bot (In Progress)
 
-🔄 **Advanced Analytics**
-- Детальная аналитика производительности
-- Сравнение стратегий
-- Оптимизация параметров
-- Backtesting через UI
+🔄 Connect MarketRegimeDetector to main trading loop
+🔄 Scanner Bot — automatic pair/strategy selection
+🔄 Complete backtesting pipeline (Phase 2-5 results)
+🔄 Capital Allocator & Correlation Monitor
 
-### v3.0.0 - Advanced Strategies & Signals (Q4 2026)
+### v3.0 — ML/AI & Multi-Exchange (Planned)
 
-🔄 **Additional Trading Strategies**
-- Martingale strategy
-- Fibonacci retracement strategy
-- Moving Average strategies
-- Custom strategy builder
+🔄 Bayesian optimization for strategy parameters
+🔄 ML-based regime classification
+🔄 Binance DirectClient + cross-exchange portfolio
+🔄 TradingView webhook integration
 
-🔄 **TradingView Integration**
-- Импорт сигналов из TradingView
-- Webhook поддержка
-- Strategy alerts integration
-- Pine Script indicators support
+Подробный план: **[docs/plan.md](docs/plan.md)** — 7 направлений, приоритизированные задачи, KPI.
 
-🔄 **Social Trading**
-- Copy trading функционал
-- Sharing strategies
-- Leaderboard
-- Community marketplace
+Detailed plan: **[docs/plan.md](docs/plan.md)** — 7 directions, prioritized tasks, KPIs.
 
-🔄 **AI/ML Features**
-- Предсказание цен (ML models)
-- Автоматическая оптимизация параметров
-- Sentiment analysis
-- Pattern recognition
-
-См. [ROADMAP.md](docs/ROADMAP.md) для детального плана развития.
+См. также [ROADMAP.md](docs/ROADMAP.md) для технической дорожной карты.
 
 ---
 
@@ -1337,7 +1366,7 @@ A: PostgreSQL для production, SQLite для тестов.
 A: Python 3.10+ с async/await архитектурой.
 
 **Q: Есть ли API для интеграции?**
-A: Telegram бот API доступен. REST API планируется в v2.0.
+A: Telegram бот (15+ команд) + FastAPI REST API (20+ endpoints, JWT auth) + WebSocket для real-time данных.
 
 См. [FAQ.md](docs/FAQ.md) для полного списка вопросов и ответов.
 
