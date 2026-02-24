@@ -102,6 +102,7 @@ services:
     container_name: traderagent-redis-exporter
     environment:
       - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme_redis_password}
     ports:
       - "9103:9121"
     networks:

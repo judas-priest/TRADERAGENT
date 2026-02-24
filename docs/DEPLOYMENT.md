@@ -48,7 +48,7 @@ cd TRADERAGENT
 
 # 2. Configure environment
 cp .env.example .env
-nano .env  # Fill in: DATABASE_URL, ENCRYPTION_KEY, TELEGRAM_BOT_TOKEN
+nano .env  # Fill in: DB_PASSWORD, REDIS_PASSWORD, ENCRYPTION_KEY, TELEGRAM_BOT_TOKEN
 
 # 3. Start infrastructure
 docker compose up -d postgres redis
@@ -301,7 +301,7 @@ Once deployed, use Telegram to manage your bot:
 
 ```bash
 docker compose exec postgres pg_isready
-docker compose exec redis redis-cli ping
+docker compose exec redis redis-cli -a "$REDIS_PASSWORD" ping
 docker compose ps
 ```
 
@@ -432,7 +432,7 @@ docker compose logs bot | tail -50
 docker compose exec postgres psql -U traderagent -c "SELECT 1;"
 
 # Redis connection
-docker compose exec redis redis-cli ping
+docker compose exec redis redis-cli -a "$REDIS_PASSWORD" ping
 
 # Check bot state in DB
 docker compose exec postgres psql -U traderagent -c "SELECT bot_name, saved_at FROM bot_state_snapshots;"
