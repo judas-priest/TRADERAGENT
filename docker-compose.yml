@@ -26,13 +26,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: traderagent-redis
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme_redis_password}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme_redis_password}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -51,7 +51,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-traderagent}:${DB_PASSWORD:-changeme}@postgres:5432/${DB_NAME:-traderagent}
 
       # Redis
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme_redis_password}@redis:6379
 
       # Config
       CONFIG_PATH: /app/configs/${CONFIG_FILE:-production.yaml}
@@ -96,7 +96,7 @@ services:
     container_name: traderagent-webui-backend
     environment:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-traderagent}:${DB_PASSWORD:-changeme}@postgres:5432/${DB_NAME:-traderagent}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme_redis_password}@redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
       WEB_PORT: 8000
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:80}
