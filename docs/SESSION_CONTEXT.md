@@ -3,21 +3,98 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 24 fevralya 2026
-**Status:** v2.0.0 Release + **Roadmap Execution: Phase 1-2 (11/12 issues DONE)** + **Pipeline STOPPED** + **Yandex Cloud VM STOPPED**
-**Pass Rate:** 100% (1561/1561 tests passing, 25 skipped)
-**Realnyy obem testov:** 1588 collected
+**Status:** v2.0.0 Release + **Roadmap COMPLETE: 12/12 issues DONE** + **Pipeline STOPPED** + **Yandex Cloud VM STOPPED**
+**Pass Rate:** 100% (1587/1587 tests passing, 25 skipped)
+**Realnyy obem testov:** 1614 collected
 **Backtesting Service:** 174 tests passing
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors, 3 kritichnykh faylov ochisteny)
-**Posledniy commit:** `18451e1` (Merge PR #304 — graceful transition)
+**Posledniy commit:** `aab2c15` (Merge PR #305 — market scanner)
 **Bot Status:** RUNNING — **3 aktivnykh bota** na 185.233.200.13: demo_btc_hybrid (hybrid), demo_eth_grid (grid), demo_sol_dca (dca), + demo_btc_smc (dry_run)
 **Pipeline Status:** Phase 1 DONE, Phase 2 STOPPED (SMC spam, 0 results). Yandex Cloud VM ostanovlena.
 **Yandex Cloud:** 158.160.187.253 — **STOPPED** (shutdown -h now). Rezultaty arkhivirovany na prod-server.
 
 ---
 
-## Poslednyaya Sessiya (2026-02-24) - Session 33: Dorabotka roadmap — Issues #290-#293
+## Poslednyaya Sessiya (2026-02-24) - Session 34: Zavershenie roadmap — Issues #292, #294
+
+### Zadacha
+
+Zavershit ostavshiyesya 2 issues iz roadmap: graceful transition (#292) i Market Scanner (#294). Roadmap polnostyu vypolnen.
+
+### Vypolnennye issues (sessiya 34)
+
+#### 11. #292 — Graceful transition pri smene strategiy (PR #304, merged)
+
+**Problema:** Pri smene rezhima rynka otkrytyye ordera staroy strategii ne obrabatyvalis — orphaned orders na birzhe.
+
+**Resheniye:**
+- Novyy metod `_graceful_transition()` v `BotOrchestrator`
+- `_update_active_strategies()` teper' `async` — vyzyvayet transition pered switchem
+- Otmena grid orderov cherez `cancel_all_orders()` pri deaktivatsii grid
+- Konfiguriruemoye povedeniye dlya pozitsiy: `close_positions_on_switch` (default: `False` = hold)
+- Zakrytiye pozitsiy DCA, TrendFollower, SMC pri `close_positions_on_switch=True`
+- Publikatsiya eventov `STRATEGY_TRANSITION_STARTED` / `STRATEGY_TRANSITION_COMPLETED`
+- Oshibki exchange ne blokiruyut perekhod
+- **15 novykh testov** v `tests/orchestrator/test_graceful_transition.py`
+- **14 sushchestvuyushchikh testov** obnovleny pod async
+
+#### 12. #294 — Market Scanner module (PR #305, merged)
+
+**Problema:** Vse torgovye pary i strategii naznachayutsya vruchnuyu cherez config. Net avtomaticheskogo obnaruzheniya luchshikh par.
+
+**Resheniye:**
+- Novyy modul `bot/scanner/market_scanner.py`: klass `MarketScanner`
+- `scan()` — obkhodit spisok par, dlya kazhdoy:
+  1. Poluchayet ticker (24h volume, bid/ask spread, liquidity)
+  2. Filtruyet po `min_volume_usdt`, `max_spread_pct`, `min_liquidity_usdt`
+  3. Poluchayet OHLCV, klassifitsiruyet rezhim cherez `MarketRegimeDetector.analyze()`
+  4. Vozvrashchayet `ScanResult` otsortirovannye po confidence
+- `ScannerConfig` skhema v `bot/config/schemas.py` (`AppConfig.scanner`)
+- Konfiguriruemye parametry: `pairs`, `interval_minutes`, `timeframe`, `ohlcv_limit`
+- Filtry: `min_volume_usdt` (1M default), `max_spread_pct` (0.5%), `min_liquidity_usdt` (50K)
+- **26 novykh testov** v `tests/scanner/test_market_scanner.py`
+
+### Ostavshiyesya issues
+
+Vse 12 issues iz roadmap vypolneny. Roadmap COMPLETE.
+
+### Kommity sessii 34
+
+| Commit | PR | Opisaniye |
+|--------|-----|----------|
+| `d9a1052` | #304 | feat: graceful strategy transition on regime change (#292) |
+| `7c192d3` | #305 | feat: implement Market Scanner for automatic pair discovery (#294) |
+
+### Statistika sessii 34
+
+- **Issues vypolneno:** 2 (poslednie iz roadmap)
+- **PR sozdano i merged:** 2 (#304-#305)
+- **Testov dobavleno:** 41 novykh (15 graceful transition + 26 market scanner)
+- **Pass rate:** 1587 passing, 25 skipped, 0 failed (bylo 1561)
+- **Obshchiy progress roadmap:** **12/12 issues DONE (100%)**
+
+### Polnyy spisok vypolnennykh issues roadmap
+
+| # | Opisaniye | PR | Session |
+|---|-----------|-----|---------|
+| #283 | Connect MarketRegimeDetector to main loop | #295 | 32 |
+| #284 | Fix SMC warmup bars | #296 | 32 |
+| #285 | Suppress SMC log spam | #297 | 32 |
+| #286 | Automated PostgreSQL backup | #298 | 32 |
+| #287 | Fix failing web tests | closed | 32 |
+| #288 | Remove mypy excludes for critical files | #299 | 32 |
+| #289 | Rate limiting for FastAPI endpoints | #300 | 32 |
+| #290 | Redis password i ACL v Docker Compose | #301 | 33 |
+| #291 | Konsolidatsiya modeley | #302 | 33 |
+| #292 | Graceful transition pri smene strategiy | #304 | 34 |
+| #293 | Cooldown guard mezhdu pereklyucheniyami | #303 | 33 |
+| #294 | Market Scanner module | #305 | 34 |
+
+---
+
+## Predydushchaya Sessiya (2026-02-24) - Session 33: Dorabotka roadmap — Issues #290-#293
 
 ### Zadacha
 
@@ -44,27 +121,6 @@ Prodolzheniye vypolneniya GitHub issues iz roadmap. Sessii 32-33 zavershili 11 i
 - Cooldown guard v `_update_active_strategies()` blokiruyet bystryye oscillyatsii
 - **7 testov** v `tests/orchestrator/test_regime_strategy_selection.py`
 
-#### 11. #292 — Graceful transition pri smene strategiy (PR #304, merged)
-
-**Problema:** Pri smene rezhima rynka otkrytyye ordera staroy strategii ne obrabatyvalis — orphaned orders na birzhe.
-
-**Resheniye:**
-- Novyy metod `_graceful_transition()` v `BotOrchestrator`
-- `_update_active_strategies()` teper' `async` — vyzyvayet transition pered switchem
-- Otmena grid orderov cherez `cancel_all_orders()` pri deaktivatsii grid
-- Konfiguriruemoye povedeniye dlya pozitsiy: `close_positions_on_switch` (default: `False` = hold)
-- Zakrytiye pozitsiy DCA, TrendFollower, SMC pri `close_positions_on_switch=True`
-- Publikatsiya eventov `STRATEGY_TRANSITION_STARTED` / `STRATEGY_TRANSITION_COMPLETED`
-- Oshibki exchange ne blokiruyut perekhod
-- **15 novykh testov** v `tests/orchestrator/test_graceful_transition.py`
-- **14 sushchestvuyushchikh testov** obnovleny pod async
-
-### Ostavshiyesya issues (1)
-
-| # | Prioritet | Opisaniye | Status |
-|---|-----------|-----------|--------|
-| #294 | P3 | Market Scanner module | OPEN |
-
 ### Kommity sessii 33
 
 | Commit | PR | Opisaniye |
@@ -72,19 +128,13 @@ Prodolzheniye vypolneniya GitHub issues iz roadmap. Sessii 32-33 zavershili 11 i
 | `928d99d` | #301 | feat: Redis password i ACL v Docker Compose (#290) |
 | `d0a84d7` | #302 | refactor: consolidate models.py, models_v2.py, models_state.py (#291) |
 | `551f570` | #303 | feat: add cooldown guard between regime-based strategy switches (#293) |
-| `d9a1052` | #304 | feat: graceful strategy transition on regime change (#292) |
 
 ### Statistika sessii 33
 
-- **Issues vypolneno:** 4 iz 5 ostavshikhsya
-- **PR sozdano i merged:** 4 (#301-#304)
-- **Testov dobavleno:** ~22 novykh (7 cooldown + 15 graceful transition)
+- **Issues vypolneno:** 3
+- **PR sozdano i merged:** 3 (#301-#303)
+- **Testov dobavleno:** ~7 novykh (cooldown guard)
 - **Pass rate:** 1561 passing, 25 skipped, 0 failed (bylo 1557)
-- **Obshchiy progress roadmap:** 11/12 issues DONE
-
-### Sleduyushchiye shagi
-
-1. **#294:** Market Scanner module — avto-vybor par i strategiy (P3, poslednyaya zadacha roadmap)
 
 ---
 
