@@ -7,8 +7,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from starlette.responses import Response
 
 from web.backend.config import web_config
+from web.backend.rate_limit import limiter
 
 
 def create_app(bot_app=None) -> FastAPI:
@@ -41,10 +45,9 @@ def create_app(bot_app=None) -> FastAPI:
 
         # Create web-specific tables (users, sessions)
         if app.state.db_manager and app.state.db_manager._engine:
-            from web.backend.auth.models import User, UserSession  # noqa: F401
-            from bot.database.models_state import BotStateSnapshot  # noqa: F401
-
             from bot.database.models import Base
+            from bot.database.models_state import BotStateSnapshot  # noqa: F401
+            from web.backend.auth.models import User, UserSession  # noqa: F401
 
             async with app.state.db_manager._engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
@@ -91,6 +94,23 @@ def create_app(bot_app=None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Rate limiting (60 req/min default for all endpoints)
+    app.state.limiter = limiter
+    app.add_middleware(SlowAPIMiddleware)
+
+    def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Response:
+        response = JSONResponse(
+            {"detail": f"Rate limit exceeded: {exc.detail}"},
+            status_code=429,
+        )
+        response = request.app.state.limiter._inject_headers(
+            response, request.state.view_rate_limit
+        )
+        response.headers["Retry-After"] = str(60)
+        return response
+
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
     # Global exception handler
     @app.exception_handler(Exception)

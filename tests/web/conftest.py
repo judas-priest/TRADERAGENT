@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from bot.database.models import Base
 from web.backend.app import create_app
+from web.backend.rate_limit import limiter
 
 
 @pytest.fixture(scope="session")
@@ -114,6 +115,9 @@ def mock_db_manager(db_engine):
 @pytest_asyncio.fixture
 async def test_app(mock_db_manager, mock_orchestrators):
     """Create test FastAPI application."""
+    # Reset rate limiter storage between tests
+    limiter.reset()
+
     app = create_app()
 
     # Override lifespan state
