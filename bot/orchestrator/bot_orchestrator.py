@@ -155,7 +155,8 @@ class BotOrchestrator:
 
         # Connect to Redis
         self.redis_client = redis.from_url(self.redis_url, encoding="utf-8", decode_responses=True)
-        await self.redis_client.ping()
+        assert self.redis_client is not None
+        await self.redis_client.ping()  # type: ignore[misc]
         logger.info("redis_connected")
 
         # Initialize risk manager
@@ -769,8 +770,14 @@ class BotOrchestrator:
                     EventType.DCA_TRIGGERED,
                     {
                         "price": str(self.current_price),
-                        "step": self.dca_engine.position.step_number,
-                        "avg_entry": str(self.dca_engine.position.average_entry_price),
+                        "step": (
+                            self.dca_engine.position.step_number if self.dca_engine.position else 0
+                        ),
+                        "avg_entry": (
+                            str(self.dca_engine.position.average_entry_price)
+                            if self.dca_engine.position
+                            else "0"
+                        ),
                     },
                 )
 
@@ -812,7 +819,7 @@ class BotOrchestrator:
         for order in orders:
             await self._place_single_order(order)
 
-    async def _place_single_order(self, order) -> None:
+    async def _place_single_order(self, order: Any) -> None:
         """Place a single order on exchange."""
         try:
             result = await self.exchange.create_order(
@@ -862,7 +869,7 @@ class BotOrchestrator:
 
     async def _close_dca_position(self) -> None:
         """Close DCA position."""
-        if not self.dca_engine or not self.dca_engine.position:
+        if not self.dca_engine or not self.dca_engine.position or not self.current_price:
             return
 
         try:
@@ -923,8 +930,11 @@ class BotOrchestrator:
                 # Risk check
                 if self.risk_manager:
                     current_position_value = sum(
-                        pos.size
-                        for pos in self.trend_follower_strategy.position_manager.active_positions.values()
+                        (
+                            pos.size
+                            for pos in self.trend_follower_strategy.position_manager.active_positions.values()
+                        ),
+                        Decimal(0),
                     )
                     risk_check = self.risk_manager.check_trade(
                         position_size, current_position_value, balance
@@ -950,8 +960,8 @@ class BotOrchestrator:
                         "signal_type": signal.signal_type.value,
                         "entry_price": str(signal.entry_price),
                         "position_size": str(position_size),
-                        "tp": str(signal.take_profit),
-                        "sl": str(signal.stop_loss),
+                        "tp": str(getattr(signal, "take_profit", "")),
+                        "sl": str(getattr(signal, "stop_loss", "")),
                         "market_phase": (
                             market_conditions.phase.value if market_conditions else None
                         ),
@@ -1004,7 +1014,7 @@ class BotOrchestrator:
         except Exception as e:
             logger.error("trend_follower_logic_error", error=str(e), exc_info=True)
 
-    async def _execute_trend_follower_entry(self, signal, position_size: Decimal) -> None:
+    async def _execute_trend_follower_entry(self, signal: Any, position_size: Decimal) -> None:
         """Execute Trend-Follower entry order on exchange."""
         try:
             side = "buy" if signal.signal_type == SignalType.LONG else "sell"
@@ -1030,7 +1040,7 @@ class BotOrchestrator:
             logger.error("trend_follower_entry_failed", error=str(e), exc_info=True)
             raise
 
-    async def _execute_trend_follower_exit(self, position) -> None:
+    async def _execute_trend_follower_exit(self, position: Any) -> None:
         """Execute Trend-Follower exit order on exchange."""
         try:
             # Determine side (opposite of entry)
@@ -1152,7 +1162,9 @@ class BotOrchestrator:
 
                     # Risk check
                     if self.risk_manager:
-                        current_position_value = sum(pos.size for pos in active_positions)
+                        current_position_value = sum(
+                            (pos.size for pos in active_positions), Decimal(0)
+                        )
                         risk_check = self.risk_manager.check_trade(
                             position_size, current_position_value, balance
                         )
@@ -1209,7 +1221,7 @@ class BotOrchestrator:
         except Exception as e:
             logger.error("smc_logic_error", error=str(e), exc_info=True)
 
-    async def _execute_smc_entry(self, signal, position_size: Decimal) -> None:
+    async def _execute_smc_entry(self, signal: Any, position_size: Decimal) -> None:
         """Execute SMC entry order on exchange."""
         try:
             side = "buy" if signal.direction == BaseSignalDirection.LONG else "sell"
@@ -1235,13 +1247,13 @@ class BotOrchestrator:
             logger.error("smc_entry_failed", error=str(e), exc_info=True)
             raise
 
-    async def _execute_smc_exit(self, position_id: str, exit_reason) -> None:
+    async def _execute_smc_exit(self, position_id: str, exit_reason: Any) -> None:
         """Execute SMC exit order on exchange."""
         try:
             # We need to determine the side from the closed trade records
             # The position was already closed in the adapter, check closed trades
             closed_trade = None
-            for trade in reversed(self.smc_strategy._closed_trades):
+            for trade in reversed(self.smc_strategy._closed_trades if self.smc_strategy else []):
                 if trade["position_id"] == position_id:
                     closed_trade = trade
                     break
@@ -1450,7 +1462,7 @@ class BotOrchestrator:
         Returns:
             Status dictionary with v2.0 components
         """
-        status = {
+        status: dict[str, Any] = {
             "bot_name": self.config.name,
             "symbol": self.config.symbol,
             "strategy": self.config.strategy,
