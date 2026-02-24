@@ -20,7 +20,7 @@ from bot.core.dca_engine import DCAEngine
 from bot.core.grid_engine import GridEngine, GridType
 from bot.core.risk_manager import RiskManager
 from bot.database.manager import DatabaseManager
-from bot.database.models_state import BotStateSnapshot
+from bot.database.models import BotStateSnapshot
 from bot.orchestrator import state_persistence as sp
 from bot.orchestrator.events import EventType, TradingEvent
 from bot.orchestrator.health_monitor import HealthCheckResult, HealthMonitor, HealthThresholds

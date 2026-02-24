@@ -7,20 +7,19 @@ from bot.database.models import (
     Base,
     Bot,
     BotLog,
+    BotStateSnapshot,
+    DCADeal,
     DCAHistory,
+    DCAOrder,
+    DCASignal,
     ExchangeCredential,
     GridLevel,
     Order,
-    Trade,
-)
-from bot.database.models_state import BotStateSnapshot
-from bot.database.models_v2 import (
-    DCADeal,
-    DCAOrder,
-    DCASignal,
     Position,
     Signal,
     Strategy,
+    StrategyTemplate,
+    Trade,
 )
 
 __all__ = [
@@ -33,6 +32,7 @@ __all__ = [
     "Trade",
     "GridLevel",
     "DCAHistory",
+    "StrategyTemplate",
     "BotLog",
     # State persistence
     "BotStateSnapshot",

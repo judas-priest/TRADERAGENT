@@ -25,7 +25,7 @@ from bot.database.models import (
     Order,
     Trade,
 )
-from bot.database.models_state import BotStateSnapshot
+from bot.database.models import BotStateSnapshot
 from bot.utils.logger import LoggerMixin
 
 T = TypeVar("T", bound=Base)

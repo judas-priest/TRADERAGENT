@@ -11,7 +11,7 @@ import pytest
 from bot.core.dca_engine import DCAEngine
 from bot.core.grid_engine import GridEngine, GridOrder
 from bot.core.risk_manager import RiskManager
-from bot.database.models_state import BotStateSnapshot
+from bot.database.models import BotStateSnapshot
 from bot.orchestrator.state_persistence import (
     DecimalEncoder,
     deserialize_dca_state,

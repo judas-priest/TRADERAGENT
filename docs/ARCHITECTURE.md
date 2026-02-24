@@ -104,7 +104,7 @@ graph TB
         subgraph DB["Database"]
             DBM["DatabaseManager<br/><i>database/manager.py</i><br/>450 lines"]
             MOD["Models<br/><i>database/models.py</i>"]
-            MST["BotStateSnapshot<br/><i>database/models_state.py</i>"]
+            MST["BotStateSnapshot<br/><i>database/models.py</i>"]
             MIG["Migrations<br/><i>database/migrations.py</i>"]
             BKP["Backup<br/><i>database/backup.py</i>"]
         end
@@ -308,7 +308,7 @@ Trading state (positions, orders, grid levels, DCA steps, risk counters) is pers
 
 ```
 bot/orchestrator/state_persistence.py  — Serialize/deserialize all engines (356 lines)
-bot/database/models_state.py           — BotStateSnapshot SQLAlchemy model
+bot/database/models.py                    — All SQLAlchemy models (v1 + v2 + state)
 bot/database/manager.py                — save/load/delete_state_snapshot methods
 ```
 

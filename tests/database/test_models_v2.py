@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from bot.database.models import Base, Bot, ExchangeCredential
-from bot.database.models_v2 import (
+from bot.database.models import (
     DCADeal,
     DCAOrder,
     DCASignal,

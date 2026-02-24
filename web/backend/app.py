@@ -45,8 +45,7 @@ def create_app(bot_app=None) -> FastAPI:
 
         # Create web-specific tables (users, sessions)
         if app.state.db_manager and app.state.db_manager._engine:
-            from bot.database.models import Base
-            from bot.database.models_state import BotStateSnapshot  # noqa: F401
+            from bot.database.models import Base, BotStateSnapshot  # noqa: F401
             from web.backend.auth.models import User, UserSession  # noqa: F401
 
             async with app.state.db_manager._engine.begin() as conn:
