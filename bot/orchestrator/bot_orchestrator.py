@@ -123,6 +123,7 @@ class BotOrchestrator:
         # SMC analysis throttle (entry timeframe is M15 → analyze every 5 min)
         self._smc_last_analysis: float = 0.0
         self._smc_analysis_interval: float = 300.0  # 5 minutes
+        self._smc_stale_count: int = 0  # count consecutive stale rejections
 
         # v2.0: Multi-strategy components
         self.strategy_registry = StrategyRegistry(max_strategies=10)
@@ -1168,13 +1169,22 @@ class BotOrchestrator:
                             abs(signal.entry_price - self.current_price) / self.current_price
                         )
                         if price_diff_pct > Decimal("0.02"):
-                            logger.warning(
-                                "smc_signal_stale",
-                                entry_price=str(signal.entry_price),
-                                current_price=str(self.current_price),
-                                diff_pct=f"{float(price_diff_pct) * 100:.1f}%",
-                            )
+                            self._smc_stale_count += 1
+                            if self._smc_stale_count == 1:
+                                logger.warning(
+                                    "smc_signal_stale",
+                                    entry_price=str(signal.entry_price),
+                                    current_price=str(self.current_price),
+                                    diff_pct=f"{float(price_diff_pct) * 100:.1f}%",
+                                )
                             signal = None
+                        else:
+                            if self._smc_stale_count > 0:
+                                logger.info(
+                                    "smc_stale_cleared",
+                                    rejected_count=self._smc_stale_count,
+                                )
+                            self._smc_stale_count = 0
 
                     if signal:
                         position_id = self.smc_strategy.open_position(signal, position_size)
