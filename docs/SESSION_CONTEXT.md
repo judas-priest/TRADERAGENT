@@ -3,21 +3,122 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 24 fevralya 2026
-**Status:** v2.0.0 Release + ... + **SMC bugs FIXED** + **Pipeline Perf Optimized** + **ETH/SOL bots LAUNCHED (Session 30)**
+**Status:** v2.0.0 Release + **Project Analysis & Plan DONE** + **Pipeline STOPPED** + **Yandex Cloud VM STOPPED (Session 31)**
 **Pass Rate:** 100% (1531/1531 tests passing, 25 skipped)
 **Realnyy obem testov:** 1556 collected
 **Backtesting Service:** 174 tests passing
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `7d3149d` (feat: enable ETH/USDT grid and SOL/USDT DCA bots + Scanner Bot roadmap)
+**Posledniy commit:** `ccecdbf` (docs: add project analysis, development plan; update README to v2.0.0)
 **Bot Status:** RUNNING — **3 aktivnykh bota** na 185.233.200.13: demo_btc_hybrid (hybrid), demo_eth_grid (grid), demo_sol_dca (dca), + demo_btc_smc (dry_run)
-**Pipeline Status:** Phase 1 DONE, Phase 2 IN PROGRESS na Yandex Cloud
-**New Server:** 158.160.187.253 (Yandex Cloud, Ubuntu 24.04, 16 CPU / 32 GB RAM / 100 GB SSD)
+**Pipeline Status:** Phase 1 DONE, Phase 2 STOPPED (SMC spam, 0 results). Yandex Cloud VM ostanovlena.
+**Yandex Cloud:** 158.160.187.253 — **STOPPED** (shutdown -h now). Rezultaty arkhivirovany na prod-server.
 
 ---
 
-## Poslednyaya Sessiya (2026-02-24) - Session 30: Zapusk ETH/SOL botov + dokumentatsiya + Scanner Bot
+## Poslednyaya Sessiya (2026-02-24) - Session 31: Analiz proekta + Plan razvitiya + Ostanovka Yandex Cloud
+
+### Zadacha
+
+1. Prochitat kontekst proekta iz SESSION_CONTEXT.md
+2. Proverit status oboikh serverov (prod + Yandex Cloud)
+3. Ostanovit pipeline i Yandex Cloud VM
+4. Provesti polnyy analiz proekta (silnye/slabye storony)
+5. Napisat plan razvitiya s prioritetami
+6. Obnovit README.md pod tekushchee sostoyaniye
+
+### 1. Status serverov
+
+**Prod-server 185.233.200.13:**
+- CPU: 14% (idle), RAM: 845 MiB / 1.9 GiB (43%)
+- 3 konteinera (bot, postgres, redis) — vse healthy
+- Balans: $99,996.75, rezhim rynka: bear_trend (ADX=46.7)
+- Logi: 160 KB bot.log (posle optimizatsii sessii 29)
+
+**Yandex Cloud 158.160.187.253:**
+- CPU: 93.8% — 15 workerov pipeline, load average 15.00
+- Pipeline rabotal 8.5 chasov, Phase 2 (Optimization: 45 par × 3 strategii)
+- SMC-workery generirovali tolko warnings (0 trades): `Liquidity detection failed`, `Insufficient data`
+- Log pipeline vyros do **1.4 GB** spama
+- Phase 2 rezultatov net — SMC tratit resursy vpustuyu
+
+### 2. Ostanovka pipeline i VM
+
+1. Kill vsekh 15 workerov pipeline (`pkill -f run_dca_tf_smc_pipeline`)
+2. Arkhivatsiya poleznykh rezultatov (319 KB, 56 faylov — phase1_baseline.json + batch reports)
+3. Kopirovaniye arkhiva na prod-server → `~/TRADERAGENT/data/backtest_results_yandex/`
+4. `sudo shutdown -h now` — VM ostanovlena, billing za CPU prekrashchen
+
+### 3. Polnyy analiz proekta (commit `ccecdbf`)
+
+Sozdan **docs/analysis.md** (293 stroki) — kompleksnyy analiz:
+
+**Silnye storony:**
+- 5 polnotsennykh strategiy s edinym interfeysom (BaseStrategy)
+- 4-urovnevyy risk-menedzhment (Global → Strategy → Entry → Orchestrator)
+- Async-first arkhitektura na asyncio
+- 1531 test (100% pass rate), CI/CD, Prometheus + Grafana
+- AES-256 shifrovaniye API-klyuchey, security audit tool
+- Hot reload konfiguratsii, state persistence, structured logging
+
+**Slabye storony:**
+- **MarketRegimeDetector ne podklyuchen k torgovomu tsiklu** (KRITICHESKAYA — strategii ne adaptiruyutsya)
+- SMC 0 sdelok v bektestakh (insufficient data / confluence detection)
+- HybridStrategy ne adaptivna (ignoriruyet RegimeDetector)
+- Net Scanner Bot (ruchnoye naznacheniye par)
+- Dublirovanie modeley (models.py, models_v2.py, models_state.py)
+- 26 failing web tests, mypy exclude dlya kritichnykh faylov
+- Net DB backup automation
+
+**Otsenka zrelosti: 7/10**
+
+### 4. Plan razvitiya (commit `ccecdbf`)
+
+Sozdan **docs/plan.md** (224 stroki) — 7 napravleniy:
+
+| # | Napravlenie | Klyuchevye zadachi |
+|---|-------------|-------------------|
+| 1 | Adaptivnaya torgovlya | Podklyuchit RegimeDetector k main_loop, GracefulTransition |
+| 2 | Bektesting i analitika | Fix SMC warmup, razdelit pipeline (DCA+TF bez SMC) |
+| 3 | Scanner Bot | Market Scanner, Pair Classifier, Bot Launcher |
+| 4 | Kachestvo koda | Konsolidatsiya modeley, fix web tests, mypy |
+| 5 | Infrastruktura | DB backup, rate limiting, Redis password, YC auto-stop |
+| 6 | ML/AI optimizatsiya | Bayesian optimization, ML regime classifier |
+| 7 | Masshtabirovanie | Binance client, cross-exchange portfolio |
+
+**4-faznyy roadmap:**
+- Faza 1 (1-2 ned): Stabilizatsiya — fix SMC, podklyuchit Regime, DB backup
+- Faza 2 (2-4 ned): Analitika — rezultaty bektestov, konsolidatsiya koda
+- Faza 3 (1-2 mes): Scanner Bot — avto-vybor par i strategiy
+- Faza 4 (3-6 mes): ML + multi-exchange
+
+### 5. Obnovlenie README.md (commit `ccecdbf`)
+
+- Zagolovok: "Algorithmic Trading Platform" (bylo "DCA-Grid Trading Bot")
+- Badge versii 2.0.0 + 1531 testov
+- Novaya sektsiya "Current Status" s metrikami i aktivnymi botami
+- Obnovlena arkhitekturnaya diagramma (vse 5 strategiy + RegimeDetector)
+- Obnovlen Roadmap (v1.0 i v2.0 kak Released, v2.1 In Progress)
+- Ssylki na analysis.md i plan.md v oglavlenii i Documentation
+- Ispravlen FAQ (REST API uzhe est)
+
+### Kommity sessii
+
+| Commit | Opisanie |
+|--------|----------|
+| `ccecdbf` | docs: add project analysis, development plan; update README to v2.0.0 |
+
+### Sleduyushchiye shagi
+
+1. **P0:** Fix SMC warmup + log-spam, zapustit DCA+TF pipeline bez SMC
+2. **P0:** Podklyuchit MarketRegimeDetector k _main_loop()
+3. **P0:** Avtomaticheskiy backup PostgreSQL
+4. **P1:** Analiz rezultatov Phase 2-5 posle zaversheniya pipeline
+
+---
+
+## Predydushchaya Sessiya (2026-02-24) - Session 30: Zapusk ETH/SOL botov + dokumentatsiya + Scanner Bot
 
 ### Zadacha
 
