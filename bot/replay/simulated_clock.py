@@ -92,7 +92,6 @@ _DATETIME_MODULES = [
     "bot.orchestrator.strategy_selector",
     "bot.orchestrator.state_persistence",
     "bot.database.models",
-    "bot.database.models_state",
 ]
 
 

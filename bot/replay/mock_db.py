@@ -6,12 +6,11 @@ so the ``BotOrchestrator`` can save/load state without PostgreSQL.
 """
 
 import tempfile
-from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from bot.database.models import Base
 from bot.database.manager import DatabaseManager
+from bot.database.models import Base
 
 
 async def create_mock_db() -> DatabaseManager:
@@ -22,8 +21,8 @@ async def create_mock_db() -> DatabaseManager:
     created automatically.  The returned manager is fully initialized and
     ready to use.
     """
-    # Import models_state to ensure BotStateSnapshot is registered on Base
-    import bot.database.models_state  # noqa: F401
+    # Import models to ensure all tables are registered on Base
+    import bot.database.models  # noqa: F401
 
     # Use a temp file instead of :memory: to avoid StaticPool concurrency issues
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
