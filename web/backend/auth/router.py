@@ -29,12 +29,15 @@ from web.backend.auth.service import (
 )
 from web.backend.config import web_config
 from web.backend.dependencies import get_current_user, get_db
+from web.backend.rate_limit import limiter
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     data: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
@@ -62,6 +65,7 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def login(
     data: LoginRequest,
     request: Request,
@@ -103,6 +107,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def refresh(
     data: RefreshRequest,
     request: Request,

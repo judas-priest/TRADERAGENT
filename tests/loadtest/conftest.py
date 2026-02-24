@@ -24,6 +24,7 @@ from bot.database.models import Base, Bot, ExchangeCredential
 from bot.strategies.base import BaseSignal, SignalDirection
 from web.backend.app import create_app
 from web.backend.auth.models import User, UserSession  # noqa: F401 — ensure tables exist
+from web.backend.rate_limit import limiter
 
 
 # SQLite BigInteger override (same as bot/tests/conftest.py)
@@ -194,11 +195,18 @@ def mock_db_manager(db_engine):
 @pytest_asyncio.fixture
 async def test_app(mock_db_manager, mock_orchestrators_10):
     """FastAPI app with 10 mock bots for load testing."""
+    # Disable rate limiting for load tests (they deliberately exceed normal limits)
+    limiter.reset()
+    limiter.enabled = False
+
     app = create_app()
     app.state.db_manager = mock_db_manager
     app.state.orchestrators = mock_orchestrators_10
     app.state.config_manager = MagicMock()
-    return app
+
+    yield app
+
+    limiter.enabled = True
 
 
 @pytest_asyncio.fixture
