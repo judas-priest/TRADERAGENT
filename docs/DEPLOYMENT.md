@@ -328,12 +328,43 @@ ssh user@server "cd /home/user/TRADERAGENT && tar xzf /tmp/sync.tar.gz && docker
 
 ### Backup Database
 
-```bash
-# Create backup
-docker compose exec postgres pg_dump -U traderagent traderagent > backup_$(date +%Y%m%d_%H%M%S).sql
+Automated daily backups use `scripts/backup_db.sh`.
 
-# Restore backup
-docker compose exec -T postgres psql -U traderagent traderagent < backup_20260223_120000.sql
+**Manual backup:**
+```bash
+./scripts/backup_db.sh
+```
+
+**Set up daily cron job (recommended):**
+```bash
+# Edit crontab
+crontab -e
+
+# Add daily backup at 03:00 UTC
+0 3 * * * /home/ai-agent/TRADERAGENT/scripts/backup_db.sh >> /home/ai-agent/TRADERAGENT/logs/backup.log 2>&1
+```
+
+**Backup settings (via environment variables or `.env`):**
+- `BACKUP_DIR` — backup destination (default: `./backups`)
+- `BACKUP_RETAIN_DAYS` — local retention (default: 7 days)
+- Telegram alerts on failure (uses `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ALLOWED_CHAT_IDS`)
+
+**Restore from backup:**
+```bash
+# List available backups
+ls -lh backups/
+
+# Restore (interactive confirmation required)
+./scripts/backup_db.sh --restore backups/traderagent_20260224_030000.sql.gz
+```
+
+> **Warning:** Restore drops and recreates the database. Stop the bot first:
+> `docker compose stop bot`
+
+**Backup verification:**
+```bash
+# Check backup contents without restoring
+gunzip -c backups/traderagent_20260224_030000.sql.gz | head -20
 ```
 
 ### Reset Bot State
@@ -382,7 +413,7 @@ docker compose restart bot
 ### 5. Regular Maintenance
 
 - **Update** dependencies regularly
-- **Backup** database weekly
+- **Backup** database daily (`scripts/backup_db.sh` via cron)
 - **Review** logs daily: `docker compose logs --tail=200 bot`
 - **Monitor** system resources: `docker stats`
 

@@ -55,6 +55,9 @@ logs/
 *.sqlite
 *.sqlite3
 
+# Database backups
+backups/
+
 # Environment variables
 .env
 .env.local
