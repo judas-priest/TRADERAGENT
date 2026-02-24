@@ -370,6 +370,12 @@ class BotConfig(BaseModel):
     # Operational settings
     dry_run: bool = Field(default=False, description="Run in simulation mode without real orders")
     auto_start: bool = Field(default=False, description="Auto-start bot on initialization")
+    strategy_switch_cooldown_seconds: int = Field(
+        default=600,
+        ge=0,
+        le=7200,
+        description="Minimum seconds between regime-based strategy switches (0 to disable)",
+    )
 
     @model_validator(mode="after")
     def validate_strategy_config(self) -> "BotConfig":

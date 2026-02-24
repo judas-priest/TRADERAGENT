@@ -136,6 +136,10 @@ class BotOrchestrator:
         self._current_regime: RegimeAnalysis | None = None
         self._regime_check_interval: float = 60.0  # seconds
         self._active_strategies: set[str] = set()  # strategies active for current regime
+        self._last_strategy_switch_at: float = 0.0  # monotonic timestamp of last switch
+        self._strategy_switch_cooldown: float = float(
+            getattr(self.config, "strategy_switch_cooldown_seconds", 600)
+        )
 
         # Set health callbacks
         self.health_monitor.set_unhealthy_callback(self._on_strategy_unhealthy)
@@ -540,6 +544,8 @@ class BotOrchestrator:
         Called every iteration of _main_loop.  When no regime has been
         detected yet all configured engines remain active so the bot
         behaves exactly as before the feature was introduced.
+
+        A cooldown guard prevents rapid oscillation between strategy sets.
         """
         recommendation = self.get_strategy_recommendation()
         if recommendation is None:
@@ -565,14 +571,30 @@ class BotOrchestrator:
             strategies.add("smc")
 
         prev = self._active_strategies
-        if strategies != prev and prev:
-            logger.info(
-                "active_strategies_updated",
-                regime=self._current_regime.regime.value if self._current_regime else "unknown",
-                recommendation=recommendation.value,
-                active=sorted(strategies),
-                deactivated=sorted(prev - strategies),
-            )
+        if strategies != prev:
+            if prev:
+                # Cooldown guard: block switch if too soon after last one
+                now = time.monotonic()
+                elapsed = now - self._last_strategy_switch_at
+                if self._strategy_switch_cooldown > 0 and elapsed < self._strategy_switch_cooldown:
+                    logger.info(
+                        "strategy_switch_cooldown_active",
+                        remaining_seconds=int(self._strategy_switch_cooldown - elapsed),
+                        blocked_strategies=sorted(strategies),
+                        current_strategies=sorted(prev),
+                    )
+                    return
+
+                logger.info(
+                    "active_strategies_updated",
+                    regime=self._current_regime.regime.value if self._current_regime else "unknown",
+                    recommendation=recommendation.value,
+                    active=sorted(strategies),
+                    deactivated=sorted(prev - strategies),
+                )
+
+            # Record timestamp for both first-time set and subsequent switches
+            self._last_strategy_switch_at = time.monotonic()
         self._active_strategies = strategies
 
     def _is_strategy_active(self, strategy_name: str) -> bool:
