@@ -194,6 +194,10 @@ class ConfluenceZoneAnalyzer:
         self.fair_value_gaps: list[FairValueGap] = []
         self.liquidity_zones: list[LiquidityZone] = []
 
+        # Log-spam suppression
+        self._insufficient_data_count: int = 0
+        self._liquidity_fail_count: int = 0
+
         logger.info(
             "ConfluenceZoneAnalyzer initialized",
             timeframe=timeframe,
@@ -222,7 +226,9 @@ class ConfluenceZoneAnalyzer:
             Dictionary with zone analysis results
         """
         if len(df) < 3:
-            logger.warning("Insufficient data for zone analysis")
+            self._insufficient_data_count += 1
+            if self._insufficient_data_count == 1:
+                logger.warning("Insufficient data for zone analysis")
             return self.get_zones_summary()
 
         # Detect Order Blocks from structure breaks
@@ -385,7 +391,9 @@ class ConfluenceZoneAnalyzer:
         try:
             liq_df = smc.liquidity(ohlc, swings_df, range_percent=self.liquidity_range_percent)
         except Exception as e:
-            logger.warning("Liquidity detection failed", error=str(e))
+            self._liquidity_fail_count += 1
+            if self._liquidity_fail_count == 1:
+                logger.warning("Liquidity detection failed", error=str(e))
             return
 
         self.liquidity_zones.clear()

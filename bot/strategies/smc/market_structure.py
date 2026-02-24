@@ -88,6 +88,9 @@ class MarketStructureAnalyzer:
         self.current_trend: TrendDirection = TrendDirection.RANGING
         self._swings_df: Optional[pd.DataFrame] = None
 
+        # Log-spam suppression: count warnings, log only first occurrence
+        self._insufficient_data_count: int = 0
+
         logger.info(
             "MarketStructureAnalyzer initialized",
             swing_length=swing_length,
@@ -116,11 +119,13 @@ class MarketStructureAnalyzer:
             Dictionary with structure analysis results
         """
         if len(df) < self.swing_length * 2 + 1:
-            logger.warning(
-                "Insufficient data for structure analysis",
-                required=self.swing_length * 2 + 1,
-                available=len(df),
-            )
+            self._insufficient_data_count += 1
+            if self._insufficient_data_count == 1:
+                logger.warning(
+                    "Insufficient data for structure analysis",
+                    required=self.swing_length * 2 + 1,
+                    available=len(df),
+                )
             return self.get_current_structure()
 
         # Detect swing points

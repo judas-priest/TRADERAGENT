@@ -337,6 +337,17 @@ class SMCStrategy:
 
     def reset(self):
         """Reset strategy state (for backtesting)"""
+        # Log suppressed warning summary before resetting
+        suppressed = {
+            "structure_insufficient_data": self.market_structure._insufficient_data_count,
+            "zone_insufficient_data": self.confluence_analyzer._insufficient_data_count,
+            "liquidity_detection_failed": self.confluence_analyzer._liquidity_fail_count,
+            "pattern_insufficient_data": self.signal_generator._insufficient_data_count,
+        }
+        total = sum(suppressed.values())
+        if total > 0:
+            logger.info("smc_warnings_suppressed", count=total, breakdown=suppressed)
+
         self.market_structure = MarketStructureAnalyzer(
             swing_length=self.config.swing_length,
             trend_period=self.config.trend_period,

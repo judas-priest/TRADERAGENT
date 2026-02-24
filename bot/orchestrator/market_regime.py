@@ -179,6 +179,9 @@ class MarketRegimeDetector:
         self._last_analysis: RegimeAnalysis | None = None
         self._regime_history: list[RegimeAnalysis] = []
 
+        # Log-spam suppression
+        self._insufficient_data_count: int = 0
+
     @property
     def last_analysis(self) -> RegimeAnalysis | None:
         """Return the most recent analysis result."""
@@ -206,11 +209,13 @@ class MarketRegimeDetector:
             self.bb_period + self.volume_lookback,
         )
         if len(df) < min_rows:
-            logger.warning(
-                "insufficient_data",
-                required=min_rows,
-                received=len(df),
-            )
+            self._insufficient_data_count += 1
+            if self._insufficient_data_count == 1:
+                logger.warning(
+                    "insufficient_data",
+                    required=min_rows,
+                    received=len(df),
+                )
             return self._unknown_analysis("Insufficient data")
 
         close = df["close"].astype(float)

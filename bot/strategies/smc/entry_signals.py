@@ -144,6 +144,9 @@ class EntrySignalGenerator:
         self.detected_patterns: list[PriceActionPattern] = []
         self.generated_signals: list[SMCSignal] = []
 
+        # Log-spam suppression
+        self._insufficient_data_count: int = 0
+
         logger.info(
             "EntrySignalGenerator initialized", min_rr=min_risk_reward, sl_buffer=sl_buffer_pct
         )
@@ -159,7 +162,9 @@ class EntrySignalGenerator:
             List of SMCSignal objects
         """
         if len(df) < 2:
-            logger.warning("Insufficient data for pattern detection")
+            self._insufficient_data_count += 1
+            if self._insufficient_data_count == 1:
+                logger.warning("Insufficient data for pattern detection")
             return []
 
         self.detected_patterns.clear()
