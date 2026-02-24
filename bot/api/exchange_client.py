@@ -186,7 +186,7 @@ class ExchangeAPIClient:
         if not self._initialized or not self._exchange:
             return False
         try:
-            await self._exchange.fetch_time()
+            await self._ex.fetch_time()
             return True
         except Exception as e:
             logger.warning("Exchange health check failed", error=str(e))
@@ -261,7 +261,14 @@ class ExchangeAPIClient:
         if not self._exchange:
             raise ExchangeAPIError("Exchange not initialized")
 
-    async def _tracked_request(self, coro):
+    @property
+    def _ex(self) -> CCXTExchange:
+        """Return initialized exchange or raise. Use instead of self._exchange after _ensure_initialized."""
+        if self._exchange is None:
+            raise ExchangeAPIError("Exchange not initialized")
+        return self._exchange
+
+    async def _tracked_request(self, coro: Any) -> Any:
         """Execute a request with rate limiting, stats tracking, and latency measurement."""
         await self._handle_rate_limit()
         self._request_count += 1
@@ -288,7 +295,7 @@ class ExchangeAPIClient:
     async def fetch_balance(self) -> dict[str, Any]:
         """Fetch account balance."""
         self._ensure_initialized()
-        return await self._tracked_request(self._exchange.fetch_balance())
+        return await self._tracked_request(self._ex.fetch_balance())
 
     @retry(
         retry=retry_if_exception_type((NetworkError, RateLimitError)),
@@ -298,7 +305,7 @@ class ExchangeAPIClient:
     async def fetch_ticker(self, symbol: str) -> dict[str, Any]:
         """Fetch ticker data for a symbol."""
         self._ensure_initialized()
-        return await self._tracked_request(self._exchange.fetch_ticker(symbol))
+        return await self._tracked_request(self._ex.fetch_ticker(symbol))
 
     @retry(
         retry=retry_if_exception_type((NetworkError, RateLimitError)),
@@ -328,9 +335,7 @@ class ExchangeAPIClient:
         """
         self._ensure_initialized()
         return await self._tracked_request(
-            self._exchange.fetch_ohlcv(
-                symbol, timeframe, since=since, limit=limit, params=params or {}
-            )
+            self._ex.fetch_ohlcv(symbol, timeframe, since=since, limit=limit, params=params or {})
         )
 
     @retry(
@@ -357,7 +362,7 @@ class ExchangeAPIClient:
         """
         self._ensure_initialized()
         return await self._tracked_request(
-            self._exchange.fetch_order_book(symbol, limit=limit, params=params or {})
+            self._ex.fetch_order_book(symbol, limit=limit, params=params or {})
         )
 
     @retry(
@@ -375,7 +380,7 @@ class ExchangeAPIClient:
         """Fetch recent trades for a symbol."""
         self._ensure_initialized()
         return await self._tracked_request(
-            self._exchange.fetch_trades(symbol, since=since, limit=limit, params=params or {})
+            self._ex.fetch_trades(symbol, since=since, limit=limit, params=params or {})
         )
 
     # =========================================================================
@@ -425,7 +430,7 @@ class ExchangeAPIClient:
         self._ensure_initialized()
         try:
             result = await self._tracked_request(
-                self._exchange.create_limit_order(
+                self._ex.create_limit_order(
                     symbol=symbol,
                     side=side,
                     amount=float(amount),
@@ -463,7 +468,7 @@ class ExchangeAPIClient:
         self._ensure_initialized()
         try:
             result = await self._tracked_request(
-                self._exchange.create_market_order(
+                self._ex.create_market_order(
                     symbol=symbol,
                     side=side,
                     amount=float(amount),
@@ -495,7 +500,7 @@ class ExchangeAPIClient:
         self._ensure_initialized()
         try:
             result = await self._tracked_request(
-                self._exchange.cancel_order(id=order_id, symbol=symbol, params=params or {})
+                self._ex.cancel_order(id=order_id, symbol=symbol, params=params or {})
             )
             logger.info("Cancelled order", order_id=order_id, symbol=symbol)
             return result
@@ -513,7 +518,7 @@ class ExchangeAPIClient:
         """Cancel all open orders for a symbol."""
         self._ensure_initialized()
         try:
-            result = await self._tracked_request(self._exchange.cancel_all_orders(symbol))
+            result = await self._tracked_request(self._ex.cancel_all_orders(symbol))
             logger.info("All orders cancelled", symbol=symbol)
             return result
         except ExchangeAPIError:
@@ -532,7 +537,7 @@ class ExchangeAPIClient:
         """Fetch order details."""
         self._ensure_initialized()
         return await self._tracked_request(
-            self._exchange.fetch_order(id=order_id, symbol=symbol, params=params or {})
+            self._ex.fetch_order(id=order_id, symbol=symbol, params=params or {})
         )
 
     @retry(
@@ -546,7 +551,7 @@ class ExchangeAPIClient:
         """Fetch open orders."""
         self._ensure_initialized()
         return await self._tracked_request(
-            self._exchange.fetch_open_orders(symbol=symbol, params=params or {})
+            self._ex.fetch_open_orders(symbol=symbol, params=params or {})
         )
 
     @retry(
@@ -564,7 +569,7 @@ class ExchangeAPIClient:
         """Fetch closed/completed orders."""
         self._ensure_initialized()
         return await self._tracked_request(
-            self._exchange.fetch_closed_orders(
+            self._ex.fetch_closed_orders(
                 symbol=symbol, since=since, limit=limit, params=params or {}
             )
         )
@@ -583,7 +588,7 @@ class ExchangeAPIClient:
         """Set leverage for a symbol (futures/margin)."""
         self._ensure_initialized()
         return await self._tracked_request(
-            self._exchange.set_leverage(leverage, symbol, params=params or {})
+            self._ex.set_leverage(leverage, symbol, params=params or {})
         )
 
     # =========================================================================
