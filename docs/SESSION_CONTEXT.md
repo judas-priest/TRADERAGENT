@@ -3,21 +3,114 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 24 fevralya 2026
-**Status:** v2.0.0 Release + **Roadmap COMPLETE: 12/12 issues DONE** + **Pipeline STOPPED** + **Yandex Cloud VM STOPPED**
+**Status:** v2.0.0 Release + Roadmap COMPLETE: 12/12 issues DONE + **Backtesting audit complete — critical bug found**
 **Pass Rate:** 100% (1587/1587 tests passing, 25 skipped)
-**Realnyy obem testov:** 1614 collected
+**Realnyy obem testov:** 1614 collected (266 backtest tests)
 **Backtesting Service:** 174 tests passing
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing
-**Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
-**Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors, 3 kritichnykh faylov ochisteny)
-**Posledniy commit:** `aab2c15` (Merge PR #305 — market scanner)
-**Bot Status:** RUNNING — **3 aktivnykh bota** na 185.233.200.13: demo_btc_hybrid (hybrid), demo_eth_grid (grid), demo_sol_dca (dca), + demo_btc_smc (dry_run)
-**Pipeline Status:** Phase 1 DONE, Phase 2 STOPPED (SMC spam, 0 results). Yandex Cloud VM ostanovlena.
-**Yandex Cloud:** 158.160.187.253 — **STOPPED** (shutdown -h now). Rezultaty arkhivirovany na prod-server.
+**Code Quality:** ruff PASS + black PASS + mypy PASS
+**Posledniy commit:** `55a773c` (docs: update SESSION_CONTEXT.md — roadmap 12/12 COMPLETE)
+**Bot Status:** RUNNING — 3 aktivnykh bota na 185.233.200.13: demo_btc_hybrid, demo_eth_grid, demo_sol_dca + demo_btc_smc (dry_run)
+**Pipeline Status:** Phase 1 DONE (ETH/DCA only), Phases 2-5 NOT RUN. Yandex Cloud VM STOPPED.
+**Backtesting blockers:** warmup_bars=50 (bug, нужно 14400) + только 3 пары данных из 18
 
 ---
 
-## Poslednyaya Sessiya (2026-02-24) - Session 34: Zavershenie roadmap — Issues #292, #294
+## Poslednyaya Sessiya (2026-02-24) - Session 35: Backtesting Audit + Hive-Mind Prompt
+
+### Zadacha
+
+Проверить состояние ботов, провести аудит бэктестинговой инфраструктуры, создать план для hive-mind.
+
+### Сделано в сессии 35
+
+#### 1. Проверка логов бота (production)
+
+Обнаружено два типа предупреждений:
+
+- **`smc_signal_stale`** — каждые 5 минут, `entry_price=68016.1` vs текущая ~62900 (отклонение 8%). SMC находит устаревший паттерн на исторических M15-свечах, отклоняет его правильно, но не сбрасывает. Не критично для работы бота.
+- **`BadHttpMethod: 400`** от внешних IP (203.55.131.3, 18.218.118.203) — интернет-сканеры, aiohttp отбрасывает. Безопасно.
+
+Бот работает нормально: BTC Hybrid (6 открытых ордеров), ETH Grid, SOL DCA. Баланс: 99,996.75 USDT.
+
+#### 2. Изучение commit ccecdbf (plan.md + analysis.md)
+
+Прочитаны новые документы:
+- `docs/analysis.md` — 9 разделов: архитектура, сильные/слабые стороны, технический долг, безопасность, тестирование, оценка инфраструктуры
+- `docs/plan.md` — 7 направлений развития, 40+ задач, фазированный roadmap
+
+#### 3. Создан промт для hive-mind
+
+Подготовлен промт для автоматического создания GitHub issues + PR workflow. Покрывает 11 issues из `docs/plan.md`:
+- P0: Fix SMC warmup (2.1), Suppress log spam (2.2), PostgreSQL backup (5.1), MarketRegimeDetector (1.1)
+- P1: GracefulTransition (1.2), Cooldown (1.3), Fix web tests (4.2), Mypy excludes (4.3), Rate limiting (5.2), Redis password (5.3), Consolidate models (4.1)
+
+Каждый issue включает: title, labels, body с acceptance criteria, зависимости.
+
+#### 4. Telegram-автоматизация для hive-mind
+
+Разработана архитектура: новые команды `/dev_issue <N>`, `/dev_status` в существующем Telegram-боте (aiogram 3.3+). Запускает hive-mind как `asyncio.create_subprocess_exec`, стримит вывод в чат батчами по 10 строк.
+
+#### 5. Аудит бэктестинговой инфраструктуры — КРИТИЧЕСКАЯ НАХОДКА
+
+**266 бэктест-тестов собрано, все проходят** (Grid 20, DCA 9, Monte Carlo/Walk-Forward 233, Load 4).
+
+**КРИТИЧЕСКИЙ БАГ — `warmup_bars=50` в `multi_tf_engine.py:53`:**
+
+```
+# Текущее значение — НЕПРАВИЛЬНО:
+warmup_bars: int = 50   # = 4 часа M5-данных
+
+# Нужно:
+warmup_bars: int = 14400  # = 50 D1-свечей × 288 M5/D1
+```
+
+Движок стартует с бара 50 (4 часа данных). TrendFollower требует 50 D1-свечей = 50 дней. `get_context_at()` возвращает `df_d1.tail(100)`, который содержит только 49 D1-свечей вплоть до дня 49. Результат:
+
+```
+analyze_market error at bar 13808: Insufficient data: need 50 candles, got 49
+analyze_market error at bar 13812: Insufficient data: need 50 candles, got 49
+... (тысячи строк, каждые 4 M5-бара)
+```
+
+Первые **48 дней из 180** (26% данных) — TrendFollower и SMC молчат. Pipeline Phase 1 получил только один результат: **ETH/USDT DCA: return=-21.71%, sharpe=-2.12, trades=94**.
+
+**Состояние данных:**
+
+| Есть | Нет |
+|------|-----|
+| ETH/USDT: 5m/15m/1h/4h/1d, 51840 строк (авг→фев) | BTC/SOL 5m-данные |
+| BTC/USDT: 1h (~4400 строк) | 15+ пар (ADA, DOGE, AVAX, LINK, DOT, MATIC...) |
+| SOL/USDT: 1h (~2000 строк) | — |
+
+**Pipeline статус:**
+
+| Фаза | Статус | Результат |
+|------|--------|-----------|
+| Phase 0 (download 18 pairs) | ❌ Не выполнена | 3 из 18 пар |
+| Phase 1 baseline (54 бэктеста) | ⚠️ Частично | ETH/DCA только |
+| Phase 2-5 (optimization + WF) | ❌ Не запускались | — |
+
+**Orphaned-код** (реализован, но не подключён к pipeline):
+- `bot/tests/backtesting/monte_carlo.py` — MonteCarloSimulation
+- `bot/tests/backtesting/walk_forward.py` — WalkForwardAnalysis
+- `bot/tests/backtesting/sensitivity.py` — SensitivityAnalysis
+- `web/backend/api/v1/backtesting.py` — `_execute_backtest()` не реализован
+
+### План для следующей сессии — 6 шагов
+
+| # | Действие | Файл | Срочность |
+|---|----------|------|-----------|
+| 1 | `warmup_bars: 50 → 14400` | `multi_tf_engine.py:53` | P0 — 5 минут |
+| 2 | Подавить лог-спам (`raise ValueError → return None`) | `market_analyzer.py:194` | P0 — 30 минут |
+| 3 | Скачать данные 10+ пар (5m, 12 мес) | `download_historical_data.py` | P0 — 2-4 часа |
+| 4 | Запустить Phase 1 на всех парах | `run_dca_tf_smc_pipeline.py` | P1 — авто |
+| 5 | Phase 2-4 (оптимизация параметров) | `run_dca_tf_smc_pipeline.py` | P1 — авто |
+| 6 | Подключить MonteCarlo + WalkForward в pipeline | `run_dca_tf_smc_pipeline.py` | P2 — 2-3 часа |
+
+---
+
+## Predydushchaya Sessiya (2026-02-24) - Session 34: Zavershenie roadmap — Issues #292, #294
 
 ### Zadacha
 
