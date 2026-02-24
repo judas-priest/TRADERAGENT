@@ -22,6 +22,9 @@ class SMCConfig:
     swing_length: int = 50  # Candles for swing high/low identification
     close_break: bool = True  # BOS/CHoCH: require candle close beyond level (vs wick)
 
+    # Warmup — skip signal generation for first N calls to build structure
+    warmup_bars: int = 100  # max(swing_length * 4, 100) recommended
+
     # Confluence Zone parameters
     close_mitigation: bool = False  # OB: require close through OB for mitigation (vs wick)
     join_consecutive_fvg: bool = False  # FVG: merge adjacent same-direction FVGs

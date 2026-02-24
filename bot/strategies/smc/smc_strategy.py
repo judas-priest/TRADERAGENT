@@ -77,10 +77,15 @@ class SMCStrategy:
         self.trend_strength = 0.0
         self.active_signals: list[SMCSignal] = []
 
+        # Warmup tracking
+        self._generate_call_count: int = 0
+        self._warmup_logged: bool = False
+
         logger.info(
             "SMC Strategy initialized",
             config=self.config.__class__.__name__,
             balance=float(account_balance),
+            warmup_bars=self.config.warmup_bars,
         )
 
     def analyze_market(
@@ -144,6 +149,19 @@ class SMCStrategy:
         Returns:
             List of high-confidence SMCSignal objects
         """
+        self._generate_call_count += 1
+
+        # Skip signal generation during warmup period
+        if self._generate_call_count <= self.config.warmup_bars:
+            if not self._warmup_logged:
+                logger.info(
+                    "smc_warmup_skip_N_bars",
+                    warmup_bars=self.config.warmup_bars,
+                    swing_length=self.config.swing_length,
+                )
+                self._warmup_logged = True
+            return []
+
         logger.info("Generating trading signals")
 
         # Analyze M15 for entry patterns
@@ -338,5 +356,7 @@ class SMCStrategy:
             sl_buffer_pct=0.5,
         )
         self.active_signals.clear()
+        self._generate_call_count = 0
+        self._warmup_logged = False
 
         logger.info("Strategy reset")

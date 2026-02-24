@@ -234,6 +234,14 @@ class SMCConfigSchema(BaseModel):
         description="BOS/CHoCH: require candle close beyond level (vs wick)",
     )
 
+    # Warmup
+    warmup_bars: int = Field(
+        default=100,
+        ge=0,
+        le=1000,
+        description="Skip signal generation for first N calls to build market structure",
+    )
+
     # Confluence
     close_mitigation: bool = Field(
         default=False,
