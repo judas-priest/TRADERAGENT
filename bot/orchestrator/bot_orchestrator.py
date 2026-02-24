@@ -134,6 +134,7 @@ class BotOrchestrator:
         )
         self._current_regime: RegimeAnalysis | None = None
         self._regime_check_interval: float = 60.0  # seconds
+        self._active_strategies: set[str] = set()  # strategies active for current regime
 
         # Set health callbacks
         self.health_monitor.set_unhealthy_callback(self._on_strategy_unhealthy)
@@ -521,6 +522,61 @@ class BotOrchestrator:
 
             logger.warning("emergency_stop_completed")
 
+    # --- Regime-aware strategy selection ---
+
+    _REGIME_TO_STRATEGIES: dict[RecommendedStrategy, set[str]] = {
+        RecommendedStrategy.GRID: {"grid"},
+        RecommendedStrategy.DCA: {"dca"},
+        RecommendedStrategy.HYBRID: {"grid", "dca"},
+        RecommendedStrategy.HOLD: set(),
+        RecommendedStrategy.REDUCE_EXPOSURE: set(),
+    }
+
+    def _update_active_strategies(self) -> None:
+        """Update which strategies should run based on current regime.
+
+        Called every iteration of _main_loop.  When no regime has been
+        detected yet all configured engines remain active so the bot
+        behaves exactly as before the feature was introduced.
+        """
+        recommendation = self.get_strategy_recommendation()
+        if recommendation is None:
+            # No regime data yet — keep everything active (backward-compat)
+            self._active_strategies = {"grid", "dca", "trend_follower", "smc"}
+            return
+
+        strategies = self._REGIME_TO_STRATEGIES.get(recommendation, set()).copy()
+
+        # Trend Follower is recommended for trending regimes
+        if self._current_regime and self._current_regime.regime.value in (
+            "bull_trend",
+            "bear_trend",
+        ):
+            strategies.add("trend_follower")
+
+        # SMC runs in trending regimes or volatile transitions
+        if self._current_regime and self._current_regime.regime.value in (
+            "bull_trend",
+            "bear_trend",
+            "volatile_transition",
+        ):
+            strategies.add("smc")
+
+        prev = self._active_strategies
+        if strategies != prev and prev:
+            logger.info(
+                "active_strategies_updated",
+                regime=self._current_regime.regime.value if self._current_regime else "unknown",
+                recommendation=recommendation.value,
+                active=sorted(strategies),
+                deactivated=sorted(prev - strategies),
+            )
+        self._active_strategies = strategies
+
+    def _is_strategy_active(self, strategy_name: str) -> bool:
+        """Check whether *strategy_name* should execute this cycle."""
+        return strategy_name in self._active_strategies
+
     async def _main_loop(self) -> None:
         """Main trading loop - processes orders and strategy logic."""
         logger.info("main_loop_started")
@@ -543,20 +599,27 @@ class BotOrchestrator:
                 # Cache balance once per iteration (#233)
                 self._cached_balance = await self._get_available_balance()
 
+                # Update which strategies should run based on regime (#283)
+                self._update_active_strategies()
+
                 # Process grid orders
-                if self.grid_engine:
+                if self.grid_engine and self._is_strategy_active("grid"):
                     await self._process_grid_orders()
 
                 # Process DCA logic
-                if self.dca_engine and self.current_price:
+                if self.dca_engine and self.current_price and self._is_strategy_active("dca"):
                     await self._process_dca_logic()
 
                 # Process Trend-Follower logic
-                if self.trend_follower_strategy and self.current_price:
+                if (
+                    self.trend_follower_strategy
+                    and self.current_price
+                    and self._is_strategy_active("trend_follower")
+                ):
                     await self._process_trend_follower_logic()
 
                 # Process SMC logic
-                if self.smc_strategy and self.current_price:
+                if self.smc_strategy and self.current_price and self._is_strategy_active("smc"):
                     await self._process_smc_logic()
 
                 # Update risk manager
@@ -1000,14 +1063,10 @@ class BotOrchestrator:
 
         try:
             # --- Quick TP/SL check on every iteration (no OHLCV needed) ---
-            exits = self.smc_strategy.update_positions(
-                self.current_price, pd.DataFrame()
-            )
+            exits = self.smc_strategy.update_positions(self.current_price, pd.DataFrame())
 
             for position_id, exit_reason in exits:
-                self.smc_strategy.close_position(
-                    position_id, exit_reason, self.current_price
-                )
+                self.smc_strategy.close_position(position_id, exit_reason, self.current_price)
 
                 if not self.config.dry_run:
                     await self._execute_smc_exit(position_id, exit_reason)
@@ -1037,18 +1096,10 @@ class BotOrchestrator:
 
             # Fetch 4 timeframes of OHLCV data
             ohlcv_d1, ohlcv_h4, ohlcv_h1, ohlcv_m15 = await asyncio.gather(
-                self.exchange.fetch_ohlcv(
-                    symbol=self.config.symbol, timeframe="1d", limit=200
-                ),
-                self.exchange.fetch_ohlcv(
-                    symbol=self.config.symbol, timeframe="4h", limit=200
-                ),
-                self.exchange.fetch_ohlcv(
-                    symbol=self.config.symbol, timeframe="1h", limit=200
-                ),
-                self.exchange.fetch_ohlcv(
-                    symbol=self.config.symbol, timeframe="15m", limit=200
-                ),
+                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="1d", limit=200),
+                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="4h", limit=200),
+                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="1h", limit=200),
+                self.exchange.fetch_ohlcv(symbol=self.config.symbol, timeframe="15m", limit=200),
             )
 
             # Convert each to DataFrame
@@ -1081,9 +1132,7 @@ class BotOrchestrator:
             if signal and self.state == BotState.RUNNING:
                 # Check max positions
                 active_positions = self.smc_strategy.get_active_positions()
-                max_positions = (
-                    self.config.smc.max_positions if self.config.smc else 3
-                )
+                max_positions = self.config.smc.max_positions if self.config.smc else 3
                 if len(active_positions) >= max_positions:
                     logger.debug(
                         "smc_max_positions_reached",
@@ -1102,9 +1151,7 @@ class BotOrchestrator:
 
                     # Risk check
                     if self.risk_manager:
-                        current_position_value = sum(
-                            pos.size for pos in active_positions
-                        )
+                        current_position_value = sum(pos.size for pos in active_positions)
                         risk_check = self.risk_manager.check_trade(
                             position_size, current_position_value, balance
                         )
@@ -1117,7 +1164,9 @@ class BotOrchestrator:
 
                     if signal and self.current_price:
                         # Reject stale signals: entry price too far from current price
-                        price_diff_pct = abs(signal.entry_price - self.current_price) / self.current_price
+                        price_diff_pct = (
+                            abs(signal.entry_price - self.current_price) / self.current_price
+                        )
                         if price_diff_pct > Decimal("0.02"):
                             logger.warning(
                                 "smc_signal_stale",
@@ -1128,9 +1177,7 @@ class BotOrchestrator:
                             signal = None
 
                     if signal:
-                        position_id = self.smc_strategy.open_position(
-                            signal, position_size
-                        )
+                        position_id = self.smc_strategy.open_position(signal, position_size)
 
                         if not self.config.dry_run:
                             await self._execute_smc_entry(signal, position_size)
@@ -1320,7 +1367,9 @@ class BotOrchestrator:
                 grid_orders = self.grid_engine.initialize_grid(self.current_price)
                 if grid_orders and not self.config.dry_run:
                     await self._place_grid_orders(grid_orders)
-                logger.info("grid_reinitialized", order_count=len(grid_orders) if grid_orders else 0)
+                logger.info(
+                    "grid_reinitialized", order_count=len(grid_orders) if grid_orders else 0
+                )
             except Exception as e:
                 logger.error("grid_reinit_failed", error=str(e))
         elif self.grid_engine and self.grid_engine.active_orders:
