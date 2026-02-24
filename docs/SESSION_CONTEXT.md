@@ -3,21 +3,133 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 24 fevralya 2026
-**Status:** v2.0.0 Release + **Project Analysis & Plan DONE** + **Pipeline STOPPED** + **Yandex Cloud VM STOPPED (Session 31)**
-**Pass Rate:** 100% (1531/1531 tests passing, 25 skipped)
-**Realnyy obem testov:** 1556 collected
+**Status:** v2.0.0 Release + **Roadmap Execution: Phase 1-2 (7/12 issues DONE)** + **Pipeline STOPPED** + **Yandex Cloud VM STOPPED**
+**Pass Rate:** 100% (1557/1557 tests passing, 25 skipped)
+**Realnyy obem testov:** 1584 collected
 **Backtesting Service:** 174 tests passing
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
-**Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-**Posledniy commit:** `ccecdbf` (docs: add project analysis, development plan; update README to v2.0.0)
+**Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors, 3 kritichnykh faylov ochisteny)
+**Posledniy commit:** `886487f` (Merge PR #300 — rate limiting)
 **Bot Status:** RUNNING — **3 aktivnykh bota** na 185.233.200.13: demo_btc_hybrid (hybrid), demo_eth_grid (grid), demo_sol_dca (dca), + demo_btc_smc (dry_run)
 **Pipeline Status:** Phase 1 DONE, Phase 2 STOPPED (SMC spam, 0 results). Yandex Cloud VM ostanovlena.
 **Yandex Cloud:** 158.160.187.253 — **STOPPED** (shutdown -h now). Rezultaty arkhivirovany na prod-server.
 
 ---
 
-## Poslednyaya Sessiya (2026-02-24) - Session 31: Analiz proekta + Plan razvitiya + Ostanovka Yandex Cloud
+## Poslednyaya Sessiya (2026-02-24) - Session 32: Vypolnenie plana razvitiya — Issues #283-#289
+
+### Zadacha
+
+Posledovatelnoye vypolnenie GitHub issues iz `docs/plan.md` s sozdaniyem PR i merge posle kazhdogo.
+Sozdano 12 issues (#283-#294) iz shablonov. Vypolneno 7, ostalos 5.
+
+### Vypolnennye issues
+
+#### 1. #283 — Connect MarketRegimeDetector to main loop (PR #295, merged)
+
+**Problema:** `MarketRegimeDetector` rabotal, publikoval v Redis, no rezultat nikogda ne chitalsya v `_main_loop`.
+
+**Resheniye:**
+- Dobavlena `_active_strategies: set[str]` v `BotOrchestrator`
+- Mapping `_REGIME_TO_STRATEGIES`: `RecommendedStrategy` → `{"grid"}`, `{"dca"}`, `{"grid","dca"}`, `set()`, `set()`
+- Metod `_update_active_strategies()` — vyzyvaetsya posle kazhdogo tsikla rezhima
+- Metod `_is_strategy_active(name)` — gating v `_main_loop` pered vypolneniyem kazhdoy strategii
+- **14 testov** v `tests/orchestrator/test_regime_strategy_selection.py`
+
+#### 2. #284 — Fix SMC warmup bars (PR #296, merged)
+
+**Problema:** SMC strategiya generirovala stale signaly na pervykh N barakh kogda dannyye yeshche ne nagrely.
+
+**Resheniye:**
+- Novyy parametr `warmup_bars: int = 100` v `bot/strategies/smc/config.py` i `SMCConfigSchema`
+- `generate_signals()` propuskayet pervye `warmup_bars` vyzovov, loggiruyet odin raz
+- Orkestrator logiruyet stale-warning tolko odin raz (`_smc_stale_count`)
+- **9 testov** v `tests/strategies/smc/test_smc_warmup.py`
+
+#### 3. #285 — Suppress SMC log spam (PR #297, merged)
+
+**Problema:** 1.4 GB logov spama ot SMC warnings (`Insufficient data`, `Liquidity detection failed`).
+
+**Resheniye:**
+- Log-once pattern v 5 mestakh: `market_structure.py`, `confluence_zones.py` (2), `entry_signals.py`, `market_regime.py`
+- Kazhdyy sayt: schetchik `_insufficient_data_count` / `_liquidity_fail_count`, log tolko pri pervom vyzove
+- Summary v `smc_strategy.py reset()`: `smc_warnings_suppressed count=N breakdown={...}`
+- Ozhidaemyy effekt: 1.4 GB → <50 MB logov
+
+#### 4. #286 — Automated PostgreSQL backup (PR #298, merged)
+
+**Resheniye:**
+- Novyy `scripts/backup_db.sh`: pg_dump cherez Docker, gzip, retentsiya 7 dney, Telegram notifikatsii
+- Flag `--restore <file>` dlya vosstanovleniya
+- Dokumentatsiya v `docs/DEPLOYMENT.md` (cron setup, primery)
+- Dobavlen `backups/` v `.gitignore`
+
+#### 5. #287 — Fix failing web tests (CLOSED, already fixed)
+
+26 failing testov uzhe byli ispravleny v predydushchey sessii. Zakryto bez izmeneniy. Vse 55 web-testov proshli.
+
+#### 6. #288 — Remove mypy excludes for critical files (PR #299, merged)
+
+**Problema:** 3 kritichnykh faylov (`config/manager.py`, `exchange_client.py`, `bot_orchestrator.py`) byli isklyucheny iz mypy.
+
+**Resheniye (58 → 0 oshibok):**
+- `exchange_client.py`: novyy `_ex` property dlya type-safe dostupa k `_exchange`, zamena vsekh `self._exchange.method()` na `self._ex.method()`
+- `bot_orchestrator.py`: `Any` annotatsii k 5 metodam, `Decimal(0)` start dlya `sum()`, `getattr()` dlya `signal.take_profit/stop_loss`
+- `config/manager.py`: `type: ignore` dlya yaml import i Observer type
+- Udaleny 3 `ignore_errors` overrides iz `pyproject.toml`
+
+#### 7. #289 — Rate limiting for FastAPI endpoints (PR #300, merged)
+
+**Resheniye:**
+- Novyy `web/backend/rate_limit.py`: shared `Limiter` singleton (60 req/min default)
+- `SlowAPIMiddleware` v `app.py` dlya globalnogo rate limiting
+- Auth endpointy (`/login`, `/register`, `/refresh`): `@limiter.limit("5/minute")`
+- Custom 429 handler s `Retry-After` headerom
+- `slowapi>=0.1.9` dobavlen v `requirements.txt`
+- **5 novykh testov** v `tests/web/test_rate_limiting.py`
+- Test fixtures: `limiter.reset()` mezhdu testami, `limiter.enabled=False` dlya load-testov
+
+### Ostavshiyesya issues (5)
+
+| # | Prioritet | Opisaniye | Status |
+|---|-----------|-----------|--------|
+| #290 | P1 | Redis password i ACL v Docker Compose | OPEN |
+| #291 | P1 | Konsolidatsiya models.py, models_v2.py, models_state.py | OPEN |
+| #292 | P2 | Graceful transition pri smene strategiy (zavisit ot #283 ✅) | OPEN |
+| #293 | P2 | Cooldown guard mezhdu pereklyucheniyami strategiy | OPEN |
+| #294 | P3 | Market Scanner module | OPEN |
+
+### Kommity sessii
+
+| Commit | PR | Opisaniye |
+|--------|-----|----------|
+| `ea94f38` | #295 | feat: connect MarketRegimeDetector to main trading loop (#283) |
+| `b3ebfeb` | #296 | fix: SMC strategy skip first N warmup bars (#284) |
+| `7280ce8` | #297 | fix: suppress repetitive SMC log spam (#285) |
+| `543066a` | #298 | feat: automated daily PostgreSQL backup with Telegram alerts (#286) |
+| `3279f83` | #299 | chore: remove mypy excludes for critical files (#288) |
+| `bb0fc04` | #300 | feat: add rate limiting to FastAPI endpoints (#289) |
+
+### Statistika sessii
+
+- **Issues vypolneno:** 7 iz 12 (1 zakryta bez izmeneniy)
+- **PR sozdano i merged:** 6
+- **Testov dobavleno:** ~33 novykh (14 + 9 + 5 + 5 rate limit)
+- **Pass rate:** 1557 passing, 25 skipped, 0 failed (bylo 1531)
+- **Collected:** 1584 (bylo 1556)
+- **Mypy oshibok ispravleno:** 58 → 0 v 3 kritichnykh faylakh
+
+### Sleduyushchiye shagi
+
+1. **#290:** Redis password — dobavit authentication v docker-compose.yml i redis konfiguratsii
+2. **#291:** Konsolidatsiya modeley — ob'yedinit 3 faylya v edinyy models.py
+3. **#292-#293:** Graceful transition + cooldown guard — logika pereklyucheniya strategiy
+4. **#294:** Market Scanner — avto-vybor par i strategiy
+
+---
+
+## Predydushchaya Sessiya (2026-02-24) - Session 31: Analiz proekta + Plan razvitiya + Ostanovka Yandex Cloud
 
 ### Zadacha
 
