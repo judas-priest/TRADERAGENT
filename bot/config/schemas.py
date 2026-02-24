@@ -376,6 +376,10 @@ class BotConfig(BaseModel):
         le=7200,
         description="Minimum seconds between regime-based strategy switches (0 to disable)",
     )
+    close_positions_on_switch: bool = Field(
+        default=False,
+        description="Close open positions when deactivating a strategy (False = hold positions)",
+    )
 
     @model_validator(mode="after")
     def validate_strategy_config(self) -> "BotConfig":

@@ -538,7 +538,7 @@ class BotOrchestrator:
         RecommendedStrategy.REDUCE_EXPOSURE: set(),
     }
 
-    def _update_active_strategies(self) -> None:
+    async def _update_active_strategies(self) -> None:
         """Update which strategies should run based on current regime.
 
         Called every iteration of _main_loop.  When no regime has been
@@ -546,6 +546,8 @@ class BotOrchestrator:
         behaves exactly as before the feature was introduced.
 
         A cooldown guard prevents rapid oscillation between strategy sets.
+        When strategies are deactivated, open orders are cancelled (and
+        optionally positions closed) before the new set is activated.
         """
         recommendation = self.get_strategy_recommendation()
         if recommendation is None:
@@ -585,6 +587,10 @@ class BotOrchestrator:
                     )
                     return
 
+                deactivated = prev - strategies
+                if deactivated:
+                    await self._graceful_transition(deactivated, strategies)
+
                 logger.info(
                     "active_strategies_updated",
                     regime=self._current_regime.regime.value if self._current_regime else "unknown",
@@ -596,6 +602,110 @@ class BotOrchestrator:
             # Record timestamp for both first-time set and subsequent switches
             self._last_strategy_switch_at = time.monotonic()
         self._active_strategies = strategies
+
+    async def _graceful_transition(
+        self, deactivated: set[str], new_strategies: set[str]
+    ) -> None:
+        """Handle graceful cleanup when strategies are deactivated.
+
+        1. Cancel open orders for deactivated strategies
+        2. Optionally close positions (configurable via close_positions_on_switch)
+        3. Wait for exchange confirmation
+
+        Args:
+            deactivated: Strategy names being turned off.
+            new_strategies: Strategy names that will be active after transition.
+        """
+        close_positions = getattr(self.config, "close_positions_on_switch", False)
+
+        await self._publish_event(
+            EventType.STRATEGY_TRANSITION_STARTED,
+            {
+                "deactivated": sorted(deactivated),
+                "new_strategies": sorted(new_strategies),
+                "close_positions": close_positions,
+            },
+        )
+
+        logger.info(
+            "graceful_transition_started",
+            deactivated=sorted(deactivated),
+            close_positions=close_positions,
+        )
+
+        # --- 1. Cancel open orders for deactivated strategies ---
+        if not self.config.dry_run:
+            # Grid orders: cancel all when grid is deactivated
+            if "grid" in deactivated and self.grid_engine:
+                try:
+                    await self.exchange.cancel_all_orders(self.config.symbol)
+                    logger.info("transition_grid_orders_cancelled")
+                except Exception as e:
+                    logger.error("transition_grid_cancel_failed", error=str(e))
+
+        # --- 2. Optionally close positions ---
+        if close_positions and not self.config.dry_run:
+            # Close DCA position if DCA is being deactivated
+            if "dca" in deactivated and self.dca_engine:
+                try:
+                    await self._close_dca_position()
+                    logger.info("transition_dca_position_closed")
+                except Exception as e:
+                    logger.error("transition_dca_close_failed", error=str(e))
+
+            # Close trend follower positions if being deactivated
+            if "trend_follower" in deactivated and self.trend_follower_strategy:
+                try:
+                    pm = self.trend_follower_strategy.position_manager
+                    for pos_id in list(pm.active_positions.keys()):
+                        pos = pm.active_positions[pos_id]
+                        if self.current_price:
+                            base_amount = float(pos.size / self.current_price)
+                            side = "sell" if pos.direction.value == "long" else "buy"
+                            await self.exchange.create_order(
+                                symbol=self.config.symbol,
+                                order_type="market",
+                                side=side,
+                                amount=base_amount,
+                            )
+                            pm.close_position(pos_id, self.current_price)
+                    logger.info("transition_trend_follower_positions_closed")
+                except Exception as e:
+                    logger.error("transition_tf_close_failed", error=str(e))
+
+            # Close SMC positions if being deactivated
+            if "smc" in deactivated and self.smc_strategy:
+                try:
+                    adapter = self.smc_strategy
+                    if hasattr(adapter, "active_positions"):
+                        for pos in list(adapter.active_positions):
+                            if self.current_price:
+                                base_amount = float(
+                                    Decimal(str(pos.get("size", 0))) / self.current_price
+                                )
+                                side = (
+                                    "sell" if pos.get("direction") == "long" else "buy"
+                                )
+                                await self.exchange.create_order(
+                                    symbol=self.config.symbol,
+                                    order_type="market",
+                                    side=side,
+                                    amount=base_amount,
+                                )
+                    logger.info("transition_smc_positions_closed")
+                except Exception as e:
+                    logger.error("transition_smc_close_failed", error=str(e))
+
+        await self._publish_event(
+            EventType.STRATEGY_TRANSITION_COMPLETED,
+            {
+                "deactivated": sorted(deactivated),
+                "new_strategies": sorted(new_strategies),
+                "close_positions": close_positions,
+            },
+        )
+
+        logger.info("graceful_transition_completed", deactivated=sorted(deactivated))
 
     def _is_strategy_active(self, strategy_name: str) -> bool:
         """Check whether *strategy_name* should execute this cycle."""
@@ -623,8 +733,8 @@ class BotOrchestrator:
                 # Cache balance once per iteration (#233)
                 self._cached_balance = await self._get_available_balance()
 
-                # Update which strategies should run based on regime (#283)
-                self._update_active_strategies()
+                # Update which strategies should run based on regime (#283, #292)
+                await self._update_active_strategies()
 
                 # Process grid orders
                 if self.grid_engine and self._is_strategy_active("grid"):

@@ -49,6 +49,10 @@ class EventType(str, Enum):
     HEALTH_DEGRADED = "health_degraded"
     HEALTH_CRITICAL = "health_critical"
 
+    # Strategy transition events (v2.1)
+    STRATEGY_TRANSITION_STARTED = "strategy_transition_started"
+    STRATEGY_TRANSITION_COMPLETED = "strategy_transition_completed"
+
     # Risk events
     RISK_LIMIT_HIT = "risk_limit_hit"
     STOP_LOSS_TRIGGERED = "stop_loss_triggered"
