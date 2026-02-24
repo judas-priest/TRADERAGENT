@@ -3,21 +3,92 @@
 ## Tekushchiy Status Proekta
 
 **Data:** 24 fevralya 2026
-**Status:** v2.0.0 Release + **Roadmap Execution: Phase 1-2 (7/12 issues DONE)** + **Pipeline STOPPED** + **Yandex Cloud VM STOPPED**
-**Pass Rate:** 100% (1557/1557 tests passing, 25 skipped)
-**Realnyy obem testov:** 1584 collected
+**Status:** v2.0.0 Release + **Roadmap Execution: Phase 1-2 (11/12 issues DONE)** + **Pipeline STOPPED** + **Yandex Cloud VM STOPPED**
+**Pass Rate:** 100% (1561/1561 tests passing, 25 skipped)
+**Realnyy obem testov:** 1588 collected
 **Backtesting Service:** 174 tests passing
 **Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing
 **Conflict Resolution:** 29 total (16 Session 12 + 13 Session 13)
 **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors, 3 kritichnykh faylov ochisteny)
-**Posledniy commit:** `886487f` (Merge PR #300 — rate limiting)
+**Posledniy commit:** `18451e1` (Merge PR #304 — graceful transition)
 **Bot Status:** RUNNING — **3 aktivnykh bota** na 185.233.200.13: demo_btc_hybrid (hybrid), demo_eth_grid (grid), demo_sol_dca (dca), + demo_btc_smc (dry_run)
 **Pipeline Status:** Phase 1 DONE, Phase 2 STOPPED (SMC spam, 0 results). Yandex Cloud VM ostanovlena.
 **Yandex Cloud:** 158.160.187.253 — **STOPPED** (shutdown -h now). Rezultaty arkhivirovany na prod-server.
 
 ---
 
-## Poslednyaya Sessiya (2026-02-24) - Session 32: Vypolnenie plana razvitiya — Issues #283-#289
+## Poslednyaya Sessiya (2026-02-24) - Session 33: Dorabotka roadmap — Issues #290-#293
+
+### Zadacha
+
+Prodolzheniye vypolneniya GitHub issues iz roadmap. Sessii 32-33 zavershili 11 iz 12 issues.
+
+### Vypolnennye issues (sessiya 33)
+
+#### 8. #290 — Redis password i ACL v Docker Compose (PR #301, merged)
+
+**Resheniye:**
+- Dobavlen Redis password i ACL authentication v docker-compose.yml
+- Obnovlena konfiguratsiya redis dlya parolnoy autentifikatsii
+
+#### 9. #291 — Konsolidatsiya modeley (PR #302, merged)
+
+**Resheniye:**
+- Ob'yedineny `models.py`, `models_v2.py`, `models_state.py` v edinyy fayl
+- Udaleny dublikaty i neyspol'zuyemye modeli
+
+#### 10. #293 — Cooldown guard mezhdu pereklyucheniyami strategiy (PR #303, merged)
+
+**Resheniye:**
+- Dobavlen `strategy_switch_cooldown` parametr v `BotConfig` (0-7200 sekund)
+- Cooldown guard v `_update_active_strategies()` blokiruyet bystryye oscillyatsii
+- **7 testov** v `tests/orchestrator/test_regime_strategy_selection.py`
+
+#### 11. #292 — Graceful transition pri smene strategiy (PR #304, merged)
+
+**Problema:** Pri smene rezhima rynka otkrytyye ordera staroy strategii ne obrabatyvalis — orphaned orders na birzhe.
+
+**Resheniye:**
+- Novyy metod `_graceful_transition()` v `BotOrchestrator`
+- `_update_active_strategies()` teper' `async` — vyzyvayet transition pered switchem
+- Otmena grid orderov cherez `cancel_all_orders()` pri deaktivatsii grid
+- Konfiguriruemoye povedeniye dlya pozitsiy: `close_positions_on_switch` (default: `False` = hold)
+- Zakrytiye pozitsiy DCA, TrendFollower, SMC pri `close_positions_on_switch=True`
+- Publikatsiya eventov `STRATEGY_TRANSITION_STARTED` / `STRATEGY_TRANSITION_COMPLETED`
+- Oshibki exchange ne blokiruyut perekhod
+- **15 novykh testov** v `tests/orchestrator/test_graceful_transition.py`
+- **14 sushchestvuyushchikh testov** obnovleny pod async
+
+### Ostavshiyesya issues (1)
+
+| # | Prioritet | Opisaniye | Status |
+|---|-----------|-----------|--------|
+| #294 | P3 | Market Scanner module | OPEN |
+
+### Kommity sessii 33
+
+| Commit | PR | Opisaniye |
+|--------|-----|----------|
+| `928d99d` | #301 | feat: Redis password i ACL v Docker Compose (#290) |
+| `d0a84d7` | #302 | refactor: consolidate models.py, models_v2.py, models_state.py (#291) |
+| `551f570` | #303 | feat: add cooldown guard between regime-based strategy switches (#293) |
+| `d9a1052` | #304 | feat: graceful strategy transition on regime change (#292) |
+
+### Statistika sessii 33
+
+- **Issues vypolneno:** 4 iz 5 ostavshikhsya
+- **PR sozdano i merged:** 4 (#301-#304)
+- **Testov dobavleno:** ~22 novykh (7 cooldown + 15 graceful transition)
+- **Pass rate:** 1561 passing, 25 skipped, 0 failed (bylo 1557)
+- **Obshchiy progress roadmap:** 11/12 issues DONE
+
+### Sleduyushchiye shagi
+
+1. **#294:** Market Scanner module — avto-vybor par i strategiy (P3, poslednyaya zadacha roadmap)
+
+---
+
+## Predydushchaya Sessiya (2026-02-24) - Session 32: Vypolnenie plana razvitiya — Issues #283-#289
 
 ### Zadacha
 
@@ -90,17 +161,7 @@ Sozdano 12 issues (#283-#294) iz shablonov. Vypolneno 7, ostalos 5.
 - **5 novykh testov** v `tests/web/test_rate_limiting.py`
 - Test fixtures: `limiter.reset()` mezhdu testami, `limiter.enabled=False` dlya load-testov
 
-### Ostavshiyesya issues (5)
-
-| # | Prioritet | Opisaniye | Status |
-|---|-----------|-----------|--------|
-| #290 | P1 | Redis password i ACL v Docker Compose | OPEN |
-| #291 | P1 | Konsolidatsiya models.py, models_v2.py, models_state.py | OPEN |
-| #292 | P2 | Graceful transition pri smene strategiy (zavisit ot #283 ✅) | OPEN |
-| #293 | P2 | Cooldown guard mezhdu pereklyucheniyami strategiy | OPEN |
-| #294 | P3 | Market Scanner module | OPEN |
-
-### Kommity sessii
+### Kommity sessii 32
 
 | Commit | PR | Opisaniye |
 |--------|-----|----------|
@@ -111,7 +172,7 @@ Sozdano 12 issues (#283-#294) iz shablonov. Vypolneno 7, ostalos 5.
 | `3279f83` | #299 | chore: remove mypy excludes for critical files (#288) |
 | `bb0fc04` | #300 | feat: add rate limiting to FastAPI endpoints (#289) |
 
-### Statistika sessii
+### Statistika sessii 32
 
 - **Issues vypolneno:** 7 iz 12 (1 zakryta bez izmeneniy)
 - **PR sozdano i merged:** 6
@@ -119,13 +180,6 @@ Sozdano 12 issues (#283-#294) iz shablonov. Vypolneno 7, ostalos 5.
 - **Pass rate:** 1557 passing, 25 skipped, 0 failed (bylo 1531)
 - **Collected:** 1584 (bylo 1556)
 - **Mypy oshibok ispravleno:** 58 → 0 v 3 kritichnykh faylakh
-
-### Sleduyushchiye shagi
-
-1. **#290:** Redis password — dobavit authentication v docker-compose.yml i redis konfiguratsii
-2. **#291:** Konsolidatsiya modeley — ob'yedinit 3 faylya v edinyy models.py
-3. **#292-#293:** Graceful transition + cooldown guard — logika pereklyucheniya strategiy
-4. **#294:** Market Scanner — avto-vybor par i strategiy
 
 ---
 
