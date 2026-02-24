@@ -430,6 +430,32 @@ class BotConfig(BaseModel):
         }
 
 
+class ScannerConfig(BaseModel):
+    """Market Scanner configuration for automatic pair discovery."""
+
+    enabled: bool = Field(default=False, description="Enable market scanner")
+    pairs: list[str] = Field(
+        default_factory=lambda: [
+            "BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "DOGE/USDT",
+        ],
+        description="Trading pairs to scan",
+    )
+    interval_minutes: int = Field(
+        default=15, ge=1, le=1440, description="Scan interval in minutes"
+    )
+    timeframe: str = Field(default="1h", description="OHLCV timeframe for regime analysis")
+    ohlcv_limit: int = Field(default=200, ge=50, le=1000, description="OHLCV candles to fetch")
+    min_volume_usdt: float = Field(
+        default=1_000_000.0, ge=0, description="Minimum 24h volume in USDT"
+    )
+    max_spread_pct: float = Field(
+        default=0.5, ge=0, le=10.0, description="Maximum bid-ask spread percentage"
+    )
+    min_liquidity_usdt: float = Field(
+        default=50_000.0, ge=0, description="Minimum orderbook liquidity in USDT"
+    )
+
+
 class AppConfig(BaseModel):
     """Application-wide configuration"""
 
@@ -453,6 +479,9 @@ class AppConfig(BaseModel):
     encryption_key: str = Field(
         ..., description="Encryption key for API credentials (base64 encoded)"
     )
+
+    # Scanner
+    scanner: ScannerConfig = Field(default_factory=ScannerConfig, description="Market scanner configuration")
 
     # Bots
     bots: list[BotConfig] = Field(default_factory=list, description="Bot configurations")
