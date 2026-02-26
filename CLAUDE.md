@@ -51,16 +51,3 @@ Your prepared working directory: /tmp/gh-issue-solver-1770620790059
 Proceed.
 
 Run timestamp: 2026-02-09T07:06:32.478Z
-
----
-
-Issue to solve: https://github.com/alekseymavai/TRADERAGENT/issues/306
-Your prepared branch: issue-306-8d2bc44303a4
-Your prepared working directory: /tmp/gh-issue-solver-1772106039511
-Your forked repository: konard/alekseymavai-TRADERAGENT
-Original repository (upstream): alekseymavai/TRADERAGENT
-
-Proceed.
-
-
-Run timestamp: 2026-02-26T11:40:50.546Z
