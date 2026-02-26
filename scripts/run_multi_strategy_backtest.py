@@ -153,6 +153,11 @@ async def main() -> None:
         "--warmup", type=int, default=60, help="Warmup bars before trading"
     )
     parser.add_argument(
+        "--lookback", type=int, default=200,
+        help="Rolling context window (bars per timeframe). "
+             "SMC strategy requires at least 200 for proper swing detection.",
+    )
+    parser.add_argument(
         "--strategy",
         default=None,
         help="Run single strategy (grid, dca, trend_follower, smc)",
@@ -211,6 +216,7 @@ async def main() -> None:
         symbol=symbol,
         initial_balance=balance,
         warmup_bars=args.warmup,
+        lookback=args.lookback,
     )
 
     # Run comparison
