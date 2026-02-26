@@ -11,6 +11,7 @@ Usage:
     df_d1, df_h4, df_h1, df_m15, df_m5 = loader.get_context_at(data, base_index=200, lookback=50)
 """
 
+import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -83,6 +84,16 @@ class MultiTimeframeDataLoader:
         Returns:
             MultiTimeframeData with all five aligned DataFrames.
         """
+        warnings.warn(
+            "MultiTimeframeDataLoader.load() generates synthetic data using a simplified "
+            "trending model. This data does not reflect real market microstructure, liquidity, "
+            "or volatility regimes. Results obtained with synthetic data may not be "
+            "representative of live trading performance. Use load_csv() with real OHLCV data "
+            "for production backtesting.",
+            UserWarning,
+            stacklevel=2,
+        )
+
         # Generate M5 candles as the finest resolution
         candles = self._provider.generate_trending_data(
             symbol=symbol,

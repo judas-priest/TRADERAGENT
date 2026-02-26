@@ -415,7 +415,7 @@ class TestMultiTFBacktestConfig:
         assert config.symbol == "BTC/USDT"
         assert config.initial_balance == Decimal("10000")
         assert config.lookback == 100
-        assert config.warmup_bars == 50
+        assert config.warmup_bars == 14400
         assert config.analyze_every_n == 4
 
     def test_custom(self):
@@ -544,7 +544,7 @@ class TestSMCAdapterIntegration:
         config = MultiTFBacktestConfig(
             symbol="BTC/USDT",
             initial_balance=Decimal("10000"),
-            warmup_bars=60,
+            warmup_bars=14400,
         )
         engine = MultiTimeframeBacktestEngine(config=config)
         strategy = SMCStrategyAdapter(
@@ -574,7 +574,7 @@ class TestTrendFollowerAdapterIntegration:
         config = MultiTFBacktestConfig(
             symbol="BTC/USDT",
             initial_balance=Decimal("10000"),
-            warmup_bars=60,
+            warmup_bars=14400,
         )
         engine = MultiTimeframeBacktestEngine(config=config)
         strategy = TrendFollowerAdapter(
