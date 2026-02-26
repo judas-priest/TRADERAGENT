@@ -118,14 +118,27 @@ class MarketStructureAnalyzer:
         Returns:
             Dictionary with structure analysis results
         """
-        if len(df) < self.swing_length * 2 + 1:
+        required = self.swing_length * 2 + 1
+        if len(df) < required:
+            # Adapt swing_length to available data (minimum 2 bars on each side)
+            adapted_swing_length = max(2, (len(df) - 1) // 2)
             self._insufficient_data_count += 1
             if self._insufficient_data_count == 1:
                 logger.warning(
-                    "Insufficient data for structure analysis",
-                    required=self.swing_length * 2 + 1,
+                    "Insufficient data for structure analysis — adapting swing_length",
+                    required=required,
                     available=len(df),
+                    adapted_swing_length=adapted_swing_length,
                 )
+            # Temporarily use adapted swing_length for this call
+            original_swing_length = self.swing_length
+            self.swing_length = adapted_swing_length
+            try:
+                self._detect_swing_points(df)
+                self._determine_trend(df)
+                self._detect_structure_breaks(df)
+            finally:
+                self.swing_length = original_swing_length
             return self.get_current_structure()
 
         # Detect swing points

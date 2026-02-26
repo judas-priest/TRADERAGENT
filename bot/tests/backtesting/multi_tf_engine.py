@@ -49,7 +49,7 @@ class MultiTFBacktestConfig:
 
     symbol: str = "BTC/USDT"
     initial_balance: Decimal = Decimal("10000")
-    lookback: int = 100
+    lookback: int = 200
     warmup_bars: int = 14400
     analyze_every_n: int = 4
     risk_per_trade: Decimal = Decimal("0.02")

@@ -414,7 +414,7 @@ class TestMultiTFBacktestConfig:
         config = MultiTFBacktestConfig()
         assert config.symbol == "BTC/USDT"
         assert config.initial_balance == Decimal("10000")
-        assert config.lookback == 100
+        assert config.lookback == 200
         assert config.warmup_bars == 14400
         assert config.analyze_every_n == 4
 
