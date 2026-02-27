@@ -1,0 +1,6032 @@
+{
+  "AVAXUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 5973.8495301978755,
+        "total_return": -4026.1504698021245,
+        "total_return_pct": -40.26150469802125,
+        "max_drawdown": 4423.162216622391,
+        "max_drawdown_pct": 44.23162216622391
+      },
+      "trading_stats": {
+        "total_trades": 107,
+        "winning_trades": 67,
+        "losing_trades": 40,
+        "win_rate": 62.61682242990654,
+        "total_buy_orders": 108,
+        "total_sell_orders": 107,
+        "avg_profit_per_trade": -39.16110469045635
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.6709921861110435,
+        "sortino_ratio": -3.4332755692287154,
+        "calmar_ratio": -0.9102425533189168,
+        "profit_factor": 0.4422363715361535,
+        "capital_efficiency": 0.2615228349715172,
+        "max_position_value": 0.0
+      },
+      "trade_count": 215,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10010.031514705883,
+        "total_return": 10.031514705882353,
+        "total_return_pct": 0.10031514705882352,
+        "max_drawdown": 16.50660264105642,
+        "max_drawdown_pct": 0.16506602641056423
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 1,
+        "losing_trades": 0,
+        "win_rate": 100.0,
+        "total_buy_orders": 1,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": 20.01050420168067
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.5726432834599086,
+        "sortino_ratio": 1.1665501774170106,
+        "calmar_ratio": 0.6077274,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 2,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9728.121806865383,
+        "total_return": -271.878193134617,
+        "total_return_pct": -2.71878193134617,
+        "max_drawdown": 277.2024442401958,
+        "max_drawdown_pct": 2.772024442401958
+      },
+      "trading_stats": {
+        "total_trades": 34,
+        "winning_trades": 3,
+        "losing_trades": 31,
+        "win_rate": 8.823529411764707,
+        "total_buy_orders": 34,
+        "total_sell_orders": 34,
+        "avg_profit_per_trade": 1.8486100140468877
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -4.028571288459863,
+        "sortino_ratio": -5.859734020063117,
+        "calmar_ratio": -0.9807929142898706,
+        "profit_factor": 3.056843379968685,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 68,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "ADAUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7922.267378429025,
+        "total_return": -2077.7326215709754,
+        "total_return_pct": -20.777326215709756,
+        "max_drawdown": 2869.535966709995,
+        "max_drawdown_pct": 28.695359667099954
+      },
+      "trading_stats": {
+        "total_trades": 105,
+        "winning_trades": 65,
+        "losing_trades": 40,
+        "win_rate": 61.904761904761905,
+        "total_buy_orders": 106,
+        "total_sell_orders": 105,
+        "avg_profit_per_trade": -19.859570251334905
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.7029793700990363,
+        "sortino_ratio": -2.5122194228105124,
+        "calmar_ratio": -0.7240657185256176,
+        "profit_factor": 0.7287539561561607,
+        "capital_efficiency": 0.2556048795777308,
+        "max_position_value": 0.0
+      },
+      "trade_count": 211,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6465.782330246087,
+        "total_return": -3534.217669753913,
+        "total_return_pct": -35.34217669753913,
+        "max_drawdown": 3698.7777040055116,
+        "max_drawdown_pct": 36.987777040055114
+      },
+      "trading_stats": {
+        "total_trades": 2,
+        "winning_trades": 0,
+        "losing_trades": 2,
+        "win_rate": 0.0,
+        "total_buy_orders": 3,
+        "total_sell_orders": 2,
+        "avg_profit_per_trade": -47.026632121881796
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.1331367081786654,
+        "sortino_ratio": -2.6081529094303497,
+        "calmar_ratio": -0.9555096176573704,
+        "profit_factor": null,
+        "capital_efficiency": 0.3487359377006952,
+        "max_position_value": 0.0
+      },
+      "trade_count": 5,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7678.619561645061,
+        "total_return": -2321.380438354938,
+        "total_return_pct": -23.213804383549384,
+        "max_drawdown": 2321.380438354938,
+        "max_drawdown_pct": 23.213804383549384
+      },
+      "trading_stats": {
+        "total_trades": 240,
+        "winning_trades": 0,
+        "losing_trades": 240,
+        "win_rate": 0.0,
+        "total_buy_orders": 240,
+        "total_sell_orders": 240,
+        "avg_profit_per_trade": -0.8793107721041433
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -25.120734502269535,
+        "sortino_ratio": -25.045670509655988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 480,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "1INCHUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7007.063745884282,
+        "total_return": -2992.9362541157184,
+        "total_return_pct": -29.929362541157182,
+        "max_drawdown": 3521.2051681125013,
+        "max_drawdown_pct": 35.21205168112502
+      },
+      "trading_stats": {
+        "total_trades": 133,
+        "winning_trades": 77,
+        "losing_trades": 56,
+        "win_rate": 57.89473684210526,
+        "total_buy_orders": 134,
+        "total_sell_orders": 133,
+        "avg_profit_per_trade": -20.39770628124973
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.0422809288453534,
+        "sortino_ratio": -2.5524212282325798,
+        "calmar_ratio": -0.8499749691438868,
+        "profit_factor": 0.6979671850372668,
+        "capital_efficiency": 0.29132080609382444,
+        "max_position_value": 0.0
+      },
+      "trade_count": 267,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6783.646361577133,
+        "total_return": -3216.353638422868,
+        "total_return_pct": -32.16353638422868,
+        "max_drawdown": 3439.264886887223,
+        "max_drawdown_pct": 34.39264886887223
+      },
+      "trading_stats": {
+        "total_trades": 3,
+        "winning_trades": 1,
+        "losing_trades": 2,
+        "win_rate": 33.333333333333336,
+        "total_buy_orders": 4,
+        "total_sell_orders": 3,
+        "avg_profit_per_trade": -15.357770240325472
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.6828924904312161,
+        "sortino_ratio": -2.117557674019681,
+        "calmar_ratio": -0.9351863680770149,
+        "profit_factor": 0.3196964084409957,
+        "capital_efficiency": 0.3985592629222686,
+        "max_position_value": 0.0
+      },
+      "trade_count": 7,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9739.312815453113,
+        "total_return": -260.68718454688747,
+        "total_return_pct": -2.6068718454688744,
+        "max_drawdown": 260.68718454688747,
+        "max_drawdown_pct": 2.6068718454688744
+      },
+      "trading_stats": {
+        "total_trades": 24,
+        "winning_trades": 0,
+        "losing_trades": 24,
+        "win_rate": 0.0,
+        "total_buy_orders": 24,
+        "total_sell_orders": 24,
+        "avg_profit_per_trade": -0.987451456616998
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -7.922500594735935,
+        "sortino_ratio": -7.920136433662312,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 48,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "AAVEUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8688.94987071021,
+        "total_return": -1311.0501292897902,
+        "total_return_pct": -13.110501292897903,
+        "max_drawdown": 2682.641852440078,
+        "max_drawdown_pct": 26.82641852440078
+      },
+      "trading_stats": {
+        "total_trades": 126,
+        "winning_trades": 87,
+        "losing_trades": 39,
+        "win_rate": 69.04761904761905,
+        "total_buy_orders": 127,
+        "total_sell_orders": 126,
+        "avg_profit_per_trade": -8.776852363293537
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.7830825802593264,
+        "sortino_ratio": -1.2718545499819411,
+        "calmar_ratio": -0.4887160498511141,
+        "profit_factor": 0.866223041321901,
+        "capital_efficiency": 0.2651689353967687,
+        "max_position_value": 0.0
+      },
+      "trade_count": 253,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10000.032478737197,
+        "total_return": 0.03247873719694023,
+        "total_return_pct": 0.0003247873719694023,
+        "max_drawdown": 5.4995,
+        "max_drawdown_pct": 0.054995
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 1,
+        "losing_trades": 0,
+        "win_rate": 100.0,
+        "total_buy_orders": 1,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": 10.021457279917025
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.008005539749553538,
+        "sortino_ratio": 0.010281048849516104,
+        "calmar_ratio": 0.005905761832337527,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 2,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7080.155687859179,
+        "total_return": -2919.844312140821,
+        "total_return_pct": -29.19844312140821,
+        "max_drawdown": 2919.844312140821,
+        "max_drawdown_pct": 29.19844312140821
+      },
+      "trading_stats": {
+        "total_trades": 303,
+        "winning_trades": 5,
+        "losing_trades": 298,
+        "win_rate": 1.6501650165016502,
+        "total_buy_orders": 303,
+        "total_sell_orders": 303,
+        "avg_profit_per_trade": -1.1228733498437253
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -18.918407489298872,
+        "sortino_ratio": -22.114725890883335,
+        "calmar_ratio": -1.0,
+        "profit_factor": 0.2723704541924654,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 606,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "ALGOUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7789.363846277799,
+        "total_return": -2210.6361537222006,
+        "total_return_pct": -22.106361537222007,
+        "max_drawdown": 2550.4215555465594,
+        "max_drawdown_pct": 25.504215555465592
+      },
+      "trading_stats": {
+        "total_trades": 114,
+        "winning_trades": 72,
+        "losing_trades": 42,
+        "win_rate": 63.1578947368421,
+        "total_buy_orders": 115,
+        "total_sell_orders": 114,
+        "avg_profit_per_trade": -18.485476577680213
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.8288443796440916,
+        "sortino_ratio": -2.387321795739914,
+        "calmar_ratio": -0.8667728473806982,
+        "profit_factor": 0.703824116895255,
+        "capital_efficiency": 0.26955546205912534,
+        "max_position_value": 0.0
+      },
+      "trade_count": 229,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6743.5921366040575,
+        "total_return": -3256.407863395943,
+        "total_return_pct": -32.564078633959426,
+        "max_drawdown": 3400.863144248715,
+        "max_drawdown_pct": 34.00863144248715
+      },
+      "trading_stats": {
+        "total_trades": 29,
+        "winning_trades": 9,
+        "losing_trades": 20,
+        "win_rate": 31.03448275862069,
+        "total_buy_orders": 30,
+        "total_sell_orders": 29,
+        "avg_profit_per_trade": -21.596823080879055
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.321191078871505,
+        "sortino_ratio": -3.035389489572137,
+        "calmar_ratio": -0.9575239359169557,
+        "profit_factor": 0.3876124900351493,
+        "capital_efficiency": 0.38198524755799057,
+        "max_position_value": 0.0
+      },
+      "trade_count": 59,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7678.619561645061,
+        "total_return": -2321.380438354938,
+        "total_return_pct": -23.213804383549384,
+        "max_drawdown": 2321.380438354938,
+        "max_drawdown_pct": 23.213804383549384
+      },
+      "trading_stats": {
+        "total_trades": 240,
+        "winning_trades": 0,
+        "losing_trades": 240,
+        "win_rate": 0.0,
+        "total_buy_orders": 240,
+        "total_sell_orders": 240,
+        "avg_profit_per_trade": -0.8793107721041433
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -25.120734502269535,
+        "sortino_ratio": -25.045670509655988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 480,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "BATUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9394.29653076429,
+        "total_return": -605.70346923571,
+        "total_return_pct": -6.0570346923571,
+        "max_drawdown": 3183.652386778708,
+        "max_drawdown_pct": 31.836523867787083
+      },
+      "trading_stats": {
+        "total_trades": 232,
+        "winning_trades": 161,
+        "losing_trades": 71,
+        "win_rate": 69.39655172413794,
+        "total_buy_orders": 234,
+        "total_sell_orders": 232,
+        "avg_profit_per_trade": 3.19808482756789
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.10918958002906583,
+        "sortino_ratio": -0.15939894093452997,
+        "calmar_ratio": -0.19025427265587075,
+        "profit_factor": 1.0620094653486112,
+        "capital_efficiency": 0.36375726605576547,
+        "max_position_value": 0.0
+      },
+      "trade_count": 466,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8864.491714296735,
+        "total_return": -1135.5082857032648,
+        "total_return_pct": -11.355082857032649,
+        "max_drawdown": 5473.093097492935,
+        "max_drawdown_pct": 54.73093097492935
+      },
+      "trading_stats": {
+        "total_trades": 25,
+        "winning_trades": 12,
+        "losing_trades": 13,
+        "win_rate": 48.0,
+        "total_buy_orders": 26,
+        "total_sell_orders": 25,
+        "avg_profit_per_trade": -19.770879965484834
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.10246184117188879,
+        "sortino_ratio": -0.15037561832350507,
+        "calmar_ratio": -0.20747103429017283,
+        "profit_factor": 0.2504400168657112,
+        "capital_efficiency": 0.541355721708913,
+        "max_position_value": 0.0
+      },
+      "trade_count": 51,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8014.297030768378,
+        "total_return": -1985.7029692316216,
+        "total_return_pct": -19.857029692316214,
+        "max_drawdown": 2150.778234646662,
+        "max_drawdown_pct": 21.50778234646662
+      },
+      "trading_stats": {
+        "total_trades": 218,
+        "winning_trades": 2,
+        "losing_trades": 216,
+        "win_rate": 0.9174311926605505,
+        "total_buy_orders": 218,
+        "total_sell_orders": 218,
+        "avg_profit_per_trade": -0.04884795871833569
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -12.735266240935143,
+        "sortino_ratio": -17.05643099696077,
+        "calmar_ratio": -0.9232485884616739,
+        "profit_factor": 0.9455371999215844,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 436,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "BCHUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10250.871841776052,
+        "total_return": 250.8718417760519,
+        "total_return_pct": 2.508718417760519,
+        "max_drawdown": 975.205047748077,
+        "max_drawdown_pct": 9.75205047748077
+      },
+      "trading_stats": {
+        "total_trades": 76,
+        "winning_trades": 52,
+        "losing_trades": 24,
+        "win_rate": 68.42105263157895,
+        "total_buy_orders": 77,
+        "total_sell_orders": 76,
+        "avg_profit_per_trade": 8.391926815236465
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.38650192948009776,
+        "sortino_ratio": 0.5661894904386101,
+        "calmar_ratio": 0.25725035196993684,
+        "profit_factor": 1.207007516775716,
+        "capital_efficiency": 0.3105061297394932,
+        "max_position_value": 0.0
+      },
+      "trade_count": 153,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9362.112745594883,
+        "total_return": -637.8872544051178,
+        "total_return_pct": -6.378872544051178,
+        "max_drawdown": 1550.0749919245616,
+        "max_drawdown_pct": 15.500749919245616
+      },
+      "trading_stats": {
+        "total_trades": 4,
+        "winning_trades": 0,
+        "losing_trades": 4,
+        "win_rate": 0.0,
+        "total_buy_orders": 5,
+        "total_sell_orders": 4,
+        "avg_profit_per_trade": -75.15454895673184
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.3290383568277638,
+        "sortino_ratio": -0.47626042870895563,
+        "calmar_ratio": -0.41152025400598313,
+        "profit_factor": null,
+        "capital_efficiency": 0.4676670167422434,
+        "max_position_value": 0.0
+      },
+      "trade_count": 9,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7126.829194149105,
+        "total_return": -2873.1708058508952,
+        "total_return_pct": -28.731708058508953,
+        "max_drawdown": 2873.1708058508952,
+        "max_drawdown_pct": 28.731708058508953
+      },
+      "trading_stats": {
+        "total_trades": 298,
+        "winning_trades": 0,
+        "losing_trades": 298,
+        "win_rate": 0.0,
+        "total_buy_orders": 298,
+        "total_sell_orders": 298,
+        "avg_profit_per_trade": -1.1127218235611103
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -25.94092372956021,
+        "sortino_ratio": -26.268566069518858,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 596,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "BNBUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8738.713653814999,
+        "total_return": -1261.2863461850004,
+        "total_return_pct": -12.612863461850004,
+        "max_drawdown": 3013.3958680015544,
+        "max_drawdown_pct": 30.133958680015542
+      },
+      "trading_stats": {
+        "total_trades": 61,
+        "winning_trades": 40,
+        "losing_trades": 21,
+        "win_rate": 65.57377049180327,
+        "total_buy_orders": 63,
+        "total_sell_orders": 61,
+        "avg_profit_per_trade": -9.249799962070794
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.0534452161841923,
+        "sortino_ratio": -1.543192048810465,
+        "calmar_ratio": -0.41855979148915123,
+        "profit_factor": 0.869630596190388,
+        "capital_efficiency": 0.2811585809714866,
+        "max_position_value": 0.0
+      },
+      "trade_count": 124,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8094.609303919342,
+        "total_return": -1905.390696080658,
+        "total_return_pct": -19.05390696080658,
+        "max_drawdown": 3942.545979395014,
+        "max_drawdown_pct": 39.42545979395014
+      },
+      "trading_stats": {
+        "total_trades": 4,
+        "winning_trades": 2,
+        "losing_trades": 2,
+        "win_rate": 50.0,
+        "total_buy_orders": 5,
+        "total_sell_orders": 4,
+        "avg_profit_per_trade": -8.641531988122193
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.0444792764707331,
+        "sortino_ratio": -1.4028108102201258,
+        "calmar_ratio": -0.48328940386208036,
+        "profit_factor": 0.5402750874223168,
+        "capital_efficiency": 0.48828245650014834,
+        "max_position_value": 0.0
+      },
+      "trade_count": 9,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6982.40311101901,
+        "total_return": -3017.5968889809897,
+        "total_return_pct": -30.175968889809898,
+        "max_drawdown": 3415.918817623052,
+        "max_drawdown_pct": 34.15918817623052
+      },
+      "trading_stats": {
+        "total_trades": 124,
+        "winning_trades": 8,
+        "losing_trades": 116,
+        "win_rate": 6.451612903225806,
+        "total_buy_orders": 125,
+        "total_sell_orders": 124,
+        "avg_profit_per_trade": -2.27991585337376
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.9268894414767683,
+        "sortino_ratio": -2.5833738802910777,
+        "calmar_ratio": -0.8833924487352917,
+        "profit_factor": 0.22979246195672542,
+        "capital_efficiency": 0.47588301112203124,
+        "max_position_value": 0.0
+      },
+      "trade_count": 249,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "BTCUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8294.390274398154,
+        "total_return": -1705.6097256018463,
+        "total_return_pct": -17.05609725601846,
+        "max_drawdown": 2182.8443216862847,
+        "max_drawdown_pct": 21.828443216862848
+      },
+      "trading_stats": {
+        "total_trades": 27,
+        "winning_trades": 14,
+        "losing_trades": 13,
+        "win_rate": 51.851851851851855,
+        "total_buy_orders": 29,
+        "total_sell_orders": 27,
+        "avg_profit_per_trade": -47.901601670310306
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.7612000584420393,
+        "sortino_ratio": -3.549302197912997,
+        "calmar_ratio": -0.781370301425909,
+        "profit_factor": 0.42624287962138097,
+        "capital_efficiency": 0.29432963951444185,
+        "max_position_value": 0.0
+      },
+      "trade_count": 56,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7940.228228667278,
+        "total_return": -2059.7717713327224,
+        "total_return_pct": -20.59771771332722,
+        "max_drawdown": 2590.4205989652346,
+        "max_drawdown_pct": 25.904205989652347
+      },
+      "trading_stats": {
+        "total_trades": 3,
+        "winning_trades": 0,
+        "losing_trades": 3,
+        "win_rate": 0.0,
+        "total_buy_orders": 4,
+        "total_sell_orders": 3,
+        "avg_profit_per_trade": -8.991716854709242
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.610012666804633,
+        "sortino_ratio": -3.4598124800801715,
+        "calmar_ratio": -0.7951495491332625,
+        "profit_factor": null,
+        "capital_efficiency": 0.45108234842638756,
+        "max_position_value": 0.0
+      },
+      "trade_count": 7,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6704.251254531412,
+        "total_return": -3295.7487454685875,
+        "total_return_pct": -32.957487454685875,
+        "max_drawdown": 3457.884679296824,
+        "max_drawdown_pct": 34.57884679296824
+      },
+      "trading_stats": {
+        "total_trades": 396,
+        "winning_trades": 12,
+        "losing_trades": 384,
+        "win_rate": 3.0303030303030303,
+        "total_buy_orders": 396,
+        "total_sell_orders": 396,
+        "avg_profit_per_trade": -0.0006623232148976777
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -23.01169675600631,
+        "sortino_ratio": -26.15717032772911,
+        "calmar_ratio": -0.9531112373992741,
+        "profit_factor": 0.9992595673556106,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 792,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "CHZUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10574.5469276057,
+        "total_return": 574.5469276056991,
+        "total_return_pct": 5.7454692760569905,
+        "max_drawdown": 2077.854065005085,
+        "max_drawdown_pct": 20.77854065005085
+      },
+      "trading_stats": {
+        "total_trades": 130,
+        "winning_trades": 100,
+        "losing_trades": 30,
+        "win_rate": 76.92307692307692,
+        "total_buy_orders": 131,
+        "total_sell_orders": 130,
+        "avg_profit_per_trade": 13.01017948300987
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.5862443800309096,
+        "sortino_ratio": 0.8055978517982524,
+        "calmar_ratio": 0.2765097594109878,
+        "profit_factor": 1.260441389751989,
+        "capital_efficiency": 0.30933138230411455,
+        "max_position_value": 0.0
+      },
+      "trade_count": 261,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8998.926595118774,
+        "total_return": -1001.0734048812268,
+        "total_return_pct": -10.010734048812267,
+        "max_drawdown": 3582.2426446891322,
+        "max_drawdown_pct": 35.82242644689132
+      },
+      "trading_stats": {
+        "total_trades": 70,
+        "winning_trades": 27,
+        "losing_trades": 43,
+        "win_rate": 38.57142857142857,
+        "total_buy_orders": 71,
+        "total_sell_orders": 70,
+        "avg_profit_per_trade": -7.094683539628873
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.1396380843746687,
+        "sortino_ratio": -0.17603675469501467,
+        "calmar_ratio": -0.2794543821215942,
+        "profit_factor": 0.7126702701061131,
+        "capital_efficiency": 0.4775504034796783,
+        "max_position_value": 0.0
+      },
+      "trade_count": 141,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7678.619561645061,
+        "total_return": -2321.380438354938,
+        "total_return_pct": -23.213804383549384,
+        "max_drawdown": 2321.380438354938,
+        "max_drawdown_pct": 23.213804383549384
+      },
+      "trading_stats": {
+        "total_trades": 240,
+        "winning_trades": 0,
+        "losing_trades": 240,
+        "win_rate": 0.0,
+        "total_buy_orders": 240,
+        "total_sell_orders": 240,
+        "avg_profit_per_trade": -0.8793107721041433
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -25.120734502269535,
+        "sortino_ratio": -25.045670509655988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 480,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "COMPUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8169.562785935959,
+        "total_return": -1830.4372140640403,
+        "total_return_pct": -18.304372140640403,
+        "max_drawdown": 2367.217367937991,
+        "max_drawdown_pct": 23.672173679379913
+      },
+      "trading_stats": {
+        "total_trades": 111,
+        "winning_trades": 74,
+        "losing_trades": 37,
+        "win_rate": 66.66666666666667,
+        "total_buy_orders": 113,
+        "total_sell_orders": 111,
+        "avg_profit_per_trade": -9.404381039246896
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.3558001916688176,
+        "sortino_ratio": -1.770530899654356,
+        "calmar_ratio": -0.773244248228238,
+        "profit_factor": 0.8428684973619552,
+        "capital_efficiency": 0.2881572847248479,
+        "max_position_value": 0.0
+      },
+      "trade_count": 224,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7205.822447762739,
+        "total_return": -2794.1775522372604,
+        "total_return_pct": -27.941775522372605,
+        "max_drawdown": 3441.8342740346297,
+        "max_drawdown_pct": 34.4183427403463
+      },
+      "trading_stats": {
+        "total_trades": 6,
+        "winning_trades": 2,
+        "losing_trades": 4,
+        "win_rate": 33.333333333333336,
+        "total_buy_orders": 7,
+        "total_sell_orders": 6,
+        "avg_profit_per_trade": -11.796959932651909
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.4064947633290976,
+        "sortino_ratio": -1.8271031118860583,
+        "calmar_ratio": -0.8118280340563391,
+        "profit_factor": 0.5654279354884113,
+        "capital_efficiency": 0.40428165964195306,
+        "max_position_value": 0.0
+      },
+      "trade_count": 13,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7884.149228127879,
+        "total_return": -2115.850771872121,
+        "total_return_pct": -21.15850771872121,
+        "max_drawdown": 2115.850771872121,
+        "max_drawdown_pct": 21.15850771872121
+      },
+      "trading_stats": {
+        "total_trades": 216,
+        "winning_trades": 0,
+        "losing_trades": 216,
+        "win_rate": 0.0,
+        "total_buy_orders": 216,
+        "total_sell_orders": 216,
+        "avg_profit_per_trade": -0.8905095841212631
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -23.824471234274654,
+        "sortino_ratio": -23.760409300986932,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 432,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "CRVUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7548.575790616608,
+        "total_return": -2451.424209383392,
+        "total_return_pct": -24.51424209383392,
+        "max_drawdown": 2763.843393738235,
+        "max_drawdown_pct": 27.638433937382352
+      },
+      "trading_stats": {
+        "total_trades": 154,
+        "winning_trades": 100,
+        "losing_trades": 54,
+        "win_rate": 64.93506493506493,
+        "total_buy_orders": 155,
+        "total_sell_orders": 154,
+        "avg_profit_per_trade": -12.955672517901109
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.5464794920012326,
+        "sortino_ratio": -2.296562191543735,
+        "calmar_ratio": -0.886962052530668,
+        "profit_factor": 0.8042283713970725,
+        "capital_efficiency": 0.2746625630908476,
+        "max_position_value": 0.0
+      },
+      "trade_count": 309,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6584.701731155463,
+        "total_return": -3415.2982688445377,
+        "total_return_pct": -34.15298268844538,
+        "max_drawdown": 3759.5503266020887,
+        "max_drawdown_pct": 37.59550326602089
+      },
+      "trading_stats": {
+        "total_trades": 3,
+        "winning_trades": 1,
+        "losing_trades": 2,
+        "win_rate": 33.333333333333336,
+        "total_buy_orders": 4,
+        "total_sell_orders": 3,
+        "avg_profit_per_trade": 9.618393614520196
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.5538679117917131,
+        "sortino_ratio": -1.9275707555804273,
+        "calmar_ratio": -0.9084326507556851,
+        "profit_factor": 2.8741057113307167,
+        "capital_efficiency": 0.36459309073825147,
+        "max_position_value": 0.0
+      },
+      "trade_count": 7,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10000.0,
+        "total_return": 0.0,
+        "total_return_pct": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_pct": 0.0
+      },
+      "trading_stats": {
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0.0,
+        "total_buy_orders": 0,
+        "total_sell_orders": 0,
+        "avg_profit_per_trade": 0.0
+      },
+      "risk_metrics": {
+        "sharpe_ratio": null,
+        "sortino_ratio": null,
+        "calmar_ratio": null,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 0,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "DOGEUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7623.087913900349,
+        "total_return": -2376.912086099651,
+        "total_return_pct": -23.769120860996512,
+        "max_drawdown": 2707.6658137691757,
+        "max_drawdown_pct": 27.076658137691755
+      },
+      "trading_stats": {
+        "total_trades": 97,
+        "winning_trades": 59,
+        "losing_trades": 38,
+        "win_rate": 60.824742268041234,
+        "total_buy_orders": 98,
+        "total_sell_orders": 97,
+        "avg_profit_per_trade": -22.52425509646765
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.126394586260011,
+        "sortino_ratio": -3.0123480657691113,
+        "calmar_ratio": -0.8778454394233007,
+        "profit_factor": 0.7049204468958337,
+        "capital_efficiency": 0.26766770706667165,
+        "max_position_value": 0.0
+      },
+      "trade_count": 195,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6573.183041800015,
+        "total_return": -3426.816958199985,
+        "total_return_pct": -34.26816958199985,
+        "max_drawdown": 3595.3589799326182,
+        "max_drawdown_pct": 35.95358979932618
+      },
+      "trading_stats": {
+        "total_trades": 17,
+        "winning_trades": 5,
+        "losing_trades": 12,
+        "win_rate": 29.41176470588235,
+        "total_buy_orders": 18,
+        "total_sell_orders": 17,
+        "avg_profit_per_trade": -42.111694903132594
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.0732092278748118,
+        "sortino_ratio": -2.574567342156831,
+        "calmar_ratio": -0.9531223383608298,
+        "profit_factor": 0.30511250360119185,
+        "capital_efficiency": 0.3747338194380199,
+        "max_position_value": 0.0
+      },
+      "trade_count": 35,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10000.0,
+        "total_return": 0.0,
+        "total_return_pct": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_pct": 0.0
+      },
+      "trading_stats": {
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0.0,
+        "total_buy_orders": 0,
+        "total_sell_orders": 0,
+        "avg_profit_per_trade": 0.0
+      },
+      "risk_metrics": {
+        "sharpe_ratio": null,
+        "sortino_ratio": null,
+        "calmar_ratio": null,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 0,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "DOTUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7522.325814930182,
+        "total_return": -2477.6741850698177,
+        "total_return_pct": -24.776741850698176,
+        "max_drawdown": 2746.723284734081,
+        "max_drawdown_pct": 27.467232847340814
+      },
+      "trading_stats": {
+        "total_trades": 115,
+        "winning_trades": 69,
+        "losing_trades": 46,
+        "win_rate": 60.0,
+        "total_buy_orders": 116,
+        "total_sell_orders": 115,
+        "avg_profit_per_trade": -19.108655739262307
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.9174299289709982,
+        "sortino_ratio": -2.6819157808185925,
+        "calmar_ratio": -0.9020472498414375,
+        "profit_factor": 0.7386977768423841,
+        "capital_efficiency": 0.2596308035069369,
+        "max_position_value": 0.0
+      },
+      "trade_count": 231,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6435.576401890377,
+        "total_return": -3564.4235981096226,
+        "total_return_pct": -35.64423598109623,
+        "max_drawdown": 3977.455785291328,
+        "max_drawdown_pct": 39.77455785291328
+      },
+      "trading_stats": {
+        "total_trades": 3,
+        "winning_trades": 1,
+        "losing_trades": 2,
+        "win_rate": 33.333333333333336,
+        "total_buy_orders": 4,
+        "total_sell_orders": 3,
+        "avg_profit_per_trade": -4.034243613250489
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.7946717021020433,
+        "sortino_ratio": -2.1341005472923116,
+        "calmar_ratio": -0.8961566867168951,
+        "profit_factor": 0.6652088411268802,
+        "capital_efficiency": 0.35664835693605457,
+        "max_position_value": 0.0
+      },
+      "trade_count": 7,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7895.755997084679,
+        "total_return": -2104.2440029153213,
+        "total_return_pct": -21.042440029153212,
+        "max_drawdown": 2104.2440029153213,
+        "max_drawdown_pct": 21.042440029153212
+      },
+      "trading_stats": {
+        "total_trades": 215,
+        "winning_trades": 1,
+        "losing_trades": 214,
+        "win_rate": 0.46511627906976744,
+        "total_buy_orders": 215,
+        "total_sell_orders": 215,
+        "avg_profit_per_trade": -0.8770603087444878
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -23.771804220399815,
+        "sortino_ratio": -23.70816506711065,
+        "calmar_ratio": -1.0,
+        "profit_factor": 0.011473444926655833,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 430,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "EOSUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-01-06T03:00:00",
+      "end_time": "2025-05-26T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8018.422635934013,
+        "total_return": -1981.5773640659875,
+        "total_return_pct": -19.815773640659874,
+        "max_drawdown": 2958.6028616914455,
+        "max_drawdown_pct": 29.586028616914454
+      },
+      "trading_stats": {
+        "total_trades": 186,
+        "winning_trades": 121,
+        "losing_trades": 65,
+        "win_rate": 65.05376344086021,
+        "total_buy_orders": 187,
+        "total_sell_orders": 186,
+        "avg_profit_per_trade": -5.367400945638423
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.3434621144234256,
+        "sortino_ratio": -1.9182864618000712,
+        "calmar_ratio": -0.6697679467980747,
+        "profit_factor": 0.8938914930298765,
+        "capital_efficiency": 0.3209687968124497,
+        "max_position_value": 0.0
+      },
+      "trade_count": 373,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-01-06T03:00:00",
+      "end_time": "2025-05-26T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9322.196470619994,
+        "total_return": -677.8035293800062,
+        "total_return_pct": -6.7780352938000625,
+        "max_drawdown": 3230.8519410222757,
+        "max_drawdown_pct": 32.30851941022276
+      },
+      "trading_stats": {
+        "total_trades": 3,
+        "winning_trades": 1,
+        "losing_trades": 2,
+        "win_rate": 33.333333333333336,
+        "total_buy_orders": 4,
+        "total_sell_orders": 3,
+        "avg_profit_per_trade": 22.83109263628738
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.12880705022361705,
+        "sortino_ratio": -0.187205803513392,
+        "calmar_ratio": -0.20979095970753217,
+        "profit_factor": 1.154490176031916,
+        "capital_efficiency": 0.4223177853021692,
+        "max_position_value": 0.0
+      },
+      "trade_count": 7,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-01-06T03:00:00",
+      "end_time": "2025-05-26T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9147.98007321414,
+        "total_return": -852.0199267858615,
+        "total_return_pct": -8.520199267858615,
+        "max_drawdown": 3199.263884020712,
+        "max_drawdown_pct": 31.992638840207118
+      },
+      "trading_stats": {
+        "total_trades": 11,
+        "winning_trades": 3,
+        "losing_trades": 8,
+        "win_rate": 27.272727272727273,
+        "total_buy_orders": 12,
+        "total_sell_orders": 11,
+        "avg_profit_per_trade": -4.670772100321593
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.22655702672609326,
+        "sortino_ratio": -0.32919292729860755,
+        "calmar_ratio": -0.26631748979551995,
+        "profit_factor": 0.1931255045259205,
+        "capital_efficiency": 0.4238869857386444,
+        "max_position_value": 0.0
+      },
+      "trade_count": 23,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "ETCUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8357.44274479481,
+        "total_return": -1642.5572552051906,
+        "total_return_pct": -16.425572552051904,
+        "max_drawdown": 1984.1844021223355,
+        "max_drawdown_pct": 19.841844021223356
+      },
+      "trading_stats": {
+        "total_trades": 88,
+        "winning_trades": 59,
+        "losing_trades": 29,
+        "win_rate": 67.04545454545455,
+        "total_buy_orders": 89,
+        "total_sell_orders": 88,
+        "avg_profit_per_trade": -17.213052389161312
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.3521764174208812,
+        "sortino_ratio": -1.7345305155949091,
+        "calmar_ratio": -0.8278249004720873,
+        "profit_factor": 0.7264693809315168,
+        "capital_efficiency": 0.2733395367489977,
+        "max_position_value": 0.0
+      },
+      "trade_count": 177,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7099.111096892082,
+        "total_return": -2900.8889031079184,
+        "total_return_pct": -29.008889031079182,
+        "max_drawdown": 3095.7111992272594,
+        "max_drawdown_pct": 30.957111992272594
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 0,
+        "losing_trades": 1,
+        "win_rate": 0.0,
+        "total_buy_orders": 2,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": -15.769571639586411
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.9122860673136224,
+        "sortino_ratio": -2.4033509245476776,
+        "calmar_ratio": -0.9370670312631321,
+        "profit_factor": null,
+        "capital_efficiency": 0.40701487512806495,
+        "max_position_value": 0.0
+      },
+      "trade_count": 3,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7678.619561645061,
+        "total_return": -2321.380438354938,
+        "total_return_pct": -23.213804383549384,
+        "max_drawdown": 2321.380438354938,
+        "max_drawdown_pct": 23.213804383549384
+      },
+      "trading_stats": {
+        "total_trades": 240,
+        "winning_trades": 0,
+        "losing_trades": 240,
+        "win_rate": 0.0,
+        "total_buy_orders": 240,
+        "total_sell_orders": 240,
+        "avg_profit_per_trade": -0.8793107721041433
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -25.120734502269535,
+        "sortino_ratio": -25.045670509655988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 480,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "ETHUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7598.216902974149,
+        "total_return": -2401.783097025851,
+        "total_return_pct": -24.01783097025851,
+        "max_drawdown": 2807.180700745687,
+        "max_drawdown_pct": 28.07180700745687
+      },
+      "trading_stats": {
+        "total_trades": 70,
+        "winning_trades": 35,
+        "losing_trades": 35,
+        "win_rate": 50.0,
+        "total_buy_orders": 71,
+        "total_sell_orders": 70,
+        "avg_profit_per_trade": -33.0404956650508
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -3.0425668988668537,
+        "sortino_ratio": -4.1229646267696385,
+        "calmar_ratio": -0.8555854977158586,
+        "profit_factor": 0.5552745073372825,
+        "capital_efficiency": 0.28246990146243967,
+        "max_position_value": 0.0
+      },
+      "trade_count": 141,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7265.344478742278,
+        "total_return": -2734.6555212577223,
+        "total_return_pct": -27.346555212577226,
+        "max_drawdown": 3175.5848518088105,
+        "max_drawdown_pct": 31.755848518088108
+      },
+      "trading_stats": {
+        "total_trades": 2,
+        "winning_trades": 0,
+        "losing_trades": 2,
+        "win_rate": 0.0,
+        "total_buy_orders": 3,
+        "total_sell_orders": 2,
+        "avg_profit_per_trade": -7.341506224024937
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.677837966264269,
+        "sortino_ratio": -3.6701751657957327,
+        "calmar_ratio": -0.8611501971676382,
+        "profit_factor": null,
+        "capital_efficiency": 0.4215451938642905,
+        "max_position_value": 0.0
+      },
+      "trade_count": 5,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7024.0114514238085,
+        "total_return": -2975.988548576192,
+        "total_return_pct": -29.75988548576192,
+        "max_drawdown": 2975.988548576192,
+        "max_drawdown_pct": 29.75988548576192
+      },
+      "trading_stats": {
+        "total_trades": 297,
+        "winning_trades": 0,
+        "losing_trades": 297,
+        "win_rate": 0.0,
+        "total_buy_orders": 297,
+        "total_sell_orders": 297,
+        "avg_profit_per_trade": -1.4860181409077637
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -19.729871275565,
+        "sortino_ratio": -22.047105427503546,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 594,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "FILUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7369.7256214952595,
+        "total_return": -2630.27437850474,
+        "total_return_pct": -26.3027437850474,
+        "max_drawdown": 3732.813268885266,
+        "max_drawdown_pct": 37.32813268885266
+      },
+      "trading_stats": {
+        "total_trades": 190,
+        "winning_trades": 118,
+        "losing_trades": 72,
+        "win_rate": 62.10526315789474,
+        "total_buy_orders": 191,
+        "total_sell_orders": 190,
+        "avg_profit_per_trade": -5.821775851496596
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.138344007959319,
+        "sortino_ratio": -1.3953399440634058,
+        "calmar_ratio": -0.7046359378405825,
+        "profit_factor": 0.9111523310276478,
+        "capital_efficiency": 0.28905584761211006,
+        "max_position_value": 0.0
+      },
+      "trade_count": 381,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10002.697616692729,
+        "total_return": 2.6976166927286944,
+        "total_return_pct": 0.026976166927286944,
+        "max_drawdown": 15.272760359655981,
+        "max_drawdown_pct": 0.15272760359655982
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 1,
+        "losing_trades": 0,
+        "win_rate": 100.0,
+        "total_buy_orders": 1,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": 12.683932759968727
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.2276851130787741,
+        "sortino_ratio": 0.3682053541209747,
+        "calmar_ratio": 0.17662928175411102,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 2,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7283.494240251792,
+        "total_return": -2716.5057597482087,
+        "total_return_pct": -27.165057597482086,
+        "max_drawdown": 2716.5057597482087,
+        "max_drawdown_pct": 27.165057597482086
+      },
+      "trading_stats": {
+        "total_trades": 288,
+        "winning_trades": 0,
+        "losing_trades": 288,
+        "win_rate": 0.0,
+        "total_buy_orders": 288,
+        "total_sell_orders": 288,
+        "avg_profit_per_trade": -0.8574828787083992
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -27.53492049080768,
+        "sortino_ratio": -27.436157411960988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 576,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "FTMUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-08-26T03:00:00",
+      "end_time": "2025-01-13T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10614.931187701088,
+        "total_return": 614.9311877010886,
+        "total_return_pct": 6.149311877010886,
+        "max_drawdown": 5231.399808187429,
+        "max_drawdown_pct": 52.31399808187429
+      },
+      "trading_stats": {
+        "total_trades": 260,
+        "winning_trades": 182,
+        "losing_trades": 78,
+        "win_rate": 70.0,
+        "total_buy_orders": 262,
+        "total_sell_orders": 260,
+        "avg_profit_per_trade": 8.057786442328124
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.5587454077065946,
+        "sortino_ratio": 0.7932921319267447,
+        "calmar_ratio": 0.11754620374047638,
+        "profit_factor": 1.1535754165613559,
+        "capital_efficiency": 0.40061360891313746,
+        "max_position_value": 0.0
+      },
+      "trade_count": 522,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-08-26T03:00:00",
+      "end_time": "2025-01-13T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 11939.53960417049,
+        "total_return": 1939.5396041704905,
+        "total_return_pct": 19.395396041704906,
+        "max_drawdown": 8358.771748789955,
+        "max_drawdown_pct": 83.58771748789955
+      },
+      "trading_stats": {
+        "total_trades": 4,
+        "winning_trades": 1,
+        "losing_trades": 3,
+        "win_rate": 25.0,
+        "total_buy_orders": 5,
+        "total_sell_orders": 4,
+        "avg_profit_per_trade": 14.519991829135815
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.9788843481901084,
+        "sortino_ratio": 1.4028627072745554,
+        "calmar_ratio": 0.2320364357898952,
+        "profit_factor": 1.4288089878342016,
+        "capital_efficiency": 0.5846068596206362,
+        "max_position_value": 0.0
+      },
+      "trade_count": 9,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-08-26T03:00:00",
+      "end_time": "2025-01-13T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10000.0,
+        "total_return": 0.0,
+        "total_return_pct": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_pct": 0.0
+      },
+      "trading_stats": {
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0.0,
+        "total_buy_orders": 0,
+        "total_sell_orders": 0,
+        "avg_profit_per_trade": 0.0
+      },
+      "risk_metrics": {
+        "sharpe_ratio": null,
+        "sortino_ratio": null,
+        "calmar_ratio": null,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 0,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "FTTUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8236.746122790533,
+        "total_return": -1763.2538772094676,
+        "total_return_pct": -17.632538772094676,
+        "max_drawdown": 3436.8713603801066,
+        "max_drawdown_pct": 34.36871360380106
+      },
+      "trading_stats": {
+        "total_trades": 195,
+        "winning_trades": 133,
+        "losing_trades": 62,
+        "win_rate": 68.2051282051282,
+        "total_buy_orders": 196,
+        "total_sell_orders": 195,
+        "avg_profit_per_trade": -1.1187899882237533
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.7415386640701027,
+        "sortino_ratio": -1.0821514920471669,
+        "calmar_ratio": -0.5130404057411266,
+        "profit_factor": 0.9827952388254292,
+        "capital_efficiency": 0.29195995122515733,
+        "max_position_value": 0.0
+      },
+      "trade_count": 391,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6870.002823528892,
+        "total_return": -3129.9971764711077,
+        "total_return_pct": -31.299971764711078,
+        "max_drawdown": 5124.417223231777,
+        "max_drawdown_pct": 51.244172232317766
+      },
+      "trading_stats": {
+        "total_trades": 2,
+        "winning_trades": 1,
+        "losing_trades": 1,
+        "win_rate": 50.0,
+        "total_buy_orders": 3,
+        "total_sell_orders": 2,
+        "avg_profit_per_trade": -95.52037630881699
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.7405539871833581,
+        "sortino_ratio": -1.0942749644410361,
+        "calmar_ratio": -0.610800612073725,
+        "profit_factor": 0.06127525647077115,
+        "capital_efficiency": 0.4020215166534308,
+        "max_position_value": 0.0
+      },
+      "trade_count": 5,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8095.180201644521,
+        "total_return": -1904.8197983554796,
+        "total_return_pct": -19.048197983554797,
+        "max_drawdown": 1904.8197983554796,
+        "max_drawdown_pct": 19.048197983554797
+      },
+      "trading_stats": {
+        "total_trades": 192,
+        "winning_trades": 0,
+        "losing_trades": 192,
+        "win_rate": 0.0,
+        "total_buy_orders": 192,
+        "total_sell_orders": 192,
+        "avg_profit_per_trade": -0.9019033136152839
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -22.455191848264487,
+        "sortino_ratio": -22.401528720661034,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 384,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "HBARUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7307.4414079190165,
+        "total_return": -2692.5585920809835,
+        "total_return_pct": -26.925585920809837,
+        "max_drawdown": 3150.5683867164103,
+        "max_drawdown_pct": 31.5056838671641
+      },
+      "trading_stats": {
+        "total_trades": 101,
+        "winning_trades": 61,
+        "losing_trades": 40,
+        "win_rate": 60.396039603960396,
+        "total_buy_orders": 102,
+        "total_sell_orders": 101,
+        "avg_profit_per_trade": -23.57288467204036
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.560636129847341,
+        "sortino_ratio": -3.6622918594944136,
+        "calmar_ratio": -0.8546262964592322,
+        "profit_factor": 0.6828922344547169,
+        "capital_efficiency": 0.2846890392217959,
+        "max_position_value": 0.0
+      },
+      "trade_count": 203,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6890.9720688484795,
+        "total_return": -3109.02793115152,
+        "total_return_pct": -31.090279311515204,
+        "max_drawdown": 3352.976436372079,
+        "max_drawdown_pct": 33.529764363720794
+      },
+      "trading_stats": {
+        "total_trades": 10,
+        "winning_trades": 4,
+        "losing_trades": 6,
+        "win_rate": 40.0,
+        "total_buy_orders": 11,
+        "total_sell_orders": 10,
+        "avg_profit_per_trade": -22.976293493558558
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.0026228865198563,
+        "sortino_ratio": -2.5095337349494566,
+        "calmar_ratio": -0.9272441933756889,
+        "profit_factor": 0.30042144555851313,
+        "capital_efficiency": 0.3746041731159635,
+        "max_position_value": 0.0
+      },
+      "trade_count": 21,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10000.0,
+        "total_return": 0.0,
+        "total_return_pct": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_pct": 0.0
+      },
+      "trading_stats": {
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0.0,
+        "total_buy_orders": 0,
+        "total_sell_orders": 0,
+        "avg_profit_per_trade": 0.0
+      },
+      "risk_metrics": {
+        "sharpe_ratio": null,
+        "sortino_ratio": null,
+        "calmar_ratio": null,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 0,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "HNTUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2022-05-27T03:00:00",
+      "end_time": "2022-10-14T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7636.574148471854,
+        "total_return": -2363.4258515281463,
+        "total_return_pct": -23.63425851528146,
+        "max_drawdown": 4670.664036646746,
+        "max_drawdown_pct": 46.70664036646746
+      },
+      "trading_stats": {
+        "total_trades": 239,
+        "winning_trades": 162,
+        "losing_trades": 77,
+        "win_rate": 67.78242677824268,
+        "total_buy_orders": 241,
+        "total_sell_orders": 239,
+        "avg_profit_per_trade": -4.64922203554777
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.1972018217892177,
+        "sortino_ratio": -1.7017803264047024,
+        "calmar_ratio": -0.5060149548296227,
+        "profit_factor": 0.9141408163738762,
+        "capital_efficiency": 0.3515989117248815,
+        "max_position_value": 0.0
+      },
+      "trade_count": 480,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2022-05-27T03:00:00",
+      "end_time": "2022-10-14T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8381.144767187172,
+        "total_return": -1618.8552328128285,
+        "total_return_pct": -16.188552328128285,
+        "max_drawdown": 6561.351156069364,
+        "max_drawdown_pct": 65.61351156069364
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 0,
+        "losing_trades": 1,
+        "win_rate": 0.0,
+        "total_buy_orders": 2,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": -15.449421965317917
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.313615490446033,
+        "sortino_ratio": -0.45386937543333333,
+        "calmar_ratio": -0.24672589445473578,
+        "profit_factor": null,
+        "capital_efficiency": 0.5092381572569064,
+        "max_position_value": 0.0
+      },
+      "trade_count": 3,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2022-05-27T03:00:00",
+      "end_time": "2022-10-14T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10000.0,
+        "total_return": 0.0,
+        "total_return_pct": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_pct": 0.0
+      },
+      "trading_stats": {
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0.0,
+        "total_buy_orders": 0,
+        "total_sell_orders": 0,
+        "avg_profit_per_trade": 0.0
+      },
+      "risk_metrics": {
+        "sharpe_ratio": null,
+        "sortino_ratio": null,
+        "calmar_ratio": null,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 0,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "ICPUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7089.358569078386,
+        "total_return": -2910.6414309216143,
+        "total_return_pct": -29.10641430921614,
+        "max_drawdown": 5623.454601771681,
+        "max_drawdown_pct": 56.234546017716816
+      },
+      "trading_stats": {
+        "total_trades": 248,
+        "winning_trades": 165,
+        "losing_trades": 83,
+        "win_rate": 66.53225806451613,
+        "total_buy_orders": 250,
+        "total_sell_orders": 248,
+        "avg_profit_per_trade": -6.892646580783802
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.4146280314715127,
+        "sortino_ratio": -1.8610231919209101,
+        "calmar_ratio": -0.5175895667415205,
+        "profit_factor": 0.8819815201244647,
+        "capital_efficiency": 0.30635635752110835,
+        "max_position_value": 0.0
+      },
+      "trade_count": 498,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7428.598772976323,
+        "total_return": -2571.401227023677,
+        "total_return_pct": -25.714012270236772,
+        "max_drawdown": 7611.969948528571,
+        "max_drawdown_pct": 76.11969948528571
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 0,
+        "losing_trades": 1,
+        "win_rate": 0.0,
+        "total_buy_orders": 2,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": -10.117605348460293
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.6560321066237179,
+        "sortino_ratio": -0.8953616631032049,
+        "calmar_ratio": -0.337810217908275,
+        "profit_factor": null,
+        "capital_efficiency": 0.43052218015946014,
+        "max_position_value": 0.0
+      },
+      "trade_count": 3,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8534.33901380288,
+        "total_return": -1465.66098619712,
+        "total_return_pct": -14.656609861971202,
+        "max_drawdown": 1465.66098619712,
+        "max_drawdown_pct": 14.656609861971202
+      },
+      "trading_stats": {
+        "total_trades": 144,
+        "winning_trades": 0,
+        "losing_trades": 144,
+        "win_rate": 0.0,
+        "total_buy_orders": 144,
+        "total_sell_orders": 144,
+        "avg_profit_per_trade": -0.925291026639596
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -19.435116874748186,
+        "sortino_ratio": -19.40029295569917,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 288,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "KSMUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7299.728127337332,
+        "total_return": -2700.271872662668,
+        "total_return_pct": -27.002718726626682,
+        "max_drawdown": 3316.833951915215,
+        "max_drawdown_pct": 33.16833951915215
+      },
+      "trading_stats": {
+        "total_trades": 142,
+        "winning_trades": 88,
+        "losing_trades": 54,
+        "win_rate": 61.971830985915496,
+        "total_buy_orders": 143,
+        "total_sell_orders": 142,
+        "avg_profit_per_trade": -16.022763829016174
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.9148472626669621,
+        "sortino_ratio": -2.6067400588629486,
+        "calmar_ratio": -0.814111261464708,
+        "profit_factor": 0.7724213543676123,
+        "capital_efficiency": 0.2708232807140055,
+        "max_position_value": 0.0
+      },
+      "trade_count": 285,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9998.229564535955,
+        "total_return": -1.7704354640442532,
+        "total_return_pct": -0.01770435464044253,
+        "max_drawdown": 5.4995,
+        "max_drawdown_pct": 0.054995
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 1,
+        "losing_trades": 0,
+        "win_rate": 100.0,
+        "total_buy_orders": 1,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": 8.220344191763983
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.33227792945152235,
+        "sortino_ratio": -0.4755156642357678,
+        "calmar_ratio": -0.32192662315560566,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 2,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7811.3008295065,
+        "total_return": -2188.6991704935003,
+        "total_return_pct": -21.886991704935003,
+        "max_drawdown": 2188.6991704935003,
+        "max_drawdown_pct": 21.886991704935003
+      },
+      "trading_stats": {
+        "total_trades": 218,
+        "winning_trades": 0,
+        "losing_trades": 218,
+        "win_rate": 0.0,
+        "total_buy_orders": 218,
+        "total_sell_orders": 218,
+        "avg_profit_per_trade": -1.1439868988251867
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -19.441267115572412,
+        "sortino_ratio": -20.944426710387845,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 436,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "LDOUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8228.098673052868,
+        "total_return": -1771.901326947132,
+        "total_return_pct": -17.719013269471322,
+        "max_drawdown": 3046.4396810047842,
+        "max_drawdown_pct": 30.46439681004784
+      },
+      "trading_stats": {
+        "total_trades": 149,
+        "winning_trades": 95,
+        "losing_trades": 54,
+        "win_rate": 63.758389261744966,
+        "total_buy_orders": 150,
+        "total_sell_orders": 149,
+        "avg_profit_per_trade": -9.112593327421427
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.7259411326678522,
+        "sortino_ratio": -1.310806736788467,
+        "calmar_ratio": -0.5816302019683249,
+        "profit_factor": 0.8691466673354584,
+        "capital_efficiency": 0.24744356979922524,
+        "max_position_value": 0.0
+      },
+      "trade_count": 299,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6347.192736224653,
+        "total_return": -3652.807263775346,
+        "total_return_pct": -36.52807263775346,
+        "max_drawdown": 4070.971707040714,
+        "max_drawdown_pct": 40.709717070407144
+      },
+      "trading_stats": {
+        "total_trades": 2,
+        "winning_trades": 0,
+        "losing_trades": 2,
+        "win_rate": 0.0,
+        "total_buy_orders": 3,
+        "total_sell_orders": 2,
+        "avg_profit_per_trade": -55.69900188583337
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.41179275163953,
+        "sortino_ratio": -1.7176862996781204,
+        "calmar_ratio": -0.8972814174703903,
+        "profit_factor": null,
+        "capital_efficiency": 0.3541720420470789,
+        "max_position_value": 0.0
+      },
+      "trade_count": 5,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7884.149228127879,
+        "total_return": -2115.850771872121,
+        "total_return_pct": -21.15850771872121,
+        "max_drawdown": 2115.850771872121,
+        "max_drawdown_pct": 21.15850771872121
+      },
+      "trading_stats": {
+        "total_trades": 216,
+        "winning_trades": 0,
+        "losing_trades": 216,
+        "win_rate": 0.0,
+        "total_buy_orders": 216,
+        "total_sell_orders": 216,
+        "avg_profit_per_trade": -0.8905095841212631
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -23.824471234274654,
+        "sortino_ratio": -23.760409300986932,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 432,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "LINKUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8085.400711115857,
+        "total_return": -1914.5992888841424,
+        "total_return_pct": -19.145992888841423,
+        "max_drawdown": 2106.897007730224,
+        "max_drawdown_pct": 21.06897007730224
+      },
+      "trading_stats": {
+        "total_trades": 116,
+        "winning_trades": 74,
+        "losing_trades": 42,
+        "win_rate": 63.793103448275865,
+        "total_buy_orders": 117,
+        "total_sell_orders": 116,
+        "avg_profit_per_trade": -14.582034212249942
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.6027958815004777,
+        "sortino_ratio": -2.279378772460993,
+        "calmar_ratio": -0.9087294167011775,
+        "profit_factor": 0.7680997150143366,
+        "capital_efficiency": 0.2660126698029172,
+        "max_position_value": 0.0
+      },
+      "trade_count": 233,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6815.694468378536,
+        "total_return": -3184.305531621464,
+        "total_return_pct": -31.84305531621464,
+        "max_drawdown": 3314.072541930743,
+        "max_drawdown_pct": 33.14072541930742
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 0,
+        "losing_trades": 1,
+        "win_rate": 0.0,
+        "total_buy_orders": 2,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": -42.23298969072165
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.9852539908583344,
+        "sortino_ratio": -2.5096770830007755,
+        "calmar_ratio": -0.9608436421751717,
+        "profit_factor": null,
+        "capital_efficiency": 0.37779966226918527,
+        "max_position_value": 0.0
+      },
+      "trade_count": 3,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7624.10235546287,
+        "total_return": -2375.8976445371304,
+        "total_return_pct": -23.758976445371303,
+        "max_drawdown": 2375.8976445371304,
+        "max_drawdown_pct": 23.758976445371303
+      },
+      "trading_stats": {
+        "total_trades": 242,
+        "winning_trades": 0,
+        "losing_trades": 242,
+        "win_rate": 0.0,
+        "total_buy_orders": 242,
+        "total_sell_orders": 242,
+        "avg_profit_per_trade": -1.0337380185357667
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -22.703565919267746,
+        "sortino_ratio": -23.536244528472228,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 484,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "LTCUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8609.920546202655,
+        "total_return": -1390.0794537973456,
+        "total_return_pct": -13.900794537973455,
+        "max_drawdown": 2038.9256963828038,
+        "max_drawdown_pct": 20.38925696382804
+      },
+      "trading_stats": {
+        "total_trades": 93,
+        "winning_trades": 60,
+        "losing_trades": 33,
+        "win_rate": 64.51612903225806,
+        "total_buy_orders": 94,
+        "total_sell_orders": 93,
+        "avg_profit_per_trade": -12.519699671492159
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.1644380432035348,
+        "sortino_ratio": -1.5824347420966323,
+        "calmar_ratio": -0.6817705305609927,
+        "profit_factor": 0.8068010788786397,
+        "capital_efficiency": 0.2752491087886297,
+        "max_position_value": 0.0
+      },
+      "trade_count": 187,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7385.338109723761,
+        "total_return": -2614.661890276239,
+        "total_return_pct": -26.146618902762388,
+        "max_drawdown": 3643.8302477951765,
+        "max_drawdown_pct": 36.438302477951765
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 1,
+        "losing_trades": 0,
+        "win_rate": 100.0,
+        "total_buy_orders": 2,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": 13.652848401275532
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.4400846257207591,
+        "sortino_ratio": -1.754419634427461,
+        "calmar_ratio": -0.717558643643822,
+        "profit_factor": null,
+        "capital_efficiency": 0.4256475373393221,
+        "max_position_value": 0.0
+      },
+      "trade_count": 3,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7678.619561645061,
+        "total_return": -2321.380438354938,
+        "total_return_pct": -23.213804383549384,
+        "max_drawdown": 2321.380438354938,
+        "max_drawdown_pct": 23.213804383549384
+      },
+      "trading_stats": {
+        "total_trades": 240,
+        "winning_trades": 0,
+        "losing_trades": 240,
+        "win_rate": 0.0,
+        "total_buy_orders": 240,
+        "total_sell_orders": 240,
+        "avg_profit_per_trade": -0.8793107721041433
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -25.120734502269535,
+        "sortino_ratio": -25.045670509655988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 480,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "LUNAUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6288.7684930686655,
+        "total_return": -3711.231506931335,
+        "total_return_pct": -37.11231506931335,
+        "max_drawdown": 3934.14601892436,
+        "max_drawdown_pct": 39.3414601892436
+      },
+      "trading_stats": {
+        "total_trades": 237,
+        "winning_trades": 143,
+        "losing_trades": 94,
+        "win_rate": 60.33755274261603,
+        "total_buy_orders": 238,
+        "total_sell_orders": 237,
+        "avg_profit_per_trade": -8.742228795402275
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.0293050521580804,
+        "sortino_ratio": -2.8421421954511565,
+        "calmar_ratio": -0.9433385260941656,
+        "profit_factor": 0.8660964785048615,
+        "capital_efficiency": 0.29333502917053256,
+        "max_position_value": 0.0
+      },
+      "trade_count": 475,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6669.700019881758,
+        "total_return": -3330.2999801182427,
+        "total_return_pct": -33.30299980118242,
+        "max_drawdown": 5639.856182322187,
+        "max_drawdown_pct": 56.398561823221875
+      },
+      "trading_stats": {
+        "total_trades": 40,
+        "winning_trades": 19,
+        "losing_trades": 21,
+        "win_rate": 47.5,
+        "total_buy_orders": 41,
+        "total_sell_orders": 40,
+        "avg_profit_per_trade": -3.1335563448567783
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.9575928150047959,
+        "sortino_ratio": -1.3216422258903153,
+        "calmar_ratio": -0.5904937772273131,
+        "profit_factor": 0.9065238137668366,
+        "capital_efficiency": 0.37866586484630793,
+        "max_position_value": 0.0
+      },
+      "trade_count": 81,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7884.149228127879,
+        "total_return": -2115.850771872121,
+        "total_return_pct": -21.15850771872121,
+        "max_drawdown": 2115.850771872121,
+        "max_drawdown_pct": 21.15850771872121
+      },
+      "trading_stats": {
+        "total_trades": 216,
+        "winning_trades": 0,
+        "losing_trades": 216,
+        "win_rate": 0.0,
+        "total_buy_orders": 216,
+        "total_sell_orders": 216,
+        "avg_profit_per_trade": -0.8905095841212631
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -23.824471234274654,
+        "sortino_ratio": -23.760409300986932,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 432,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "MANAUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7086.6884549462175,
+        "total_return": -2913.3115450537825,
+        "total_return_pct": -29.133115450537826,
+        "max_drawdown": 3111.268416601788,
+        "max_drawdown_pct": 31.11268416601788
+      },
+      "trading_stats": {
+        "total_trades": 136,
+        "winning_trades": 85,
+        "losing_trades": 51,
+        "win_rate": 62.5,
+        "total_buy_orders": 137,
+        "total_sell_orders": 136,
+        "avg_profit_per_trade": -18.931198426853914
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.445904478842861,
+        "sortino_ratio": -3.296145056682029,
+        "calmar_ratio": -0.9363742226508958,
+        "profit_factor": 0.6957753237453721,
+        "capital_efficiency": 0.27068472064710575,
+        "max_position_value": 0.0
+      },
+      "trade_count": 273,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6188.947521819302,
+        "total_return": -3811.0524781806985,
+        "total_return_pct": -38.11052478180698,
+        "max_drawdown": 3978.9508339563045,
+        "max_drawdown_pct": 39.78950833956304
+      },
+      "trading_stats": {
+        "total_trades": 22,
+        "winning_trades": 7,
+        "losing_trades": 15,
+        "win_rate": 31.818181818181817,
+        "total_buy_orders": 23,
+        "total_sell_orders": 22,
+        "avg_profit_per_trade": -46.45423849668773
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.316267730864755,
+        "sortino_ratio": -2.862193621926986,
+        "calmar_ratio": -0.9578033600358254,
+        "profit_factor": 0.21031946888695843,
+        "capital_efficiency": 0.3616931559141496,
+        "max_position_value": 0.0
+      },
+      "trade_count": 45,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7678.619561645061,
+        "total_return": -2321.380438354938,
+        "total_return_pct": -23.213804383549384,
+        "max_drawdown": 2321.380438354938,
+        "max_drawdown_pct": 23.213804383549384
+      },
+      "trading_stats": {
+        "total_trades": 240,
+        "winning_trades": 0,
+        "losing_trades": 240,
+        "win_rate": 0.0,
+        "total_buy_orders": 240,
+        "total_sell_orders": 240,
+        "avg_profit_per_trade": -0.8793107721041433
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -25.120734502269535,
+        "sortino_ratio": -25.045670509655988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 480,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "MATICUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-04-23T03:00:00",
+      "end_time": "2024-09-10T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7710.524953373462,
+        "total_return": -2289.4750466265377,
+        "total_return_pct": -22.89475046626538,
+        "max_drawdown": 2520.8931737367107,
+        "max_drawdown_pct": 25.20893173736711
+      },
+      "trading_stats": {
+        "total_trades": 94,
+        "winning_trades": 59,
+        "losing_trades": 35,
+        "win_rate": 62.765957446808514,
+        "total_buy_orders": 95,
+        "total_sell_orders": 94,
+        "avg_profit_per_trade": -21.26917372668334
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.6403220558526885,
+        "sortino_ratio": -3.458833105512792,
+        "calmar_ratio": -0.908199946938988,
+        "profit_factor": 0.6301679236270231,
+        "capital_efficiency": 0.29976319662776135,
+        "max_position_value": 0.0
+      },
+      "trade_count": 189,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-04-23T03:00:00",
+      "end_time": "2024-09-10T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7701.167554780214,
+        "total_return": -2298.8324452197853,
+        "total_return_pct": -22.988324452197855,
+        "max_drawdown": 3099.8830185754864,
+        "max_drawdown_pct": 30.998830185754862
+      },
+      "trading_stats": {
+        "total_trades": 4,
+        "winning_trades": 3,
+        "losing_trades": 1,
+        "win_rate": 75.0,
+        "total_buy_orders": 5,
+        "total_sell_orders": 4,
+        "avg_profit_per_trade": 18.847859668318062
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.9217731421529347,
+        "sortino_ratio": -2.570968189403979,
+        "calmar_ratio": -0.7415868377756352,
+        "profit_factor": 6.356749447220714,
+        "capital_efficiency": 0.43414003847534915,
+        "max_position_value": 0.0
+      },
+      "trade_count": 9,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-04-23T03:00:00",
+      "end_time": "2024-09-10T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7352.75299640454,
+        "total_return": -2647.24700359546,
+        "total_return_pct": -26.4724700359546,
+        "max_drawdown": 2971.6962079613204,
+        "max_drawdown_pct": 29.716962079613207
+      },
+      "trading_stats": {
+        "total_trades": 42,
+        "winning_trades": 19,
+        "losing_trades": 23,
+        "win_rate": 45.23809523809524,
+        "total_buy_orders": 43,
+        "total_sell_orders": 42,
+        "avg_profit_per_trade": 2.2473903273871274
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.373106817297119,
+        "sortino_ratio": -3.1685164896112292,
+        "calmar_ratio": -0.8908201977387038,
+        "profit_factor": 1.8143760716449988,
+        "capital_efficiency": 0.4176633959780223,
+        "max_position_value": 0.0
+      },
+      "trade_count": 85,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "RUNEUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7774.793191184254,
+        "total_return": -2225.2068088157457,
+        "total_return_pct": -22.252068088157458,
+        "max_drawdown": 2371.267938994217,
+        "max_drawdown_pct": 23.712679389942167
+      },
+      "trading_stats": {
+        "total_trades": 83,
+        "winning_trades": 48,
+        "losing_trades": 35,
+        "win_rate": 57.83132530120482,
+        "total_buy_orders": 84,
+        "total_sell_orders": 83,
+        "avg_profit_per_trade": -28.911799958346755
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.304522109168166,
+        "sortino_ratio": -3.110624009851796,
+        "calmar_ratio": -0.9384037848373965,
+        "profit_factor": 0.6239306053617057,
+        "capital_efficiency": 0.2497089430648587,
+        "max_position_value": 0.0
+      },
+      "trade_count": 167,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10000.00916532258,
+        "total_return": 0.00916532258064516,
+        "total_return_pct": 9.165322580645162e-05,
+        "max_drawdown": 5.4995,
+        "max_drawdown_pct": 0.054995
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 1,
+        "losing_trades": 0,
+        "win_rate": 100.0,
+        "total_buy_orders": 1,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": 9.99816715542522
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.002340664045785949,
+        "sortino_ratio": 0.0037764419325260626,
+        "calmar_ratio": 0.0016665737940985837,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 2,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7283.494240251792,
+        "total_return": -2716.5057597482087,
+        "total_return_pct": -27.165057597482086,
+        "max_drawdown": 2716.5057597482087,
+        "max_drawdown_pct": 27.165057597482086
+      },
+      "trading_stats": {
+        "total_trades": 288,
+        "winning_trades": 0,
+        "losing_trades": 288,
+        "win_rate": 0.0,
+        "total_buy_orders": 288,
+        "total_sell_orders": 288,
+        "avg_profit_per_trade": -0.8574828787083992
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -27.53492049080768,
+        "sortino_ratio": -27.436157411960988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 576,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "SANDUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7355.294718670866,
+        "total_return": -2644.7052813291343,
+        "total_return_pct": -26.447052813291343,
+        "max_drawdown": 2800.8248559374792,
+        "max_drawdown_pct": 28.008248559374792
+      },
+      "trading_stats": {
+        "total_trades": 134,
+        "winning_trades": 90,
+        "losing_trades": 44,
+        "win_rate": 67.16417910447761,
+        "total_buy_orders": 135,
+        "total_sell_orders": 134,
+        "avg_profit_per_trade": -16.77809689679612
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.226400029261304,
+        "sortino_ratio": -2.918810284833602,
+        "calmar_ratio": -0.9442594297614196,
+        "profit_factor": 0.7429900581849788,
+        "capital_efficiency": 0.26640132916525217,
+        "max_position_value": 0.0
+      },
+      "trade_count": 269,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6279.251922140512,
+        "total_return": -3720.7480778594886,
+        "total_return_pct": -37.207480778594885,
+        "max_drawdown": 3953.2629945447375,
+        "max_drawdown_pct": 39.532629945447376
+      },
+      "trading_stats": {
+        "total_trades": 13,
+        "winning_trades": 3,
+        "losing_trades": 10,
+        "win_rate": 23.076923076923077,
+        "total_buy_orders": 14,
+        "total_sell_orders": 13,
+        "avg_profit_per_trade": -54.94895897972079
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.109300422765562,
+        "sortino_ratio": -2.5609642951272527,
+        "calmar_ratio": -0.9411840504904163,
+        "profit_factor": 0.1241918572324287,
+        "capital_efficiency": 0.3529207975251908,
+        "max_position_value": 0.0
+      },
+      "trade_count": 27,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8174.213346779539,
+        "total_return": -1825.7866532204607,
+        "total_return_pct": -18.257866532204606,
+        "max_drawdown": 1825.7866532204607,
+        "max_drawdown_pct": 18.257866532204606
+      },
+      "trading_stats": {
+        "total_trades": 170,
+        "winning_trades": 0,
+        "losing_trades": 170,
+        "win_rate": 0.0,
+        "total_buy_orders": 170,
+        "total_sell_orders": 170,
+        "avg_profit_per_trade": -1.6140236422054441
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -13.235165939705533,
+        "sortino_ratio": -15.509802765648033,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 340,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "SHIBUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7786.56061110899,
+        "total_return": -2213.43938889101,
+        "total_return_pct": -22.134393888910097,
+        "max_drawdown": 2607.8138622979977,
+        "max_drawdown_pct": 26.078138622979978
+      },
+      "trading_stats": {
+        "total_trades": 85,
+        "winning_trades": 49,
+        "losing_trades": 36,
+        "win_rate": 57.64705882352941,
+        "total_buy_orders": 86,
+        "total_sell_orders": 85,
+        "avg_profit_per_trade": -24.532421099041873
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.3657067535239813,
+        "sortino_ratio": -3.2058359557158114,
+        "calmar_ratio": -0.8487720005217448,
+        "profit_factor": 0.6354549762862286,
+        "capital_efficiency": 0.2804128715290198,
+        "max_position_value": 0.0
+      },
+      "trade_count": 171,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 5713.95258449375,
+        "total_return": -4286.04741550625,
+        "total_return_pct": -42.8604741550625,
+        "max_drawdown": 4473.677691754612,
+        "max_drawdown_pct": 44.73677691754612
+      },
+      "trading_stats": {
+        "total_trades": 185,
+        "winning_trades": 75,
+        "losing_trades": 110,
+        "win_rate": 40.54054054054054,
+        "total_buy_orders": 186,
+        "total_sell_orders": 185,
+        "avg_profit_per_trade": -8.72049386088491
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -3.3920036009909147,
+        "sortino_ratio": -4.36251962963692,
+        "calmar_ratio": -0.958059053607241,
+        "profit_factor": 0.7088609959449411,
+        "capital_efficiency": 0.45284677225988257,
+        "max_position_value": 0.0
+      },
+      "trade_count": 371,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7778.7481855271835,
+        "total_return": -2221.2518144728165,
+        "total_return_pct": -22.21251814472816,
+        "max_drawdown": 2221.2518144728165,
+        "max_drawdown_pct": 22.21251814472816
+      },
+      "trading_stats": {
+        "total_trades": 218,
+        "winning_trades": 0,
+        "losing_trades": 218,
+        "win_rate": 0.0,
+        "total_buy_orders": 218,
+        "total_sell_orders": 218,
+        "avg_profit_per_trade": -1.2931443247475674
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -22.818644530812985,
+        "sortino_ratio": -23.00203589007504,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 436,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "SNXUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6216.154297169467,
+        "total_return": -3783.845702830533,
+        "total_return_pct": -37.83845702830533,
+        "max_drawdown": 10095.638761123595,
+        "max_drawdown_pct": 100.95638761123595
+      },
+      "trading_stats": {
+        "total_trades": 251,
+        "winning_trades": 155,
+        "losing_trades": 96,
+        "win_rate": 61.75298804780876,
+        "total_buy_orders": 252,
+        "total_sell_orders": 251,
+        "avg_profit_per_trade": -7.661519574439657
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.5198493848703485,
+        "sortino_ratio": -2.1114969726709156,
+        "calmar_ratio": -0.3748000292365264,
+        "profit_factor": 0.8868057286351853,
+        "capital_efficiency": 0.35843942824596575,
+        "max_position_value": 0.0
+      },
+      "trade_count": 503,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7142.49804971572,
+        "total_return": -2857.5019502842797,
+        "total_return_pct": -28.575019502842796,
+        "max_drawdown": 16082.754238279478,
+        "max_drawdown_pct": 160.82754238279477
+      },
+      "trading_stats": {
+        "total_trades": 6,
+        "winning_trades": 1,
+        "losing_trades": 5,
+        "win_rate": 16.666666666666668,
+        "total_buy_orders": 7,
+        "total_sell_orders": 6,
+        "avg_profit_per_trade": -17.852638607481413
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.3480405360606886,
+        "sortino_ratio": -0.4775565485379617,
+        "calmar_ratio": -0.1776749123905019,
+        "profit_factor": 0.2059198172574684,
+        "capital_efficiency": 0.4848593951621219,
+        "max_position_value": 0.0
+      },
+      "trade_count": 13,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7136.570287876466,
+        "total_return": -2863.429712123534,
+        "total_return_pct": -28.634297121235342,
+        "max_drawdown": 2863.429712123534,
+        "max_drawdown_pct": 28.634297121235342
+      },
+      "trading_stats": {
+        "total_trades": 288,
+        "winning_trades": 0,
+        "losing_trades": 288,
+        "win_rate": 0.0,
+        "total_buy_orders": 288,
+        "total_sell_orders": 288,
+        "avg_profit_per_trade": -1.3671511744884308
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -21.392512974532018,
+        "sortino_ratio": -22.74006951183466,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 576,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "SOLUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7641.555404816611,
+        "total_return": -2358.444595183389,
+        "total_return_pct": -23.58444595183389,
+        "max_drawdown": 2565.5433994916148,
+        "max_drawdown_pct": 25.655433994916145
+      },
+      "trading_stats": {
+        "total_trades": 89,
+        "winning_trades": 53,
+        "losing_trades": 36,
+        "win_rate": 59.550561797752806,
+        "total_buy_orders": 90,
+        "total_sell_orders": 89,
+        "avg_profit_per_trade": -27.460463028279015
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.584659770541811,
+        "sortino_ratio": -3.512074667518771,
+        "calmar_ratio": -0.9192768267536366,
+        "profit_factor": 0.5770934003150876,
+        "capital_efficiency": 0.25698771548996024,
+        "max_position_value": 0.0
+      },
+      "trade_count": 179,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6705.761230787203,
+        "total_return": -3294.2387692127963,
+        "total_return_pct": -32.942387692127966,
+        "max_drawdown": 3475.0144166735554,
+        "max_drawdown_pct": 34.75014416673555
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 0,
+        "losing_trades": 1,
+        "win_rate": 0.0,
+        "total_buy_orders": 2,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": -220.21944399416438
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -3.1150657956272214,
+        "sortino_ratio": -4.26985272225259,
+        "calmar_ratio": -0.9479784467674797,
+        "profit_factor": null,
+        "capital_efficiency": 0.3814135666683146,
+        "max_position_value": 0.0
+      },
+      "trade_count": 3,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8095.180201644521,
+        "total_return": -1904.8197983554796,
+        "total_return_pct": -19.048197983554797,
+        "max_drawdown": 1904.8197983554796,
+        "max_drawdown_pct": 19.048197983554797
+      },
+      "trading_stats": {
+        "total_trades": 192,
+        "winning_trades": 0,
+        "losing_trades": 192,
+        "win_rate": 0.0,
+        "total_buy_orders": 192,
+        "total_sell_orders": 192,
+        "avg_profit_per_trade": -0.9019033136152839
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -22.455191848264487,
+        "sortino_ratio": -22.401528720661034,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 384,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "SUSHIUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6951.071645423066,
+        "total_return": -3048.928354576934,
+        "total_return_pct": -30.489283545769343,
+        "max_drawdown": 3204.868521012477,
+        "max_drawdown_pct": 32.048685210124766
+      },
+      "trading_stats": {
+        "total_trades": 158,
+        "winning_trades": 102,
+        "losing_trades": 56,
+        "win_rate": 64.55696202531645,
+        "total_buy_orders": 159,
+        "total_sell_orders": 158,
+        "avg_profit_per_trade": -15.89293574666781
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.023764456214609,
+        "sortino_ratio": -2.52198496829643,
+        "calmar_ratio": -0.9513427257894879,
+        "profit_factor": 0.7299029870022371,
+        "capital_efficiency": 0.2550535754912662,
+        "max_position_value": 0.0
+      },
+      "trade_count": 317,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6079.9046246378075,
+        "total_return": -3920.0953753621925,
+        "total_return_pct": -39.200953753621924,
+        "max_drawdown": 4401.441546297507,
+        "max_drawdown_pct": 44.01441546297507
+      },
+      "trading_stats": {
+        "total_trades": 17,
+        "winning_trades": 7,
+        "losing_trades": 10,
+        "win_rate": 41.1764705882353,
+        "total_buy_orders": 18,
+        "total_sell_orders": 17,
+        "avg_profit_per_trade": -29.00191638257324
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.9036968568220913,
+        "sortino_ratio": -2.428415292126391,
+        "calmar_ratio": -0.8906389722839275,
+        "profit_factor": 0.2982700350712921,
+        "capital_efficiency": 0.34865041760971094,
+        "max_position_value": 0.0
+      },
+      "trade_count": 35,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7884.149228127879,
+        "total_return": -2115.850771872121,
+        "total_return_pct": -21.15850771872121,
+        "max_drawdown": 2115.850771872121,
+        "max_drawdown_pct": 21.15850771872121
+      },
+      "trading_stats": {
+        "total_trades": 216,
+        "winning_trades": 0,
+        "losing_trades": 216,
+        "win_rate": 0.0,
+        "total_buy_orders": 216,
+        "total_sell_orders": 216,
+        "avg_profit_per_trade": -0.890509584121263
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -23.824471234274654,
+        "sortino_ratio": -23.760409300986932,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 432,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "TRXUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9377.009981569077,
+        "total_return": -622.990018430922,
+        "total_return_pct": -6.22990018430922,
+        "max_drawdown": 753.7134123102243,
+        "max_drawdown_pct": 7.537134123102243
+      },
+      "trading_stats": {
+        "total_trades": 8,
+        "winning_trades": 2,
+        "losing_trades": 6,
+        "win_rate": 25.0,
+        "total_buy_orders": 9,
+        "total_sell_orders": 8,
+        "avg_profit_per_trade": -77.98333124973463
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.9836913754092893,
+        "sortino_ratio": -2.676063962784287,
+        "calmar_ratio": -0.8265608761311292,
+        "profit_factor": 0.2948775936637379,
+        "capital_efficiency": 0.2780186887468846,
+        "max_position_value": 0.0
+      },
+      "trade_count": 17,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8978.272586765775,
+        "total_return": -1021.7274132342237,
+        "total_return_pct": -10.217274132342236,
+        "max_drawdown": 1209.0993363130322,
+        "max_drawdown_pct": 12.090993363130321
+      },
+      "trading_stats": {
+        "total_trades": 12,
+        "winning_trades": 6,
+        "losing_trades": 6,
+        "win_rate": 50.0,
+        "total_buy_orders": 13,
+        "total_sell_orders": 12,
+        "avg_profit_per_trade": -8.371113356275416
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.159778533863297,
+        "sortino_ratio": -2.9144613114043882,
+        "calmar_ratio": -0.8450318204208339,
+        "profit_factor": 0.3933857949915095,
+        "capital_efficiency": 0.4616145958898931,
+        "max_position_value": 0.0
+      },
+      "trade_count": 25,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 9288.945139562287,
+        "total_return": -711.0548604377123,
+        "total_return_pct": -7.110548604377123,
+        "max_drawdown": 823.335855287807,
+        "max_drawdown_pct": 8.233358552878071
+      },
+      "trading_stats": {
+        "total_trades": 91,
+        "winning_trades": 18,
+        "losing_trades": 73,
+        "win_rate": 19.78021978021978,
+        "total_buy_orders": 91,
+        "total_sell_orders": 91,
+        "avg_profit_per_trade": 1.9222895932992203
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -4.688684819151876,
+        "sortino_ratio": -6.513178260021877,
+        "calmar_ratio": -0.8636267397697073,
+        "profit_factor": 2.1820203772445224,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 182,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "UNIUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7917.800712503383,
+        "total_return": -2082.199287496617,
+        "total_return_pct": -20.821992874966174,
+        "max_drawdown": 2623.7257584655345,
+        "max_drawdown_pct": 26.237257584655346
+      },
+      "trading_stats": {
+        "total_trades": 146,
+        "winning_trades": 94,
+        "losing_trades": 52,
+        "win_rate": 64.38356164383562,
+        "total_buy_orders": 147,
+        "total_sell_orders": 146,
+        "avg_profit_per_trade": -11.163052303675409
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.5035263400631103,
+        "sortino_ratio": -2.1629281004328735,
+        "calmar_ratio": -0.7936040116915174,
+        "profit_factor": 0.8262538670416109,
+        "capital_efficiency": 0.28648307937977174,
+        "max_position_value": 0.0
+      },
+      "trade_count": 293,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10003.983434609827,
+        "total_return": 3.9834346098265896,
+        "total_return_pct": 0.039834346098265895,
+        "max_drawdown": 5.4995,
+        "max_drawdown_pct": 0.054995
+      },
+      "trading_stats": {
+        "total_trades": 1,
+        "winning_trades": 1,
+        "losing_trades": 0,
+        "win_rate": 100.0,
+        "total_buy_orders": 1,
+        "total_sell_orders": 1,
+        "avg_profit_per_trade": 13.968466143682907
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 0.5879984007544741,
+        "sortino_ratio": 1.1725464332227353,
+        "calmar_ratio": 0.7243266860308373,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 2,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7678.619561645061,
+        "total_return": -2321.380438354938,
+        "total_return_pct": -23.213804383549384,
+        "max_drawdown": 2321.380438354938,
+        "max_drawdown_pct": 23.213804383549384
+      },
+      "trading_stats": {
+        "total_trades": 240,
+        "winning_trades": 0,
+        "losing_trades": 240,
+        "win_rate": 0.0,
+        "total_buy_orders": 240,
+        "total_sell_orders": 240,
+        "avg_profit_per_trade": -0.8793107721041433
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -25.120734502269535,
+        "sortino_ratio": -25.045670509655988,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 480,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "WAVESUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-01-29T03:00:00",
+      "end_time": "2024-06-17T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7479.831779017551,
+        "total_return": -2520.168220982449,
+        "total_return_pct": -25.20168220982449,
+        "max_drawdown": 6479.9794393792945,
+        "max_drawdown_pct": 64.79979439379295
+      },
+      "trading_stats": {
+        "total_trades": 208,
+        "winning_trades": 138,
+        "losing_trades": 70,
+        "win_rate": 66.34615384615384,
+        "total_buy_orders": 209,
+        "total_sell_orders": 208,
+        "avg_profit_per_trade": -7.978281943109278
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.4243860318695738,
+        "sortino_ratio": -1.9431453211402638,
+        "calmar_ratio": -0.38891608292261054,
+        "profit_factor": 0.8697139859067232,
+        "capital_efficiency": 0.3380781722170494,
+        "max_position_value": 0.0
+      },
+      "trade_count": 417,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-01-29T03:00:00",
+      "end_time": "2024-06-17T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7391.571624804209,
+        "total_return": -2608.4283751957905,
+        "total_return_pct": -26.084283751957905,
+        "max_drawdown": 9092.212117338953,
+        "max_drawdown_pct": 90.92212117338953
+      },
+      "trading_stats": {
+        "total_trades": 5,
+        "winning_trades": 1,
+        "losing_trades": 4,
+        "win_rate": 20.0,
+        "total_buy_orders": 6,
+        "total_sell_orders": 5,
+        "avg_profit_per_trade": -46.502770741771094
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.8278309387990971,
+        "sortino_ratio": -1.1435973025331876,
+        "calmar_ratio": -0.28688600106694473,
+        "profit_factor": 0.03400526908913167,
+        "capital_efficiency": 0.5365388269095202,
+        "max_position_value": 0.0
+      },
+      "trade_count": 11,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-01-29T03:00:00",
+      "end_time": "2024-06-17T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7067.856013355549,
+        "total_return": -2932.1439866444507,
+        "total_return_pct": -29.321439866444507,
+        "max_drawdown": 3057.9847087428457,
+        "max_drawdown_pct": 30.579847087428455
+      },
+      "trading_stats": {
+        "total_trades": 348,
+        "winning_trades": 17,
+        "losing_trades": 331,
+        "win_rate": 4.885057471264368,
+        "total_buy_orders": 348,
+        "total_sell_orders": 348,
+        "avg_profit_per_trade": 0.14073040853658147
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -12.265687919746918,
+        "sortino_ratio": -16.502908119686765,
+        "calmar_ratio": -0.9588484789545829,
+        "profit_factor": 1.1411561311870646,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 696,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "XEMUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-01-29T03:00:00",
+      "end_time": "2024-06-17T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7758.648494207491,
+        "total_return": -2241.3515057925083,
+        "total_return_pct": -22.413515057925082,
+        "max_drawdown": 5390.665277515724,
+        "max_drawdown_pct": 53.906652775157234
+      },
+      "trading_stats": {
+        "total_trades": 174,
+        "winning_trades": 125,
+        "losing_trades": 49,
+        "win_rate": 71.83908045977012,
+        "total_buy_orders": 176,
+        "total_sell_orders": 174,
+        "avg_profit_per_trade": -9.625467800833475
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.6111427301253731,
+        "sortino_ratio": -2.110919757518751,
+        "calmar_ratio": -0.41578383936044166,
+        "profit_factor": 0.8326800357262579,
+        "capital_efficiency": 0.31247414854753236,
+        "max_position_value": 0.0
+      },
+      "trade_count": 350,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-01-29T03:00:00",
+      "end_time": "2024-06-17T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6018.199631286464,
+        "total_return": -3981.8003687135356,
+        "total_return_pct": -39.81800368713536,
+        "max_drawdown": 6747.750570803605,
+        "max_drawdown_pct": 67.47750570803606
+      },
+      "trading_stats": {
+        "total_trades": 121,
+        "winning_trades": 54,
+        "losing_trades": 67,
+        "win_rate": 44.62809917355372,
+        "total_buy_orders": 122,
+        "total_sell_orders": 121,
+        "avg_profit_per_trade": -20.474538117458707
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.1087510814057446,
+        "sortino_ratio": -2.813434644330861,
+        "calmar_ratio": -0.5900929986864251,
+        "profit_factor": 0.4610989940523466,
+        "capital_efficiency": 0.5226236006934208,
+        "max_position_value": 0.0
+      },
+      "trade_count": 243,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2024-01-29T03:00:00",
+      "end_time": "2024-06-17T02:55:00",
+      "duration_hours": 3359.9166666666665,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 10000.0,
+        "total_return": 0.0,
+        "total_return_pct": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_pct": 0.0
+      },
+      "trading_stats": {
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0.0,
+        "total_buy_orders": 0,
+        "total_sell_orders": 0,
+        "avg_profit_per_trade": 0.0
+      },
+      "risk_metrics": {
+        "sharpe_ratio": null,
+        "sortino_ratio": null,
+        "calmar_ratio": null,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 0,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "XLMUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7789.068220520495,
+        "total_return": -2210.931779479505,
+        "total_return_pct": -22.109317794795054,
+        "max_drawdown": 2643.6139232037904,
+        "max_drawdown_pct": 26.436139232037903
+      },
+      "trading_stats": {
+        "total_trades": 94,
+        "winning_trades": 59,
+        "losing_trades": 35,
+        "win_rate": 62.765957446808514,
+        "total_buy_orders": 95,
+        "total_sell_orders": 94,
+        "avg_profit_per_trade": -21.399527207907923
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.1240479200189464,
+        "sortino_ratio": -2.9013696999605796,
+        "calmar_ratio": -0.8363292990982896,
+        "profit_factor": 0.7019119262071647,
+        "capital_efficiency": 0.28715398220936844,
+        "max_position_value": 0.0
+      },
+      "trade_count": 189,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7004.493042698894,
+        "total_return": -2995.506957301106,
+        "total_return_pct": -29.955069573011063,
+        "max_drawdown": 3283.795840451916,
+        "max_drawdown_pct": 32.83795840451916
+      },
+      "trading_stats": {
+        "total_trades": 8,
+        "winning_trades": 3,
+        "losing_trades": 5,
+        "win_rate": 37.5,
+        "total_buy_orders": 9,
+        "total_sell_orders": 8,
+        "avg_profit_per_trade": -14.939723812601395
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.94205773766348,
+        "sortino_ratio": -2.3872616049430553,
+        "calmar_ratio": -0.9122086459823472,
+        "profit_factor": 0.49548504760450207,
+        "capital_efficiency": 0.4014333074975434,
+        "max_position_value": 0.0
+      },
+      "trade_count": 17,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8324.585831200511,
+        "total_return": -1675.4141687994884,
+        "total_return_pct": -16.754141687994885,
+        "max_drawdown": 1675.4141687994884,
+        "max_drawdown_pct": 16.754141687994885
+      },
+      "trading_stats": {
+        "total_trades": 155,
+        "winning_trades": 2,
+        "losing_trades": 153,
+        "win_rate": 1.2903225806451613,
+        "total_buy_orders": 155,
+        "total_sell_orders": 155,
+        "avg_profit_per_trade": -1.5974136519918858
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -8.283881768998109,
+        "sortino_ratio": -10.634933876029688,
+        "calmar_ratio": -1.0,
+        "profit_factor": 0.4656329423322731,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 310,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "XRPUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7909.014565793392,
+        "total_return": -2090.9854342066087,
+        "total_return_pct": -20.909854342066087,
+        "max_drawdown": 2379.3657512856676,
+        "max_drawdown_pct": 23.793657512856676
+      },
+      "trading_stats": {
+        "total_trades": 79,
+        "winning_trades": 48,
+        "losing_trades": 31,
+        "win_rate": 60.75949367088607,
+        "total_buy_orders": 80,
+        "total_sell_orders": 79,
+        "avg_profit_per_trade": -23.535338962681653
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.2087629117580025,
+        "sortino_ratio": -3.04092184775331,
+        "calmar_ratio": -0.8787995006975134,
+        "profit_factor": 0.6837148519038073,
+        "capital_efficiency": 0.2971007163917458,
+        "max_position_value": 0.0
+      },
+      "trade_count": 159,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7247.5109303633935,
+        "total_return": -2752.489069636607,
+        "total_return_pct": -27.524890696366068,
+        "max_drawdown": 2855.6014562360433,
+        "max_drawdown_pct": 28.55601456236043
+      },
+      "trading_stats": {
+        "total_trades": 3,
+        "winning_trades": 1,
+        "losing_trades": 2,
+        "win_rate": 33.333333333333336,
+        "total_buy_orders": 4,
+        "total_sell_orders": 3,
+        "avg_profit_per_trade": -55.71655286829218
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -2.1799930801223195,
+        "sortino_ratio": -2.849145654536896,
+        "calmar_ratio": -0.9638911843337731,
+        "profit_factor": 0.0868500414129578,
+        "capital_efficiency": 0.41573517889342587,
+        "max_position_value": 0.0
+      },
+      "trade_count": 7,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6122.280073497905,
+        "total_return": -3877.719926502095,
+        "total_return_pct": -38.777199265020954,
+        "max_drawdown": 3877.719926502095,
+        "max_drawdown_pct": 38.777199265020954
+      },
+      "trading_stats": {
+        "total_trades": 477,
+        "winning_trades": 8,
+        "losing_trades": 469,
+        "win_rate": 1.6771488469601676,
+        "total_buy_orders": 477,
+        "total_sell_orders": 477,
+        "avg_profit_per_trade": -0.22245968980298073
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -28.76736139391479,
+        "sortino_ratio": -31.39495837056086,
+        "calmar_ratio": -1.0,
+        "profit_factor": 0.7138852084357906,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 954,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "YFIUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8315.92728597159,
+        "total_return": -1684.072714028411,
+        "total_return_pct": -16.84072714028411,
+        "max_drawdown": 2358.522447115353,
+        "max_drawdown_pct": 23.58522447115353
+      },
+      "trading_stats": {
+        "total_trades": 63,
+        "winning_trades": 37,
+        "losing_trades": 26,
+        "win_rate": 58.73015873015873,
+        "total_buy_orders": 64,
+        "total_sell_orders": 63,
+        "avg_profit_per_trade": -24.14658081259509
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.773448537516544,
+        "sortino_ratio": -2.3786136863487,
+        "calmar_ratio": -0.7140371786955668,
+        "profit_factor": 0.6167206630644018,
+        "capital_efficiency": 0.2997687294650908,
+        "max_position_value": 0.0
+      },
+      "trade_count": 127,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7760.791666907503,
+        "total_return": -2239.208333092497,
+        "total_return_pct": -22.39208333092497,
+        "max_drawdown": 2606.3940216031847,
+        "max_drawdown_pct": 26.063940216031845
+      },
+      "trading_stats": {
+        "total_trades": 2,
+        "winning_trades": 0,
+        "losing_trades": 2,
+        "win_rate": 0.0,
+        "total_buy_orders": 3,
+        "total_sell_orders": 2,
+        "avg_profit_per_trade": -21.685543821692097
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.8771020627421287,
+        "sortino_ratio": -2.566232161696946,
+        "calmar_ratio": -0.859121189863368,
+        "profit_factor": null,
+        "capital_efficiency": 0.4238915182699324,
+        "max_position_value": 0.0
+      },
+      "trade_count": 5,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 5839.949430889092,
+        "total_return": -4160.050569110908,
+        "total_return_pct": -41.60050569110908,
+        "max_drawdown": 4422.109026265437,
+        "max_drawdown_pct": 44.22109026265437
+      },
+      "trading_stats": {
+        "total_trades": 254,
+        "winning_trades": 11,
+        "losing_trades": 243,
+        "win_rate": 4.330708661417323,
+        "total_buy_orders": 255,
+        "total_sell_orders": 254,
+        "avg_profit_per_trade": -2.159894984080107
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -3.890041889209545,
+        "sortino_ratio": -5.296559008512409,
+        "calmar_ratio": -0.9407390329822232,
+        "profit_factor": 0.19936324201710534,
+        "capital_efficiency": 0.4467583651406534,
+        "max_position_value": 0.0
+      },
+      "trade_count": 509,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "ZILUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7549.602027244735,
+        "total_return": -2450.397972755265,
+        "total_return_pct": -24.503979727552654,
+        "max_drawdown": 2877.040900478388,
+        "max_drawdown_pct": 28.77040900478388
+      },
+      "trading_stats": {
+        "total_trades": 105,
+        "winning_trades": 68,
+        "losing_trades": 37,
+        "win_rate": 64.76190476190476,
+        "total_buy_orders": 106,
+        "total_sell_orders": 105,
+        "avg_profit_per_trade": -21.143224927692994
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.8976871459645845,
+        "sortino_ratio": -2.371329621526859,
+        "calmar_ratio": -0.8517077294062169,
+        "profit_factor": 0.6620366443116288,
+        "capital_efficiency": 0.27008516008818295,
+        "max_position_value": 0.0
+      },
+      "trade_count": 211,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 5324.415297393627,
+        "total_return": -4675.584702606373,
+        "total_return_pct": -46.755847026063726,
+        "max_drawdown": 5002.447132676116,
+        "max_drawdown_pct": 50.02447132676116
+      },
+      "trading_stats": {
+        "total_trades": 163,
+        "winning_trades": 59,
+        "losing_trades": 104,
+        "win_rate": 36.19631901840491,
+        "total_buy_orders": 164,
+        "total_sell_orders": 163,
+        "avg_profit_per_trade": -13.067687762017709
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -3.241639023674692,
+        "sortino_ratio": -4.081435952861168,
+        "calmar_ratio": -0.9346594933638239,
+        "profit_factor": 0.5929784588789627,
+        "capital_efficiency": 0.40208905018944735,
+        "max_position_value": 0.0
+      },
+      "trade_count": 327,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 7298.249928983538,
+        "total_return": -2701.7500710164622,
+        "total_return_pct": -27.01750071016462,
+        "max_drawdown": 2701.7500710164622,
+        "max_drawdown_pct": 27.01750071016462
+      },
+      "trading_stats": {
+        "total_trades": 305,
+        "winning_trades": 13,
+        "losing_trades": 292,
+        "win_rate": 4.262295081967213,
+        "total_buy_orders": 305,
+        "total_sell_orders": 305,
+        "avg_profit_per_trade": -0.3280277432470107
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -14.425732241938109,
+        "sortino_ratio": -17.741070073777248,
+        "calmar_ratio": -1.0,
+        "profit_factor": 0.753258580933444,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 610,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  },
+  "ZRXUSDT": {
+    "dca": {
+      "strategy_name": "dca",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8672.977747180757,
+        "total_return": -1327.022252819242,
+        "total_return_pct": -13.270222528192422,
+        "max_drawdown": 1916.4641085060853,
+        "max_drawdown_pct": 19.16464108506085
+      },
+      "trading_stats": {
+        "total_trades": 155,
+        "winning_trades": 109,
+        "losing_trades": 46,
+        "win_rate": 70.3225806451613,
+        "total_buy_orders": 156,
+        "total_sell_orders": 155,
+        "avg_profit_per_trade": -5.327341269384102
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -0.9206136709239837,
+        "sortino_ratio": -1.311066862807978,
+        "calmar_ratio": -0.6924326142761305,
+        "profit_factor": 0.9053447284368955,
+        "capital_efficiency": 0.2766858078972517,
+        "max_position_value": 0.0
+      },
+      "trade_count": 311,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "trend-follower": {
+      "strategy_name": "trend-follower",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 6797.44111536478,
+        "total_return": -3202.55888463522,
+        "total_return_pct": -32.0255888463522,
+        "max_drawdown": 3463.820627704088,
+        "max_drawdown_pct": 34.63820627704088
+      },
+      "trading_stats": {
+        "total_trades": 25,
+        "winning_trades": 10,
+        "losing_trades": 15,
+        "win_rate": 40.0,
+        "total_buy_orders": 26,
+        "total_sell_orders": 25,
+        "avg_profit_per_trade": -10.940813328444639
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -1.7351597549386326,
+        "sortino_ratio": -2.3930743486773194,
+        "calmar_ratio": -0.9245741130532965,
+        "profit_factor": 0.6798163161456596,
+        "capital_efficiency": 0.3897739417977854,
+        "max_position_value": 0.0
+      },
+      "trade_count": 51,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    },
+    "smc": {
+      "strategy_name": "smc",
+      "symbol": "BTC/USDT",
+      "start_time": "2025-09-18T00:10:00",
+      "end_time": "2026-02-14T00:00:00",
+      "duration_hours": 3575.8333333333335,
+      "performance": {
+        "initial_balance": 10000.0,
+        "final_balance": 8311.859732855186,
+        "total_return": -1688.1402671448134,
+        "total_return_pct": -16.881402671448132,
+        "max_drawdown": 1688.1402671448134,
+        "max_drawdown_pct": 16.881402671448132
+      },
+      "trading_stats": {
+        "total_trades": 168,
+        "winning_trades": 0,
+        "losing_trades": 168,
+        "win_rate": 0.0,
+        "total_buy_orders": 168,
+        "total_sell_orders": 168,
+        "avg_profit_per_trade": -0.9134958155545527
+      },
+      "risk_metrics": {
+        "sharpe_ratio": -20.998614221086406,
+        "sortino_ratio": -20.954711353172492,
+        "calmar_ratio": -1.0,
+        "profit_factor": null,
+        "capital_efficiency": null,
+        "max_position_value": 0.0
+      },
+      "trade_count": 336,
+      "data_points": 40220,
+      "regime_tracking": {
+        "regime_history_count": 0,
+        "regime_changes": 0,
+        "regime_filter_blocks": 0
+      },
+      "risk_management": {
+        "risk_manager_blocks": 0,
+        "risk_halted": false,
+        "risk_halt_reason": null
+      }
+    }
+  }
+}
