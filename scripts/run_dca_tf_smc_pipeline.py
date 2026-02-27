@@ -236,7 +236,7 @@ def setup_logging() -> str:
     fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
 
     fh = logging.FileHandler(log_path)
-    fh.setLevel(logging.DEBUG)
+    fh.setLevel(logging.INFO)
     fh.setFormatter(fmt)
 
     sh = logging.StreamHandler(sys.stderr)
@@ -244,7 +244,7 @@ def setup_logging() -> str:
     sh.setFormatter(fmt)
 
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    root.setLevel(logging.INFO)
     root.addHandler(fh)
     root.addHandler(sh)
 
