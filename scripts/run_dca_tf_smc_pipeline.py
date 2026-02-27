@@ -96,9 +96,11 @@ except Exception:
 RESULTS_DIR = PROJECT_ROOT / "data" / "backtest_results"
 BALANCE = Decimal("10000")
 
-# Max M5 bars to use (3 months ≈ 26,280 bars). Trims older data to keep runtime sane.
-# CSV files contain 5-8 years of data; 3 months gives ~24s/backtest on 16-core VM.
-MAX_M5_BARS = 26_280
+# Max M5 bars to load per pair. Formula: warmup_bars + active_window.
+# warmup_bars=14400 (50 days) + 25920 active bars (90 days) = 140 days total.
+# This ensures 3 months of actual trading after indicators are initialized.
+# CSV files contain 5-8 years of data; 140 days gives ~37s/backtest on 16-core VM.
+MAX_M5_BARS = 40_320
 
 # Global error collector — all errors across all phases
 ALL_ERRORS: list[dict[str, Any]] = []
