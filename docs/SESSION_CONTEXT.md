@@ -1,22 +1,115 @@
-# TRADERAGENT v2.0 - Session Context (Updated 2026-02-24)
+# TRADERAGENT v2.0 - Session Context (Updated 2026-02-27)
 
-## Tekushchiy Status Proekta
+## Текущий статус проекта
 
-**Data:** 24 fevralya 2026
-**Status:** v2.0.0 Release + Roadmap COMPLETE: 12/12 issues DONE + **Backtesting audit complete — critical bug found**
+**Дата:** 27 февраля 2026
+**Статус:** v2.0.0 + Roadmap COMPLETE + **Все серверы синхронизированы с main (Session 35)**
 **Pass Rate:** 100% (1587/1587 tests passing, 25 skipped)
-**Realnyy obem testov:** 1614 collected (266 backtest tests)
-**Backtesting Service:** 174 tests passing
-**Multi-TF Backtesting:** 54 + 21 + 31 = 106 tests passing
 **Code Quality:** ruff PASS + black PASS + mypy PASS
-**Posledniy commit:** `55a773c` (docs: update SESSION_CONTEXT.md — roadmap 12/12 COMPLETE)
-**Bot Status:** RUNNING — 3 aktivnykh bota na 185.233.200.13: demo_btc_hybrid, demo_eth_grid, demo_sol_dca + demo_btc_smc (dry_run)
-**Pipeline Status:** Phase 1 DONE (ETH/DCA only), Phases 2-5 NOT RUN. Yandex Cloud VM STOPPED.
-**Backtesting blockers:** warmup_bars=50 (bug, нужно 14400) + только 3 пары данных из 18
+**Последний коммит:** `5615519` (Merge pull request #312 — fix SMC 0 trades)
+**Bot Status:** RUNNING — 3 бота на `185.233.200.13`: demo_btc_hybrid, demo_eth_grid, demo_sol_dca + demo_btc_smc (dry_run). Баланс: 100,022.74 USDT
+**Pipeline Status:** Тест-сервер готов. Phase 1-5 — ещё не запускались после исправления warmup_bars.
+**Backtesting blocker (решён):** warmup_bars=14400 ✓, все серверы на Session 35 ✓
 
 ---
 
-## Poslednyaya Sessiya (2026-02-24) - Session 35: Backtesting Audit + Hive-Mind Prompt
+## Инфраструктура серверов
+
+| Сервер | IP | Роль | Репозиторий | Данные |
+|--------|----|------|-------------|--------|
+| Мой (Claude) | `173.249.2.184` | Разработка | Session 35 ✓ | 8 файлов |
+| Продакшн | `185.233.200.13` | Только бот (Docker) | Session 35 ✓ | 5.4 GB, 45 пар |
+| Тест | `158.160.215.57` | Только бэктесты | Session 35 ✓ | 5.4 GB, 45 пар |
+
+---
+
+## Последняя сессия (2026-02-27) — Session 36: Синхронизация серверов
+
+### Задача
+
+Подготовка к запуску бэктестов: аудит инфраструктуры, обнаружение расхождений, синхронизация всех трёх серверов с репозиторием.
+
+### Сделано в сессии 36
+
+#### 1. Аудит бэктестинговой инфраструктуры
+
+Проведён детальный анализ состояния данных, конфигов и расхождений между серверами.
+
+**Найденные расхождения:**
+
+| Проблема | Было | Стало/Решение |
+|----------|------|---------------|
+| `warmup_bars` default | 50 (движок) / 100 (pipeline) | 14400 — исправлен в #306 |
+| `SMC_DEFAULTS.swing_length` vs `SMC_GRID` | 50 vs [5,10] — не пересекаются | Зафиксировано, требует review |
+| `analyze_every_n` | 4 (движок) / 24 (pipeline) | Расхождение с продакшном (1 bar), зафиксировано |
+| `MAX_M5_BARS` | 26,280 (3 мес) | С warmup=14400 остаётся 11,880 активных баров = 41 день |
+| SMC генерировал 0 сделок | — | Исправлен в #311 |
+
+**Данные на тест-сервере (158.160.215.57):**
+
+| Пара | 5m строк | Период | Статус |
+|------|---------|--------|--------|
+| BTC, ETH | 889,312 | 2017 → фев 2026 | ✓ |
+| SOL, BNB | 576K / 866K | 2020/2017 → фев 2026 | ✓ |
+| XRP, ADA, DOGE, AVAX, LINK, DOT | 560K–815K | 2018–2020 → фев 2026 | ✓ |
+| MATIC | 564,743 | 2019 → сен 2024 | ⚠ обрезана (ребренд в POL) |
+| NEAR, APT, PEPE, WIF, BONK, SUI, SEI | — | — | ✗ ОТСУТСТВУЮТ |
+
+Итого: **11 из 18** целевых пар готовы. Формат — Binance CSV (`Open time,...`), совместим с `load_csv_data()`.
+
+#### 2. Синхронизация тест-сервера (158.160.215.57)
+
+- `git checkout -- scripts/post_pipeline_archive.sh` — снят единственный конфликт (смена прав файла)
+- `git pull --no-rebase origin main` — merge 40 коммитов, получен Session 35
+- `python3 -m venv .venv && pip install -r requirements.txt` — создан venv, 81 пакет
+
+**Smoke-тест после синхронизации:**
+```
+warmup_bars=14400 ✓
+pandas 2.3.3, ccxt 4.5.39, numpy 1.26.4 ✓
+scripts/run_dca_tf_smc_pipeline.py 42KB ✓
+45 5m-файлов в data/historical/ ✓
+```
+
+#### 3. Синхронизация продакшн-сервера (185.233.200.13)
+
+- `git stash push -m 'local-fixes-before-sync-session35'` — 10 файлов сохранены в stash (все изменения уже были в main: `_normalize_order_status`, stale signal filter, `current_trend` fix, `auto_start: true`)
+- `git pull --ff-only origin main` — Fast-forward, 62 файла обновлены, Session 35
+- `docker compose restart bot` — бот перезапущен, статус **healthy**
+
+**Состояние бота после рестарта:** работает, подключён к `api-demo.bybit.com`, баланс 100,022.74 USDT, 6 открытых ордеров BTC.
+
+### Итоговая карта синхронизации
+
+```
+GitHub main (Session 35)
+    ├── 185.233.200.13  git pull --ff-only  → Session 35 ✓  docker restart ✓
+    └── 158.160.215.57  git pull --no-rebase → Session 35 ✓  venv создан ✓
+```
+
+---
+
+## Следующие шаги (бэктестинг)
+
+| # | Действие | Где | Приоритет |
+|---|----------|-----|-----------|
+| 1 | Загрузить 7 недостающих пар (NEAR, APT, PEPE, WIF, BONK, SUI, SEI) | тест-сервер | P1 |
+| 2 | Запустить Phase 1 pipeline на 11+ парах | тест-сервер `158.160.215.57` | P0 |
+| 3 | Phase 2-4: оптимизация параметров + режимный бэктест | тест-сервер | P1 |
+| 4 | Phase 5: финальный отчёт + ranking | тест-сервер | P1 |
+| 5 | Review `SMC_DEFAULTS.swing_length=50` vs `SMC_GRID=[5,10]` | repo | P1 |
+
+**Команда запуска пайплайна на тест-сервере:**
+```bash
+ssh ai-agent@158.160.215.57
+cd ~/TRADERAGENT
+source .venv/bin/activate
+python scripts/run_dca_tf_smc_pipeline.py --data-dir data/historical/ --workers 14
+```
+
+---
+
+## Предыдущая сессия (2026-02-24) — Session 35: Backtesting Audit + Hive-Mind Prompt
 
 ### Zadacha
 
