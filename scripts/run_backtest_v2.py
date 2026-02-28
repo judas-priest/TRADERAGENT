@@ -411,10 +411,11 @@ async def run_single(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir) / f"single_{symbol}_{datetime.now():%Y%m%d_%H%M%S}"
 
     # Phase 1
+    phases_set = set(args.phases.split(",")) if args.phases else set()
     p1_result = await phase1_baseline(symbol, data, config, factories)
     _save_results(output_dir, "phase1_baseline", p1_result.to_dict())
 
-    if args.phases and "1" in args.phases:
+    if phases_set and "2" not in phases_set:
         return
 
     # Phase 2
@@ -426,7 +427,7 @@ async def run_single(args: argparse.Namespace) -> None:
         "best_objective": p2_result.best_objective,
     })
 
-    if args.phases and "2" in args.phases:
+    if phases_set and "3" not in phases_set and "4" not in phases_set:
         return
 
     # Phase 3 (single pair "portfolio")
