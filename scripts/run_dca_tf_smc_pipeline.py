@@ -194,7 +194,7 @@ TF_GRID: dict[str, list[Any]] = {
 }
 
 SMC_GRID: dict[str, list[Any]] = {
-    "swing_length": [5, 10],
+    "swing_length": [5, 10, 20, 35, 50],
     "min_risk_reward": [2.0, 3.0],
     "risk_per_trade": [0.01, 0.02, 0.03, 0.05],
     "close_mitigation": [True, False],
@@ -216,7 +216,7 @@ TF_DEFAULTS: dict[str, Any] = {
 }
 
 SMC_DEFAULTS: dict[str, Any] = {
-    "swing_length": 50,
+    "swing_length": 10,
     "min_risk_reward": 2.5,
     "risk_per_trade": 0.02,
     "close_mitigation": False,

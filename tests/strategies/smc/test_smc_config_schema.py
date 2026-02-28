@@ -16,7 +16,7 @@ class TestSMCConfigSchema:
     def test_defaults(self):
         schema = SMCConfigSchema()
         assert schema.enabled is True
-        assert schema.swing_length == 50
+        assert schema.swing_length == 10
         assert schema.trend_period == 20
         assert schema.close_break is True
         assert schema.risk_per_trade == Decimal("0.02")

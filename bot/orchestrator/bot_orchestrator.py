@@ -34,6 +34,10 @@ from bot.orchestrator.strategy_registry import (
     StrategyRegistry,
 )
 from bot.strategies.base import SignalDirection as BaseSignalDirection
+from bot.strategies.dca.dca_signal_generator import MarketState
+from bot.strategies.grid.grid_risk_manager import GridRiskManager
+from bot.strategies.hybrid.hybrid_config import HybridConfig, HybridMode
+from bot.strategies.hybrid.hybrid_strategy import HybridStrategy
 from bot.strategies.smc.config import SMCConfig
 from bot.strategies.smc_adapter import SMCStrategyAdapter
 from bot.strategies.trend_follower import TrendFollowerConfig as TrendFollowerDataclassConfig
@@ -104,6 +108,7 @@ class BotOrchestrator:
         self.dca_engine: DCAEngine | None = None
         self.trend_follower_strategy: TrendFollowerStrategy | None = None
         self.smc_strategy: SMCStrategyAdapter | None = None
+        self.hybrid_strategy: HybridStrategy | None = None
         self.risk_manager: RiskManager | None = None
 
         # Runtime state
@@ -215,6 +220,19 @@ class BotOrchestrator:
                 take_profit_percentage=Decimal(str(self.config.dca.take_profit_percentage)),
             )
             logger.info("dca_engine_initialized")
+
+        # Initialize HybridStrategy coordinator when both Grid and DCA are present
+        if (
+            self.config.strategy == "hybrid"
+            and self.grid_engine is not None
+            and self.dca_engine is not None
+        ):
+            self.hybrid_strategy = HybridStrategy(
+                config=HybridConfig(),
+                grid_risk_manager=GridRiskManager(),
+                dca_engine=None,  # Orchestrator manages DCA directly
+            )
+            logger.info("hybrid_strategy_initialized")
 
         # Initialize Trend-Follower strategy if enabled
         if self.config.strategy == StrategyType.TREND_FOLLOWER and self.config.trend_follower:
@@ -736,13 +754,21 @@ class BotOrchestrator:
                 # Update which strategies should run based on regime (#283, #292)
                 await self._update_active_strategies()
 
-                # Process grid orders
-                if self.grid_engine and self._is_strategy_active("grid"):
-                    await self._process_grid_orders()
+                # Process Grid + DCA (hybrid coordination or independent)
+                grid_active = self.grid_engine and self._is_strategy_active("grid")
+                dca_active = (
+                    self.dca_engine
+                    and self.current_price
+                    and self._is_strategy_active("dca")
+                )
 
-                # Process DCA logic
-                if self.dca_engine and self.current_price and self._is_strategy_active("dca"):
-                    await self._process_dca_logic()
+                if grid_active and dca_active and self.hybrid_strategy:
+                    await self._process_hybrid_logic()
+                else:
+                    if grid_active:
+                        await self._process_grid_orders()
+                    if dca_active:
+                        await self._process_dca_logic()
 
                 # Process Trend-Follower logic
                 if (
@@ -811,6 +837,58 @@ class BotOrchestrator:
                 await asyncio.sleep(5)
 
         logger.info("price_monitor_stopped")
+
+    async def _process_hybrid_logic(self) -> None:
+        """Delegate Grid/DCA execution to HybridStrategy coordinator."""
+        if not self.hybrid_strategy or not self.current_price:
+            return
+
+        # Extract ADX from regime analysis if available
+        adx: float | None = None
+        if self._current_regime and hasattr(self._current_regime, "adx"):
+            adx = self._current_regime.adx  # type: ignore[attr-defined]
+
+        market_state = MarketState(current_price=self.current_price, adx=adx)
+
+        try:
+            action = self.hybrid_strategy.evaluate(market_state, adx=adx)
+        except Exception as e:
+            logger.error("hybrid_evaluate_failed", error=str(e))
+            # Fallback: run both independently
+            await self._process_grid_orders()
+            await self._process_dca_logic()
+            return
+
+        mode = action.mode
+
+        if action.transition_triggered:
+            await self._publish_event(
+                EventType.HYBRID_TRANSITION,
+                {
+                    "from_mode": (
+                        action.transition_event.from_mode.value
+                        if action.transition_event
+                        else None
+                    ),
+                    "to_mode": mode.value,
+                    "reason": (
+                        action.transition_event.reason if action.transition_event else "unknown"
+                    ),
+                },
+            )
+            logger.info(
+                "hybrid_mode_transition",
+                mode=mode.value,
+            )
+
+        if mode == HybridMode.GRID_ONLY:
+            await self._process_grid_orders()
+        elif mode == HybridMode.DCA_ACTIVE:
+            await self._process_dca_logic()
+        else:
+            # TRANSITIONING or BOTH_ACTIVE — run both
+            await self._process_grid_orders()
+            await self._process_dca_logic()
 
     async def _process_grid_orders(self) -> None:
         """Process grid order fills and rebalancing."""

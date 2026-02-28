@@ -19,11 +19,17 @@ class SMCConfig:
 
     # Market Structure parameters
     trend_period: int = 20  # Lookback period for trend detection
-    swing_length: int = 50  # Candles for swing high/low identification
+    swing_length: int = 10  # Candles for swing high/low identification
     close_break: bool = True  # BOS/CHoCH: require candle close beyond level (vs wick)
 
     # Warmup — skip signal generation for first N calls to build structure
-    warmup_bars: int = 100  # max(swing_length * 4, 100) recommended
+    warmup_bars: int = 100  # auto-computed as max(swing_length * 4, 100) in __post_init__
+
+    def __post_init__(self) -> None:
+        """Compute warmup_bars dynamically when left at default."""
+        computed = max(self.swing_length * 4, 100)
+        if self.warmup_bars == 100:
+            object.__setattr__(self, "warmup_bars", computed)
 
     # Confluence Zone parameters
     close_mitigation: bool = False  # OB: require close through OB for mitigation (vs wick)
