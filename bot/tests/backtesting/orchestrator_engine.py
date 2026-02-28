@@ -234,37 +234,44 @@ class BacktestOrchestratorEngine:
             balance = simulator.get_portfolio_value()
 
             for strat_name, strategy in strategies.items():
-                if strat_name not in active_set:
+                is_active = strat_name in active_set
+                has_open_positions = bool(position_amounts[strat_name])
+
+                # Always process exits for strategies with open positions,
+                # even when deactivated — orphaned positions must close via TP/SL.
+                # Only skip entirely if inactive AND no open positions.
+                if not is_active and not has_open_positions:
                     continue
 
-                # Periodically analyze market
-                if bars_since_warmup % config.analyze_every_n == 0:
+                if is_active:
+                    # Periodically analyze market
+                    if bars_since_warmup % config.analyze_every_n == 0:
+                        try:
+                            strategy.analyze_market(df_d1, df_h4, df_h1, df_m15, df_m5)
+                        except Exception as e:
+                            logger.debug("analyze_market error %s bar %d: %s", strat_name, i, e)
+
+                    # Generate signal (only when strategy is active)
                     try:
-                        strategy.analyze_market(df_d1, df_h4, df_h1, df_m15, df_m5)
+                        signal = strategy.generate_signal(df_m5, balance)
                     except Exception as e:
-                        logger.debug("analyze_market error %s bar %d: %s", strat_name, i, e)
+                        logger.debug("generate_signal error %s bar %d: %s", strat_name, i, e)
+                        signal = None
 
-                # Generate signal
-                try:
-                    signal = strategy.generate_signal(df_m5, balance)
-                except Exception as e:
-                    logger.debug("generate_signal error %s bar %d: %s", strat_name, i, e)
-                    signal = None
+                    if signal is not None:
+                        await self._handle_signal(
+                            strat_name=strat_name,
+                            strategy=strategy,
+                            signal=signal,
+                            current_price=current_price,
+                            simulator=simulator,
+                            position_amounts=position_amounts[strat_name],
+                            position_directions=position_directions[strat_name],
+                            risk_manager=risk_manager,
+                            config=config,
+                        )
 
-                if signal is not None:
-                    await self._handle_signal(
-                        strat_name=strat_name,
-                        strategy=strategy,
-                        signal=signal,
-                        current_price=current_price,
-                        simulator=simulator,
-                        position_amounts=position_amounts[strat_name],
-                        position_directions=position_directions[strat_name],
-                        risk_manager=risk_manager,
-                        config=config,
-                    )
-
-                # 4. Update positions and handle exits
+                # 4. Update positions and handle exits (always, if open positions exist)
                 try:
                     exits = strategy.update_positions(current_price, df_m5)
                 except Exception as e:
