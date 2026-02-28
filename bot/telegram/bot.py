@@ -90,6 +90,12 @@ class TelegramBot:
         # Strategy commands
         self.router.message(Command("switch_strategy"))(self._cmd_switch_strategy)
 
+        # Multi-pair / portfolio commands (A5)
+        self.router.message(Command("scan"))(self._cmd_scan)
+        self.router.message(Command("create_bot"))(self._cmd_create_bot)
+        self.router.message(Command("delete_bot"))(self._cmd_delete_bot)
+        self.router.message(Command("portfolio"))(self._cmd_portfolio)
+
         # Register router with dispatcher
         self.dp.include_router(self.router)
 
@@ -645,6 +651,184 @@ class TelegramBot:
                 error=str(e),
             )
             await message.answer(f"❌ Failed to switch strategy: {str(e)}")
+
+    # ------------------------------------------------------------------
+    # Multi-pair / Portfolio commands (A5)
+    # ------------------------------------------------------------------
+
+    async def _cmd_scan(self, message: Message) -> None:
+        """Handle /scan — run market scanner and show top-5 with regime and recommendation."""
+        if not self._check_auth(message):
+            await message.answer("Unauthorized access")
+            return
+
+        # Try to get the scanner from the BotApplication (if injected)
+        scanner = getattr(self, "_app", None)
+        if scanner:
+            scanner = getattr(scanner, "_scanner", None)
+
+        if scanner is None:
+            await message.answer(
+                "Market scanner is not configured. "
+                "Enable auto_trade in config to use /scan."
+            )
+            return
+
+        await message.answer("Scanning market... please wait.")
+        try:
+            results = await scanner.scan()
+            if not results:
+                await message.answer("No pairs found matching scanner criteria.")
+                return
+
+            lines = ["Top pairs from market scan:\n"]
+            for i, r in enumerate(results[:5], 1):
+                confidence = getattr(r, "confidence", 0.0)
+                regime = getattr(r, "regime", "unknown")
+                recommendation = getattr(r, "recommended_strategy", "N/A")
+                symbol = getattr(r, "symbol", "?")
+                lines.append(
+                    f"{i}. {symbol}\n"
+                    f"   Regime: {regime} | Confidence: {confidence:.0%}\n"
+                    f"   Recommendation: {recommendation}\n"
+                )
+            await message.answer("\n".join(lines))
+        except Exception as e:
+            logger.error("cmd_scan_failed", error=str(e))
+            await message.answer(f"Scan failed: {e}")
+
+    async def _cmd_create_bot(self, message: Message) -> None:
+        """Handle /create_bot <symbol> <strategy> — create a bot from template."""
+        if not self._check_auth(message):
+            await message.answer("Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 3:
+            await message.answer(
+                "Usage: /create_bot <symbol> <strategy>\n\n"
+                "Example: /create_bot ETH/USDT hybrid\n"
+                "Strategies: grid, dca, hybrid, trend_follower"
+            )
+            return
+
+        symbol = args[1]
+        strategy = args[2].lower()
+
+        app = getattr(self, "_app", None)
+        if app is None:
+            await message.answer("BotApplication not linked. Cannot create bot dynamically.")
+            return
+
+        template_mgr = getattr(app, "_pair_template_manager", None)
+        exchange_client = getattr(app, "_main_exchange_client", None)
+        main_config = getattr(app, "_main_config", None)
+
+        if not template_mgr or not exchange_client or not main_config or not main_config.bots:
+            await message.answer(
+                "Auto-trade is not configured. Enable auto_trade in config."
+            )
+            return
+
+        await message.answer(f"Creating bot for {symbol} ({strategy})...")
+        try:
+            base_cfg = main_config.bots[0]
+            new_cfg = await template_mgr.create_config(
+                symbol=symbol,
+                strategy=strategy,
+                exchange_client=exchange_client,
+                base_config=base_cfg,
+            )
+            orchestrator = await app.add_bot(new_cfg)
+            if orchestrator:
+                await message.answer(f"Bot '{new_cfg.name}' created and started for {symbol}.")
+            else:
+                await message.answer(f"Failed to start bot for {symbol}. Check logs.")
+        except Exception as e:
+            logger.error("cmd_create_bot_failed", symbol=symbol, error=str(e))
+            await message.answer(f"Error creating bot: {e}")
+
+    async def _cmd_delete_bot(self, message: Message) -> None:
+        """Handle /delete_bot <name> — gracefully stop and remove a bot."""
+        if not self._check_auth(message):
+            await message.answer("Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer(
+                "Usage: /delete_bot <bot_name>\n\n"
+                "Use /list to see current bots."
+            )
+            return
+
+        bot_name = args[1]
+        app = getattr(self, "_app", None)
+
+        if app is None:
+            await message.answer("BotApplication not linked.")
+            return
+
+        if bot_name not in self.orchestrators:
+            await message.answer(f"Bot '{bot_name}' not found.")
+            return
+
+        await message.answer(f"Stopping and removing bot '{bot_name}'...")
+        try:
+            await app.remove_bot(bot_name)
+            await message.answer(f"Bot '{bot_name}' removed successfully.")
+        except Exception as e:
+            logger.error("cmd_delete_bot_failed", bot_name=bot_name, error=str(e))
+            await message.answer(f"Error removing bot: {e}")
+
+    async def _cmd_portfolio(self, message: Message) -> None:
+        """Handle /portfolio — show portfolio P&L, exposure, and capital distribution."""
+        if not self._check_auth(message):
+            await message.answer("Unauthorized access")
+            return
+
+        if not self.orchestrators:
+            await message.answer("No active bots.")
+            return
+
+        app = getattr(self, "_app", None)
+        prm = getattr(app, "_portfolio_risk_manager", None) if app else None
+
+        lines = ["Portfolio Summary\n"]
+
+        total_pnl = 0.0
+        for bot_name, orch in self.orchestrators.items():
+            try:
+                status = orch.get_status()
+                symbol = status.get("symbol", "?")
+                state = status.get("state", "?")
+                lines.append(f"• {bot_name} ({symbol}) — {state}")
+            except Exception:
+                lines.append(f"• {bot_name} — status unavailable")
+
+        if prm:
+            try:
+                summary = prm.get_summary()
+                lines.append(
+                    f"\nCapital Pool:\n"
+                    f"  Total: ${summary['total_capital']:,.0f}\n"
+                    f"  Allocated: ${summary['pool']['total_allocated']:,.0f} "
+                    f"({summary['pool']['utilization_pct']}%)\n"
+                    f"  Drawdown: {summary['drawdown_pct']}%\n"
+                    f"  Halted: {'YES' if summary['halted'] else 'No'}"
+                )
+            except Exception as e:
+                lines.append(f"\nPortfolio risk manager error: {e}")
+
+        await message.answer("\n".join(lines))
+
+    async def _broadcast(self, text: str) -> None:
+        """Send a plain-text message to all allowed chat IDs."""
+        for chat_id in self.allowed_chat_ids:
+            try:
+                await self.bot.send_message(chat_id=chat_id, text=text)
+            except Exception as e:
+                logger.error("broadcast_failed", chat_id=chat_id, error=str(e))
 
     async def _listen_to_events(self) -> None:
         """Listen to Redis events and send notifications."""

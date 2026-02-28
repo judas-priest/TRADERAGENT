@@ -463,3 +463,160 @@ class ParameterOptimizer:
             total_sell_orders=0,
             avg_profit_per_trade=Decimal("0"),
         )
+
+    # ------------------------------------------------------------------
+    # V2.0: Orchestrator optimization
+    # ------------------------------------------------------------------
+
+    async def optimize_orchestrator(
+        self,
+        param_grid: dict[str, list[Any]],
+        data: MultiTimeframeData,
+        config_template: "OrchestratorBacktestConfig",
+        max_workers: int | None = None,
+    ) -> OptimizationResult:
+        """
+        Grid-search optimization targeting OrchestratorBacktestConfig params.
+
+        The param_grid may contain keys from any sub-config namespace::
+
+            {
+                # Router params
+                "router_cooldown_bars": [30, 60, 120],
+                "regime_check_every_n": [6, 12, 24],
+                # DCA params (written into config_template.dca_params)
+                "dca_trigger_pct": [0.03, 0.05, 0.07],
+                "dca_tp_pct": [0.05, 0.08, 0.10],
+                # Risk params
+                "max_position_size_pct": [0.15, 0.20, 0.25],
+            }
+
+        Top-level keys that match OrchestratorBacktestConfig fields are applied
+        directly; others are forwarded into the appropriate sub-config dict
+        based on their prefix (``dca_`` → dca_params, ``tf_`` → tf_params, etc.).
+
+        Args:
+            param_grid:       Parameter grid (name → list of values).
+            data:             Multi-timeframe data to backtest on.
+            config_template:  Base OrchestratorBacktestConfig to apply params to.
+            max_workers:      Parallel workers (None = sequential).
+
+        Returns:
+            OptimizationResult with best params and all trials.
+        """
+        from bot.tests.backtesting.orchestrator_engine import (
+            BacktestOrchestratorEngine,
+            OrchestratorBacktestConfig,
+        )
+
+        combinations = self._generate_combinations(param_grid)
+        trials: list[OptimizationTrial] = []
+
+        async def _run_trial(params: dict[str, Any]) -> OptimizationTrial:
+            cfg = self._apply_orchestrator_params(config_template, params)
+            engine = BacktestOrchestratorEngine()
+            # Re-use any registered factories from the optimizer config (if present)
+            if hasattr(self, "_strategy_factories"):
+                for name, factory in self._strategy_factories.items():
+                    engine.register_strategy_factory(name, factory)
+            result = await engine.run(data, cfg)
+            obj_val = self._get_objective_value(result)
+            return OptimizationTrial(params=params, result=result, objective_value=obj_val)
+
+        if max_workers and max_workers > 1:
+            loop = asyncio.get_event_loop()
+
+            def _run_sync(p: dict[str, Any]) -> OptimizationTrial:
+                return asyncio.run(_run_trial(p))
+
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = [loop.run_in_executor(pool, _run_sync, p) for p in combinations]
+                trials = list(await asyncio.gather(*futures))
+        else:
+            for params in combinations:
+                trial = await _run_trial(params)
+                trials.append(trial)
+
+        trials.sort(key=lambda t: t.objective_value, reverse=self.config.higher_is_better)
+        best = trials[0] if trials else None
+
+        return OptimizationResult(
+            best_params=best.params if best else {},
+            best_result=best.result if best else self._empty_result(),
+            best_objective=best.objective_value if best else 0.0,
+            all_trials=trials,
+            objective_metric=self.config.objective,
+            param_grid=param_grid,
+        )
+
+    @staticmethod
+    def _apply_orchestrator_params(
+        template: "OrchestratorBacktestConfig",
+        params: dict[str, Any],
+    ) -> "OrchestratorBacktestConfig":
+        """
+        Create a new OrchestratorBacktestConfig from template with params applied.
+
+        Routing:
+        - Keys that match top-level fields → set directly.
+        - ``dca_*`` → dca_params dict.
+        - ``tf_*`` → tf_params dict.
+        - ``grid_*`` → grid_params dict.
+        - ``smc_*`` → smc_params dict.
+        """
+        from bot.tests.backtesting.orchestrator_engine import OrchestratorBacktestConfig
+
+        # Copy mutable fields explicitly to avoid aliasing
+        cfg = OrchestratorBacktestConfig(
+            symbol=template.symbol,
+            initial_balance=template.initial_balance,
+            lookback=template.lookback,
+            warmup_bars=template.warmup_bars,
+            analyze_every_n=template.analyze_every_n,
+            enable_grid=template.enable_grid,
+            enable_dca=template.enable_dca,
+            enable_trend_follower=template.enable_trend_follower,
+            enable_smc=template.enable_smc,
+            enable_strategy_router=template.enable_strategy_router,
+            router_cooldown_bars=template.router_cooldown_bars,
+            regime_check_every_n=template.regime_check_every_n,
+            grid_params=dict(template.grid_params),
+            dca_params=dict(template.dca_params),
+            tf_params=dict(template.tf_params),
+            smc_params=dict(template.smc_params),
+            enable_risk_manager=template.enable_risk_manager,
+            max_position_size_pct=template.max_position_size_pct,
+            max_daily_loss_pct=template.max_daily_loss_pct,
+            portfolio_stop_loss_pct=template.portfolio_stop_loss_pct,
+            risk_per_trade=template.risk_per_trade,
+            max_position_pct=template.max_position_pct,
+        )
+
+        _prefix_map = {
+            "dca_": "dca_params",
+            "tf_": "tf_params",
+            "grid_": "grid_params",
+            "smc_": "smc_params",
+        }
+
+        import dataclasses
+        top_fields = {f.name for f in dataclasses.fields(cfg)}
+
+        for key, val in params.items():
+            if key in top_fields:
+                object.__setattr__(cfg, key, val)
+            else:
+                routed = False
+                for prefix, sub_dict_name in _prefix_map.items():
+                    if key.startswith(prefix):
+                        sub_key = key[len(prefix):]
+                        getattr(cfg, sub_dict_name)[sub_key] = val
+                        routed = True
+                        break
+                if not routed:
+                    # Unknown key — try top-level as fallback
+                    if hasattr(cfg, key):
+                        object.__setattr__(cfg, key, val)
+
+        return cfg
