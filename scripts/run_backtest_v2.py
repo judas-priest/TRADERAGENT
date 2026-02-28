@@ -165,10 +165,14 @@ def _load_data(
     loader = MultiTimeframeDataLoader()
 
     if data_dir and data_dir.exists():
-        csv_files = list(data_dir.glob(f"*{symbol}*5m*.csv"))
+        # Use exact suffix match to avoid e.g. "*15m*.csv" matching "*5m*" pattern
+        csv_files = [
+            f for f in data_dir.glob(f"*{symbol}*.csv")
+            if f.stem.endswith("_5m") or f.stem.endswith("5m")
+        ]
         if csv_files:
             try:
-                data = loader.load_from_csv(str(csv_files[0]), symbol=symbol)
+                data = loader.load_csv(str(csv_files[0]))
                 if max_bars and len(data.m5) > max_bars:
                     # Trim to last max_bars M5 bars
                     data = _trim_data(data, max_bars)
@@ -243,6 +247,7 @@ async def phase2_optimize(
     config_template: OrchestratorBacktestConfig,
     param_grid: dict,
     workers: int,
+    factories: dict | None = None,
 ) -> tuple[OptimizationResult, OrchestratorBacktestConfig]:
     """Phase 2: Parameter optimization."""
     logger.info("[Phase 2] Optimization — %s (%d combos)", symbol, _count_combos(param_grid))
@@ -250,6 +255,9 @@ async def phase2_optimize(
 
     opt_cfg = OptimizationConfig(objective="sharpe_ratio", higher_is_better=True)
     optimizer = ParameterOptimizer(config=opt_cfg)
+    # Pass strategy factories so each trial can build strategies
+    if factories:
+        optimizer._strategy_factories = factories
 
     opt_result = await optimizer.optimize_orchestrator(
         param_grid=param_grid,
@@ -406,7 +414,7 @@ async def run_single(args: argparse.Namespace) -> None:
 
     # Phase 2
     p2_result, optimized_config = await phase2_optimize(
-        symbol, data, config, ORCHESTRATOR_PARAM_GRID, args.workers
+        symbol, data, config, ORCHESTRATOR_PARAM_GRID, args.workers, factories=factories
     )
     _save_results(output_dir, "phase2_optimization", {
         "best_params": p2_result.best_params,
