@@ -1,13 +1,13 @@
-# TRADERAGENT v2.0 - Session Context (Updated 2026-02-27)
+# TRADERAGENT v2.0 - Session Context (Updated 2026-02-28)
 
 ## Текущий статус проекта
 
-**Дата:** 27 февраля 2026
-**Статус:** v2.0.0 + Roadmap COMPLETE + **Phase 1 baseline завершена (Session 37)**
-**Pass Rate:** 100% (1587/1587 tests passing, 25 skipped)
+**Дата:** 28 февраля 2026
+**Статус:** v2.0.0 + Roadmap COMPLETE + **SMC fix + HybridStrategy integration (Session 38)**
+**Pass Rate:** 100% (1537/1537 tests passing, 25 skipped)
 **Code Quality:** ruff PASS + black PASS + mypy PASS
-**Последний коммит:** `b00b903` (data: add Phase 1 baseline results — 45 pairs × 3 strategies)
-**Bot Status:** RUNNING — 3 бота на `185.233.200.13`: demo_btc_hybrid, demo_eth_grid, demo_sol_dca + demo_btc_smc (dry_run). Баланс: 100,022.74 USDT
+**Последний коммит:** `a533d8f` (fix: align SMC swing_length default with intraday trading + integrate HybridStrategy)
+**Bot Status:** RUNNING — 4 бота на `185.233.200.13`: demo_btc_hybrid, demo_eth_grid, demo_sol_dca, demo_btc_smc. Баланс: 100,022.73 USDT
 **Pipeline Status:** Phase 1 DONE (135/135 OK). Phase 2 остановлена (5/135) — алгоритм требует оптимизации.
 **Тест-сервер:** ВЫКЛЮЧЕН (`158.160.215.57`). Запустить через панель Yandex Cloud.
 
@@ -23,7 +23,81 @@
 
 ---
 
-## Последняя сессия (2026-02-27) — Session 37: Phase 1 Backtesting + Анализ Phase 2
+## Последняя сессия (2026-02-28) — Session 38: SMC Parameter Fix + HybridStrategy Integration
+
+### Задача
+
+Исправить катастрофическую производительность SMC стратегии (0/45 пар в плюсе, Sharpe -18.57) и интегрировать HybridStrategy в BotOrchestrator для координации Grid↔DCA переключений.
+
+### Сделано в сессии 38
+
+#### 1. Исправление SMC swing_length
+
+**Проблема:** `swing_length=50` слишком консервативен для H1/M15 таймфреймов. Grid search использовал `[5, 10]`, а дефолт был 50 — baseline и оптимизация были рассоединены.
+
+| Файл | Было | Стало |
+|------|------|-------|
+| `bot/strategies/smc/config.py` | `swing_length=50` | `swing_length=10` + `__post_init__` для динамического `warmup_bars` |
+| `bot/config/schemas.py` | `SMCConfigSchema.swing_length=50` | `swing_length=10` |
+| `scripts/run_dca_tf_smc_pipeline.py` | `SMC_GRID=[5,10]`, `SMC_DEFAULTS=50` | `[5,10,20,35,50]`, default=10 |
+
+Динамический `warmup_bars`: `max(swing_length * 4, 100)` — для `swing_length=10` остаётся 100, для `swing_length=50` вычисляется как 200.
+
+#### 2. Интеграция HybridStrategy в BotOrchestrator
+
+**Проблема:** `HybridStrategy.evaluate()` существовал, но никогда не вызывался — Grid и DCA всегда работали параллельно независимо от режима рынка.
+
+**Решение:** Добавлен `_process_hybrid_logic()` в `bot_orchestrator.py`:
+
+| Компонент | Описание |
+|-----------|----------|
+| Импорты | `HybridStrategy`, `HybridConfig`, `HybridMode`, `MarketState`, `GridRiskManager` |
+| `__init__` | `self.hybrid_strategy: HybridStrategy \| None = None` |
+| `initialize()` | Создаёт `HybridStrategy` когда strategy="hybrid" и оба engine есть |
+| `_main_loop()` | Делегирует `_process_hybrid_logic()` когда grid+dca активны и hybrid_strategy есть |
+| `_process_hybrid_logic()` | Routing по mode: `GRID_ONLY` → grid, `DCA_ACTIVE` → dca, fallback → оба |
+
+**Безопасность:**
+- Non-hybrid боты: `hybrid_strategy` остаётся `None`, код не меняется
+- Ошибка evaluate: fallback на запуск обоих engine
+- Нет regime data: работает с `adx=None`
+- Transition events публикуются в Redis (`HYBRID_TRANSITION`)
+
+#### 3. Тесты
+
+| Файл | Количество | Описание |
+|------|-----------|----------|
+| `tests/orchestrator/test_hybrid_integration.py` | 14 новых | Инстанцирование, routing по mode, fallback, backward compat, missing regime |
+| `tests/strategies/smc/test_smc_strategy.py` | 2 новых + 1 обновлён | Dynamic warmup_bars, default swing_length=10 |
+| `tests/strategies/smc/test_smc_config_schema.py` | 1 обновлён | Default swing_length=10 |
+
+**Результат:** 1537 passed, 25 skipped, ruff clean.
+
+#### 4. Деплой на продакшн
+
+```bash
+tar czf /tmp/sync.tar.gz bot/ scripts/ configs/ tests/
+scp /tmp/sync.tar.gz ai-agent@185.233.200.13:/home/ai-agent/TRADERAGENT/
+ssh ai-agent@185.233.200.13 "cd /home/ai-agent/TRADERAGENT && tar xzf sync.tar.gz && rm sync.tar.gz && docker compose restart bot"
+```
+
+Бот поднялся без ошибок. Цены: BTC $63,929, ETH $1,865, SOL $78.81. Баланс: $100,022.73.
+
+#### 5. Git
+
+- Коммит: `a533d8f` → PR #315 → merged → branch deleted
+- 7 файлов изменено, 300 insertions, 13 deletions
+
+### Следующие шаги
+
+1. Запустить Phase 2 pipeline с исправленными SMC defaults (ожидается значительное улучшение)
+2. Мониторить hybrid mode transitions в production логах
+3. Подключить `MarketRegimeDetector._current_regime` к `_main_loop` для полного адаптивного переключения
+4. Исправить flaky SMC тесты (randomized synthetic data)
+
+---
+
+## Предыдущая сессия (2026-02-27) — Session 37: Phase 1 Backtesting + Анализ Phase 2
 
 ### Задача
 
@@ -3171,25 +3245,19 @@ docker compose up webui-backend webui-frontend
 
 ## Last Updated
 
-- **Date:** February 24, 2026
-- **Session:** 30 (Zapusk ETH/SOL botov + docs refresh + Scanner Bot roadmap)
-- **Status:** 1531 tests passing (100%), 25 skipped
-- **Last commit:** `7d3149d` (feat: enable ETH/USDT grid and SOL/USDT DCA bots + Scanner Bot roadmap)
-- **Bot Status:** RUNNING — 3 aktivnykh bota: demo_btc_hybrid, demo_eth_grid, demo_sol_dca + demo_btc_smc (dry_run)
-- **Active Bugs Fixed (Session 28-30):** bybit status normalization, SMC trend key, SMC stale filter
+- **Date:** February 28, 2026
+- **Session:** 38 (SMC Parameter Fix + HybridStrategy Integration)
+- **Status:** 1537 tests passing (100%), 25 skipped
+- **Last commit:** `a533d8f` (fix: align SMC swing_length default with intraday trading + integrate HybridStrategy)
+- **Bot Status:** RUNNING — 4 bota na `185.233.200.13`: demo_btc_hybrid, demo_eth_grid, demo_sol_dca, demo_btc_smc. Balans: 100,022.73 USDT
+- **Session 38 Fixes:** SMC swing_length 50→10, HybridStrategy integrated into orchestrator, 14 new tests
 - **Code Quality:** ruff PASS + black PASS + mypy PASS (0 errors)
-- **Pipeline Status:** Phase 1 DONE (135/135, 85 min), Phase 2 IN PROGRESS na Yandex Cloud
-- **Scanner Bot:** Kontseptsiya dobavlena v ROADMAP.md (Active Development #4)
-- **Docs Refresh:** 6 faylov obnovleny (ARCHITECTURE, STRATEGY_ALGORITHMS, USER_GUIDE, DEPLOYMENT, TROUBLESHOOTING, ROADMAP)
+- **Pipeline Status:** Phase 1 DONE (135/135, 85 min), Phase 2 ostanovlena — SMC defaults teper' ispravleny
 - **Multi-TF Backtester:** PRODUCTION-READY — SHORT, M5, CSV, CLI runner, 163 tests, PR #273 merged
 - **v2.0 Algorithm:** COMPLETE — TRADERAGENT_V2_ALGORITHM.md (1322 strok)
-- **Backtesting Architecture:** COMPLETE — BACKTESTING_SYSTEM_ARCHITECTURE.md (1676 strok)
-- **SMC Integration:** smartmoneyconcepts library integrated, SMC Standalone Strategy DEPLOYED
+- **SMC Integration:** smartmoneyconcepts library integrated, swing_length fixed, HybridStrategy connected
 - **State Persistence:** COMPLETE (#237) — save/load/reconcile + timezone fix
-- **Phase 7.4:** Load/Stress Testing COMPLETE (40 tests, 1599 req/s)
-- **Web UI Dashboard:** COMPLETE (PR #221 merged)
-- **Server:** 185.233.200.13 (Docker, RUNNING — 4 bota aktivnykh)
+- **Server:** 185.233.200.13 (Docker, RUNNING — 4 bota)
 - **Historical Data:** 450 CSV (45 pairs × 10 TF, 5.4 GB) deployed
-- **Open Issues:** 5 (#85, #90, #91, #97, #144)
-- **Next Action:** Monitoring ETH/SOL botov → Podklyuchit' Regime→loop → Scanner Bot → Pipeline results
-- **Co-Authored:** Claude Sonnet 4.6
+- **Next Action:** Phase 2 pipeline s novymi SMC defaults → Monitor hybrid transitions → Regime→loop integration
+- **Co-Authored:** Claude Opus 4.6
