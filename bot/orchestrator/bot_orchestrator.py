@@ -140,6 +140,8 @@ class BotOrchestrator:
         )
         self._current_regime: RegimeAnalysis | None = None
         self._regime_check_interval: float = 60.0  # seconds
+        self._last_regime_update_at: float = 0.0   # monotonic ts of last successful regime update
+        self._regime_stale_threshold: float = 120.0  # warn after 2× check interval
         self._active_strategies: set[str] = set()  # strategies active for current regime
         self._last_strategy_switch_at: float = 0.0  # monotonic timestamp of last switch
         self._strategy_switch_cooldown: float = float(
@@ -575,6 +577,21 @@ class BotOrchestrator:
             if self._active_strategies != self._locked_strategies:
                 self._active_strategies = self._locked_strategies
             return
+
+        # Eager first fetch: if regime was never detected, request it now so
+        # that strategy routing is available from the very first main-loop tick.
+        if self._last_regime_update_at == 0.0:
+            await self.detect_market_regime()
+
+        # Staleness warning: if regime data is older than 2× check interval
+        elif self._current_regime is not None:
+            age = time.monotonic() - self._last_regime_update_at
+            if age > self._regime_stale_threshold:
+                logger.warning(
+                    "stale_regime_data",
+                    age_seconds=int(age),
+                    threshold_seconds=int(self._regime_stale_threshold),
+                )
 
         recommendation = self.get_strategy_recommendation()
         if recommendation is None:
@@ -1895,6 +1912,7 @@ class BotOrchestrator:
             # Check for regime change
             old_regime = self._current_regime
             self._current_regime = analysis
+            self._last_regime_update_at = time.monotonic()
 
             if old_regime and old_regime.regime != analysis.regime:
                 await self._publish_event(
