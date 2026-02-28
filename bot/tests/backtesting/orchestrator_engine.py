@@ -404,6 +404,10 @@ class BacktestOrchestratorEngine:
     ) -> Decimal:
         """Close positions and return approximate P&L delta."""
         pnl_delta = Decimal("0")
+        # Always use the simulator's own symbol — strategies may store symbol
+        # under different attribute names (_symbol, symbol, etc.) causing
+        # a fallback to "BTC/USDT" which would be rejected by the simulator.
+        trade_symbol = simulator.symbol
         for pos_id, exit_reason in exits:
             amount = position_amounts.pop(pos_id, None)
             direction = position_directions.pop(pos_id, SignalDirection.LONG)
@@ -415,14 +419,14 @@ class BacktestOrchestratorEngine:
                     sell_amount = min(amount, simulator.balance.base)
                     if sell_amount > Decimal("0"):
                         await simulator.create_order(
-                            symbol=strategy.symbol if hasattr(strategy, "symbol") else "BTC/USDT",
+                            symbol=trade_symbol,
                             order_type="market",
                             side="sell",
                             amount=sell_amount,
                         )
                 else:
                     await simulator.create_order(
-                        symbol=strategy.symbol if hasattr(strategy, "symbol") else "BTC/USDT",
+                        symbol=trade_symbol,
                         order_type="market",
                         side="buy",
                         amount=amount,
