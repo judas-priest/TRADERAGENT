@@ -81,6 +81,11 @@ def _make_orchestrator(
     orch.register_strategy = MagicMock()
     orch.start_strategy = AsyncMock()
 
+    # Strategy lock
+    orch._strategy_locked = False
+    orch.lock_strategy = MagicMock()
+    orch.unlock_strategy = MagicMock()
+
     return orch
 
 
@@ -467,6 +472,74 @@ class TestSwitchStrategyCommand:
         assert "Unauthorized" in msg.answer.call_args[0][0]
 
 
+class TestLockStrategyCommand:
+    """Tests for /lock_strategy."""
+
+    async def test_lock_no_args(self, bot):
+        msg = _make_message("/lock_strategy")
+        await bot._cmd_lock_strategy(msg)
+        assert "Usage" in msg.answer.call_args[0][0]
+
+    async def test_lock_not_found(self, bot):
+        msg = _make_message("/lock_strategy missing smc")
+        await bot._cmd_lock_strategy(msg)
+        assert "not found" in msg.answer.call_args[0][0]
+
+    async def test_lock_invalid_strategy(self, bot):
+        msg = _make_message("/lock_strategy test_bot invalid_strat")
+        await bot._cmd_lock_strategy(msg)
+        text = msg.answer.call_args[0][0]
+        assert "Invalid" in text
+        assert "invalid_strat" in text
+
+    async def test_lock_success_single(self, bot):
+        msg = _make_message("/lock_strategy test_bot smc")
+        await bot._cmd_lock_strategy(msg)
+        orch = bot.orchestrators["test_bot"]
+        orch.lock_strategy.assert_called_once_with({"smc"})
+        text = msg.answer.call_args[0][0]
+        assert "locked" in text.lower()
+        assert "smc" in text
+
+    async def test_lock_success_multiple(self, bot):
+        msg = _make_message("/lock_strategy test_bot grid dca")
+        await bot._cmd_lock_strategy(msg)
+        orch = bot.orchestrators["test_bot"]
+        orch.lock_strategy.assert_called_once_with({"grid", "dca"})
+
+    async def test_lock_unauthorized(self, bot):
+        msg = _make_message("/lock_strategy test_bot smc", chat_id=99999)
+        await bot._cmd_lock_strategy(msg)
+        assert "Unauthorized" in msg.answer.call_args[0][0]
+
+
+class TestUnlockStrategyCommand:
+    """Tests for /unlock_strategy."""
+
+    async def test_unlock_no_args(self, bot):
+        msg = _make_message("/unlock_strategy")
+        await bot._cmd_unlock_strategy(msg)
+        assert "Usage" in msg.answer.call_args[0][0]
+
+    async def test_unlock_not_found(self, bot):
+        msg = _make_message("/unlock_strategy missing")
+        await bot._cmd_unlock_strategy(msg)
+        assert "not found" in msg.answer.call_args[0][0]
+
+    async def test_unlock_success(self, bot):
+        msg = _make_message("/unlock_strategy test_bot")
+        await bot._cmd_unlock_strategy(msg)
+        orch = bot.orchestrators["test_bot"]
+        orch.unlock_strategy.assert_called_once()
+        text = msg.answer.call_args[0][0]
+        assert "unlocked" in text.lower()
+
+    async def test_unlock_unauthorized(self, bot):
+        msg = _make_message("/unlock_strategy test_bot", chat_id=99999)
+        await bot._cmd_unlock_strategy(msg)
+        assert "Unauthorized" in msg.answer.call_args[0][0]
+
+
 # =============================================================================
 # Event Notification Tests
 # =============================================================================
@@ -534,6 +607,14 @@ class TestEventNotifications:
         with patch.object(bot.bot, "send_message", new_callable=AsyncMock) as mock_send:
             await bot._handle_event(event)
             mock_send.assert_not_called()
+
+    async def test_handle_event_strategy_lock_important(self, bot):
+        """STRATEGY_LOCKED and STRATEGY_UNLOCKED should be treated as important."""
+        for event_type in [EventType.STRATEGY_LOCKED, EventType.STRATEGY_UNLOCKED]:
+            event = TradingEvent.create(event_type, "test_bot", {})
+            with patch.object(bot.bot, "send_message", new_callable=AsyncMock) as mock_send:
+                await bot._handle_event(event)
+                mock_send.assert_called_once()
 
     async def test_handle_event_v2_important(self, bot):
         """v2.0 events like REGIME_CHANGED should be treated as important."""
@@ -615,6 +696,34 @@ class TestStatusFormatting:
         }
         text = bot._format_status(status)
         assert "Risk Status" in text
+
+    def test_format_status_locked(self, bot):
+        status = {
+            "bot_name": "test_bot",
+            "state": "running",
+            "symbol": "BTC/USDT",
+            "strategy": "grid",
+            "dry_run": True,
+            "strategy_lock": {"locked": True, "strategies": ["smc"]},
+            "active_strategies": ["smc"],
+        }
+        text = bot._format_status(status)
+        assert "LOCKED" in text
+        assert "smc" in text
+
+    def test_format_status_unlocked(self, bot):
+        status = {
+            "bot_name": "test_bot",
+            "state": "running",
+            "symbol": "BTC/USDT",
+            "strategy": "grid",
+            "dry_run": True,
+            "strategy_lock": {"locked": False, "strategies": None},
+            "active_strategies": ["grid", "dca"],
+        }
+        text = bot._format_status(status)
+        assert "AUTO" in text
+        assert "grid" in text
 
     def test_get_state_emoji(self):
         assert TelegramBot._get_state_emoji(BotState.RUNNING) == "🟢"

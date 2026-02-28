@@ -54,6 +54,8 @@ def _make_orchestrator_stub(cooldown: float = 0.0) -> BotOrchestrator:
     orch._active_strategies = set()
     orch._last_strategy_switch_at = 0.0
     orch._strategy_switch_cooldown = cooldown
+    orch._strategy_locked = False
+    orch._locked_strategies = None
     # Async methods used by _update_active_strategies
     orch._publish_event = AsyncMock()
     orch._graceful_transition = AsyncMock()

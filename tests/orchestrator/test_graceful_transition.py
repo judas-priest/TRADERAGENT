@@ -62,6 +62,8 @@ def _make_orchestrator_with_exchange(
     orch._active_strategies = set()
     orch._last_strategy_switch_at = 0.0
     orch._strategy_switch_cooldown = cooldown
+    orch._strategy_locked = False
+    orch._locked_strategies = None
 
     # Config mock
     orch.config = SimpleNamespace(

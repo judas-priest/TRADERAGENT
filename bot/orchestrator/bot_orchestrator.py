@@ -146,6 +146,10 @@ class BotOrchestrator:
             getattr(self.config, "strategy_switch_cooldown_seconds", 600)
         )
 
+        # Manual strategy lock (prevents auto-switching when locked)
+        self._strategy_locked: bool = False
+        self._locked_strategies: set[str] | None = None
+
         # Set health callbacks
         self.health_monitor.set_unhealthy_callback(self._on_strategy_unhealthy)
         self.health_monitor.set_critical_callback(self._on_strategy_critical)
@@ -567,6 +571,11 @@ class BotOrchestrator:
         When strategies are deactivated, open orders are cancelled (and
         optionally positions closed) before the new set is activated.
         """
+        if self._strategy_locked and self._locked_strategies is not None:
+            if self._active_strategies != self._locked_strategies:
+                self._active_strategies = self._locked_strategies
+            return
+
         recommendation = self.get_strategy_recommendation()
         if recommendation is None:
             # No regime data yet — keep everything active (backward-compat)
@@ -620,6 +629,27 @@ class BotOrchestrator:
             # Record timestamp for both first-time set and subsequent switches
             self._last_strategy_switch_at = time.monotonic()
         self._active_strategies = strategies
+
+    def lock_strategy(self, strategies: set[str]) -> None:
+        """Lock to a specific strategy set, preventing auto-switching."""
+        self._strategy_locked = True
+        self._locked_strategies = strategies
+        self._active_strategies = strategies
+        logger.info("strategy_locked", strategies=sorted(strategies))
+        self._publish_event_sync(
+            EventType.STRATEGY_LOCKED,
+            {"strategies": sorted(strategies)},
+        )
+
+    def unlock_strategy(self) -> None:
+        """Remove strategy lock, re-enable auto-switching."""
+        self._strategy_locked = False
+        self._locked_strategies = None
+        logger.info("strategy_unlocked")
+        self._publish_event_sync(
+            EventType.STRATEGY_UNLOCKED,
+            {},
+        )
 
     async def _graceful_transition(
         self, deactivated: set[str], new_strategies: set[str]
@@ -1730,6 +1760,13 @@ class BotOrchestrator:
 
         # v2.0: Health monitor
         status["health"] = self.health_monitor.get_health_summary()
+
+        # Strategy lock state
+        status["strategy_lock"] = {
+            "locked": self._strategy_locked,
+            "strategies": sorted(self._locked_strategies) if self._locked_strategies else None,
+        }
+        status["active_strategies"] = sorted(self._active_strategies)
 
         return status
 

@@ -89,6 +89,8 @@ class TelegramBot:
 
         # Strategy commands
         self.router.message(Command("switch_strategy"))(self._cmd_switch_strategy)
+        self.router.message(Command("lock_strategy"))(self._cmd_lock_strategy)
+        self.router.message(Command("unlock_strategy"))(self._cmd_unlock_strategy)
 
         # Multi-pair / portfolio commands (A5)
         self.router.message(Command("scan"))(self._cmd_scan)
@@ -137,7 +139,9 @@ class TelegramBot:
             "/stop\\_bot <name> - Stop a trading bot\n"
             "/pause <name> - Pause trading bot\n"
             "/resume <name> - Resume trading bot\n"
-            "/switch\\_strategy <name> <strategy> - Switch strategy\n\n"
+            "/switch\\_strategy <name> <strategy> - Switch strategy\n"
+            "/lock\\_strategy <name> <strategy> - Lock to a strategy\n"
+            "/unlock\\_strategy <name> - Unlock (auto mode)\n\n"
             "*Monitoring:*\n"
             "/status [name] - Bot status (all bots if no name)\n"
             "/balance <name> - Current balance\n"
@@ -210,7 +214,8 @@ class TelegramBot:
             response = "📊 *Bot Status Summary:*\n\n"
             for name, orch in self.orchestrators.items():
                 state_emoji = self._get_state_emoji(orch.state)
-                response += f"{state_emoji} *{name}*: {orch.state.value}\n"
+                lock_icon = "🔒" if orch._strategy_locked else "🔄"
+                response += f"{state_emoji} *{name}*: {orch.state.value} {lock_icon}\n"
 
             response += "\nUse `/status <bot_name>` for detailed info"
             await message.answer(response, parse_mode="Markdown")
@@ -652,6 +657,67 @@ class TelegramBot:
             )
             await message.answer(f"❌ Failed to switch strategy: {str(e)}")
 
+    _VALID_STRATEGIES = {"grid", "dca", "trend_follower", "smc"}
+
+    async def _cmd_lock_strategy(self, message: Message) -> None:
+        """Handle /lock_strategy command — lock bot to specific strategies."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 3:
+            await message.answer(
+                "Usage: /lock\\_strategy <bot\\_name> <strategy1> [strategy2...]\n\n"
+                "Valid strategies: grid, dca, trend\\_follower, smc"
+            )
+            return
+
+        bot_name = args[1]
+        requested = set(args[2:])
+
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        invalid = requested - self._VALID_STRATEGIES
+        if invalid:
+            await message.answer(
+                f"❌ Invalid strategies: {', '.join(sorted(invalid))}\n"
+                f"Valid: {', '.join(sorted(self._VALID_STRATEGIES))}"
+            )
+            return
+
+        orch = self.orchestrators[bot_name]
+        orch.lock_strategy(requested)
+        await message.answer(
+            f"🔒 Bot *{bot_name}* locked to: {', '.join(sorted(requested))}",
+            parse_mode="Markdown",
+        )
+
+    async def _cmd_unlock_strategy(self, message: Message) -> None:
+        """Handle /unlock_strategy command — unlock bot, re-enable auto-switching."""
+        if not self._check_auth(message):
+            await message.answer("⛔ Unauthorized access")
+            return
+
+        args = message.text.split() if message.text else []
+        if len(args) < 2:
+            await message.answer("Usage: /unlock\\_strategy <bot\\_name>")
+            return
+
+        bot_name = args[1]
+        if bot_name not in self.orchestrators:
+            await message.answer(f"❌ Bot '{bot_name}' not found")
+            return
+
+        orch = self.orchestrators[bot_name]
+        orch.unlock_strategy()
+        await message.answer(
+            f"🔓 Bot *{bot_name}* unlocked — auto mode resumed",
+            parse_mode="Markdown",
+        )
+
     # ------------------------------------------------------------------
     # Multi-pair / Portfolio commands (A5)
     # ------------------------------------------------------------------
@@ -887,6 +953,8 @@ class TelegramBot:
             EventType.HEALTH_DEGRADED,
             EventType.HEALTH_CRITICAL,
             EventType.STRATEGY_ERROR,
+            EventType.STRATEGY_LOCKED,
+            EventType.STRATEGY_UNLOCKED,
         }
 
         if event.event_type not in important_events:
@@ -958,6 +1026,16 @@ class TelegramBot:
             f"State: {status['state']}\n"
             f"Dry Run: {'Yes' if status['dry_run'] else 'No'}\n"
         )
+
+        lock = status.get("strategy_lock", {})
+        if lock.get("locked"):
+            locked_strats = ", ".join(lock.get("strategies") or [])
+            message += f"Mode: LOCKED → {locked_strats}\n"
+        else:
+            active = status.get("active_strategies", [])
+            regime = status.get("market_regime", {})
+            regime_name = regime.get("regime", "unknown")
+            message += f"Mode: AUTO ({regime_name}) → {', '.join(active)}\n"
 
         if status.get("current_price"):
             message += f"Current Price: {status['current_price']}\n"
