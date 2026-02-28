@@ -9,7 +9,7 @@ from typing import Any
 import redis.asyncio as redis
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message
+from aiogram.types import BotCommand, Message
 
 from bot.orchestrator.bot_orchestrator import BotOrchestrator, BotState
 from bot.orchestrator.events import EventType, TradingEvent
@@ -1081,6 +1081,31 @@ class TelegramBot:
     async def start(self) -> None:
         """Start the Telegram bot."""
         logger.info("starting_telegram_bot")
+
+        # Register command menu for Telegram UI
+        await self.bot.set_my_commands([
+            # Control
+            BotCommand(command="status", description="Bot status"),
+            BotCommand(command="list", description="List all bots"),
+            BotCommand(command="start_bot", description="Start a bot"),
+            BotCommand(command="stop_bot", description="Stop a bot"),
+            BotCommand(command="pause", description="Pause a bot"),
+            BotCommand(command="resume", description="Resume a bot"),
+            # Strategy
+            BotCommand(command="switch_strategy", description="Switch strategy"),
+            BotCommand(command="lock_strategy", description="Lock strategy"),
+            BotCommand(command="unlock_strategy", description="Unlock strategy"),
+            # Monitoring
+            BotCommand(command="balance", description="Current balance"),
+            BotCommand(command="orders", description="Open orders"),
+            BotCommand(command="positions", description="Open positions"),
+            BotCommand(command="pnl", description="Profit and Loss"),
+            BotCommand(command="report", description="Performance report"),
+            # Portfolio
+            BotCommand(command="scan", description="Scan market"),
+            BotCommand(command="portfolio", description="Portfolio overview"),
+            BotCommand(command="help", description="Help"),
+        ])
 
         # Start event listener
         self.event_listener_task = asyncio.create_task(self._listen_to_events())
