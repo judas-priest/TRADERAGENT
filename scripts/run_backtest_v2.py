@@ -141,7 +141,7 @@ def _make_strategy_factories(
             merged = {**(tf_params or {}), **params}
             ema_fast = merged.pop("ema_fast", 20)
             cfg = TrendFollowerConfig(ema_fast_period=ema_fast)
-            return TrendFollowerAdapter(symbol=symbol, config=cfg)
+            return TrendFollowerAdapter(config=cfg)
 
         factories["trend_follower"] = _tf_factory
     except ImportError as e:
@@ -592,7 +592,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--symbols", help="Comma-separated symbols for multi mode")
     parser.add_argument("--top-n", type=int, default=5, help="Top-N pairs for auto mode")
     parser.add_argument(
-        "--data-dir", default=None, help="Directory with historical CSV files"
+        "--data-dir",
+        default="data/historical",
+        help="Directory with historical CSV files (default: data/historical)",
     )
     parser.add_argument(
         "--max-bars",
