@@ -1,6 +1,6 @@
 # TRADERAGENT — Архитектура Live Trading Bot
 
-> Версия: v2.0 | Дата: 2026-02-28
+> Версия: v3.0 | Дата: 2026-02-28
 
 ---
 
@@ -15,18 +15,43 @@ bot/main.py → BotApplication
 │   ├─ BotOrchestrator[]      — один экземпляр на каждый бот в конфиге
 │   ├─ TelegramBot            — уведомления и команды
 │   ├─ MetricsCollector       — сбор метрик для Prometheus
-│   └─ AlertHandler           — вебхуки алертов (port 8080)
+│   ├─ AlertHandler           — вебхуки алертов (port 8080)
+│   ├─ _portfolio_risk_manager — PortfolioRiskManager (общий капитал N ботов)
+│   ├─ _pair_template_manager  — PairTemplateManager (ATR-конфиги для новых пар)
+│   ├─ _scanner               — MarketScanner (авто-выбор пар)
+│   └─ _scanner_task          — asyncio.Task (_scanner_loop)
 │
 ├── initialize()
 │   ├─ Загрузить конфиг из CONFIG_PATH (default: configs/production.yaml)
 │   ├─ Инициализировать PostgreSQL
-│   └─ Для каждого bot_config:
-│       ├─ Загрузить API-ключи из БД (зашифрованы Fernet)
-│       ├─ Выбрать клиент биржи:
-│       │   ├─ Bybit + sandbox=true → ByBitDirectClient (demo: api-demo.bybit.com)
-│       │   └─ иначе → ExchangeAPIClient (CCXT wrapper)
-│       ├─ Создать BotOrchestrator
-│       └─ auto_start=true → запустить немедленно
+│   ├─ Инициализировать PortfolioRiskManager (total_capital из суммы ботов)
+│   ├─ Для каждого bot_config:
+│   │   ├─ Загрузить API-ключи из БД (зашифрованы Fernet)
+│   │   ├─ Выбрать клиент биржи:
+│   │   │   ├─ Bybit + sandbox=true → ByBitDirectClient (demo: api-demo.bybit.com)
+│   │   │   └─ иначе → ExchangeAPIClient (CCXT wrapper)
+│   │   ├─ Создать BotOrchestrator
+│   │   └─ auto_start=true → запустить немедленно
+│   └─ Если auto_trade.enabled:
+│       ├─ Создать MarketScanner (pair list, min_volume_usdt)
+│       ├─ Создать PairTemplateManager
+│       └─ Запустить _scanner_loop как asyncio.Task
+│
+├── add_bot(bot_config) → BotOrchestrator | None
+│   ├─ Создать exchange client
+│   ├─ Создать и запустить BotOrchestrator
+│   ├─ Зарегистрировать в _orchestrators dict
+│   └─ Уведомить Telegram
+│
+├── remove_bot(bot_name) → None
+│   ├─ Graceful stop BotOrchestrator
+│   ├─ Удалить из _orchestrators
+│   └─ Уведомить Telegram
+│
+├── _scanner_loop() → None   [фоновая задача, interval_minutes из ScannerConfig]
+│   ├─ scanner.scan() → top-N пар
+│   ├─ Новые пары → add_bot() с конфигом от PairTemplateManager
+│   └─ Устаревшие пары → remove_bot()
 │
 └── start()
     ├─ MetricsExporter (HTTP :9100, Prometheus)
@@ -236,7 +261,9 @@ BaseStrategy (abstract)
 
 ---
 
-## 7. Риск-менеджмент (bot/core/risk_manager.py)
+## 7. Риск-менеджмент
+
+### 7.1 Per-Bot RiskManager (bot/core/risk_manager.py)
 
 ```
 RiskManager
@@ -252,6 +279,65 @@ RiskManager
 └─ STATE: current_balance, peak_balance, daily_loss, is_halted, halt_reason
 ```
 
+### 7.2 PortfolioRiskManager (bot/core/portfolio_risk_manager.py)
+
+Управляет общим капиталом, распределённым между N ботами:
+
+```
+SharedCapitalPool
+├─ allocate(bot_name, amount) → bool
+│   ├─ Проверить глобальный лимит: total_allocated + amount <= total * max_utilization_pct
+│   ├─ Проверить per-bot лимит: allocated[bot] + amount <= bot_max_limit
+│   └─ Зарезервировать: allocated[bot] += amount
+├─ release(bot_name, amount)  — вернуть капитал, не уходить ниже 0
+├─ get_utilization() → float  — total_allocated / total_capital
+├─ get_available() → Decimal  — max_allowed - total_allocated
+└─ update_deployed(bot_name, deployed_amount)  — фактически использованный капитал
+
+PortfolioRiskManager
+├─ check_allocation(bot_name, amount, balance?, symbol?) → RiskCheckResult
+│   ├─ if is_portfolio_halted(): REJECTED_PORTFOLIO_HALTED
+│   ├─ if amount > balance * max_single_pair_pct: REJECTED_PAIR_LIMIT
+│   ├─ if pool.allocate() failed: REJECTED_EXPOSURE
+│   ├─ if symbol correlated with active: REJECTED_CORRELATION
+│   └─ else: APPROVED (но НЕ подтверждает аллокацию)
+├─ confirm_allocation(bot_name, amount, symbol?) — зафиксировать, добавить в _active_symbols
+├─ release_allocation(bot_name, amount, symbol?) — освободить, убрать из _active_symbols
+├─ update_all_balances(balances: dict[str, Decimal])
+│   ├─ Обновить _peak_value = max(_peak_value, sum(balances))
+│   └─ if (peak - current) / peak >= stop_loss_pct: halt()
+├─ is_portfolio_halted() → bool
+├─ resume()  — сбросить halt (ручное вмешательство)
+├─ set_correlation(sym_a, sym_b, corr)  — переопределить дефолт
+└─ ВСТРОЕННЫЕ КОРРЕЛЯЦИИ: BTC↔ETH=0.85, BTC↔SOL=0.75, ETH↔SOL=0.70, ...
+```
+
+**RiskCheckStatus:** `APPROVED | REJECTED_EXPOSURE | REJECTED_PAIR_LIMIT | REJECTED_PORTFOLIO_HALTED | REJECTED_CORRELATION`
+
+**Интеграция:** `BotApplication.initialize()` создаёт один `PortfolioRiskManager` и передаёт его в каждый `BotOrchestrator`. Перед каждым ордером оркестратор вызывает `portfolio_rm.check_allocation()`.
+
+---
+
+## 7.3 PairTemplateManager (bot/config/pair_template.py)
+
+ATR-based автогенерация `BotConfig` для новых торговых пар:
+
+```
+PairTemplateManager.create_config(symbol, strategy, exchange_client, base_config)
+├─ fetch_ohlcv(symbol, "1h", limit=100) → DataFrame
+├─ Рассчитать ATR(14) = avg(True Range)
+├─ GridConfig:
+│   ├─ upper_price = current_price + 2 * ATR
+│   ├─ lower_price = current_price - 2 * ATR
+│   ├─ grid_levels = clamp(span / ATR, 5, 50)
+│   └─ amount_per_grid = из base_config
+└─ DCAConfig:
+    ├─ trigger_pct = 1.5 * ATR / current_price
+    └─ take_profit_pct = 3.0 * ATR / current_price
+```
+
+Используется в `_scanner_loop()` и Telegram-команде `/create_bot`.
+
 ---
 
 ## 8. Детектор рыночного режима (bot/orchestrator/market_regime.py)
@@ -260,19 +346,76 @@ RiskManager
 MarketRegimeDetector
 ├─ ИНДИКАТОРЫ: EMA(20,50), ADX, ATR%, BB, RSI, Volume Ratio
 ├─ РЕЖИМЫ (6 типов):
-│   ├─ TIGHT_RANGE:        ADX<18, ATR<1%   → Grid
-│   ├─ WIDE_RANGE:         ADX<18, ATR≥1%   → Grid
-│   ├─ QUIET_TRANSITION:   ADX 22-32, ATR<2% → Hold
-│   ├─ VOLATILE_TRANSITION: ADX 22-32, ATR≥2% → Reduce exposure
-│   ├─ BULL_TREND:         ADX>32, EMA20>EMA50 → TrendFollower/Hybrid
+│   ├─ TIGHT_RANGE:        ADX<18, ATR<1%    → GRID
+│   ├─ WIDE_RANGE:         ADX<18, ATR≥1%    → GRID
+│   ├─ QUIET_TRANSITION:   ADX 22-32, ATR<2%  → HOLD
+│   ├─ VOLATILE_TRANSITION: ADX 22-32, ATR≥2% → REDUCE_EXPOSURE
+│   ├─ BULL_TREND:         ADX>32, EMA20>EMA50 → HYBRID (Grid+DCA+TrendFollower)
 │   └─ BEAR_TREND:         ADX>32, EMA20<EMA50 → DCA
-├─ ГИСТЕРЕЗИС: ADX>32 → тренд, ADX<25 → выход из тренда, ADX<18 → флэт
-└─ ⚠️ АРХИТЕКТУРНЫЙ ДОЛГ: результат detect_market_regime() не читается в _main_loop
+└─ ГИСТЕРЕЗИС: ADX>32 → тренд, ADX<25 → выход из тренда, ADX<18 → флэт
+```
+
+Результат `RegimeAnalysis` используется в `_update_active_strategies()` живого бота
+и в `StrategyRouter` при бэктестинге (см. `bot/tests/backtesting/strategy_router.py`).
+
+---
+
+## 9. Конфигурация Multi-Pair (bot/config/schemas.py)
+
+```python
+class AutoTradeConfig(BaseModel):
+    enabled: bool = False                  # авто-торговля включена?
+    max_bots: int = 5                      # максимум одновременных ботов
+    min_confidence: float = 0.65           # минимальная уверенность режима
+    strategy_template: str = "hybrid"     # шаблон стратегии для новых пар
+    scanner: ScannerConfig = ...          # пары, интервал, min_volume_usdt
+
+class AppConfig(BaseModel):
+    ...
+    auto_trade: AutoTradeConfig = AutoTradeConfig()
+```
+
+**YAML-фрагмент:**
+```yaml
+auto_trade:
+  enabled: false
+  max_bots: 5
+  min_confidence: 0.65
+  strategy_template: hybrid
+  scanner:
+    pairs: ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+    interval_minutes: 15
+    min_volume_usdt: 5000000
 ```
 
 ---
 
-## 9. Event System (bot/orchestrator/events.py)
+## 10. Telegram-команды (bot/telegram/bot.py)
+
+### Существующие команды
+
+| Команда | Описание |
+|---------|----------|
+| `/status` | Статус всех ботов (режим, баланс, P&L) |
+| `/pause <name>` | Приостановить бота |
+| `/resume <name>` | Возобновить бота |
+| `/stop <name>` | Остановить бота |
+| `/emergency` | Экстренная остановка всех ботов |
+| `/balance` | Текущий баланс на бирже |
+| `/positions` | Открытые позиции |
+
+### Новые Multi-Pair команды (v3.0)
+
+| Команда | Описание |
+|---------|----------|
+| `/scan` | Запустить ручное сканирование, показать top-5 с режимом и рекомендацией |
+| `/create_bot <symbol> <strategy>` | Создать бота по ATR-шаблону (`strategy` = grid/dca/hybrid) |
+| `/delete_bot <name>` | Удалить бота (graceful stop) |
+| `/portfolio` | Суммарный P&L, экспозиция, распределение капитала, статус halt |
+
+---
+
+## 11. Event System (bot/orchestrator/events.py)
 
 ```
 Redis Pub/Sub: channel = "{bot_name}:events"
@@ -294,7 +437,7 @@ EventType:
 
 ---
 
-## 10. Полный поток данных: Рынок → Ордер
+## 12. Полный поток данных: Рынок → Ордер
 
 ```
 [каждые 5 сек] exchange.fetch_ticker(symbol)
@@ -338,7 +481,7 @@ EventType:
 
 ---
 
-## 11. Персистентность состояния
+## 13. Персистентность состояния
 
 ```
 save_state() / load_state()  [каждые 30 сек + при остановке]
@@ -356,7 +499,7 @@ save_state() / load_state()  [каждые 30 сек + при остановке
 
 ---
 
-## 12. Стек технологий
+## 14. Стек технологий
 
 | Компонент        | Технология                              |
 |------------------|-----------------------------------------|
@@ -369,5 +512,5 @@ save_state() / load_state()  [каждые 30 сек + при остановке
 | Мониторинг       | Prometheus + structlog                  |
 | Конфиг           | YAML (Pydantic validation)              |
 | Шифрование       | Fernet (API credentials)                |
-| Тесты            | Pytest + pytest-asyncio (1587 тестов)   |
+| Тесты            | Pytest + pytest-asyncio (1582+ тестов)  |
 | Деплой           | Docker Compose (volume mount bot/)      |

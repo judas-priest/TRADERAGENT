@@ -1,6 +1,6 @@
 # TRADERAGENT — Архитектура Backtesting Pipeline
 
-> Версия: v2.0 | Дата: 2026-02-28
+> Версия: v3.0 | Дата: 2026-02-28
 
 ---
 
@@ -15,10 +15,11 @@
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│  Подсистема 2: Multi-Strategy Backtesting Framework         │
+│  Подсистема 2: Multi-Strategy Backtesting Framework V2.0    │
 │  Путь: bot/tests/backtesting/                               │
-│  Статус: IN DEVELOPMENT (Phase 2)                           │
-│  Цель: DCA, Trend Follower, SMC + режимный фильтр           │
+│  Статус: PRODUCTION-READY (V2.0)                            │
+│  Цель: Grid+DCA+TF+SMC, режимный маршрутизатор,             │
+│        портфельный бэктест N пар, unified оптимизация       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -31,7 +32,8 @@ scripts/
 ├── run_grid_backtest.py              — одиночный бэктест (одна пара)
 ├── run_grid_backtest_all.py          — batch: 45 пар, все таймфреймы
 ├── run_multi_strategy_backtest.py    — Grid + другие стратегии
-└── run_dca_tf_smc_pipeline.py        — Phase 1-5: полный pipeline
+├── run_dca_tf_smc_pipeline.py        — Phase 1-5: полный pipeline (V1)
+└── run_backtest_v2.py                — V2.0: Orchestrator + Portfolio pipeline
 
 services/backtesting/src/grid_backtester/
 ├── api/routes.py                     — FastAPI endpoints
@@ -47,8 +49,17 @@ python scripts/run_grid_backtest_all.py --workers 14 --last-candles 4320
 # Одна пара
 python scripts/run_grid_backtest.py BTCUSDT
 
-# Multi-strategy pipeline
+# Multi-strategy pipeline (V1)
 python scripts/run_dca_tf_smc_pipeline.py --data-dir data/historical/ --workers 14
+
+# V2.0 Pipeline — одна пара
+python scripts/run_backtest_v2.py --mode single --symbol BTCUSDT --workers 8
+
+# V2.0 Pipeline — несколько пар
+python scripts/run_backtest_v2.py --mode multi --symbols BTC,ETH,SOL --workers 8
+
+# V2.0 Pipeline — авто-выбор top-N
+python scripts/run_backtest_v2.py --mode auto --top-n 10 --workers 8
 
 # API (FastAPI)
 uvicorn services/backtesting/src/grid_backtester/api/app:app --reload
@@ -244,20 +255,17 @@ GridBacktestReporter (engine/reporter.py)
 
 ## 4. Multi-Strategy Backtesting Framework
 
-### 4.1 Pipeline (5 фаз)
+### 4.1 Pipeline V1 (5 фаз) — scripts/run_dca_tf_smc_pipeline.py
 
 ```
-scripts/run_dca_tf_smc_pipeline.py
-
-Phase 1: BASELINE (завершено, Session 37)
+Phase 1: BASELINE (завершено)
 ├─ Одиночный прогон каждой стратегии без оптимизации
 ├─ 45 пар × 3 стратегии (DCA, TF, SMC) = 135 задач
 └─ Результат: phase1_baseline.json
 
-Phase 2: OPTIMIZATION (приостановлено)
+Phase 2: OPTIMIZATION
 ├─ Grid-search параметров для DCA и TrendFollower
-├─ Проблема: без смарт-направления ≈ 24 часа вычислений
-└─ Нужно: Bayesian optimization или предварительная фильтрация
+└─ Параллелизм: ProcessPoolExecutor (max_workers)
 
 Phase 3: STRESS TESTING
 └─ Запуск лучших конфигов на самых волатильных периодах
@@ -267,6 +275,25 @@ Phase 4: WALK-FORWARD ANALYSIS
 
 Phase 5: PARAMETER SENSITIVITY + MONTE CARLO
 └─ Оценка устойчивости параметров к шуму
+```
+
+### 4.1b Pipeline V2.0 — scripts/run_backtest_v2.py
+
+```
+Phase 1: BASELINE (OrchestratorBacktestEngine, без оптимизации)
+├─ BacktestOrchestratorEngine.run(data, cfg) для каждой пары
+└─ Результат: phase1_orchestrator.json
+
+Phase 2: OPTIMIZATION (ParameterOptimizer.optimize_orchestrator)
+├─ Unified param_grid: router_cooldown_bars, dca_*, tf_*, risk_*
+└─ Результат: best_params per-pair
+
+Phase 3: PORTFOLIO (PortfolioBacktestEngine с лучшими параметрами)
+├─ Одновременный бэктест N пар, общий капитал
+└─ Результат: portfolio_result.json
+
+Phase 4: ROBUSTNESS (Walk-Forward + Stress + Monte Carlo)
+└─ Оценка устойчивости к разным периодам и шуму
 ```
 
 ### 4.2 Движок multi-timeframe (MultiTimeframeBacktestEngine)
@@ -301,14 +328,17 @@ MultiTimeframeBacktestEngine.run(strategy: BaseStrategy, data: MultiTimeframeDat
   return BacktestResult {metrics, trade_history, equity_curve, regime_history}
 ```
 
-### 4.3 Компоненты
+### 4.3 Компоненты V1
 
 ```
 DCABacktester (bot/strategies/dca/dca_backtester.py)
 └─ Симуляция жизненного цикла DCA-сделки: entry → safety orders → exit
 
 ParameterOptimizer (bot/tests/backtesting/optimization.py)
-└─ Grid search + random search параметров стратегий
+├─ two_phase_optimize()     — Grid search + random search (V1)
+├─ optimize_orchestrator()  — Unified grid-search для OrchestratorBacktestConfig (V2.0)
+│   └─ _apply_orchestrator_params(): prefix-routing (dca_*, tf_*, grid_*, smc_*)
+└─ Параллелизм: asyncio.gather() + ProcessPoolExecutor
 
 StressTester (bot/tests/backtesting/stress_testing.py)
 └─ Поиск волатильных периодов (volatility > threshold) + бэктест
@@ -321,6 +351,131 @@ MonteCarloAnalysis (bot/tests/backtesting/monte_carlo.py)
 
 SensitivityAnalysis (bot/tests/backtesting/sensitivity.py)
 └─ Изменение параметра на ±X% → влияние на метрики
+```
+
+---
+
+## 4b. Backtesting V2.0 — Orchestrator + Portfolio
+
+### 4b.1 StrategyRouter (bot/tests/backtesting/strategy_router.py)
+
+Зеркало `BotOrchestrator._update_active_strategies()` для бэктеста:
+
+```
+_REGIME_TO_STRATEGIES:
+    GRID:            {"grid"}
+    DCA:             {"dca"}
+    HYBRID:          {"grid", "dca"}
+    HOLD:            {}
+    REDUCE_EXPOSURE: {}
+    → BULL_TREND + enable_trend_follower: добавить "trend_follower"
+    → BULL_TREND + enable_smc:            добавить "smc"
+
+StrategyRouter(cooldown_bars=60, enable_trend_follower=True, enable_smc=False)
+│
+├── on_bar(regime: RegimeAnalysis | None, current_bar: int) → StrategyRouterEvent
+│   ├─ regime=None → вернуть bootstrap-набор без записи в историю
+│   ├─ Вычислить target_set по _REGIME_TO_STRATEGIES
+│   ├─ if current_bar - _last_switch_bar < cooldown_bars: заблокировать
+│   └─ иначе: обновить _active_strategies, записать в switch_history
+│
+├── .switch_history: list[dict]  — [{bar, from, to, regime}]
+└── .reset()  — сбросить в bootstrap-состояние
+
+StrategyRouterEvent:
+    active_strategies: set[str]
+    activated: set[str]
+    deactivated: set[str]
+    cooldown_remaining: int
+```
+
+Bootstrap-состояние: `{"grid", "dca", "trend_follower", "smc"}` — первый `on_bar()` всегда переключает к реальному набору.
+
+### 4b.2 BacktestOrchestratorEngine (bot/tests/backtesting/orchestrator_engine.py)
+
+```
+OrchestratorBacktestConfig:
+    symbol: str = "BTC/USDT"
+    initial_balance: Decimal = 10000
+    warmup_bars: int = 14400
+    enable_grid/dca/trend_follower: bool = True
+    enable_smc: bool = False
+    enable_strategy_router: bool = True
+    router_cooldown_bars: int = 60
+    regime_check_every_n: int = 12      # 12 M5-баров = 1 час
+    grid_params/dca_params/tf_params/smc_params: dict = {}
+    enable_risk_manager: bool = True
+    max_position_size_pct: float = 0.25
+    max_daily_loss_pct: float = 0.05
+
+BacktestOrchestratorEngine
+├─ register_strategy_factory(name, factory_fn) — factory(params) → BaseStrategy
+├─ run(data: MultiTimeframeData, config: OrchestratorBacktestConfig) → OrchestratorBacktestResult
+│   ЦИКЛ (каждый M5-бар после warmup):
+│   1. Каждые regime_check_every_n баров: MarketRegimeDetector.analyze(df_h1)
+│   2. strategy_router.on_bar(regime, bar_idx) → active_set
+│   3. Для каждой активной стратегии:
+│      ├─ strategy.generate_signal(df, balance) → signal | None
+│      ├─ risk_manager.check_trade(value, ...) → OK/REJECT
+│      └─ strategy.open_position(signal, size) / update_positions()
+│   4. Обновить equity_curve
+│   └─ Собрать OrchestratorBacktestResult
+
+OrchestratorBacktestResult(BacktestResult):
+    strategy_switches: list[dict]       # [{bar, from_strategies, to_strategies, regime}]
+    per_strategy_pnl: dict[str, float]  # {'grid': .., 'dca': .., 'trend_follower': ..}
+    regime_routing_stats: dict          # сколько баров каждый режим
+    cooldown_events: int                # сколько раз cooldown заблокировал переключение
+    to_dict() → включает секцию "orchestrator"
+```
+
+### 4b.3 PortfolioBacktestEngine (bot/tests/backtesting/portfolio_engine.py)
+
+```
+PortfolioBacktestConfig:
+    symbols: list[str]
+    initial_capital: Decimal
+    max_single_pair_pct: float = 0.25
+    max_total_exposure_pct: float = 0.80
+    portfolio_stop_loss_pct: float = 0.15
+    per_pair_config: OrchestratorBacktestConfig  # шаблон
+
+PortfolioBacktestEngine
+└─ run(data_map: dict[str, MultiTimeframeData], config) → PortfolioBacktestResult
+    ├─ per_pair_capital = initial_capital * min(max_single_pair_pct, 1/n_pairs)
+    ├─ asyncio.gather() — параллельный запуск BacktestOrchestratorEngine для каждой пары
+    └─ Агрегация метрик
+
+PortfolioBacktestResult:
+    per_pair_results: dict[str, OrchestratorBacktestResult]
+    portfolio_total_return_pct: float
+    portfolio_sharpe: float
+    portfolio_max_drawdown_pct: float
+    portfolio_equity_curve: list[dict]
+    pair_correlation_matrix: dict[str, dict[str, float]]  # Pearson
+    avg_pair_correlation: float
+    best_pair: str
+    worst_pair: str
+    pairs_profitable: int
+    to_dict() → полный JSON-отчёт
+```
+
+### 4b.4 Unified param_grid для optimize_orchestrator
+
+```python
+ORCHESTRATOR_PARAM_GRID = {
+    # Маршрутизатор
+    "router_cooldown_bars": [30, 60, 120],
+    "regime_check_every_n": [6, 12, 24],
+    # DCA (prefix dca_ → dca_params)
+    "dca_trigger_pct": [0.03, 0.05, 0.07],
+    "dca_tp_pct": [0.05, 0.08, 0.10],
+    # TrendFollower (prefix tf_ → tf_params)
+    "tf_ema_fast": [10, 15, 20],
+    "tf_tp_atr_mult": [1.5, 2.0, 2.5],
+    # Risk (top-level поля)
+    "max_position_size_pct": [0.15, 0.20, 0.25],
+}
 ```
 
 ---
@@ -417,6 +572,22 @@ class BacktestResult:
 
     trade_history: list[dict]
     equity_curve: list[dict]
+```
+
+### 5.4 OrchestratorBacktestResult (V2.0, расширяет BacktestResult)
+
+```python
+@dataclass
+class OrchestratorBacktestResult(BacktestResult):
+    # V2.0 extensions
+    strategy_switches: list[dict]       # [{bar, from_strategies, to_strategies, regime}]
+    per_strategy_pnl: dict[str, float]  # {'grid': .., 'dca': .., 'trend_follower': ..}
+    regime_routing_stats: dict          # {regime_name: bars_count}
+    cooldown_events: int                # сколько раз cooldown блокировал переключение
+    initial_balance: Decimal
+    final_balance: Decimal
+
+    def to_dict() → dict:              # включает секцию "orchestrator"
 ```
 
 ### 5.4 MultiTimeframeData
@@ -518,9 +689,10 @@ GET  /health
 
 | Проблема | Статус |
 |----------|--------|
-| Phase 2 без смарт-направления — ~24 часа вычислений | Нужен Bayesian / предфильтрация |
-| SMC показывает отрицательный Sharpe по всем парам | Параметр `swing_length` не совпадает с дефолтами |
-| "Insufficient data for structure analysis" в SMC | Несоответствие конфига и opt-grid |
+| Phase 2 V1 без смарт-направления — ~24 часа вычислений | ✅ V2.0 решает через `optimize_orchestrator()` с unified param_grid |
+| SMC показывает отрицательный Sharpe по всем парам | ✅ Исправлен: `swing_length` 50→10 по умолчанию, warmup_bars динамический |
+| "Insufficient data for structure analysis" в SMC | ✅ Исправлен через динамический `warmup_bars = max(swing_length*4, 100)` |
+| MarketRegimeDetector в бэктесте — не включена | ✅ Включена в V2.0: `StrategyRouter` активирует/деактивирует стратегии по режиму |
 | 7 пар отсутствуют (NEAR, APT, PEPE, WIF, BONK, SUI, SEI) | Нужно скачать исторические данные |
-| MarketRegimeDetector в бэктесте — поддержка есть, но не включена | Включить через enable_regime_filter |
 | Индикаторы пересчитываются для каждого trial | Нужен кэш в Parquet для ускорения |
+| PortfolioBacktestEngine: нет реальной синхронизации капитала по времени | Каждая пара независима; PortfolioRiskManager не интегрирован в backtest loop |
