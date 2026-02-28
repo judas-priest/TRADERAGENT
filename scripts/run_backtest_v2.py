@@ -173,7 +173,7 @@ def _load_data(
         # Use exact suffix match to avoid e.g. "*15m*.csv" matching "*5m*" pattern
         csv_files = [
             f for f in data_dir.glob(f"*{symbol}*.csv")
-            if f.stem.endswith("_5m") or f.stem.endswith("5m")
+            if f.stem.endswith("_5m")
         ]
         if csv_files:
             try:
