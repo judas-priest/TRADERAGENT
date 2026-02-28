@@ -404,12 +404,13 @@ class BacktestOrchestratorEngine:
             try:
                 strategy.close_position(pos_id, exit_reason, current_price)
                 if direction == SignalDirection.LONG:
-                    if simulator.balance.base >= amount:
+                    sell_amount = min(amount, simulator.balance.base)
+                    if sell_amount > Decimal("0"):
                         await simulator.create_order(
                             symbol=strategy.symbol if hasattr(strategy, "symbol") else "BTC/USDT",
                             order_type="market",
                             side="sell",
-                            amount=amount,
+                            amount=sell_amount,
                         )
                 else:
                     await simulator.create_order(
