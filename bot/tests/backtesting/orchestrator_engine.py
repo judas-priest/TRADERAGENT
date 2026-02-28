@@ -308,8 +308,9 @@ class BacktestOrchestratorEngine:
                 risk_manager.update_balance(portfolio_value)
                 if bars_since_warmup > 0 and bars_since_warmup % 288 == 0:
                     risk_manager.reset_daily_loss()
-                if risk_manager.is_halted:
-                    break
+                # In backtesting, do not break on RM halt — let existing
+                # positions complete their TP/SL exits. New entries are
+                # still blocked by check_trade() returning False.
 
             await asyncio.sleep(0)
 
