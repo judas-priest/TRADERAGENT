@@ -87,7 +87,6 @@ ORCHESTRATOR_PARAM_GRID: dict[str, list[Any]] = {
     "dca_tp_pct": [0.05, 0.08, 0.10],
     # TrendFollower sub-params
     "tf_ema_fast": [10, 15, 20],
-    "tf_tp_atr_mult": [1.5, 2.0, 2.5],
 }
 
 
@@ -120,6 +119,13 @@ def _make_strategy_factories(
 
         def _dca_factory(params: dict):
             merged = {**(dca_params or {}), **params}
+            # Map grid-search friendly names to DCAAdapter constructor names
+            trigger = merged.pop("trigger_pct", None)
+            tp = merged.pop("tp_pct", None)
+            if trigger is not None:
+                merged["price_deviation_pct"] = Decimal(str(trigger))
+            if tp is not None:
+                merged["take_profit_pct"] = Decimal(str(tp))
             return DCAAdapter(symbol=symbol, **merged)
 
         factories["grid"] = _grid_factory
@@ -134,8 +140,7 @@ def _make_strategy_factories(
         def _tf_factory(params: dict):
             merged = {**(tf_params or {}), **params}
             ema_fast = merged.pop("ema_fast", 20)
-            tp_atr = merged.pop("tp_atr_mult", 2.0)
-            cfg = TrendFollowerConfig(ema_fast=ema_fast, tp_atr_multiplier=tp_atr)
+            cfg = TrendFollowerConfig(ema_fast_period=ema_fast)
             return TrendFollowerAdapter(symbol=symbol, config=cfg)
 
         factories["trend_follower"] = _tf_factory

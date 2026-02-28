@@ -98,16 +98,17 @@ class GridAdapter(BaseStrategy):
         upper = current + half_range
         lower = current - half_range
 
-        # Initialize or re-initialize grid engine
-        self._grid_engine = GridEngine(
-            symbol=self._symbol,
-            upper_price=upper,
-            lower_price=lower,
-            grid_levels=self._num_levels,
-            amount_per_grid=self._amount_per_grid,
-            profit_per_grid=self._profit_per_grid,
-        )
-        self._grid_levels = self._grid_engine.calculate_grid_levels()
+        # Initialize grid engine only once so levels stay fixed
+        if self._grid_engine is None:
+            self._grid_engine = GridEngine(
+                symbol=self._symbol,
+                upper_price=upper,
+                lower_price=lower,
+                grid_levels=self._num_levels,
+                amount_per_grid=self._amount_per_grid,
+                profit_per_grid=self._profit_per_grid,
+            )
+            self._grid_levels = self._grid_engine.calculate_grid_levels()
 
         # Trend: grid works best in sideways
         price_change = (close[-1] - close[0]) / close[0] if close[0] > 0 else 0.0
