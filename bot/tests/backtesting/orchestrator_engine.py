@@ -69,9 +69,12 @@ class OrchestratorBacktestConfig:
     smc_params: dict[str, Any] = field(default_factory=dict)
 
     # Risk management
+    # Note: max_daily_loss_pct uses *cumulative* downward movement tracking in
+    # RiskManager.update_balance(), so set generously (0.25 = 25%) to avoid
+    # false halts from normal intraday price oscillations.
     enable_risk_manager: bool = True
     max_position_size_pct: float = 0.25
-    max_daily_loss_pct: float = 0.05
+    max_daily_loss_pct: float = 0.25
     portfolio_stop_loss_pct: float = 0.15
 
     # Position sizing (fraction of balance per signal)
