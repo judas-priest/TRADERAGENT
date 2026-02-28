@@ -218,7 +218,7 @@ class SMCConfigSchema(BaseModel):
 
     # Market Structure
     swing_length: int = Field(
-        default=50,
+        default=10,
         ge=5,
         le=200,
         description="Candles for swing high/low identification",

@@ -208,7 +208,7 @@ class TestSMCConfigDataclass:
         assert cfg.entry_timeframe == "15m"
         assert cfg.risk_per_trade == Decimal("0.02")
         assert cfg.min_risk_reward == Decimal("2.5")
-        assert cfg.swing_length == 50
+        assert cfg.swing_length == 10
         assert cfg.close_break is True
         assert cfg.close_mitigation is False
         assert cfg.join_consecutive_fvg is False
@@ -233,6 +233,16 @@ class TestSMCConfigDataclass:
     def test_default_instance(self):
         assert DEFAULT_SMC_CONFIG is not None
         assert isinstance(DEFAULT_SMC_CONFIG, SMCConfig)
+
+    def test_warmup_bars_dynamic_default(self):
+        """warmup_bars auto-computed as max(swing_length * 4, 100) when left at default."""
+        cfg = SMCConfig()  # swing_length=10 → 10*4=40 < 100, keep 100
+        assert cfg.warmup_bars == 100
+
+    def test_warmup_bars_dynamic_large_swing(self):
+        """warmup_bars scales up for large swing_length values."""
+        cfg = SMCConfig(swing_length=50)  # 50*4=200 > 100
+        assert cfg.warmup_bars == 200
 
 
 class TestAdaptiveSwingLength:
