@@ -78,6 +78,11 @@ class OrchestratorBacktestConfig:
     risk_per_trade: Decimal = Decimal("0.02")
     max_position_pct: Decimal = Decimal("0.25")
 
+    # Exchange fee simulation — aligned with TradingCoreConfig defaults (Bybit VIP0)
+    maker_fee: Decimal = Decimal("0.0002")    # 0.02 % (was 0.1 % in old MarketSimulator default)
+    taker_fee: Decimal = Decimal("0.00055")   # 0.055 %
+    slippage: Decimal = Decimal("0.0003")     # 0.03 % average slippage
+
 
 @dataclass
 class OrchestratorBacktestResult(BacktestResult):
@@ -156,10 +161,12 @@ class BacktestOrchestratorEngine:
                 "register_strategy_factory() or pass strategies via config."
             )
 
-        # Simulator
+        # Simulator — use fees from config (Bybit VIP0 by default)
         simulator = MarketSimulator(
             symbol=config.symbol,
             initial_balance_quote=config.initial_balance,
+            maker_fee=config.maker_fee,
+            taker_fee=config.taker_fee,
         )
 
         # Regime detector
