@@ -61,15 +61,15 @@ jobs:
 
       - name: Run unit tests
         run: |
-          pytest bot/tests/unit/ -v --cov=bot --cov-report=xml --cov-report=term
+          pytest tests/core/ tests/strategies/ tests/orchestrator/ tests/api/ tests/database/ tests/scanner/ -v --cov=bot --cov-report=xml --cov-report=term
 
       - name: Run integration tests
         run: |
-          pytest bot/tests/integration/ -v
+          pytest tests/integration/ -v
 
       - name: Run backtesting tests
         run: |
-          pytest bot/tests/backtesting/ -v
+          pytest tests/backtesting/ -v
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
