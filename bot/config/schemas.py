@@ -456,6 +456,25 @@ class ScannerConfig(BaseModel):
     )
 
 
+class AutoTradeConfig(BaseModel):
+    """Configuration for automatic multi-pair trading."""
+
+    enabled: bool = Field(default=False, description="Enable automatic pair selection and trading")
+    max_bots: int = Field(
+        default=5, ge=1, le=50, description="Maximum number of simultaneously running bots"
+    )
+    min_confidence: float = Field(
+        default=0.65, ge=0.0, le=1.0, description="Minimum regime confidence to start a bot"
+    )
+    strategy_template: str = Field(
+        default="hybrid",
+        description="Strategy template for auto-created bots (grid/dca/hybrid/trend_follower)",
+    )
+    scanner: ScannerConfig = Field(
+        default_factory=ScannerConfig, description="Market scanner configuration"
+    )
+
+
 class AppConfig(BaseModel):
     """Application-wide configuration"""
 
@@ -482,6 +501,11 @@ class AppConfig(BaseModel):
 
     # Scanner
     scanner: ScannerConfig = Field(default_factory=ScannerConfig, description="Market scanner configuration")
+
+    # Auto-trade (multi-pair automation)
+    auto_trade: AutoTradeConfig = Field(
+        default_factory=AutoTradeConfig, description="Automatic multi-pair trading configuration"
+    )
 
     # Bots
     bots: list[BotConfig] = Field(default_factory=list, description="Bot configurations")

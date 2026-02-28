@@ -41,6 +41,15 @@ class BotApplication:
         self._shutdown_event: asyncio.Event = asyncio.Event()
         self.running = False
 
+        # Multi-pair / auto-trade components (set in initialize() if enabled)
+        self._scanner_task: asyncio.Task | None = None
+        self._portfolio_risk_manager = None  # PortfolioRiskManager
+        self._pair_template_manager = None   # PairTemplateManager
+        self._scanner = None                  # MarketScanner
+        self._main_config = None              # cached AppConfig
+        self._redis_url: str = "redis://localhost:6379"
+        self._main_exchange_client = None     # shared exchange client for scanner
+
     async def initialize(self) -> None:
         """Initialize all components."""
         logger.info("initializing_bot_application")
@@ -170,7 +179,253 @@ class BotApplication:
         else:
             logger.warning("telegram_bot_not_configured")
 
+        # Cache config and redis URL for dynamic bot lifecycle
+        self._main_config = main_config
+        self._redis_url = redis_url
+
+        # Initialize portfolio risk manager
+        try:
+            from bot.core.portfolio_risk_manager import PortfolioRiskManager
+            from decimal import Decimal
+            # Use total capital as sum of all initial bot allocations (10k default)
+            total_cap = Decimal("10000")
+            self._portfolio_risk_manager = PortfolioRiskManager(total_capital=total_cap)
+        except Exception as e:
+            logger.warning("portfolio_risk_manager_init_failed", error=str(e))
+
+        # Initialize auto-trade scanner if enabled
+        if main_config.auto_trade.enabled:
+            try:
+                from bot.config.pair_template import PairTemplateManager
+                from bot.orchestrator.market_scanner import MarketScanner
+
+                self._pair_template_manager = PairTemplateManager()
+
+                # Use the first exchange client as the scanner client
+                if self.orchestrators:
+                    first_orch = next(iter(self.orchestrators.values()))
+                    self._main_exchange_client = first_orch._exchange_client
+                    self._scanner = MarketScanner(
+                        exchange_client=self._main_exchange_client,
+                        config=main_config.auto_trade.scanner,
+                    )
+                    self._scanner_task = asyncio.create_task(self._scanner_loop())
+                    logger.info("auto_trade_scanner_started", max_bots=main_config.auto_trade.max_bots)
+            except Exception as e:
+                logger.warning("auto_trade_scanner_init_failed", error=str(e))
+
         logger.info("bot_application_initialized")
+
+    # ------------------------------------------------------------------
+    # Dynamic bot lifecycle (Multi-Pair / Auto-Trade)
+    # ------------------------------------------------------------------
+
+    async def add_bot(self, bot_config) -> BotOrchestrator | None:
+        """
+        Dynamically create, initialise, and start a new BotOrchestrator.
+
+        Args:
+            bot_config: A BotConfig instance for the new bot.
+
+        Returns:
+            The started BotOrchestrator, or None if initialisation failed.
+        """
+        bot_name = bot_config.name
+        if bot_name in self.orchestrators:
+            logger.warning("add_bot_duplicate", bot_name=bot_name)
+            return self.orchestrators[bot_name]
+
+        try:
+            credentials = await self.db_manager.get_credentials_by_name(
+                bot_config.exchange.credentials_name
+            )
+            if not credentials:
+                logger.error(
+                    "add_bot_credentials_not_found",
+                    bot_name=bot_name,
+                    credentials_name=bot_config.exchange.credentials_name,
+                )
+                return None
+
+            from cryptography.fernet import Fernet
+
+            encryption_key = os.getenv(
+                "ENCRYPTION_KEY",
+                self._main_config.encryption_key if self._main_config else "",
+            )
+            fernet = Fernet(encryption_key.encode())
+            api_key = fernet.decrypt(credentials.api_key_encrypted.encode()).decode()
+            api_secret = fernet.decrypt(credentials.api_secret_encrypted.encode()).decode()
+            password = None
+            if credentials.password_encrypted:
+                password = fernet.decrypt(credentials.password_encrypted.encode()).decode()
+
+            if bot_config.exchange.exchange_id == "bybit" and bot_config.exchange.sandbox:
+                exchange_client = ByBitDirectClient(
+                    api_key=api_key,
+                    api_secret=api_secret,
+                    testnet=True,
+                    market_type="linear",
+                )
+            else:
+                exchange_client = ExchangeAPIClient(
+                    exchange_id=bot_config.exchange.exchange_id,
+                    api_key=api_key,
+                    api_secret=api_secret,
+                    password=password,
+                    sandbox=bot_config.exchange.sandbox,
+                )
+            await exchange_client.initialize()
+
+            orchestrator = BotOrchestrator(
+                bot_config=bot_config,
+                exchange_client=exchange_client,
+                db_manager=self.db_manager,
+                redis_url=self._redis_url,
+            )
+            await orchestrator.initialize()
+            await orchestrator.start()
+
+            self.orchestrators[bot_name] = orchestrator
+
+            # Update metrics collector to include new bot
+            if self.metrics_collector:
+                self.metrics_collector.orchestrators = self.orchestrators
+
+            # Notify Telegram
+            if self.telegram_bot:
+                try:
+                    await self.telegram_bot._broadcast(
+                        f"Bot started: {bot_name} ({bot_config.symbol})"
+                    )
+                except Exception:
+                    pass
+
+            logger.info("bot_added", bot_name=bot_name, symbol=bot_config.symbol)
+            return orchestrator
+
+        except Exception as e:
+            logger.error("add_bot_failed", bot_name=bot_name, error=str(e), exc_info=True)
+            return None
+
+    async def remove_bot(self, bot_name: str) -> None:
+        """
+        Gracefully stop and remove a BotOrchestrator.
+
+        Args:
+            bot_name: Name of the bot to remove.
+        """
+        orchestrator = self.orchestrators.pop(bot_name, None)
+        if orchestrator is None:
+            logger.warning("remove_bot_not_found", bot_name=bot_name)
+            return
+
+        try:
+            await orchestrator.stop()
+            await orchestrator.cleanup()
+        except Exception as e:
+            logger.error("remove_bot_stop_failed", bot_name=bot_name, error=str(e))
+
+        # Release portfolio risk manager allocation
+        if self._portfolio_risk_manager:
+            try:
+                self._portfolio_risk_manager.release_allocation(bot_name, amount=0)
+            except Exception:
+                pass
+
+        # Update metrics collector
+        if self.metrics_collector:
+            self.metrics_collector.orchestrators = self.orchestrators
+
+        # Notify Telegram
+        if self.telegram_bot:
+            try:
+                await self.telegram_bot._broadcast(f"Bot removed: {bot_name}")
+            except Exception:
+                pass
+
+        logger.info("bot_removed", bot_name=bot_name)
+
+    async def _scanner_loop(self) -> None:
+        """
+        Background task that periodically scans the market for top pairs
+        and adds/removes bots accordingly.
+
+        Runs every auto_trade.scanner.interval_minutes minutes.
+        """
+        if not self._main_config or not self._scanner:
+            return
+
+        auto_cfg = self._main_config.auto_trade
+        interval_secs = auto_cfg.scanner.interval_minutes * 60
+
+        logger.info(
+            "scanner_loop_started",
+            interval_minutes=auto_cfg.scanner.interval_minutes,
+            max_bots=auto_cfg.max_bots,
+        )
+
+        while self.running:
+            try:
+                await asyncio.sleep(interval_secs)
+                if not self.running:
+                    break
+
+                logger.info("scanner_loop_scanning")
+                scan_results = await self._scanner.scan()
+
+                # Determine which symbols to trade (top-N by confidence)
+                top = [
+                    r for r in scan_results
+                    if r.confidence >= auto_cfg.min_confidence
+                ][: auto_cfg.max_bots]
+
+                top_symbols = {r.symbol for r in top}
+
+                # Remove bots whose symbol is no longer in top
+                auto_bot_names = [
+                    name for name in list(self.orchestrators.keys())
+                    if name.startswith("auto_")
+                ]
+                for bot_name in auto_bot_names:
+                    orch = self.orchestrators.get(bot_name)
+                    if orch and hasattr(orch, "bot_config"):
+                        if orch.bot_config.symbol not in top_symbols:
+                            logger.info("scanner_removing_bot", bot_name=bot_name)
+                            await self.remove_bot(bot_name)
+
+                # Add bots for new top symbols
+                current_count = len(self.orchestrators)
+                for scan_result in top:
+                    if current_count >= auto_cfg.max_bots:
+                        break
+                    symbol = scan_result.symbol
+                    expected_name = f"auto_{symbol.replace('/', '_')}_{auto_cfg.strategy_template}"
+                    if expected_name in self.orchestrators:
+                        continue
+                    if not self._pair_template_manager or not self._main_config.bots:
+                        continue
+                    try:
+                        base_cfg = self._main_config.bots[0]
+                        new_cfg = await self._pair_template_manager.create_config(
+                            symbol=symbol,
+                            strategy=auto_cfg.strategy_template,
+                            exchange_client=self._main_exchange_client,
+                            base_config=base_cfg,
+                        )
+                        added = await self.add_bot(new_cfg)
+                        if added:
+                            current_count += 1
+                    except Exception as e:
+                        logger.error("scanner_add_bot_failed", symbol=symbol, error=str(e))
+
+            except asyncio.CancelledError:
+                logger.info("scanner_loop_cancelled")
+                break
+            except Exception as e:
+                logger.error("scanner_loop_error", error=str(e), exc_info=True)
+
+        logger.info("scanner_loop_stopped")
 
     def _setup_alert_telegram_bridge(self, allowed_chat_ids: list[int]) -> None:
         """Register AlertHandler callback that forwards alerts to Telegram."""
@@ -248,6 +503,14 @@ class BotApplication:
         logger.info("stopping_bot_application")
         self.running = False
         self._shutdown_event.set()
+
+        # Cancel scanner loop
+        if self._scanner_task and not self._scanner_task.done():
+            self._scanner_task.cancel()
+            try:
+                await self._scanner_task
+            except asyncio.CancelledError:
+                pass
 
         # Stop metrics collector
         if self.metrics_collector:
