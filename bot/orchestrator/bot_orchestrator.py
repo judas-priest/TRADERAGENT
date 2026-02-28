@@ -36,6 +36,7 @@ from bot.orchestrator.strategy_registry import (
 from bot.strategies.base import SignalDirection as BaseSignalDirection
 from bot.strategies.dca.dca_signal_generator import MarketState
 from bot.strategies.grid.grid_risk_manager import GridRiskManager
+from bot.core.trading_core import HybridCoordinator, TradingCore, TradingCoreConfig
 from bot.strategies.hybrid.hybrid_config import HybridConfig, HybridMode
 from bot.strategies.hybrid.hybrid_strategy import HybridStrategy
 from bot.strategies.smc.config import SMCConfig
@@ -151,6 +152,16 @@ class BotOrchestrator:
         # Manual strategy lock (prevents auto-switching when locked)
         self._strategy_locked: bool = False
         self._locked_strategies: set[str] | None = None
+
+        # Unified TradingCore kernel — shared config/coordinator with backtest engine
+        self._trading_core: TradingCore = TradingCore.from_config(
+            TradingCoreConfig(
+                symbol=str(getattr(bot_config, "symbol", "BTC/USDT")),
+                cooldown_seconds=int(
+                    getattr(bot_config, "strategy_switch_cooldown_seconds", 600)
+                ),
+            )
+        )
 
         # Set health callbacks
         self.health_monitor.set_unhealthy_callback(self._on_strategy_unhealthy)
@@ -886,8 +897,8 @@ class BotOrchestrator:
         logger.info("price_monitor_stopped")
 
     async def _process_hybrid_logic(self) -> None:
-        """Delegate Grid/DCA execution to HybridStrategy coordinator."""
-        if not self.hybrid_strategy or not self.current_price:
+        """Delegate Grid/DCA execution to HybridCoordinator (unified kernel)."""
+        if not self.current_price:
             return
 
         # Extract ADX from regime analysis if available
@@ -895,47 +906,48 @@ class BotOrchestrator:
         if self._current_regime and hasattr(self._current_regime, "adx"):
             adx = self._current_regime.adx  # type: ignore[attr-defined]
 
-        market_state = MarketState(current_price=self.current_price, adx=adx)
+        # Use TradingCore.hybrid_coordinator for the routing decision
+        # (stateless, identical logic to what BacktestOrchestratorEngine uses)
+        coordinator = self._trading_core.hybrid_coordinator
+        decision = coordinator.evaluate(adx=adx, current_price=self.current_price)
 
-        try:
-            action = self.hybrid_strategy.evaluate(market_state, adx=adx)
-        except Exception as e:
-            logger.error("hybrid_evaluate_failed", error=str(e))
-            # Fallback: run both independently
+        # Cross-check with HybridStrategy for transition tracking (legacy)
+        if self.hybrid_strategy:
+            market_state = MarketState(current_price=self.current_price, adx=adx)
+            try:
+                action = self.hybrid_strategy.evaluate(market_state, adx=adx)
+                if action.transition_triggered:
+                    await self._publish_event(
+                        EventType.HYBRID_TRANSITION,
+                        {
+                            "from_mode": (
+                                action.transition_event.from_mode.value
+                                if action.transition_event
+                                else None
+                            ),
+                            "to_mode": decision.mode.value,
+                            "reason": decision.reason,
+                        },
+                    )
+                    logger.info(
+                        "hybrid_mode_transition",
+                        mode=decision.mode.value,
+                        reason=decision.reason,
+                    )
+            except Exception as e:
+                logger.warning("hybrid_strategy_evaluate_failed", error=str(e))
+
+        # Route execution based on coordinator decision
+        if decision.run_grid and decision.run_dca:
             await self._process_grid_orders()
             await self._process_dca_logic()
-            return
-
-        mode = action.mode
-
-        if action.transition_triggered:
-            await self._publish_event(
-                EventType.HYBRID_TRANSITION,
-                {
-                    "from_mode": (
-                        action.transition_event.from_mode.value
-                        if action.transition_event
-                        else None
-                    ),
-                    "to_mode": mode.value,
-                    "reason": (
-                        action.transition_event.reason if action.transition_event else "unknown"
-                    ),
-                },
-            )
-            logger.info(
-                "hybrid_mode_transition",
-                mode=mode.value,
-            )
-
-        if mode == HybridMode.GRID_ONLY:
+        elif decision.run_grid:
             await self._process_grid_orders()
-        elif mode == HybridMode.DCA_ACTIVE:
+        elif decision.run_dca:
             await self._process_dca_logic()
         else:
-            # TRANSITIONING or BOTH_ACTIVE — run both
-            await self._process_grid_orders()
-            await self._process_dca_logic()
+            # No-op: neither grid nor DCA (shouldn't happen with current coordinator)
+            logger.debug("hybrid_no_active_strategy", adx=adx, reason=decision.reason)
 
     async def _process_grid_orders(self) -> None:
         """Process grid order fills and rebalancing."""
